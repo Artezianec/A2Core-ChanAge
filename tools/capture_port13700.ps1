@@ -37,7 +37,7 @@ $discoveryPort = if ($MovementCues -or $InGame) { 13328 } else { 13700 }
 if ($InGame) { $MultiLayer = $true }
 
 $gameIds = Get-AionGameProcessIds
-$discovered = Discover-AionServerAddresses -RemotePort $discoveryPort -ProcessIds $gameIds
+$discovered = Discover-AionServerAddresses -RemotePort $discoveryPort -ProcessIds $gameIds -AllGameTraffic:($MovementCues -or $InGame)
 if (-not $ServerAddress -and $discovered.Count -ne 1) {
     $screen = if ($discoveryPort -eq 13328) { 'inside the game' } else { 'at login (or use -InGame inside the game)' }
     throw "Could not identify one AION2 IPv4 server on port $discoveryPort. Keep AION2 open $screen, or supply -ServerAddress with an observed server IP."

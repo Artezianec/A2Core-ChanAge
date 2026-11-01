@@ -50,6 +50,7 @@ static class MapEventChecks
         public void Progress(MapEventRun run) => Progressed++;
         public void Unsupported(MapEventRun run, string what) => Call($"Unsupported {what}");
         public bool QuestStepActive(int questId, int step) => QuestSteps.Contains((questId, step));
+        public bool QuestComplete(int questId) => false;
         public bool MapEventStartAllowed(MapEventDefinition definition) => true;
         public bool NpcInCombat(string spawner) => false;
         public bool SpawnerAlive(string spawner) => !Dead.Contains(spawner);

@@ -30,6 +30,34 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     public (int Level, long Exp) Progress { get; set; } = (1, 0);
     public Dictionary<int, QuickSlotRecord> QuickSlots { get; } = [];
     public Dictionary<string, JsonElement> Settings { get; } = [];
+    public Dictionary<Guid, ContainerSlotExtendCounts> ContainerExtends { get; } = [];
+
+    public Task<ContainerSlotExtendCounts> ContainerSlotExtendsAsync(Guid character, CancellationToken ct) =>
+        Task.FromResult(ContainerExtends.GetValueOrDefault(character, ContainerSlotExtendCounts.Zero));
+
+    public Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendInventoryByGoldAsync(Guid character, int costIdx, CancellationToken ct)
+    {
+        const int maxGoldExt = 10;
+        long[] costs = [5_000, 10_000, 20_000, 30_000, 50_000, 75_000, 100_000, 150_000, 200_000, 300_000];
+        if (costIdx is < 0 or >= maxGoldExt) return Task.FromResult(("count", ContainerExtends.GetValueOrDefault(character, ContainerSlotExtendCounts.Zero)));
+        var cur = ContainerExtends.GetValueOrDefault(character, ContainerSlotExtendCounts.Zero);
+        if (cur.InventoryByGold != costIdx || cur.InventoryByGold >= maxGoldExt) return Task.FromResult(("count", cur));
+        var kina = Items.Where(i => i.TemplateId == GameSession.KinaItemId && i.Location == "bag").Sum(i => i.Quantity);
+        if (kina < costs[costIdx]) return Task.FromResult(("kina", cur));
+        var left = costs[costIdx];
+        foreach (var row in Items.Where(i => i.TemplateId == GameSession.KinaItemId && i.Location == "bag").OrderByDescending(i => i.Quantity).ToList())
+        {
+            if (left <= 0) break;
+            var take = Math.Min(left, row.Quantity);
+            left -= take;
+            var idx = Items.IndexOf(row);
+            if (row.Quantity == take) Items.RemoveAt(idx);
+            else Items[idx] = row with { Quantity = row.Quantity - take, Revision = row.Revision + 1 };
+        }
+        var next = cur with { InventoryByGold = cur.InventoryByGold + 1 };
+        ContainerExtends[character] = next;
+        return Task.FromResult(("ok", next));
+    }
 
     public static ItemState BagItem(int template, long quantity, long wire, int? slot = null, JsonElement? upgrades = null)
     {

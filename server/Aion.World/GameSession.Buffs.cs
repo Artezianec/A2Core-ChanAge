@@ -95,7 +95,32 @@ public sealed partial class GameSession
         return AbnormalIds(effects).Any();
     }
 
-    AbnormalWire Wire(Buff b) => new(b.Uid, b.AbnormalId, b.DurationMs, b.ExpireAt, CasterKey: playerKey, Level: 1, SkillId: b.SkillId == 0 ? null : b.SkillId, RangeBase: position ?? Vector3d.Zero);
+    AbnormalWire Wire(Buff b) => WireBuff(b, playerKey);
+
+    static AbnormalWire WireBuff(Buff b, int casterKey, Vector3d? range = null) =>
+        new(b.Uid, b.AbnormalId, b.DurationMs, b.ExpireAt, CasterKey: casterKey, Level: 1, SkillId: b.SkillId == 0 ? null : b.SkillId, RangeBase: range ?? Vector3d.Zero);
+
+    /// <summary>0x382a on the player with an arbitrary caster key (spirit owner buffs).</summary>
+    Buff? AddBuffFromCaster(int abnormalId, int durationMs, int skillId, int casterKey, long now, List<byte[]> replies)
+    {
+        if (resources is null) return null;
+        if (!SkillSelfAbnormalPolicy.TryAllowPlayerBuff(data, abnormalId, skillId, SelfAbnormalPath.Scripted, out _)) return null;
+        var rule = AbnormalStackRules.For(abnormalId);
+        var sameGroup = buffs.Where(b => b.Group == rule.Group && b.AbnormalId != abnormalId).ToList();
+        if (sameGroup.Count > 0) replies.AddRange(RemoveBuffs(sameGroup, ExpireReplaced));
+        var buff = new Buff
+        {
+            Uid = ++buffUid, AbnormalId = abnormalId, SkillId = skillId, Group = rule.Group, DurationMs = durationMs,
+            ExpireAt = now + durationMs, Scripted = true,
+        };
+        buffs.Add(buff);
+        MarkBuffSettingsDirty();
+        var wire = WireBuff(buff, casterKey, position);
+        var add = PlayerPackets.AbnormalAdd(playerKey, [wire]);
+        worldPlayer?.Map?.Broadcast(worldPlayer, [add]);
+        replies.Add(add);
+        return buff;
+    }
 
     /// <summary>Adds an item skill's buffs: 0x382a, the first 0x3805 per heal row, stat and speed updates.</summary>
     List<byte[]> ApplyItemAbnormals(int skillId, IReadOnlyList<SkillEffectRow> effects, long now)
@@ -331,8 +356,9 @@ public sealed partial class GameSession
     List<byte[]> BuffStatsChanged(int speedBefore)
     {
         var replies = RefreshStats();
-        var speed = BuffStat("MoveSpeed");
-        if (speed != speedBefore) replies.Add(PlayerPackets.MoveSpeedUpdate(playerKey, [(MoveSpeedStat, speed)]));
+        var wire = WireMoveSpeedPermille();
+        var wireBefore = Math.Max(0, speedBefore + (builderSpeedMultiplier <= 1 ? 0 : (int)Math.Round((builderSpeedMultiplier - 1) * 10_000)));
+        if (wire != wireBefore) replies.Add(PlayerPackets.MoveSpeedUpdate(playerKey, [(MoveSpeedStat, wire)]));
         return replies;
     }
 
@@ -371,7 +397,7 @@ public sealed partial class GameSession
         var replies = SyncSpiritSummonStateAbnormal(lastNow);
         if (buffs.Count == 0) return replies;
         replies.Add(PlayerPackets.AbnormalAdd(playerKey, buffs.Select(Wire).ToList()));
-        if (BuffStat("MoveSpeed") is var speed and not 0) replies.Add(PlayerPackets.MoveSpeedUpdate(playerKey, [(MoveSpeedStat, speed)]));
+        if (WireMoveSpeedPermille() is var speed and not 0) replies.Add(PlayerPackets.MoveSpeedUpdate(playerKey, [(MoveSpeedStat, speed)]));
         return replies;
     }
 

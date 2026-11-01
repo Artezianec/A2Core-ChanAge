@@ -305,8 +305,8 @@ var boughtLevel = await pointed.HandleAsync(new PacketWriter().U16(0x383f).I32(1
 Check(SkillMasteryCoreOpcodes(boughtLevel).SequenceEqual([0x3656, 0x3840, 0x3813, 0x5105])
       && boughtLevel[1].SequenceEqual(Convert.FromHexString("4038" + "0000" + "D0FFA700"))
       && boughtLevel[2].SequenceEqual(Convert.FromHexString("1338" + "01" + "D0FFA700" + "01" + "D0FFA700" + "0201" + "0000000000" + "03"))
-      && boughtLevel[3].SequenceEqual(Convert.FromHexString("05510101010f")) && pointed.SkillLevel(11010000) == 2,
-      "SkillLevelUp_RQ 0x383f: 0x3656 then 0x3840, 0x3813 and 0x5105 laid out as recorded (level 2 for one point, 15 remaining)");
+      && boughtLevel[3].SequenceEqual(Convert.FromHexString("055101010101")) && pointed.SkillLevel(11010000) == 2,
+      "SkillLevelUp_RQ 0x383f: 0x3656 then 0x3840, 0x3813 and 0x5105 laid out as recorded (level 2 for one point, cumulative spent 1)");
 Check((await pointed.HandleAsync(new PacketWriter().U16(0x383f).I32(99999999).ToArray(), Now))[0].AsSpan(2, 2).SequenceEqual(BitConverter.GetBytes((ushort)GameSession.SkillAcquireNotFoundData))
       && (await game.HandleAsync(new PacketWriter().U16(0x383f).I32(11010000).ToArray(), Now))[0].AsSpan(2, 2).SequenceEqual(BitConverter.GetBytes((ushort)GameSession.SkillAcquireNotEnoughSkillPoint)),
       "an unknown skill is refused (EResult 6185 kSkill_Acquire_NotFoundData); without skill points, 6191 NotEnoughSkillPoint");
@@ -318,7 +318,8 @@ Check(SkillMasteryCoreOpcodes(levelDown).SequenceEqual([0x3656, GameSession.Skil
       && pointed.SkillLevel(11010000) == 2 && pointed.SkillPointsLeft == 15, "SkillLevelDown_RQ: one level back (0x3842, update reason 4), the point refunded");
 var levelReset = await pointed.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelResetRq).U8(1).I32(0).ToArray(), Now);
 Check(levelReset[0][0] == 0x56 && levelReset[0][1] == 0x36 && levelReset[1][0] == 0x44 && levelReset[1][1] == 0x38 && BitConverter.ToUInt16(levelReset[1], 2) == 0 && pointed.SkillLevel(11010000) == 1 && pointed.SkillPointsLeft == 16
-      && levelReset.Any(b => Op(b) == 0x3813 && b[^1] == 5), "SkillLevelReset_RQ with skill 0: every bought level back to 1 (0x3844), all points back");
+      && levelReset.Count(b => Op(b) == 0x3813) == 1 && levelReset.Single(b => Op(b) == 0x3813)[^1] == 5
+      && levelReset[^1].SequenceEqual(Convert.FromHexString("055101010000")), "SkillLevelReset_RQ with skill 0: 0x3844 u8 levels, one 0x3813, 0x5105 spent 0");
 Check((await pointed.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelDownRq).I32(11010000).ToArray(), Now)).First(p => Op(p) == GameSession.SkillLevelDownRs)[2] == 1, "a level-1 skill cannot go down (result 1)");
 // Sprint (Shift): 0x3704 → 0x8d03 + 0x3741; SP drains 500 per 100 ms on 0x8d00; 0x3705 → 0x3722 + 0x3742.
 var sprintOn = new PacketWriter().U16(0x3704).I64(1).ToArray();
@@ -1276,8 +1277,8 @@ Check(staffSession.Resource.HpMax == hpUnarmoured + 144 && torso.Any(b => b[0] =
 staffStore.Items.Add(Stored(533700117, 1, "bag", null, 16));
 await staffSession.InventoryChangesAsync(default);
 var opened = await staffSession.HandleAsync(new PacketWriter().U16(0x5646).I64(16).U8(0).I32(1).ToArray(), Now);
-Check(opened[0][0] == 0x47 && opened[0][1] == 0x56 && BitConverter.ToUInt16(opened[0], 2) == 0 && staffStore.Items.All(i => i.WireId != 16),
-      "pet chest opens: 0x5647 result 0 and the chest is used up");
+Check(opened[0][0] == 0x47 && opened[0][1] == 0x56 && BitConverter.ToUInt16(opened[0], 2) == RidePackets.OpenRewardBoxSuccessWire && staffStore.Items.All(i => i.WireId != 16),
+      "pet chest opens: 0x5647 success wire 0x035d and the chest is used up");
 var pet = staffSession.Rides.SingleOrDefault();
 // A database error while opening (live 2026-10-16: a foreign key failed at commit) refuses the open; the
 // connection survives and the chest stays.

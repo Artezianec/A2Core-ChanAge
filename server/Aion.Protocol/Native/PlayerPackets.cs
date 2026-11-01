@@ -654,6 +654,10 @@ public static class PlayerPackets
         return w.ToArray();
     }
 
+    /// <summary>0x382c entry consumed by a skill (capture 000220 Dimensional Control: mask 0x07, reason 0x0b, key, skill id).</summary>
+    public static byte[] AbnormalRemoveSkillConsume(int key, int uid, byte reason, int relatedKey, int skillId) =>
+        PacketWriter.Opcode(0x382c).Varint(key).Varint(1).U8(0x07).Varint(uid).U8(reason).Varint(relatedKey).I32(skillId).ToArray();
+
     /// <summary>
     /// CharMoveStart/Update/StopReject_RS (0x373e/0x373f/0x3740): key | move state (0 stop) | substate |
     /// position | reason i32. Usmap layout; key as a varint like the movement NTs; reason 1 CANDIDATE.

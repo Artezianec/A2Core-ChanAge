@@ -173,13 +173,41 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
         { await using var r=await q.ExecuteReaderAsync(ct); while(await r.ReadAsync(ct)) masteries.Add(new(r.GetString(0),Convert.ToInt32(r.GetValue(1)),r.GetInt32(2),r.GetInt64(3))); }
         return new(titles,titleEquips,skins,skinEquips,masteries);
     }
+    static async Task<ContainerSlotExtendCounts> ContainerExtends(NpgsqlConnection c, NpgsqlTransaction t, Guid character, CancellationToken ct)
+    {
+        await using var q = Query(c, t, "SELECT inventory_slot_extend_by_item,inventory_slot_extend_by_gold,storage_slot_extend,storage_slot_extend_by_item,character_storage_slot_extend_by_gold,character_storage_slot_extend_by_item FROM game.characters WHERE character_id=$1", character);
+        await using var r = await q.ExecuteReaderAsync(ct);
+        if (!await r.ReadAsync(ct)) return ContainerSlotExtendCounts.Zero;
+        return new(r.GetInt16(0), r.GetInt16(1), r.GetInt16(2), r.GetInt16(3), r.GetInt16(4), r.GetInt16(5));
+    }
+
     public async Task<PlayerInventory?> InventoryAsync(VerifiedAccount account, Guid character, CancellationToken ct=default)
     {
         await using var c=await source.OpenConnectionAsync(ct);
         await using var t=await c.BeginTransactionAsync(ct);
         if(!await Own(c,t,account.AccountId,character,ct)) return null;
         var items=await Items(c,t,character,ct); var skills=await Skills(c,t,character,ct); var wings=await Wings(c,t,character,ct); var extras=await Extras(c,t,character,ct);
-        await t.CommitAsync(ct); return new(items,skills,wings,extras);
+        var extends=await ContainerExtends(c,t,character,ct);
+        await t.CommitAsync(ct); return new(items,skills,wings,extras,extends);
+    }
+
+    public async Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendInventoryByGoldAsync(VerifiedAccount account, Guid character, int costIdx, CancellationToken ct = default)
+    {
+        const int maxGoldExt = 10;
+        long[] costs = [5_000, 10_000, 20_000, 30_000, 50_000, 75_000, 100_000, 150_000, 200_000, 300_000];
+        if (costIdx is < 0 or >= maxGoldExt) return ("count", ContainerSlotExtendCounts.Zero);
+        await using var c = await source.OpenConnectionAsync(ct); await using var t = await c.BeginTransactionAsync(ct);
+        if (!await Own(c, t, account.AccountId, character, ct)) return ("none", ContainerSlotExtendCounts.Zero);
+        var goldExtObj = await Scalar(c, t, "SELECT inventory_slot_extend_by_gold FROM game.characters WHERE character_id=$1 FOR UPDATE", ct, character);
+        if (goldExtObj is null) return ("none", ContainerSlotExtendCounts.Zero);
+        var goldExt = Convert.ToInt16(goldExtObj);
+        if (goldExt != costIdx || goldExt >= maxGoldExt) return ("count", await ContainerExtends(c, t, character, ct));
+        if (!await DeductKina(c, t, character, costs[costIdx], ct)) return ("kina", await ContainerExtends(c, t, character, ct));
+        goldExt++;
+        await Execute(c, t, "UPDATE game.characters SET inventory_slot_extend_by_gold=$2,revision=revision+1 WHERE character_id=$1", ct, character, goldExt);
+        var counts = await ContainerExtends(c, t, character, ct);
+        await t.CommitAsync(ct);
+        return ("ok", counts);
     }
 
     public async Task<bool> GrantWingAsync(VerifiedAccount account, Guid character, int wingId, CancellationToken ct=default)
@@ -1983,7 +2011,7 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
         await using var c = await source.OpenConnectionAsync(ct); await using var t = await c.BeginTransactionAsync(ct);
         if (!await Own(c, t, account.AccountId, character, ct)) return null;
         var nodes = new List<int>();
-        await using (var q = Query(c, t, "SELECT node_id FROM game.character_daevanion_nodes WHERE character_id=$1 ORDER BY node_id", character))
+        await using (var q = Query(c, t, "SELECT node_id FROM game.character_daevanion_nodes WHERE character_id=$1 ORDER BY activated_at, node_id", character))
         {
             await using var r = await q.ExecuteReaderAsync(ct);
             while (await r.ReadAsync(ct)) nodes.Add(r.GetInt32(0));
@@ -2009,8 +2037,15 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
         await using var c = await source.OpenConnectionAsync(ct); await using var t = await c.BeginTransactionAsync(ct);
         if (!await Own(c, t, account.AccountId, character, ct)) return false;
         await Execute(c, t, "DELETE FROM game.character_daevanion_nodes WHERE character_id=$1", ct, character);
-        foreach (var node in progress.NodeIds.Distinct())
-            await Execute(c, t, "INSERT INTO game.character_daevanion_nodes(character_id,node_id) VALUES($1,$2)", ct, character, node);
+        var order = 0;
+        foreach (var node in progress.NodeIds)
+        {
+            if (node == 0) continue;
+            await Execute(c, t, """
+                INSERT INTO game.character_daevanion_nodes(character_id,node_id,activated_at)
+                VALUES($1,$2, now() + ($3::double precision * interval '1 millisecond'))
+                """, ct, character, node, order++);
+        }
         await Execute(c, t, "DELETE FROM game.character_daevanion_points WHERE character_id=$1", ct, character);
         var types = progress.UsedPoints.Keys.Union(progress.BonusPoints.Keys);
         foreach (var type in types)

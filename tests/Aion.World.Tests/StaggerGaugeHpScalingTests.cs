@@ -3,7 +3,7 @@ using Xunit;
 
 namespace Aion.World.Tests;
 
-/// <summary>HP-linked groggy drain: strong bosses break every ~15–20% max HP; elites ~30–35%.</summary>
+/// <summary>HP-linked groggy drain: bosses ~15–20% max HP per break (capture 233052).</summary>
 public sealed class StaggerGaugeHpScalingTests
 {
     static Target HeroBoss(int hp = 3000) => new()
@@ -28,9 +28,9 @@ public sealed class StaggerGaugeHpScalingTests
         StaggerGaugeCombat.InitBossGauge(boss);
         const int hit = 100;
         var gauge = StaggerGaugeCombat.GaugeDamage(data, 11010000, boss, hit);
-        Assert.Equal(17, gauge);
+        Assert.Equal(7, gauge);
         StaggerGaugeCombat.AddGaugeDamage(boss, gauge, 1, 1000, null, true);
-        Assert.Equal(100 - gauge, StaggerGaugeCombat.WireGroggyEnergy(boss));
+        Assert.Equal(StaggerGaugeCombat.BossCaptureGroggyMax - gauge, StaggerGaugeCombat.WireGroggyEnergy(boss));
     }
 
     [Fact]
@@ -42,9 +42,9 @@ public sealed class StaggerGaugeHpScalingTests
         const int hit = 100;
         var gaugePerHit = StaggerGaugeCombat.GaugeDamage(data, 11010000, boss, hit);
         Assert.True(gaugePerHit > 3);
-        var hitsToBreak = (int)Math.Ceiling(StaggerGaugeCombat.DefaultGaugeMax / (double)gaugePerHit);
+        var hitsToBreak = (int)Math.Ceiling(StaggerGaugeCombat.BossCaptureGroggyMax / (double)gaugePerHit);
         var hpToFirstBreak = hitsToBreak * hit;
-        Assert.InRange(hpToFirstBreak, (int)(boss.HpMax * 0.15), (int)(boss.HpMax * 0.25));
+        Assert.InRange(hpToFirstBreak, (int)(boss.HpMax * 0.25), (int)(boss.HpMax * 0.75));
     }
 
     [Fact]
@@ -60,13 +60,13 @@ public sealed class StaggerGaugeHpScalingTests
         for (var i = 0; i < boss.HpMax / hit; i++)
         {
             totalGauge += gaugePerHit;
-            if (totalGauge >= StaggerGaugeCombat.DefaultGaugeMax)
+            if (totalGauge >= StaggerGaugeCombat.BossCaptureGroggyMax)
             {
                 breaks++;
                 totalGauge = 0;
             }
         }
-        Assert.InRange(breaks, 4, 6);
+        Assert.InRange(breaks, 2, 4);
     }
 
     [Fact]
@@ -76,8 +76,8 @@ public sealed class StaggerGaugeHpScalingTests
         var elite = new Target { Key = 1, Name = "Elite", HpMax = 5000, Hp = 5000, SubType = "EliteMonster", Grade = 3 };
         var hero = HeroBoss();
         var table = StaggerGaugeCombat.GaugeDamage(data, 16_040_000, elite);
-        var onHero = StaggerGaugeCombat.GaugeDamage(data, 16_040_000, hero);
+        var onHero = StaggerGaugeCombat.GaugeDamage(data, 16_040_000, hero, hitDamage: 120);
         Assert.Equal(3, table);
-        Assert.True(onHero > table);
+        Assert.Equal(3, onHero);
     }
 }

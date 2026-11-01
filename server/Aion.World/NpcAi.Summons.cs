@@ -163,4 +163,35 @@ public sealed partial class NpcAi
         }
         return replies;
     }
+
+    /// <summary>Official spawn act: 0x3802 skill 16990004 on the spirit plus a self hit row.</summary>
+    public List<byte[]> SpiritSpawnSkill(Target summon, long now)
+    {
+        _ = now;
+        var brain = BrainOf(summon);
+        brain.ActionSeq = brain.ActionSeq % 255 + 1;
+        var seq = brain.ActionSeq;
+        var yaw = summon.Direction * Math.PI / 180;
+        var skill = GamePackets.SpiritSpawnSkillId;
+        return
+        [
+            GamePackets.SkillStart(skill, seq, yaw, summon.Position, summon.Key, summon.Key),
+            GamePackets.NpcSkillHit(summon.Key, summon.Key, skill, seq, skill * 100 + 1, 0),
+        ];
+    }
+
+    /// <summary>Spirit owner buff 16107000: 0x3802 from summon, 0x3804 summon→owner (capture 000220).</summary>
+    public List<byte[]> SpiritOwnerBuffOnPlayer(Target summon, int ownerKey, int skillId)
+    {
+        var brain = BrainOf(summon);
+        brain.ActionSeq = brain.ActionSeq % 255 + 1;
+        var seq = (byte)brain.ActionSeq;
+        var yaw = summon.Direction * Math.PI / 180;
+        var effect = skillId * 100 + 1;
+        return
+        [
+            GamePackets.SkillStart(skillId, seq, yaw, summon.Position, ownerKey, actorKey: summon.Key),
+            GamePackets.NpcSkillHit(ownerKey, summon.Key, skillId, seq, effect, 0),
+        ];
+    }
 }

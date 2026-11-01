@@ -168,6 +168,14 @@
     }
   },
   "abnormals": {
+    "100000002": {
+      "effects": [
+        [
+          "Stun"
+        ]
+      ],
+      "evidence": "Boss groggy-break reaction (OBSERVED ~98 ms after break abnormal, caster boss, 5000 ms)."
+    },
     "100000041": {
       "effects": [
         [
@@ -175,6 +183,14 @@
         ]
       ],
       "evidence": "Snare Shot, Dimensional Control: rooted."
+    },
+    "100000099": {
+      "effects": [
+        [
+          "Stun"
+        ]
+      ],
+      "evidence": "Player mark after boss groggy break (OBSERVED 1000 ms, source skill 1000009)."
     },
     "100000201": {
       "effects": [
@@ -230,7 +246,7 @@
           "Stagger"
         ]
       ],
-      "evidence": "Stagger break state (4 s): mastery scattershot/rampage skills require HasAbnormalEffectType Stagger on the target."
+      "evidence": "Legacy stagger break fallback when no breaking skill id (5 s)."
     },
     "100000701": {
       "effects": [
@@ -311,6 +327,14 @@
         ]
       ],
       "evidence": "Wish of Concentration (Sorcerer, 10 s): 30 % cheaper skills."
+    },
+    "161400001": {
+      "effects": [
+        [
+          "Stagger"
+        ]
+      ],
+      "evidence": "Jointstrike: Curse groggy break debuff on boss (OBSERVED 2026-11-01 stagger capture, 5000 ms, skill 16140000)."
     },
     "162100001": {
       "effects": [

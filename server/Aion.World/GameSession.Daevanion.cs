@@ -26,6 +26,8 @@ public sealed partial class GameSession
     static DaevanionTables Daevanion => DaevanionTables.Embedded;
 
     readonly HashSet<int> daevanionNodes = [];
+    /// <summary>Activation order for 0xe226 node lists (client maps open slots by wire order; start node always first).</summary>
+    readonly List<int> daevanionNodeOrder = [];
     readonly Dictionary<int, int> daevanionUsed = [];
     readonly Dictionary<int, int> daevanionBonus = [];
     bool daevanionContentsUnlocked;
@@ -34,15 +36,44 @@ public sealed partial class GameSession
     {
         daevanionContentsUnlocked = false;
         daevanionNodes.Clear();
+        daevanionNodeOrder.Clear();
         daevanionUsed.Clear();
         daevanionBonus.Clear();
         if (stored is not null)
         {
-            daevanionNodes.UnionWith(stored.NodeIds);
+            foreach (var id in stored.NodeIds)
+            {
+                if (!daevanionNodes.Add(id)) continue;
+                daevanionNodeOrder.Add(id);
+            }
             foreach (var (type, used) in stored.UsedPoints) if (used > 0) daevanionUsed[type] = used;
             foreach (var (type, bonus) in stored.BonusPoints) if (bonus > 0) daevanionBonus[type] = bonus;
         }
     }
+
+    void TrackDaevanionNode(int nodeId)
+    {
+        if (!daevanionNodes.Add(nodeId)) return;
+        daevanionNodeOrder.Add(nodeId);
+    }
+
+    void UntrackDaevanionNode(int nodeId)
+    {
+        if (!daevanionNodes.Remove(nodeId)) return;
+        daevanionNodeOrder.Remove(nodeId);
+    }
+
+    IReadOnlyList<int> DaevanionBoardNodeIds(int boardId)
+    {
+        var start = Daevanion.StartNodeId(boardId);
+        var opened = daevanionNodeOrder.Where(id => Daevanion.NodeOf(id)?.BoardId == boardId && id != start).ToList();
+        if (daevanionNodes.Contains(start) || opened.Count > 0)
+            return [start, .. opened];
+        return [];
+    }
+
+    static byte[] DaevanionCloseNodeNotify(int nodeId) =>
+        PacketWriter.Opcode(DaevanionCloseNodeRs).U16(0).I32(nodeId).ToArray();
 
     void RecomputeDaevanionUsedFromNodes()
     {
@@ -65,13 +96,13 @@ public sealed partial class GameSession
         {
             if (Daevanion.NodeOf(id) is not { } node) continue;
             if (Daevanion.BoardOf(node.BoardId) is not { } board || board.Slot == slot) continue;
-            daevanionNodes.Remove(id);
+            UntrackDaevanionNode(id);
         }
         RecomputeDaevanionUsedFromNodes();
         foreach (var boardId in Daevanion.BoardsForCreation(character.CreationId))
         {
             if (level < (Daevanion.BoardOf(boardId)?.NeedLevel ?? 999)) continue;
-            daevanionNodes.Add(Daevanion.StartNodeId(boardId));
+            TrackDaevanionNode(Daevanion.StartNodeId(boardId));
         }
     }
 
@@ -150,10 +181,7 @@ public sealed partial class GameSession
         var w = PacketWriter.Opcode(DaevanionBoardInfoNt).Varint((uint)boards.Count);
         foreach (var boardId in boards)
         {
-            var start = Daevanion.StartNodeId(boardId);
-            var nodeIds = daevanionNodes.Where(id => Daevanion.NodeOf(id)?.BoardId == boardId).OrderBy(id => id).ToList();
-            if (!nodeIds.Contains(start))
-                nodeIds.Insert(0, start);
+            var nodeIds = DaevanionBoardNodeIds(boardId);
             w.I32(boardId).Varint((uint)nodeIds.Count);
             foreach (var nodeId in nodeIds) w.I32(nodeId);
         }
@@ -184,7 +212,7 @@ public sealed partial class GameSession
     {
         if (Store is not { } store) return true;
         if (CharacterId is not { } character) return false;
-        var progress = new DaevanionProgress(daevanionNodes.ToList(), daevanionUsed, daevanionBonus);
+        var progress = new DaevanionProgress([.. daevanionNodeOrder], daevanionUsed, daevanionBonus);
         return await store.SaveDaevanionAsync(character, progress, ct);
     }
 
@@ -192,12 +220,14 @@ public sealed partial class GameSession
     {
         if (node.Cost > 0 && Daevanion.BoardOf(node.BoardId) is { } boardMeta)
             daevanionUsed[boardMeta.PointType] = daevanionUsed.GetValueOrDefault(boardMeta.PointType) + node.Cost;
-        return daevanionNodes.Add(nodeId);
+        if (daevanionNodes.Contains(nodeId)) return false;
+        TrackDaevanionNode(nodeId);
+        return true;
     }
 
     void RollbackOpenNode(int nodeId, DaevanionNode node)
     {
-        daevanionNodes.Remove(nodeId);
+        UntrackDaevanionNode(nodeId);
         if (node.Cost > 0 && Daevanion.BoardOf(node.BoardId) is { } boardMeta)
         {
             daevanionUsed[boardMeta.PointType] = Math.Max(0, daevanionUsed.GetValueOrDefault(boardMeta.PointType) - node.Cost);
@@ -298,6 +328,7 @@ public sealed partial class GameSession
         [
             DaevanionPointUpdate(),
             .. DaevanionOpenStatPackets(nodes),
+            DaevanionBoardInfo(),
             .. achieve ? Achieve("DaevanionNodeActivate", now: now) : [],
         ];
     }
@@ -341,6 +372,7 @@ public sealed partial class GameSession
             DaevanionPointUpdate(),
             .. DaevanionOpenStatPackets([node]),
             Reply(0),
+            DaevanionBoardInfo(),
             .. Achieve("DaevanionNodeActivate", now: now),
         ];
     }
@@ -396,7 +428,8 @@ public sealed partial class GameSession
         if (plain.Length < 6) return [];
         var nodeId = BitConverter.ToInt32(plain, 2);
         byte[] Reply(int result) => PacketWriter.Opcode(DaevanionCloseNodeRs).U16(result).I32(nodeId).ToArray();
-        if (Daevanion.NodeOf(nodeId) is not { } node || node.Type == 0 || !daevanionNodes.Remove(nodeId)) return [Reply(1)];
+        if (Daevanion.NodeOf(nodeId) is not { } node || node.Type == 0 || !daevanionNodes.Contains(nodeId)) return [Reply(1)];
+        UntrackDaevanionNode(nodeId);
         if (node.Cost > 0 && Daevanion.BoardOf(node.BoardId) is { } board)
         {
             daevanionUsed[board.PointType] = Math.Max(0, daevanionUsed.GetValueOrDefault(board.PointType) - node.Cost);
@@ -413,39 +446,50 @@ public sealed partial class GameSession
         byte[] Reply(int result) => PacketWriter.Opcode(DaevanionResetBoardRs).U16(result).I32(boardId).ToArray();
         if (!BoardAllowed(boardId)) return [Reply(1)];
         var start = Daevanion.StartNodeId(boardId);
+        var removedIds = daevanionNodeOrder.Where(id => Daevanion.NodeOf(id)?.BoardId == boardId && id != start).ToList();
         var removed = new List<DaevanionNode>();
-        foreach (var id in daevanionNodes.Where(id => Daevanion.NodeOf(id)?.BoardId == boardId && id != start).ToList())
+        foreach (var id in removedIds)
         {
             if (Daevanion.NodeOf(id) is not { } node) continue;
             removed.Add(node);
-            daevanionNodes.Remove(id);
+            UntrackDaevanionNode(id);
             if (node.Cost > 0 && Daevanion.BoardOf(boardId) is { } board)
             {
                 daevanionUsed[board.PointType] = Math.Max(0, daevanionUsed.GetValueOrDefault(board.PointType) - node.Cost);
                 if (daevanionUsed[board.PointType] == 0) daevanionUsed.Remove(board.PointType);
             }
         }
-        daevanionNodes.Add(start);
+        TrackDaevanionNode(start);
         if (!await PersistDaevanionAsync(ct)) return [Reply(1)];
-        return [Reply(0), DaevanionBoardInfo(), DaevanionPointUpdate(), .. DaevanionOpenStatPackets(removed)];
+        return
+        [
+            Reply(0),
+            .. removedIds.AsEnumerable().Reverse().Select(DaevanionCloseNodeNotify),
+            DaevanionBoardInfo(),
+            DaevanionPointUpdate(),
+            .. DaevanionOpenStatPackets(removed),
+        ];
     }
 
-    async Task<List<byte[]>?> UseDaevanionPointItemAsync(INativeCharacterStore store, Guid character, ItemState row, ItemUse use, bool reply, CancellationToken ct)
+    async Task<List<byte[]>?> UseDaevanionPointItemAsync(INativeCharacterStore store, Guid character, ItemState row, ItemUse use, bool reply, CancellationToken ct, int useCount = 1)
     {
+        useCount = (int)Math.Clamp((long)useCount, 1L, Math.Min(row.Quantity, int.MaxValue));
         (int PointType, int Amount)? grant = Daevanion.ItemGrant(row.TemplateId);
         if (grant is null && use.Values is [var pointText, var amountText, ..]
             && int.TryParse(pointText, out var pointType) && int.TryParse(amountText, out var amount) && amount > 0)
             grant = (pointType, amount);
         if (grant is not { } g) return null;
-        var consumed = await Stored(async () => await store.ConsumeItemAsync(character, row.InstanceId, row.Revision, 1, ct) ? [[]] : []);
+        var total = g.Amount * useCount;
+        var consumed = await Stored(async () => await store.ConsumeItemAsync(character, row.InstanceId, row.Revision, useCount, ct) ? [[]] : []);
         if (consumed.Count == 0) return null;
-        daevanionBonus[g.PointType] = daevanionBonus.GetValueOrDefault(g.PointType) + g.Amount;
+        daevanionBonus[g.PointType] = daevanionBonus.GetValueOrDefault(g.PointType) + total;
         if (!await PersistDaevanionAsync(ct)) return null;
         return
         [
             .. Used(row, reply),
-            PacketWriter.Opcode(UpdateItemDaevanionPointNt).U8(1).U8((byte)g.PointType).I32(g.Amount).ToArray(),
+            PacketWriter.Opcode(UpdateItemDaevanionPointNt).U8(1).U8((byte)g.PointType).I32(total).ToArray(),
             DaevanionPointUpdate(),
+            .. await InventoryChangesAsync(ct, 0, DecreaseItemUse),
         ];
     }
 
@@ -471,6 +515,10 @@ public sealed partial class GameSession
     }
 
     internal byte[] DaevanionPointUpdateWire() => DaevanionPointUpdate();
+
+    internal byte[] DaevanionBoardInfoWire() => DaevanionBoardInfo();
+
+    internal IReadOnlyList<int> DaevanionBoardNodeIdsForTests(int boardId) => DaevanionBoardNodeIds(boardId);
 
     internal IReadOnlyList<(int Type, int Point)> DaevanionUsedPointWire() =>
         Enumerable.Range(1, 5).Where(t => daevanionUsed.GetValueOrDefault(t) > 0).Select(t => (t, daevanionUsed[t])).ToList();

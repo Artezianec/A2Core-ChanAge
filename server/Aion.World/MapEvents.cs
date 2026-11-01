@@ -317,6 +317,8 @@ public interface IMapEventHost
     void SetRelationship(string spawner, string relationship);
     /// <summary>PCTeleport: the point, the TeleportEffect.dat name (value 1), the cutscene before the move (value 3) and the one after it (value 4).</summary>
     void TeleportPc(string point, string effect, string before, string after);
+    /// <summary>One-shot field exits (Dream Crossroad D/L_01) must not re-fire on every re-entry while ascension turn-in is pending.</summary>
+    void NoteMapEventPcTeleport(MapEventRun run, string point) { }
     void MapExit(string point, string mode);
     void DungeonClear(MapEventRun run);
     void DungeonFail(MapEventRun run);
@@ -355,6 +357,8 @@ public interface IMapEventHost
     void ScriptBeat(MapEventRun run, string kind, string detail, long now) { }
 
     bool QuestStepActive(int questId, int step);
+    /// <summary>Quest waiting for turn-in at an NPC (Complete status).</summary>
+    bool QuestComplete(int questId);
     /// <summary>When an event's exported start list is empty: whether it may join at map entry (quest step, field phase, etc.).</summary>
     bool MapEventStartAllowed(MapEventDefinition definition);
     bool NpcInCombat(string spawner);
@@ -806,6 +810,7 @@ public sealed class MapEventRun
             case "ObjectiveIncomplete": return !doneKeys.Contains(spawner);
             case "IncompleteQuestStep": return QuestStep(spawner) is { } q && Host.QuestStepActive(q.Quest, q.Step);
             case "NotIncompleteQuestStep": return QuestStep(spawner) is not { } nq || !Host.QuestStepActive(nq.Quest, nq.Step);
+            case "QuestComplete": return int.TryParse(spawner, out var completeId) && Host.QuestComplete(completeId);
             case "NpcCombatState": return Host.NpcInCombat(spawner) == !string.Equals(c.Value(1), "None", StringComparison.OrdinalIgnoreCase);
             case "NpcDie": return Host.SpawnerExists(spawner) && !Host.SpawnerAlive(spawner);
             case "KillSpawner": return Host.SpawnerExists(spawner) && !Host.SpawnerAlive(spawner);
@@ -869,7 +874,10 @@ public sealed class MapEventRun
             case "ChangeRelationshipEntity": Host.SetRelationship(d.Value(0), d.Value(1)); break;
             // Values: point, TeleportEffect name, subzone, a cutscene before the move (123 uses; the lake cave's exit
             // Cutscene_L_A_Seq_1291), a cutscene on arrival (51 uses; its boss room Cutscene_L_A_Seq_1290), a bool. Never both.
-            case "PCTeleport": Host.TeleportPc(d.Value(0), d.Value(1), d.Value(3), d.Value(4)); break;
+            case "PCTeleport":
+                Host.NoteMapEventPcTeleport(this, d.Value(0));
+                Host.TeleportPc(d.Value(0), d.Value(1), d.Value(3), d.Value(4));
+                break;
             case "MapExit": Host.MapExit(d.Value(0), d.Value(2)); break;
             case "DungeonClear": Host.DungeonClear(this); break;
             case "DungeonFail": Status = Expired; Host.DungeonFail(this); break;

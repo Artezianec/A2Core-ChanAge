@@ -21,7 +21,7 @@ public sealed record BuilderOutcome(int Result, string Message, List<byte[]> Pac
 public sealed class BuilderCommands(WorldPresence presence, GmPolicy policy, Action<string, string, string> audit, GameData? data = null)
 {
     public static readonly IReadOnlyList<string> Supported =
-        ["SetInvisible", "SetInvincible", "SetInvincibleHP", "NoCool", "DashVariant", "Hp", "Mp", "Sp", "FixHpPercent",
+        ["SetInvisible", "SetInvincible", "SetInvincibleHP", "NoCool", "DashVariant", "Speed", "Hp", "Mp", "Sp", "FixHpPercent",
          "Teleport", "TeleportTo", "MoveMap", "LayerTest", "Dev", "AcquireItem", "SetLevel", "ClassChange", "SetAscension", "ContentsUnlock", "ContentsUnlockAll", "AcquireWingAll",
          "QuestAdd", "QuestComplete", "QuestCompleteStep", "QuestSetStep", "QuestReward", "QuestDelete", "RevealMap", "AcquireTitle", "AcquireSkin", "SetMastery", "Mail", "Gift", "EnterDungeon",
          "GrantShopCurrency", "Membership", "BattlePassExp"];
@@ -45,6 +45,7 @@ public sealed class BuilderCommands(WorldPresence presence, GmPolicy policy, Act
         ["SetInvincibleHP"] = "SetInvincibleHP [true|false]",
         ["NoCool"] = "NoCool [true|false]",
         ["DashVariant"] = "DashVariant <0-10> (the sprint dash's reply shape, for live tests)",
+        ["Speed"] = "Speed <multiplier> (e.g. 3 for triple run speed, 1 to reset; 0x364b MoveSpeed + server anti-cheat)",
         ["Hp"] = "Hp [value]", ["Mp"] = "Mp [value]", ["Sp"] = "Sp [value]",
         ["FixHpPercent"] = "FixHpPercent [percent]",
         ["Teleport"] = "Teleport [MapID] [X] [Y] (Z), or Teleport [destination name]",
@@ -136,6 +137,12 @@ public sealed class BuilderCommands(WorldPresence presence, GmPolicy policy, Act
                                     && variant >= 0 && variant <= GameSession.DashVariantMax:
                 actor.DashVariant = variant;
                 return BuilderOutcome.Ok($"Dash variant {variant}.");
+            case "Speed" when args is [var value] && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var mult) && mult is >= 0 and <= 10:
+            {
+                var packets = actor.SetBuilderSpeedMultiplier(mult < 1 ? 1 : mult, now);
+                var label = mult < 1 || mult == 1 ? "normal" : $"{mult:0.##}×";
+                return BuilderOutcome.Ok($"Move speed {label}.", packets);
+            }
             case "Hp" or "Mp" or "Sp" when args is [var value] && long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var amount) && amount >= 0:
                 var updated = actor.SetResource(command[0], amount);
                 return BuilderOutcome.Ok($"{command.ToUpperInvariant()} set.", updated);

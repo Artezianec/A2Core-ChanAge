@@ -31,6 +31,13 @@ partial class GameSession
 
     bool SkillCondMet(SkillDefinition? definition) => SkillCondMet(definition, 0, 0);
 
+    /// <summary>Target Stagger reactive skills (16340000, …): official break window allows spam without GCD/cooldown (capture 233052).</summary>
+    bool StaggerReactiveFreeCast(SkillDefinition? definition, long now, int castTargetKey) =>
+        definition?.SkillCond is { AbnormalEffect: { Length: > 0 } effect, SelectTarget: { } select }
+        && select.Equals("Target", StringComparison.OrdinalIgnoreCase)
+        && effect.Equals("Stagger", StringComparison.OrdinalIgnoreCase)
+        && SkillCondMet(definition, now, castTargetKey);
+
     bool SkillCondMetOnSelf(SkillCondNeed cond) => cond.Type switch
     {
         "HasAbnormalGroupId" when cond.AbnormalGroup is int group and > 0 => HasAbnormalGroup(group),

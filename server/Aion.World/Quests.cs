@@ -600,6 +600,13 @@ public sealed class QuestLog(QuestBook book, int race)
                 ? step.Objectives.Take(6).Where((o, i) => o.Type == "ClearMapEvent" && o.Target is not null && record.Goals[i] < o.Count).Select(o => o.Target!)
                 : []);
 
+    /// <summary>
+    /// Extra slack (cm) around EnterVolumePC trigger volumes. QuestStep GoalList Value[1] duplicates MapId in the client tables,
+    /// not a radius (every exported EnterVolumePC has value == map).
+    /// </summary>
+    public static int EnterVolumeSlack(QuestObjective o) =>
+        o.Type == "EnterVolumePC" && o.Value is { } v && o.Map is { } m && v == m ? 0 : o.Value ?? 0;
+
     /// <summary>Being in an area: every open area objective <paramref name="inside"/> accepts counts once.</summary>
     public List<QuestRecord> Entered(Func<QuestObjective, bool> inside, int level) =>
         Progress(o => o.Type is "EnterVolumePC" or "EnterSubZone" && inside(o), level: level);

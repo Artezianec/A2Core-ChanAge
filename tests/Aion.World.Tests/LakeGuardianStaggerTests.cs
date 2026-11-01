@@ -29,7 +29,7 @@ public sealed class LakeGuardianStaggerTests
         var data = GameSessionTestHelpers.LiveGameData;
         var (session, boss) = await SessionOnLakeBossAsync();
         Assert.True(StaggerGaugeCombat.HasBossGauge(boss));
-        Assert.Equal(100, StaggerGaugeCombat.WireGroggyEnergy(boss));
+        Assert.Equal(50, StaggerGaugeCombat.WireGroggyEnergy(boss));
         Assert.False(boss.Dead);
         Assert.Equal(0, boss.OwnerKey);
 
@@ -40,12 +40,12 @@ public sealed class LakeGuardianStaggerTests
         var hit = StaggerGaugeCombat.AddGaugeDamage(boss, dmg, session.PlayerKey, castAt, session, firstRow: true);
         Assert.Contains(hit, p => GameSessionTestHelpers.Op(p) == 0xe005);
         Assert.Equal(dmg, boss.StaggerGauge);
-        Assert.Equal(100 - dmg, StaggerGaugeCombat.WireGroggyEnergy(boss));
+        Assert.Equal(50 - dmg, StaggerGaugeCombat.WireGroggyEnergy(boss));
 
-        var remaining = StaggerGaugeCombat.DefaultGaugeMax - boss.StaggerGauge;
+        var remaining = StaggerGaugeCombat.BossCaptureGroggyMax - boss.StaggerGauge;
         var breakReplies = StaggerGaugeCombat.AddGaugeDamage(boss, remaining, session.PlayerKey, castAt + 500, session, firstRow: true);
         Assert.Contains(breakReplies, p => GameSessionTestHelpers.Op(p) == 0x382a);
-        Assert.Contains(breakReplies, p => p.SequenceEqual(GamePackets.UpdateGroggyInfo(boss.Key, 100, 0, activated: true)));
+        Assert.Contains(breakReplies, p => p.SequenceEqual(GamePackets.UpdateGroggyInfoBreak(boss.Key)));
         Assert.True(boss.StaggerUntil > castAt);
         Assert.True(boss.Held);
     }

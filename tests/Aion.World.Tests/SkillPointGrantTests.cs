@@ -46,7 +46,7 @@ public sealed class SkillPointGrantTests
         var up = await session.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelUpRq).I32(Gladiator).ToArray(), Now);
         Assert.Equal(0, BitConverter.ToUInt16(GameSessionTestHelpers.SkillLevelUpRs(up), 2));
         Assert.Equal(202, session.SkillPointsLeft);
-        Assert.Equal(GamePackets.SkillPointUpdate(202), up.Single(IsPoints));
+        Assert.Equal(GamePackets.SkillPointUpdate(1), up.Single(IsPoints));
         Assert.Contains(store.Skills, s => s.SkillId == Gladiator && s.Level == 2);
     }
 
@@ -68,7 +68,7 @@ public sealed class SkillPointGrantTests
         var levelUpdate = replies.FindIndex(p => GameSessionTestHelpers.Op(p) == 0x8d08);
         var points = replies.FindIndex(IsPoints);
         Assert.True(levelUpdate >= 0 && points > levelUpdate, "0x5105 follows 0x8d08");
-        Assert.Equal(GamePackets.SkillPointUpdate(session.SkillPointsLeft), replies[points]);
+        Assert.Equal(GamePackets.SkillPointUpdate(session.SkillPointsEarned - session.SkillPointsLeft), replies[points]);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class SkillPointGrantTests
 
         var notLearned = await session.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelUpRq).I32(15010000).ToArray(), Now);
         Assert.Equal(GameSession.SkillAcquireNotFoundData, BitConverter.ToUInt16(notLearned[0], 2));
-        Assert.Equal(GamePackets.SkillPointUpdate(left), notLearned.Single(IsPoints));
+        Assert.Equal(GamePackets.SkillPointUpdate(0), notLearned.Single(IsPoints));
 
         var unknown = await session.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelUpRq).I32(123).ToArray(), Now);
         Assert.Equal(GameSession.SkillAcquireNotFoundData, BitConverter.ToUInt16(unknown[0], 2));
@@ -103,7 +103,7 @@ public sealed class SkillPointGrantTests
         Assert.Equal(0, BitConverter.ToUInt16(GameSessionTestHelpers.SkillLevelUpRs(first), 2));
         var broke = await session.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelUpRq).I32(Gladiator).ToArray(), Now);
         Assert.Equal(GameSession.SkillAcquireNotEnoughSkillPoint, BitConverter.ToUInt16(broke[0], 2));
-        Assert.Equal(GamePackets.SkillPointUpdate(0), broke.Single(IsPoints));
+        Assert.Equal(GamePackets.SkillPointUpdate(1), broke.Single(IsPoints));
         Assert.Equal(2, store.Skills.Single(s => s.SkillId == Gladiator).Level);
         Assert.Equal(0, session.SkillPointsLeft);
     }

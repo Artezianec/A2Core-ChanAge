@@ -33,22 +33,22 @@ public sealed class SkillPointAccountingTests
         var store = new FakeCharacterStore { Progress = (8, 0) };
         store.Skills.Add(new(11010000, 4, null, 4));
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 8);
-        var left = session.SkillPointsLeft;
+        var spent = session.SkillPointsEarned - session.SkillPointsLeft;
         var up = await session.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelUpRq).I32(11010000).ToArray(), Now);
         Assert.Equal(4, up.Count);
-        Assert.Equal(GamePackets.SkillPointUpdate(left), up[^1]);
+        Assert.Equal(GamePackets.SkillPointUpdate(spent), up[^1]);
         Assert.Equal(GameSession.SkillAcquireNotEnoughCharLevel, BitConverter.ToUInt16(up[0], 2));
         Assert.Equal(4, session.SkillLevel(11010000));
-        Assert.Equal(left, session.SkillPointsLeft);
+        Assert.Equal(spent, session.SkillPointsEarned - session.SkillPointsLeft);
     }
 
     [Fact]
-    public void SkillPointUpdate_matches_official_mask_and_varint_wire()
+    public void SkillPointUpdate_matches_capture_234615_body()
     {
-        Assert.Equal(Convert.FromHexString("055101010102"), GamePackets.SkillPointUpdate(2));
-        Assert.Equal(Convert.FromHexString("055101010101"), GamePackets.SkillPointUpdate(1));
-        Assert.Equal(Convert.FromHexString("055101010100"), GamePackets.SkillPointUpdate(0));
-        Assert.Equal(Convert.FromHexString("05510101010f"), GamePackets.SkillPointUpdate(15));
+        Assert.Equal(Convert.FromHexString("055101010200"), GamePackets.SkillPointUpdate(2));
+        Assert.Equal(Convert.FromHexString("055101010100"), GamePackets.SkillPointUpdate(1));
+        Assert.Equal(Convert.FromHexString("055101010000"), GamePackets.SkillPointUpdate(0));
+        Assert.Equal(Convert.FromHexString("055101010f00"), GamePackets.SkillPointUpdate(15));
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class SkillPointAccountingTests
         Assert.Equal(2, update[12]);   // level
         Assert.Equal(2, update[13]);  // wire original = bought mastery in the level-up burst
         Assert.Equal(GameSession.SkillPointUpdateNt, GameSessionTestHelpers.Op(first[^1]));
-        Assert.Equal(GamePackets.SkillPointUpdate(0), first[^1]);
+        Assert.Equal(GamePackets.SkillPointUpdate(1), first[^1]);
 
         var session2 = new GameSession(data, new GameSessionOptions { CharacterLevel = 4, WorldId = store.WorldId }, new Random(3)) { Store = store };
         await session2.HandleAsync(GameSessionTestHelpers.Login(), Now);
@@ -128,7 +128,7 @@ public sealed class SkillPointAccountingTests
         Assert.Equal(2, session2.SkillLevel(11010000));
         Assert.Equal(0, session2.SkillPointsLeft);
         var pointsPkt = entry.Single(p => GameSessionTestHelpers.Op(p) == GameSession.SkillPointUpdateNt);
-        Assert.Equal(GamePackets.SkillPointUpdate(0), pointsPkt);
+        Assert.Equal(GamePackets.SkillPointUpdate(1), pointsPkt);
         Assert.DoesNotContain(await session2.TickAsync(Now + 60_000), p => GameSessionTestHelpers.Op(p) == GameSession.SkillPointUpdateNt);
         var refused = await session2.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelUpRq).I32(11010000).ToArray(), Now);
         Assert.Equal(GameSession.SkillAcquireNotEnoughSkillPoint, BitConverter.ToUInt16(GameSessionTestHelpers.SkillLevelUpRs(refused), 2));
@@ -154,7 +154,7 @@ public sealed class SkillPointAccountingTests
         var entry = await session2.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now);
 
         var pointsPkt = entry.Single(p => GameSessionTestHelpers.Op(p) == GameSession.SkillPointUpdateNt);
-        Assert.Equal(GamePackets.SkillPointUpdate(15), pointsPkt);
+        Assert.Equal(GamePackets.SkillPointUpdate(1), pointsPkt);
         Assert.Equal(15, session2.SkillPointsLeft);
         Assert.DoesNotContain(await session2.TickAsync(Now + 60_000), p => GameSessionTestHelpers.Op(p) == GameSession.SkillPointUpdateNt);
         var skillList = entry.Single(p => GameSessionTestHelpers.Op(p) == 0x5100);

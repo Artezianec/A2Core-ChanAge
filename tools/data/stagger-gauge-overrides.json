@@ -1,8 +1,20 @@
 {
   "note": "Stagger gauge damage per skill (global client tooltip bands). OURS when SkillEffect stagger rows are not exported; tools/stagger_gauge.py patches class-skills.json stagger_gauge. Evidence: The Games Wiki spiritmaster-skills and stagger-gauge pages (Oct 2026).",
+  "capture_233052": {
+    "evidence": "Boss groggy (wire key 898702): 0xe005 drain trailer 02; max 50; energy 43,36,26,19,12,5 then break on 16140000. Per-hit drain from skill stagger table (7 typical, 10 Jointstrike), not HP ratio.",
+    "boss_groggy_max": 50,
+    "boss_max_groggy_drain_per_hit": 10,
+    "boss_typical_drain_per_hit": 7,
+    "drain_packets_before_break": 6
+  },
+  "regular_mob_groggy": {
+    "evidence": "Field NormalMonster: groggy may exist but fills slowly; stagger reactive skills rarely usable (player observation).",
+    "max_groggy_drain_per_hit": 1,
+    "hp_loss_fraction_per_break": 5.0
+  },
   "default_gauge_max": 100,
   "stagger_abnormal": 100000401,
-  "stagger_duration_ms": 4000,
+  "stagger_duration_ms": 5000,
   "skills": {
     "16040000": { "gauge": 3, "evidence": "Combustion tooltip: Stagger gauge damage 3" },
     "16100000": { "gauge": 7, "evidence": "Summon: Fire Spirit" },

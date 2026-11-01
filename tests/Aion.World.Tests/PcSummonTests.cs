@@ -54,10 +54,8 @@ public sealed class PcSummonTests
         var appear = Assert.Single(fire, p => GameSessionTestHelpers.Op(p) == 0x3641);
         var reader = new PacketReader(appear) { Offset = 2 };
         Assert.Equal(spirit.Key, (int)reader.Varint());
-        Assert.Equal(0x30, reader.U16() & 0x30);
-        Assert.False(string.IsNullOrEmpty(spirit.OwnerDesc!.Nickname));
-        var parent = PacketWriter.Opcode(0).Varint(session.PlayerKey).U8(0x07).String(spirit.OwnerDesc.Nickname).ToArray()[2..];
-        Assert.True(appear.AsSpan().IndexOf(parent) > 0, "the appear carries the parent key and desc");
+        Assert.Equal(GamePackets.NpcSummonAppearMask, reader.U16());
+        Assert.Contains(fire, p => GameSessionTestHelpers.Op(p) == 0x373c);
         Assert.DoesNotContain(fire, p => GameSessionTestHelpers.Op(p) == 0xe239);
         var fireIcon = session.ElementalActivateTick(Now + 101);
         Assert.Contains(fireIcon, p => p.SequenceEqual(GamePackets.ElementalSummonActivate(1, spirit.Key)));

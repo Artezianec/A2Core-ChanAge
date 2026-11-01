@@ -177,16 +177,18 @@ public sealed partial class GameSession
         return replies;
     }
 
-    void ApplyNpcDebuff(Target target, int abnormalId, int durationMs, long now, List<byte[]> replies, bool held = false, int skillId = 0)
+    void ApplyNpcDebuff(Target target, int abnormalId, int durationMs, long now, List<byte[]> replies, bool held = false, int skillId = 0, int casterKey = 0)
     {
         if (target.Dead) return;
+        var wireCaster = casterKey != 0 ? casterKey : playerKey;
+        var wireSkill = skillId > 0 ? skillId : (int?)null;
         // OBSERVED official 2026-10-30 (259 in one Ranger fight): an abnormal re-applied while it is still on keeps its uid and
         // is refreshed with 0x382b AbnormalChange_NT, not removed (0x382c) and added again (0x382a).
         if (npcBuffs.TryGetValue(target.Key, out var on) && on.FirstOrDefault(b => b.AbnormalId == abnormalId) is { } running)
         {
             running.ExpireAt = now + durationMs;
             replies.Add(PlayerPackets.AbnormalChange(target.Key, new AbnormalWire(running.Uid, abnormalId, durationMs, running.ExpireAt,
-                CasterKey: playerKey, Level: 1, SkillId: 0, RangeBase: target.Position)));
+                CasterKey: wireCaster, Level: 1, SkillId: wireSkill, RangeBase: target.Position)));
             return;
         }
         var (stops, immune) = AbnormalCombat.NpcFlags(abnormalId);
@@ -207,9 +209,10 @@ public sealed partial class GameSession
         }
         (npcBuffs.TryGetValue(target.Key, out var list) ? list : npcBuffs[target.Key] = []).Add(buff);
         RefreshNpcFlags(target);
-        if (abnormalId == StaggerGaugeCombat.StaggerAbnormalId) target.StaggerUntil = now + durationMs;
+        if (StaggerGaugeCombat.IsGroggyBreakStaggerAbnormal(abnormalId, skillId))
+            target.StaggerUntil = now + durationMs;
         replies.Add(PlayerPackets.AbnormalAdd(target.Key, [new AbnormalWire(buff.Uid, abnormalId, durationMs, now + durationMs,
-            CasterKey: playerKey, Level: 1, SkillId: 0, RangeBase: target.Position)]));
+            CasterKey: wireCaster, Level: 1, SkillId: wireSkill, RangeBase: target.Position)]));
         foreach (var dot in buff.Dots) replies.Add(RidePackets.AbnormalEffect(target.Key, playerKey, buff.Uid, dot.EffectId, dot.Remaining, null, skillId));
         if (model.Taunt && targets is not null) replies.AddRange(ai.Taunt(targets, target, now, playerKey));
         foreach (var move in model.Moves.Where(m => m.Kind == AbnormalSpecs.DisplaceKind.Knockback))

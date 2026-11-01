@@ -22,6 +22,22 @@ public sealed partial class GameSession : IMapEventHost
     static readonly object MapEventDebugGate = new();
 
     readonly List<MapEventRun> mapEventRuns = [];
+    /// <summary>DreamCrossroad_D_01 / L_01 field exit (PCTeleport to Ishalgen/Poeta): once per ascension beat, not every 200001 visit.</summary>
+    readonly HashSet<string> dreamCrossroadFieldExitConsumed = new(StringComparer.OrdinalIgnoreCase);
+
+    static bool IsDreamCrossroadFieldExitEvent(string name) =>
+        name.Equals("DreamCrossroad_D_01_MapEvent", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("DreamCrossroad_L_01_MapEvent", StringComparison.OrdinalIgnoreCase);
+
+    bool DreamCrossroadFieldExitBlocked(string eventName) =>
+        IsDreamCrossroadFieldExitEvent(eventName) && dreamCrossroadFieldExitConsumed.Contains(eventName);
+
+    /// <summary>Map-event auto-start, with one-shot Dream Crossroad field exits while HQ2101060 / HQ1101021 step 2 is open.</summary>
+    bool MapEventAutoStartHolds(MapEventDefinition definition, long now)
+    {
+        if (DreamCrossroadFieldExitBlocked(definition.Name)) return false;
+        return MapEventRun.StartHolds(definition, this, now);
+    }
 
     /// <summary>Where the running events last moved the player inside this map (a same-map PCTeleport); the revival fallback.</summary>
     Vector3d? eventRevivalPoint;
@@ -225,7 +241,7 @@ public sealed partial class GameSession : IMapEventHost
     bool LayerEventsCanStart(int layerMap, long now)
     {
         var events = MapEventData.EventsOn(layerMap);
-        return events.Count == 0 || events.Any(e => MapEventRun.StartHolds(e, this, now));
+        return events.Count == 0 || events.Any(e => MapEventAutoStartHolds(e, now));
     }
 
     /// <summary>Quest-gated instance layer volumes on the field map (0x3701 only; bbox, edge crossing).</summary>
@@ -282,7 +298,7 @@ public sealed partial class GameSession : IMapEventHost
         // Only served dungeon maps (their scripts, points and spawns are generated); staff may look at the rest.
         if (!staff && !MapEventData.Serves(room.Map)) { Note($"dungeon {room.Name}: map {room.Map} is not served"); return []; }
         var events = MapEventData.EventsOn(room.Map);
-        if (copy == 0 && !staff && events.Count > 0 && !events.Any(e => MapEventRun.StartHolds(e, this, now)))
+        if (copy == 0 && !staff && events.Count > 0 && !events.Any(e => MapEventAutoStartHolds(e, now)))
         {
             var open = questLog?.OpenClearMapEventNames().ToList() ?? [];
             Note($"dungeon {room.Name}: entry refused (map event start blocked; open ClearMapEvent=[{string.Join(", ", open)}])");
@@ -324,7 +340,7 @@ public sealed partial class GameSession : IMapEventHost
     Vector3d? QuestDungeonResume(int map, long now)
     {
         if (MapEventData.DungeonOfMap(map) is not { MaxMember: <= 1 } room || !MapEventData.Serves(map) || MapEventData.Volume(map) is not null) return null;
-        var wanted = MapEventData.EventsOn(map).Any(e => MapEventRun.StartHolds(e, this, now));
+        var wanted = MapEventData.EventsOn(map).Any(e => MapEventAutoStartHolds(e, now));
         if (!wanted || !MeetsEntry(room, now, out _) || ArrivalPoint(room) is not { } arrival) return null;
         pendingArrivalCutscene = room.ArrivalCutscene is { Length: > 0 } cutscene ? (cutscene, false) : null;
         return arrival;
@@ -431,7 +447,7 @@ public sealed partial class GameSession : IMapEventHost
         var replies = new List<byte[]>();
         foreach (var run in mapEventRuns.ToList())
         {
-            if (run.WindingDown || MapEventData.Event(run.Name) is not { } def || MapEventRun.StartHolds(def, this, now)) continue;
+            if (run.WindingDown || MapEventData.Event(run.Name) is not { } def || MapEventAutoStartHolds(def, now)) continue;
             mapEventRuns.Remove(run);
             replies.Add(GamePackets.MapEventLeave(run.Id));
             DebugMapEvent($"event drop {run.Name} run {run.Id}: start no longer holds");
@@ -512,7 +528,7 @@ public sealed partial class GameSession : IMapEventHost
         {
             if (mapEventRuns.Any(r => r.Name == definition.Name)) continue;
             var run = new MapEventRun(definition, Interlocked.Increment(ref nextMapEventId), this, now);
-            if (!MapEventRun.StartHolds(definition, this, now)) continue;
+            if (!MapEventAutoStartHolds(definition, now)) continue;
             mapEventRuns.Add(run);
             replies.Add(GamePackets.MapEventJoin(run.Id, run.Name, (byte)run.Status, run.StageOrder, run.WireStep, run.Goals, run.StartedMs, run.Variables));
             DebugMapEvent($"event start {definition.Name} run {run.Id} map {worldMap}");
@@ -633,7 +649,7 @@ public sealed partial class GameSession : IMapEventHost
         }
         mapEventNow = now;
         var run = mapEventRuns.FirstOrDefault(r => r.Id == mapEventId);
-        if (run is not null && !run.WindingDown && !MapEventRun.StartHolds(run.Definition, this, now))
+        if (run is not null && !run.WindingDown && !MapEventAutoStartHolds(run.Definition, now))
         {
             mapEventRuns.Remove(run);
             run = null;
@@ -1346,6 +1362,16 @@ public sealed partial class GameSession : IMapEventHost
     /// after the load (the client reports that one 23 s later; the boss spawned on the report). The Ascension dungeon then
     /// plays its own 1293 (the kneel by Ashar) on arrival, from DungeonInfo.ArrivalCutscene.
     /// </summary>
+    void IMapEventHost.NoteMapEventPcTeleport(MapEventRun run, string point)
+    {
+        if (!IsDreamCrossroadFieldExitEvent(run.Name)) return;
+        var destMap = worldMap;
+        if (MapEventData.Teleport(point) is { } target) destMap = target.Map;
+        else if (MapEventData.Points(worldMap).ContainsKey(point) || data.MapPoints(worldMap).ContainsKey(point))
+            destMap = worldMap;
+        if (destMap != DreamCrossroadMap) dreamCrossroadFieldExitConsumed.Add(run.Name);
+    }
+
     void IMapEventHost.TeleportPc(string point, string effect, string before, string after)
     {
         int map = worldMap;
@@ -1377,8 +1403,15 @@ public sealed partial class GameSession : IMapEventHost
     List<byte[]> MapEventMove(int map, Vector3d at, long now, byte effect, string before = "", string after = "")
     {
         List<byte[]> move;
-        if (map == worldMap) move = Teleport(map, at, now, 2, effect, after);
-        else if (!IsInstanceMap(map)) move = Teleport(map, at, now, 0, effect, after);
+        if (map == worldMap)
+            move = [PlayerPackets.CharDisappear(playerKey, 2, effect), .. Teleport(map, at, now, 2, effect, after)];
+        else if (!IsInstanceMap(map))
+        {
+            var reason = worldMap == 200001 && MapEventData.DungeonOfMap(worldMap) is { Type: "Quest" } ? DreamCrossroadFieldExitReason : (byte)0;
+            move = reason == DreamCrossroadFieldExitReason
+                ? [PlayerPackets.CharDisappear(playerKey, reason, effect), .. Teleport(map, at, now, reason, effect, after)]
+                : Teleport(map, at, now, 0, effect, after);
+        }
         else
         {
             instanceKey = playerKey;
@@ -1515,6 +1548,9 @@ public sealed partial class GameSession : IMapEventHost
     /// <summary>The quest step is active (development logins without a quest log pass, so staff can walk every layer).</summary>
     bool IMapEventHost.QuestStepActive(int questId, int step) =>
         questLog is null ? IsAdmin : questLog.All.Any(q => q.QuestId == questId && q.Status == QuestLog.Incomplete && q.Step == step);
+
+    bool IMapEventHost.QuestComplete(int questId) =>
+        questLog is null ? IsAdmin : questLog.All.Any(q => q.QuestId == questId && q.Status == QuestLog.Complete);
 
     /// <summary>Events with no start conditions in the export: quest ClearMapEvent, field-event phase, or non-story dungeons after entry.</summary>
     bool IMapEventHost.MapEventStartAllowed(MapEventDefinition definition)

@@ -32,6 +32,13 @@ public sealed record GuildView(long Id, string Name, int Level, long Exp, int Em
 /// <summary>A craft ('craft', ECraftCategory 1..5) or gather ('gather', category 0) mastery: level and exp towards the next.</summary>
 public sealed record MasteryRecord(string Kind, int Category, int Level, long Exp);
 /// <summary>
+/// <summary>ItemDepotList_RS tail and ItemContainerSlotExtend state (six usmap counts).</summary>
+public sealed record ContainerSlotExtendCounts(
+    int InventoryByItem, int InventoryByGold, int Storage, int StorageByItem, int CharacterStorageByGold, int CharacterStorageByItem)
+{
+    public static readonly ContainerSlotExtendCounts Zero = new(0, 0, 0, 0, 0, 0);
+}
+
 /// Titles, skins and masteries of a character (migration 029): owned Title.dat ids, the equipped title per
 /// ETitleEquipCategory (1..3) and the shown one (0), the skin collection (Skin.dat id -> count), the equipped skin per
 /// ESkinEquipSlot, and the masteries.
@@ -41,7 +48,8 @@ public sealed record CharacterExtras(IReadOnlyList<int> Titles, IReadOnlyDiction
 {
     public static readonly CharacterExtras None = new([], new Dictionary<int, int>(), new Dictionary<int, int>(), new Dictionary<int, int>(), []);
 }
-public sealed record PlayerInventory(IReadOnlyList<ItemState> Items, IReadOnlyList<SkillState> Skills, IReadOnlyList<int>? Wings = null, CharacterExtras? Extras = null);
+public sealed record PlayerInventory(IReadOnlyList<ItemState> Items, IReadOnlyList<SkillState> Skills, IReadOnlyList<int>? Wings = null, CharacterExtras? Extras = null,
+    ContainerSlotExtendCounts? ContainerExtends = null);
 // Trusted server calls only: progress changes are not accepted from a player API.
 public sealed record AdminCommand(Guid RequestId, Guid CharacterId, string Command,
     string? BuildId = null, int TemplateId = 0, long Quantity = 1, int Level = 1,
@@ -248,6 +256,8 @@ public interface IGameplayStore
     Task<bool> SwapLobbySlotsAsync(VerifiedAccount account, int worldId, IReadOnlyList<(long WireId, int Slot)> assignments, int slotCapacity, CancellationToken ct = default) => Task.FromResult(false);
     /// <summary>Purchased lobby character slot extensions (auth.accounts.extended_character_slots).</summary>
     Task<int> ExtendedCharacterSlotsAsync(VerifiedAccount account, CancellationToken ct = default) => Task.FromResult(0);
+    /// <summary>Gold-paid bag row extension (ItemContainerSlotExtend): "ok", "none", "container", "kina", "count".</summary>
+    Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendInventoryByGoldAsync(VerifiedAccount account, Guid character, int costIdx, CancellationToken ct = default);
     /// <summary>Moves a bag item to a bag slot; an item already there takes the moved item's old slot.</summary>
     Task<bool> MoveBagItemAsync(VerifiedAccount account, Guid character, Guid item, long revision, int slot, CancellationToken ct = default);
     /// <summary>Moves a bag or warehouse item to a slot of 'bag' or 'storage' (the item on that slot takes the old one).</summary>

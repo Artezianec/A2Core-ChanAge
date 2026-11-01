@@ -128,28 +128,35 @@ public sealed partial class GameSession
             }
             if (rewards.Kina > 0) items.Insert(0, (KinaItemId, rewards.Kina));
             var replies = new List<byte[]>();
+            var levelBeforeReward = level;
+            List<byte[]> inventoryReplies = [];
+            long totalExp = experience;
             if (Store is { } store && CharacterId is { } character)
             {
                 if (await store.RewardQuestAsync(character, record.Code, rewards.Exp, items, ct) is not long total)
                     return [GamePackets.QuestTakeRewardReply(uid, 1)];
-                // The store added the reward to the level's experience; level-ups follow (ExpUpdate, LevelUpdate, ...).
-                replies.AddRange(await GainExperienceAsync(total, rewards.Exp, ExpReasonQuest, ct));
-                replies.AddRange(await InventoryChangesAsync(ct));
+                totalExp = total;
+                inventoryReplies = await InventoryChangesAsync(ct);
                 replies.AddRange(await AutoUseAcquiredItemsAsync(items.Select(i => i.Item1), now, ct));
             }
+            var (expBeforeTake, expAfterTake, levelBefore, levelAfter) =
+                await QuestRewardExperienceAsync(totalExp, rewards.Exp, ct);
+            var achieveAll = new List<byte[]>();
+            if (levelAfter > levelBefore) achieveAll.AddRange(AchieveSet("PCLevel", levelAfter));
+            achieveAll.AddRange(AchieveQuest(record.Code, quest.Type));
+            var (achieve5684, achieveOther) = SplitAchievementCounters(achieveAll);
+            replies.AddRange(QuestRewardWireBatch(uid, inventoryReplies,
+                expBeforeTake, expAfterTake, levelBefore, levelAfter, achieve5684, achieveOther));
             if (AscensionQuests.Contains(record.Code) && (selected?.Ascension ?? 1) < 2
                 && (Store is not { } ascending || CharacterId is not { } ascended || await ascending.AscendAsync(ascended, 2, ct)))
                 replies.AddRange(Ascend(2));
             var rewarded = record with { Status = QuestLog.Rewarded };
             questLog.Set(rewarded);
-            replies.Add(GamePackets.QuestTakeRewardReply(uid));
-            // HUD episode bar (AionWidget_HUD_IndicatorQuest) counts cleared quests in the active Quest.dat Part from
-            // journal EQuestStatus; without a post-reward sync the client can stay at Complete (3) and show 0% part progress.
             replies.Add(GamePackets.QuestProgress(Wire(rewarded)));
             replies.Add(GamePackets.QuestAdd(Wire(rewarded)));
-            replies.AddRange(AchieveQuest(record.Code, quest.Type));
             var unlocked = QuestUnlockTypes().Where(t => !unlockedBefore.Contains(t)).ToArray();
-            if (unlocked.Length > 0) replies.Add(GamePackets.ContentsUnlockUpdate(unlocked));
+            if (unlocked.Length > 0 && levelAfter <= levelBeforeReward)
+                replies.Add(GamePackets.ContentsUnlockUpdate(unlocked));
             if (questLog.FollowUpOnReward(quest, level, QuestConditionsHold) is { } next)
             {
                 replies.Add(GamePackets.QuestAdd(Wire(await SaveQuestAsync(QuestLog.New(next, questLog.Book.Find(next)!), ct))));
@@ -157,8 +164,9 @@ public sealed partial class GameSession
             }
             else if (quest.Next is { } waiting && questLog.Book.Find(waiting) is { } follow)
                 DebugMapEvent($"quest follow-up {waiting} after {record.Code} not auto-added: acquire={follow.Acquire} startNpc={follow.StartNpc} turnInNpc={quest.FinishNpc} block={questLog.AcceptBlockReason(follow, level, QuestConditionsHold) ?? "-"}");
-            // Quests waiting on this one (ClearQuest, ClearQuestType objectives) move on.
             replies.AddRange(await QuestChangesAsync(questLog.Recheck(level), ct));
+            if (levelAfter > levelBefore || rewards.Exp > 0)
+                replies.Add(SkillPointStatSheetUpdate());
             replies.AddRange(LeaveQuestDungeonAfterReward(quest, now));
             return replies;
         });

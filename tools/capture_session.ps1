@@ -84,9 +84,15 @@ function Get-AionGameProcessIds {
 }
 
 function Discover-AionServerAddresses {
-    param([int]$RemotePort, [int[]]$ProcessIds)
+    param([int]$RemotePort, [int[]]$ProcessIds, [switch]$AllGameTraffic)
     if ($ProcessIds.Count -eq 0) { return @() }
+    $gamePorts = @(13700, 13328, $RemotePort) | Where-Object { $_ -gt 0 } | Sort-Object -Unique
     $rows = @(Get-NetTCPConnection -State Established -ErrorAction SilentlyContinue |
-        Where-Object { $ProcessIds -contains $_.OwningProcess -and $_.RemotePort -eq $RemotePort })
-    @($rows | ForEach-Object { $_.RemoteAddress } | Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+$' } | Sort-Object -Unique)
+        Where-Object {
+            $ProcessIds -contains $_.OwningProcess -and
+            $_.RemoteAddress -match '^\d+\.\d+\.\d+\.\d+$' -and
+            $_.RemoteAddress -notmatch '^(127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)' -and
+            ($AllGameTraffic -or ($_.RemotePort -in $gamePorts))
+        })
+    @($rows | ForEach-Object { $_.RemoteAddress } | Sort-Object -Unique)
 }

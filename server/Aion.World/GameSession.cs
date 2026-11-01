@@ -370,6 +370,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             uncovered = [.. uncovered, .. FallLandingReplies(wasAir, air, reported, now)];
             var entering = MapEventPosition(reported, now);
             entering.AddRange(InstanceTrigger(reported, Opcode(plain), now));
+            entering.AddRange(TickRecoveryOrbs(now));
             if (worldPlayer?.Map is { } map)
             {
                 worldPlayer.Position = reported;
@@ -471,6 +472,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case ShopSellRq when plain.Length >= 4: return await SellItemsAsync(plain, ct);
             case ItemRemoveRq when plain.Length >= 4: return await RemoveItemsAsync(plain, ct);
             case ItemSortRq when plain.Length == 7: return await SortBagAsync(plain, ct);
+            case ItemContainerSlotExtendRq or ItemContainerSlotExtend8dRq when plain.Length == 16:
+                return await ExtendContainerSlotsAsync(plain, ct);
             case QuickSlotSetRq when plain.Length >= 27: return await SetQuickSlotAsync(plain, ct);
             case QuickSlotContextSkillRq when plain.Length >= 8: return await UpdateQuickSlotContextAsync(plain, ct);
             case SkillCustomizingUpdateRq: return await UpdateSkillCustomizingAsync(plain, ct);
@@ -478,6 +481,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case QuickSlotContextSkillResetRq when plain.Length == 2: return await ResetQuickSlotContextAsync(ct);
             case RidePackets.OpenBoxRq when plain.Length == 15: return await OpenBoxRequestAsync(plain, now, ct);
             case RidePackets.ItemUseRq when plain.Length == 10: return await UseItemAsync(BitConverter.ToInt64(plain, 2), now, ct);
+            case RidePackets.ItemUseByItemIdRq when plain.Length >= 18: return await UseItemByItemIdAsync(plain, now, ct);
             case RidePackets.AcquireRq when plain.Length == 6: return await AcquireRideAsync(BitConverter.ToInt32(plain, 2), ct);
             case RidePackets.CrystallizeRq when plain.Length >= 3: return await CrystallizeAsync(plain, ct);
             case RidePackets.BoardRollRq when plain.Length >= 5: return await RollBoardAsync(plain, ct);
@@ -1002,6 +1006,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     async Task<List<InventoryItem>> LoadInventoryAsync(INativeCharacterStore store, Guid character, CancellationToken ct, IReadOnlyDictionary<long, int>? hints = null)
     {
         var rows = await store.InventoryAsync(character, ct);
+        containerSlotExtends = ContainerSlotExtendView.From(await store.ContainerSlotExtendsAsync(character, ct));
         storedItems.Clear();
         foreach (var row in rows) storedItems[WireKey(row)] = row;
         await EnsureRolledStatsAsync(store, character, ct);
@@ -1077,7 +1082,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         equippedWeapon = weapon;
         var starter = new InventoryItem(1, weapon.Value, 1, InventoryItem.Equipped, 1, new EquipDetail(1, 1));
         Remember([starter]);
-        return [GamePackets.ItemDepotList([starter]), GamePackets.ItemEquipLevelChange(1, 1)];
+        return [GamePackets.ItemDepotList([starter], containerSlotExtends.ToWireCounts()), GamePackets.ItemEquipLevelChange(1, 1)];
     }
 
     /// <summary>
@@ -1426,7 +1431,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 if (!daevanionNodesBefore.SetEquals(daevanionNodes)
                     || !daevanionUsedBefore.OrderBy(p => p.Key).SequenceEqual(daevanionUsed.OrderBy(p => p.Key)))
                 {
-                    var progress = new DaevanionProgress(daevanionNodes.ToList(), daevanionUsed, daevanionBonus);
+                    var progress = new DaevanionProgress([.. daevanionNodeOrder], daevanionUsed, daevanionBonus);
                     await store.SaveDaevanionAsync(state.Summary.CharacterId, progress, ct);
                 }
                 className = profile.Class;
@@ -1616,6 +1621,12 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         sameLevelRemovals = [];
         if (shortLoad)
         {
+            // Layer re-entry omits the full entry tail; refresh Daevanion when progress exists so board bonuses stay active.
+            if (daevanionNodeOrder.Count > 0)
+            {
+                replies.Add(DaevanionPointUpdate());
+                replies.Add(DaevanionBoardInfo());
+            }
             // After 0x364a the official layer entry sends one point update (#9684 `01 01 03 a0860100`: type 3, 100000).
             replies.Add(GamePackets.CharPoints(playerKey, [((CharPoint)3, 100000)]));
             // The short load omits 0x8d09 QuestList; without progress the tracker stays blank on instance re-entry (HQ2101030 step 3).
@@ -1651,6 +1662,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             replies.AddRange(ApplyLazyPeriodicResets(now, notifyClient: true));
             // After login progress and lazy daily/weekly resets so the first 0x5683 matches persisted state (playtest: blank journal until relog).
             replies.Add(AchievementList(now));
+            replies.AddRange(SyncVehicleCollectAchievements(now));
             replies.AddRange(CraftListsAtEntry());
         }
         if (!instanceMove && !shortLoad) replies.AddRange(MapEnvironment(mapId));   // every full map load (OBSERVED at the official world entry, map 1000 state 0)
@@ -1724,6 +1736,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         fogCheckAt = 0;
         ResetMonolithClientState();
         shownObjects.Clear();
+        ClearRecoveryOrbs();
         shownTriggers.Clear();
         usedObjects.Clear();
         ResetEnvObjHits();
@@ -1895,8 +1908,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         // 2026-10-30 16:08: Tempest Shot x6 in 70 ms, Snipe->Rapid Fire->Spiral Arrow->Snipe in 33 ms). Each accept is a new
         // SkillStart with projectiles/FX, which flooded the client (stuck FX meshes, then UE "Maximum number of UObjects").
         // OBSERVED official: Tempest Shot re-accepted 229 ms apart at the least.
-        var castGapOk = noCool || now - lastAcceptedCastMs >= SkillCooldown.MinCastGapMs || sprintOpeningDash;
-        var cooldownOk = cooldownReady || sprintOpeningDash;
+        var staggerReactiveCast = !dodging && StaggerReactiveFreeCast(definition, now, request.TargetKey);
+        var castGapOk = noCool || now - lastAcceptedCastMs >= SkillCooldown.MinCastGapMs || sprintOpeningDash || staggerReactiveCast;
+        var cooldownOk = cooldownReady || sprintOpeningDash || staggerReactiveCast;
         var accepted = meetsCastRules && cooldownOk && castGapOk;
         if (!accepted)
         {
@@ -1928,8 +1942,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         var cooldown = noCool ? 0 : SkillCooldown.Reduced(SkillCooldown.EffectiveMs(definition), CoolTimeDecrease);
         var lockout = PlayerCastLockoutMs(definition!, skill);
         if (definition!.CooldownMs > 0 && lockout == definition.CooldownMs) lockout = cooldown;
-        if (!noCool && lockout > 0) cooldowns[cooldownKey] = now + lockout;
-        ScheduleNextCastAccept(now, definition!, skill, HeldCastWireKeyOf(request, body));
+        if (!noCool && lockout > 0 && !staggerReactiveCast) cooldowns[cooldownKey] = now + lockout;
+        ScheduleNextCastAccept(now, definition!, skill, HeldCastWireKeyOf(request, body), freeRecast: staggerReactiveCast);
         if (dodging)
             nextCastAcceptAtMs = Math.Max(nextCastAcceptAtMs, now + Math.Max(lockout, SkillCooldown.MinCastGapMs));
         // Builder SetInvincible: the flagged resources do not decrease.
@@ -2010,6 +2024,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         replies.AddRange(CasterMoveReplies(skill, request, definition!, now));
         replies.AddRange(AbnormalOnlyCastReplies(skill, request, definition!, now));
         replies.AddRange(SkillEffectReplies(skill, request, definition!, now));
+        replies.AddRange(DimensionalControlCastReplies(skill, now));
         ScheduleSkillEnd(skill, (byte)actionUid, definition!, now);
         replies.AddRange(SummonFromSkill(skill, request, now));
         replies.AddRange(JointStrike(definition!, request, now));
@@ -2768,6 +2783,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         replies.AddRange(SkillEndTick(now));
         replies.AddRange(SummonExpiryTick(now));
         replies.AddRange(ElementalActivateTick(now));
+        replies.AddRange(SpiritOwnerBuffTick(now));
         if (position is { } monolithAt && questLog is not null)
         {
             replies.AddRange(ObjectVisibility(monolithAt, now));
@@ -2837,6 +2853,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             pendingUse = null;
             replies.AddRange(await WithMapEventClearsFlushedAsync(await CompleteUseAsync(use.Index, ct, now), ct));
         }
+        replies.AddRange(FlightRingStatResetTick(now));
         if (dead && now >= reviveAt) replies.AddRange(AutoRevive(now));
         WarnStuckReload(now);
         if (itemCast is { } cast && now >= cast.DueMs) replies.AddRange(await CompleteItemCastAsync(now, ct));
@@ -2920,13 +2937,17 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             ai.SkipLeashHealNpcIds = OpenKillNpcIdsForSharedAi();
             if (ai.SkipLeashHealNpcIds.Count == 0) ai.SkipLeashHealNpcIds = null;
             WireMapEventNpcCombatHooks(ai, now);
+            WireRecoveryOrbHooks(ai);
             replies.AddRange(Visible(ai.Tick(targets, invisible || dead || FriendlyToAll ? null : position, now, damage => NpcHitsPlayer(damage, now, ai.LastAttacker, ai.LastHitSkill))));
+            ClearRecoveryOrbHooks(ai);
             ClearMapEventNpcCombatHooks(ai);
+            replies.AddRange(TickRecoveryOrbs(now));
             replies.AddRange(NpcKillsByNpcs(ai, now));
         }
         PartyTick(now);
-        replies.AddRange(StaggerGaugeCombat.StaggerTick(targets, now));
-        ClearPlayerStaggerIfExpired(now);
+        replies.AddRange(NpcStaggerGaugeTick(now));
+        replies.AddRange(ClearPlayerStaggerIfExpired(now));
+        replies.AddRange(ClearStaggerReactiveContextIfTargetLost(now));
         PartyLootTick(now);
         DuelTick(now);
         ArenaTick(now);

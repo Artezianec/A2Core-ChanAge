@@ -3,16 +3,33 @@ using Aion.Protocol.Native;
 
 namespace Aion.World;
 
+public readonly record struct ContainerSlotExtendView(int InventoryByItem, int InventoryByGold, int Storage, int StorageByItem, int CharacterStorageByGold, int CharacterStorageByItem)
+{
+    public static ContainerSlotExtendView From(ContainerSlotExtendCounts c) => new(c.InventoryByItem, c.InventoryByGold, c.Storage, c.StorageByItem, c.CharacterStorageByGold, c.CharacterStorageByItem);
+    public int[] ToWireCounts() => [InventoryByItem, InventoryByGold, Storage, StorageByItem, CharacterStorageByGold, CharacterStorageByItem];
+    public int BagSlotLimit => GameSession.BaseBagSlotCount + InventoryByGold * GameSession.BagSlotsPerRow + InventoryByItem * GameSession.BagSlotsPerRow;
+}
+
 // Bag operations and the hotbar. Opcodes are catalogue index + run base: ItemMove/Remove/Sort 0x563a/0x563c/
 // 0x563e (+ 0x54ca, the 0x56 run around the OBSERVED 0x5610/0x5612/0x5646), QuickSlotSet/Reset 0x5601/0x5603
 // (+ 0x54c5 below 0x5610: the live client's unanswered 0x5601 is 27 bytes = QuickSlotInfo, OBSERVED; the hotbar
 // list 0x5600 is QuickSlotList_NT). Layouts are the usmap structs; result u16 as every observed RS.
 public sealed partial class GameSession
 {
+    /// <summary>Official default bag before gold/item extensions (OBSERVED 27 slots = 3×9).</summary>
+    public const int BagSlotsPerRow = 9, BaseBagSlotCount = 27;
+    static readonly long[] BagGoldExtendCosts = [5_000, 10_000, 20_000, 30_000, 50_000, 75_000, 100_000, 150_000, 200_000, 300_000];
+    const int MaxBagGoldExtensions = 10;
+
     public const ushort ItemMoveRq = 0x563a, ItemMoveRs = 0x563b, ItemRemoveRq = 0x563c, ItemRemoveRs = 0x563d, ItemSortRq = 0x563e, ItemSortRs = 0x563f,
+        // DevPacketData 0x398A ItemContainerSlotExtend: live +0x1ebe → 0x5848 (0x56 run) or +0x53c5 → 0x8d4f (0x8d run, after SealStone 0x3989→0x8d4e).
+        ItemContainerSlotExtendRq = 0x5848, ItemContainerSlotExtendRs = 0x5849, ItemContainerSlotExtendNt = 0x584a,
+        ItemContainerSlotExtend8dRq = 0x8d4f, ItemContainerSlotExtend8dRs = 0x8d50, ItemContainerSlotExtend8dNt = 0x8d51,
         QuickSlotSetRq = 0x5601, QuickSlotSetRs = 0x5602, QuickSlotResetRq = 0x5603, QuickSlotResetRs = 0x5604,
         QuickSlotContextSkillResetRq = 0x5609, QuickSlotContextSkillResetRs = 0x560a;
+    ContainerSlotExtendView containerSlotExtends;
     const byte DecreaseItemRemove = 13;   // EDecreaseReason kItemRemove
+    const byte DecreaseBagSlotExtend = 15;   // EDecreaseReason kShopBuy (kinah spend, same as merchant purchase)
     readonly SortedDictionary<int, QuickSlotRecord> quickSlots = [];
     public IReadOnlyDictionary<int, QuickSlotRecord> QuickSlots => quickSlots;
 
@@ -138,6 +155,49 @@ public sealed partial class GameSession
     }
 
     /// <summary>0x563e ItemSort_RQ {npc key i32, EItemContainerType u8}: the bag ordered by item, answered 0x563f.</summary>
+    /// <summary>ItemContainerSlotExtend_RQ (0x5848 or 0x8d4f): npc i32, container u8, item uid i64, cost idx u8 (gold path uses uid 0).</summary>
+    async Task<List<byte[]>> ExtendContainerSlotsAsync(byte[] plain, CancellationToken ct)
+    {
+        if (plain.Length != 16) return [];
+        var rq = Opcode(plain);
+        if (rq is not (ItemContainerSlotExtendRq or ItemContainerSlotExtend8dRq)) return [];
+        var rsOpcode = (ushort)(rq + 1);
+        var ntOpcode = (ushort)(rq + 2);
+        var npc = BitConverter.ToInt32(plain, 2);
+        var container = plain[6];
+        var itemUid = BitConverter.ToInt64(plain, 7);
+        var costIdx = plain[15];
+        byte[] Rs(int result, ContainerSlotExtendView counts) =>
+            PacketWriter.Opcode(rsOpcode).I32(result).I32(npc).U8(container).I64(itemUid).U8(costIdx)
+                .U8(counts.InventoryByItem).U8(counts.InventoryByGold).ToArray();
+        byte[] Nt(ContainerSlotExtendView counts) =>
+            PacketWriter.Opcode(ntOpcode).U8(container).I64(itemUid).U8(counts.InventoryByItem).U8(counts.InventoryByGold).ToArray();
+        if (Store is not { } store || CharacterId is not { } character || container != InventoryItem.Bag || itemUid != 0)
+            return [Rs(1, containerSlotExtends)];
+        if (costIdx != containerSlotExtends.InventoryByGold || costIdx >= MaxBagGoldExtensions)
+            return [Rs(4, containerSlotExtends), .. await InventoryChangesAsync(ct, 0, 0)];
+        var outcome = ("none", ContainerSlotExtendCounts.Zero);
+        await Stored(async () =>
+        {
+            outcome = await store.ExtendInventoryByGoldAsync(character, costIdx, ct);
+            return outcome.Item1 == "ok" ? [[]] : [];
+        });
+        if (outcome.Item1 != "ok")
+        {
+            var fail = outcome.Item1 switch { "kina" => 3, "count" => 4, _ => 1 };
+            containerSlotExtends = ContainerSlotExtendView.From(outcome.Item2);
+            return [Rs(fail, containerSlotExtends), .. await InventoryChangesAsync(ct, 0, 0)];
+        }
+        containerSlotExtends = ContainerSlotExtendView.From(outcome.Item2);
+        return
+        [
+            Rs(0, containerSlotExtends),
+            Nt(containerSlotExtends),
+            .. await InventoryChangesAsync(ct, 0, DecreaseBagSlotExtend),
+            .. InventoryDepotSyncPackets(),
+        ];
+    }
+
     async Task<List<byte[]>> SortBagAsync(byte[] plain, CancellationToken ct)
     {
         var npc = BitConverter.ToInt32(plain, 2);

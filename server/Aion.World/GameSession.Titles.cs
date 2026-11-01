@@ -92,7 +92,47 @@ public sealed partial class GameSession
         replies.AddRange(await InventoryChangesAsync(ct, 0, DecreaseItemUse));
         if (titles.Contains(titleId)) return replies;
         replies.AddRange(await AcquireTitleAsync(titleId, ct));
+        replies.AddRange(await AutoPresentTitleAsync(titleId, ct));
         return replies;
+    }
+
+    /// <summary>After GetTitle from a box or achievement: equip by category and show (capture 001158: 0x567d, 0x5680/0x5681, 0x567c).</summary>
+    async Task<List<byte[]>> AutoPresentTitleAsync(int titleId, CancellationToken ct)
+    {
+        if (!titles.Contains(titleId) || Titles.Of(titleId) is not { } title) return [];
+        var replies = new List<byte[]>();
+        if (title.Category is >= 1 and <= 3 && !titleEquips.ContainsKey(title.Category))
+            replies.AddRange(await EquipTitleWireAsync(title.Category, titleId, ct));
+        if (ShownTitle == 0)
+            replies.AddRange(await ShowTitleWireAsync(titleId, ct));
+        return replies;
+    }
+
+    async Task<List<byte[]>> AutoPresentGrantedTitlesAsync(IEnumerable<int> itemTemplateIds, CancellationToken ct)
+    {
+        var replies = new List<byte[]>();
+        foreach (var tid in itemTemplateIds.Distinct())
+        {
+            if (RewardBoxes.Embedded.Use(tid) is not { Effect: "GetTitle", Values: [var text, ..] } || !int.TryParse(text, out var titleId)) continue;
+            if (!titles.Contains(titleId)) continue;
+            replies.AddRange(await AutoPresentTitleAsync(titleId, ct));
+        }
+        return replies;
+    }
+
+    async Task<List<byte[]>> EquipTitleWireAsync(int category, int titleId, CancellationToken ct)
+    {
+        if (!await SaveTitleAsync(category, titleId, ct)) return [];
+        return [PacketWriter.Opcode(TitleEquipRs).U16(0).U8((byte)category).I32(titleId).ToArray(),
+            PacketWriter.Opcode(TitleEquipChangeNt).U8((byte)category).I32(titleId).ToArray(), .. RefreshStats()];
+    }
+
+    async Task<List<byte[]>> ShowTitleWireAsync(int titleId, CancellationToken ct)
+    {
+        if (!await SaveTitleAsync(0, titleId, ct)) return [];
+        var shown = PacketWriter.Opcode(TitleChangeNt).Varint(playerKey).I32(titleId).ToArray();
+        worldPlayer?.Map?.Broadcast(worldPlayer, [shown]);
+        return [PacketWriter.Opcode(TitleChangeRs).U16(0).I32(titleId).ToArray(), shown];
     }
 
     /// <summary>

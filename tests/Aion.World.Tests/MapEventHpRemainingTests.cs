@@ -85,6 +85,7 @@ public sealed class MapEventHpRemainingTests
         public void ScriptBeat(MapEventRun run, string kind, string detail, long now) { }
         public void Unsupported(MapEventRun run, string what) { }
         public bool QuestStepActive(int questId, int step) => false;
+        public bool QuestComplete(int questId) => false;
         public bool MapEventStartAllowed(MapEventDefinition definition) => true;
         public bool NpcInCombat(string spawner) => false;
         public bool SpawnerAlive(string spawner) => true;

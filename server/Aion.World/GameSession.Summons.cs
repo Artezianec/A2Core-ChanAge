@@ -24,15 +24,14 @@ partial class GameSession
     internal const int ElementalReplaceDespawnMs = 2_500;
     /// <summary>0xe239 after the spirit's appear and aggro/target packets (client Jointstrike gate).</summary>
     readonly List<(int SummonKey, byte Group, long DueMs)> pendingElementalActivates = [];
-    /// <summary>SkillEffect Caster_HasAbnormalId while a spirit is out (Jointstrike client gate; 0x382a on the player).</summary>
-    public const int SpiritSummonStateAbnormalBase = 1_004_900;
-    /// <summary>Fire spirit (EElementalSummonGroupType 1); kept for tests and SkillCond references.</summary>
-    public const int SpiritSummonStateAbnormal = SpiritSummonStateAbnormalBase + 1;
+    /// <summary>Spirit casts 16107000 on its owner (~85 ms after spawn, capture 000220).</summary>
+    readonly List<(int SummonKey, long DueMs)> pendingSpiritOwnerBuffs = [];
+    /// <summary>Fire spirit player link abnormal (162900001); kept for tests.</summary>
+    public const int SpiritSummonStateAbnormal = 162_900_001;
 
-    static int SpiritSummonStateAbnormalId(byte group) => SpiritSummonStateAbnormalBase + group;
+    static int SpiritSummonStateAbnormalId(byte group) => ElementalSummons.PlayerSpiritLinkAbnormal(group);
 
-    static bool IsSpiritSummonStateAbnormal(int abnormalId) =>
-        abnormalId > SpiritSummonStateAbnormalBase && abnormalId <= SpiritSummonStateAbnormalBase + 5;
+    static bool IsSpiritSummonStateAbnormal(int abnormalId) => ElementalSummons.IsPlayerSpiritLinkAbnormal(abnormalId);
     int lastSummonSlot = SummonSlots - 1;
 
     int SummonKey(int slot) => FirstSummonKey + (playerKey % 1_000_000) * SummonSlots + slot;
@@ -94,6 +93,7 @@ partial class GameSession
         elementalModes.Clear();
         elementalExpiry.Clear();
         pendingElementalActivates.Clear();
+        pendingSpiritOwnerBuffs.Clear();
         return ClearSpiritSummonState(now);
     }
 
@@ -195,9 +195,11 @@ partial class GameSession
         };
         targets[key] = t;
         summonKeys[group] = key;
-        replies.Add(GamePackets.NpcAppear(t.Appearance() with { Reason = NpcAppearance.NpcSpawnReason }));
+        replies.Add(GamePackets.NpcSummonAppear(t.SummonWireAppearance(playerKey), playerKey, wireLevel: Math.Max(4, level),
+            spawnTag: ElementalSummons.SpiritSpawnTag(t.NpcId)));
         seenNpcs.Add(key);
-        replies.AddRange(SummonAi.Follow(t, playerKey, true, now));
+        replies.AddRange(SummonAi.Follow(t, playerKey, true, now, wireInitialFollow: true));
+        replies.AddRange(SummonAi.SpiritSpawnSkill(t, now));
         var victimKey = targets.ContainsKey(request.TargetKey) ? request.TargetKey : selectedTarget;
         if (targets.TryGetValue(victimKey, out var victim) && victim.Hostile && !victim.Dead && victim.OwnerKey == 0)
             replies.AddRange(SummonAi.SummonAttack(t, victim, playerKey, now));
@@ -206,6 +208,8 @@ partial class GameSession
             elementalModes[key] = mode;
             elementalExpiry[key] = now + GamePackets.SpiritLifeTimeMs;
             pendingElementalActivates.Add((key, mode, now + 1));
+            if (t.Skills.Contains(SpiritOwnerBuffSkillId))
+                pendingSpiritOwnerBuffs.Add((key, now + SpiritOwnerBuffDelayMs));
         }
         return replies;
     }
@@ -230,8 +234,25 @@ partial class GameSession
         return replies;
     }
 
-    void CancelPendingElementalActivate(int summonKey) =>
+    void CancelPendingElementalActivate(int summonKey)
+    {
         pendingElementalActivates.RemoveAll(p => p.SummonKey == summonKey);
+        pendingSpiritOwnerBuffs.RemoveAll(p => p.SummonKey == summonKey);
+    }
+
+    /// <summary>Deferred owner buff from the spirit (16107000 → Dimensional Control window on Water).</summary>
+    internal List<byte[]> SpiritOwnerBuffTick(long now)
+    {
+        if (pendingSpiritOwnerBuffs.Count == 0 || targets is null) return [];
+        var replies = new List<byte[]>();
+        foreach (var pending in pendingSpiritOwnerBuffs.Where(p => now >= p.DueMs).ToList())
+        {
+            pendingSpiritOwnerBuffs.Remove(pending);
+            if (!targets.TryGetValue(pending.SummonKey, out var spirit) || spirit.Dead) continue;
+            replies.AddRange(ApplySpiritOwnerBuff(spirit, now));
+        }
+        return replies;
+    }
 
     /// <summary>Skill.dat CanUseWhenElementalSummonSpawned: Jointstrike and similar skills are usable only while a spirit of one
     /// of its groups is out. Summon: Fire/Water/… cast skills carry the field for their element but must not require
@@ -325,6 +346,7 @@ partial class GameSession
         elementalModes.Clear();
         elementalExpiry.Clear();
         pendingElementalActivates.Clear();
+        pendingSpiritOwnerBuffs.Clear();
         pendingElementalDespawn.Clear();
     }
 

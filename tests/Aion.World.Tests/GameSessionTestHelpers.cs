@@ -131,4 +131,12 @@ public static class GameSessionTestHelpers
         foreach (var v in values) w.String(v);
         return w.ToArray();
     }
+
+    /// <summary>Official 0x5105 body after opcode: 01 01 &lt;spent u8&gt; 00 (capture 234615).</summary>
+    public static int SkillPoint5105Spent(byte[] packet)
+    {
+        if (Op(packet) != GameSession.SkillPointUpdateNt || packet.Length < 6 || packet[2] != 1 || packet[3] != 1 || packet[5] != 0)
+            throw new ArgumentException("not a capture-234615 0x5105 packet", nameof(packet));
+        return packet[4];
+    }
 }

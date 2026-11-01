@@ -69,6 +69,8 @@ public sealed class Target
     public int SummonSourceSkill { get; set; }
     public string SubType { get; init; } = "NormalMonster";
     public int Grade { get; init; } = 3;
+    /// <summary>NpcData groggy guard max when exported on the template (0 = derive from rank rules).</summary>
+    public int TemplateGroggyMax { get; init; }
     /// <summary>Boss groggy guard (0 = none); sent with 0xe005 UpdateGroggyInfo_NT.</summary>
     public int GroggyMax { get; set; }
     public int GroggyEnergy { get; set; }
@@ -85,6 +87,18 @@ public sealed class Target
         MoveState: Air ? NpcAppearance.FlyingOnAirStop : (byte)0, MoveSubstate: Air ? (byte)2 : (byte)0,
         Abnormals: AirMonster ? [new AbnormalWire(1, AirPassiveAbnormal, -1, PermanentExpiry, CasterKey: Key, RangeBase: Position)] : null,
         ParentKey: OwnerKey, Parent: OwnerDesc);
+
+    /// <summary>0x3641 wire for a player's elemental spirit (official masked layout).</summary>
+    public NpcAppearance SummonWireAppearance(int ownerKey) =>
+        Appearance() with
+        {
+            MoveState = NpcAppearance.FlyingOnAirStop, MoveSubstate = 2, Reason = NpcAppearance.NpcSpawnReason,
+            Aggressive = true, Parent = null, SpawnAct = GamePackets.SpiritSpawnActId,
+            Abnormals =
+            [
+                new AbnormalWire(1, ElementalSummons.SpiritAbnormalId(NpcId), -1, PermanentExpiry, CasterKey: ownerKey, RangeBase: Position),
+            ],
+        };
 }
 
 public sealed record Hit(int Amount, bool Critical, int EffectId);
@@ -236,10 +250,9 @@ public static class Combat
         var t = new Target
         {
             Key = TrainingDummyKey, Name = "Training Dummy", Hp = hp, HpMax = hp, Position = spawn with { X = spawn.X + 300.0 },
-            NpcId = SandbagNpcId, Level = SandbagLevel, Direction = 180.0,
+            NpcId = SandbagNpcId, Level = SandbagLevel, Direction = 180.0, SubType = "HeroMonster", Grade = 5,
         };
-        t.StaggerGaugeMax = StaggerGaugeCombat.DefaultGaugeMax;
-        StaggerGaugeCombat.SyncGroggyFromGauge(t);
+        StaggerGaugeCombat.InitBossGauge(t);
         return t;
     }
 
@@ -275,7 +288,7 @@ public static class Combat
                 Function = spawn.Function, Aggro = spawn.Aggro, Skills = spawn.Skills ?? [], NoRotation = spawn.NoRotation,
                 UniqueKey = spawn.UniqueKey, SocialAction = spawn.SocialAction, SocialStart = spawn.SocialAction != 0 ? StartedAt : 0, Route = spawn.Route,
                 Air = spawn.Air, AirMonster = spawn.Air && spawn.SubType.EndsWith("Monster", StringComparison.Ordinal), DamageScale = DamageScale(spawn.SubType, spawn.Grade),
-                SubType = spawn.SubType, Grade = spawn.Grade,
+                SubType = spawn.SubType, Grade = spawn.Grade, TemplateGroggyMax = spawn.GroggyGuardMax,
                 Defense = NpcDefense(spawn.Level, spawn.SubType, spawn.Grade, data.BaseStats("Gladiator", spawn.Level).GetValueOrDefault("Defense")),
             };
             NpcAi.InitGroggy(targets[key]);

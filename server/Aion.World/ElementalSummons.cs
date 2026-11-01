@@ -42,4 +42,35 @@ public static class ElementalSummons
             if (row.DeactivateSkill == skillId) return GroupType(row.Group);
         return 0;
     }
+
+    /// <summary>Permanent player link abnormal while a spirit is out (capture 000220: 162900011 for Water / dismiss 16290001).</summary>
+    public static int PlayerSpiritLinkAbnormal(byte group)
+    {
+        foreach (var row in file.Value.Rows)
+            if (GroupType(row.Group) == group) return row.DeactivateSkill * 10 + 1;
+        return 0;
+    }
+
+    public static bool IsPlayerSpiritLinkAbnormal(int abnormalId) =>
+        file.Value.Rows.Any(r => r.DeactivateSkill * 10 + 1 == abnormalId);
+
+    /// <summary>Permanent spirit abnormal on 0x3641 (official 2026-11-01 capture).</summary>
+    public static int SpiritAbnormalId(int npcId) => npcId switch
+    {
+        2920101 => 0x0998_aa41,
+        2920121 => 0x099a_30e1,
+        2920141 => 0x099c_b681,
+        2920161 => 0x099e_5c21,
+        _ => 0x0998_aa41,
+    };
+
+    /// <summary>Spawn tag u32 on summon 0x3641 tail (official Fire/Water captures).</summary>
+    public static uint SpiritSpawnTag(int npcId) => npcId switch
+    {
+        2920101 => 0x0003_1dd7,
+        2920121 => 0x0003_1ddf,
+        2920141 => 0x0003_1de7,
+        2920161 => 0x0003_1def,
+        _ => 0x0003_1dd7,
+    };
 }

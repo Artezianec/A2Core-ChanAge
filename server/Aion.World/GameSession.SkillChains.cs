@@ -213,6 +213,78 @@ public sealed partial class GameSession
         return replies;
     }
 
+    /// <summary>
+    /// After the cast target meets a Target SkillCond (e.g. Stagger on NPC/PvP): server 0x5608 selects context rows
+    /// for every learned skill whose <see cref="SkillCondNeed"/> matches, same pattern as self Precision grants.
+    /// </summary>
+    List<byte[]> SkillCondTargetSelectReplies(Func<SkillCondNeed, bool> matches, int contextMarker)
+    {
+        var replies = new List<byte[]>();
+        foreach (var skillId in learned.OrderBy(id => id))
+        {
+            if (data.Skill(skillId) is not { SkillCond: { } cond }) continue;
+            if (!matches(cond)) continue;
+            if (!cond.SelectTarget?.Equals("Target", StringComparison.OrdinalIgnoreCase) == true) continue;
+            if (!TryContextSlotOfSkill(skillId, out var slot, out var index)) continue;
+            contextAutoSelect[slot] = (index, skillId, contextMarker);
+            replies.AddRange(NotifyQuickSlotContextSkill(slot, index, skillId));
+        }
+        return replies;
+    }
+
+    static bool TargetSkillCondNeedsAbnormalEffect(SkillCondNeed cond, string effectType) =>
+        cond.Type.Equals("HasAbnormalEffectType", StringComparison.OrdinalIgnoreCase)
+        && cond.AbnormalEffect?.Equals(effectType, StringComparison.OrdinalIgnoreCase) == true;
+
+    /// <summary>Last NPC/player key that opened a target-Stagger context select (hotbar revert when it ends).</summary>
+    int? staggerReactiveTargetKey;
+
+    /// <summary>Target Stagger window: unlock all class rampage/scattershot skills from skill_cond in data.</summary>
+    internal List<byte[]> SkillCondTargetStaggerSelectReplies(int targetKey = 0)
+    {
+        if (targetKey != 0) staggerReactiveTargetKey = targetKey;
+        return SkillCondTargetSelectReplies(c => TargetSkillCondNeedsAbnormalEffect(c, "Stagger"), StaggerGaugeCombat.StaggerAbnormalId);
+    }
+
+    internal List<byte[]> ClearStaggerReactiveContextIfTargetLost(long now)
+    {
+        if (staggerReactiveTargetKey is not int key) return [];
+        var stillStaggered = TargetStaggerActive(key, now);
+        if (stillStaggered != false) return [];
+        staggerReactiveTargetKey = null;
+        return SkillCondStaggerContextExpireReplies();
+    }
+
+    bool? TargetStaggerActive(int targetKey, long now)
+    {
+        if (targetKey >= SharedWorld.FirstPlayerKey)
+        {
+            if (worldPlayer?.Map?.Players.GetValueOrDefault(targetKey)?.Session is not { } victim) return null;
+            return victim.PlayerHasGroggyBreakStagger(now);
+        }
+        if (targets?.TryGetValue(targetKey, out var npc) != true || npc is null) return null;
+        return NpcHasGroggyBreakStagger(targetKey, now);
+    }
+
+    /// <summary>When a target-gated SkillCond window ends, restore context index 0 on auto-selected slots.</summary>
+    List<byte[]> SkillCondTargetContextExpireReplies(int contextMarker)
+    {
+        if (Profile() is null) return [];
+        var replies = new List<byte[]>();
+        foreach (var slot in contextAutoSelect.Keys.Order().ToList())
+        {
+            var (index, skillId, group) = contextAutoSelect[slot];
+            if (group != contextMarker) continue;
+            contextAutoSelect.Remove(slot);
+            if (!EffectiveSkillStacks().TryGetValue(slot, out var stack) || stack[0] <= 0) continue;
+            replies.AddRange(NotifyQuickSlotContextSkill((byte)slot, 0, stack[0]));
+        }
+        return replies;
+    }
+
+    List<byte[]> SkillCondStaggerContextExpireReplies() =>
+        SkillCondTargetContextExpireReplies(StaggerGaugeCombat.StaggerAbnormalId);
+
     /// <summary>When a gating self-buff expires, restore the bar skill at index 0 on auto-selected slots.</summary>
     List<byte[]> SkillCondContextExpireReplies(IReadOnlyList<Buff> removed)
     {

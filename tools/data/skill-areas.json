@@ -65729,9 +65729,9 @@
       "effects_source": "override",
       "target_debuffs": [
         [
-          100000041,
-          3000,
-          3000,
+          163300001,
+          100,
+          100,
           0
         ]
       ]
@@ -73840,6 +73840,33 @@
         ]
       ],
       "source": "override"
+    },
+    "100000002": {
+      "effects": [
+        [
+          100000002,
+          "Stun"
+        ]
+      ],
+      "source": "override"
+    },
+    "100000099": {
+      "effects": [
+        [
+          100000099,
+          "Stun"
+        ]
+      ],
+      "source": "override"
+    },
+    "161400001": {
+      "effects": [
+        [
+          161400001,
+          "Stagger"
+        ]
+      ],
+      "source": "override"
     }
   },
   "abnormal_types": {
@@ -73899,6 +73926,15 @@
       "Hot_Ratio"
     ],
     "100000401": [
+      "Stagger"
+    ],
+    "100000002": [
+      "Stun"
+    ],
+    "100000099": [
+      "Stun"
+    ],
+    "161400001": [
       "Stagger"
     ]
   }

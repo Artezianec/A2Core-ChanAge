@@ -170,9 +170,18 @@ public sealed partial class GameSession
 
     static long CycleStart(int reset, long nowMs) => ContentResetSchedule.AchievementCycleStartMs(reset, nowMs);
 
+    /// <summary>Achievement id prefix: 3xx… = Elyos, 4xx… = Asmodian (403100300 vs 303100300).</summary>
+    internal static bool AchievementIdMatchesRace(int achievementId, int race) => achievementId switch
+    {
+        >= 400_000_000 and < 500_000_000 => race == 2,
+        >= 300_000_000 and < 400_000_000 => race == 1,
+        _ => true,
+    };
+
     /// <summary>Whether the character's list carries this achievement (race, category, open attendance boards).</summary>
     bool Listed(AchievementTables.Entry entry, long now)
     {
+        if (!AchievementIdMatchesRace(entry.Id, profileRace)) return false;
         if (Achievements.GroupOf(entry) is not { } group || (group.Race != 0 && group.Race != profileRace)) return false;
         if (ListedCategories.Contains(group.Category)) return true;
         if (SeasonMissionListed(entry, now)) return true;
@@ -336,6 +345,10 @@ public sealed partial class GameSession
     List<byte[]> AchieveGather(int masteryLevel) =>
         [.. Achieve("GatherSuccess"), .. Achieve("GatherCategorySuccess"), .. AchieveSet("GatherMasteryLevel", masteryLevel)];
 
+    /// <summary>VehicleCollect: count of distinct rides owned (capture 001158 step 2 at 10 mounts).</summary>
+    internal List<byte[]> SyncVehicleCollectAchievements(long now) =>
+        AchieveSet("VehicleCollect", rides.Values.Count(r => r.Owned), now: now);
+
     // ---------- Rewards ----------
 
     /// <summary>0x5685 TakeAchievementReward_RQ {id i32, step u8}: the step's items once the step's count is reached and not yet rewarded.</summary>
@@ -367,7 +380,12 @@ public sealed partial class GameSession
         state.RewardedStep = step;
         achievementDirty.Add(id);
         var replies = new List<byte[]> { AchievementUpdate(AchievementUpdateIds(id, now)) };
-        if (syncInventory && items.Count > 0) replies.AddRange(await InventoryChangesAsync(ct, IncreaseAchievementReward, 0));
+        if (syncInventory && items.Count > 0)
+        {
+            replies.AddRange(await InventoryChangesAsync(ct, IncreaseAchievementReward, 0));
+            replies.AddRange(await AutoUseAcquiredItemsAsync(items.Select(i => i.ItemId), now, ct));
+            replies.AddRange(await AutoPresentGrantedTitlesAsync(items.Select(i => i.ItemId), ct));
+        }
         return replies;
     }
 
@@ -444,10 +462,17 @@ public sealed partial class GameSession
         var takeResults = results.Select(r => (r.Group, (IReadOnlyList<byte>)r.GroupSteps, (IReadOnlyDictionary<int, int>)r.Steps)).ToList();
         var batchResult = takeResults.Count > 0 ? 0 : 1;
         if (takeResults.Count > 0) await FlushAchievementsAsync(now, ct, force: true);
-        // Batch RS first so the client parses _take_result before 5684/561b inventory NTs (revert: append RS after replies).
-        var batch = new List<byte[]> { RewardBatchReply(category, groupId, only, takeResults, batchResult) };
-        batch.AddRange(replies);
+        // Official claim-all (capture 001158): 0x561b inventory deltas, then TakeAchievementRewardBatch_RS.
+        var batch = new List<byte[]>();
         if (inventoryChanges.Count > 0) batch.AddRange(inventoryChanges);
+        batch.Add(RewardBatchReply(category, groupId, only, takeResults, batchResult));
+        batch.AddRange(replies);
+        if (grantedItems)
+        {
+            var rewardItems = results.SelectMany(r => r.Steps).SelectMany(kv => Achievements.Of(kv.Key)?.StepRewards(kv.Value) ?? []).Select(t => t.ItemId);
+            batch.AddRange(await AutoUseAcquiredItemsAsync(rewardItems, now, ct));
+            batch.AddRange(await AutoPresentGrantedTitlesAsync(rewardItems, ct));
+        }
         if (refreshAccountContents) batch.Add(AccountContentsInfoList(now));
         if (results.Any(r => r.GroupSteps.Count > 0)) batch.Add(AchievementList(now));
         return batch;

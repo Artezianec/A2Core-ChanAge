@@ -12545,7 +12545,13 @@
       "context_register": "All",
       "group_cooldown_id": 16330000,
       "stagger_gauge": 5,
-      "stagger_gauge_source": "override"
+      "stagger_gauge_source": "override",
+      "skill_cond": {
+        "type": "HasAbnormalGroupId",
+        "abnormal_group": 163300000,
+        "select_target": "Self"
+      },
+      "skill_cond_source": "override"
     },
     "16340000": {
       "name": "Rapid Scattershot",
@@ -118750,7 +118756,7 @@
     "client_build": "Steam build 26262663: stats, cooldowns, casting, costs and damage values from PcStatLevel/Skill/SkillEffect (tools/client_build_update.py)",
     "damage_source": "chain follow-ups without exported SkillEffect rows carry improvised Damage rows scaled from their parent (damage_source: override, tools/data/skill-damage-overrides.json)",
     "use_conditions": "Skill.dat CanUseWhenElementalSummonSpawned / CanUseWhenPeaceState / CanUseSkillCostType; 16140000: Jointstrike: Curse needs a summoned spirit; CanUseWhenElementalSummonSpawned groups not in committed export (any spirit counts, OURS).; use_condition_source \"override\" marks OURS.",
-    "skill_cond": "SkillCond.dat SkillCondTableItem (CondType, CondAbnormalGroupId, CondAbnormalEffectType, CondSkillList, CondSelectTarget); grants from ToggleOnAbnormalId; self Abnormal_True on caster filters is applied from skill-areas caster_debuffs at hit time; skill_cond_*_source \"override\" marks OURS. 14070000: Suppressing Arrow tooltip: while Precision is active; Marking Shot grants Precision (client skill text, 10s).; 14090000: Marking Shot grants Precision for 10s (SkillEffect Abnormal_True group not in committed skill-areas.json).; 16340000: Rapid Scattershot: target afflicted with Stagger (SkillCond.dat HasAbnormalEffectType, CondSelectTarget Target)."
+    "skill_cond": "SkillCond.dat SkillCondTableItem (CondType, CondAbnormalGroupId, CondAbnormalEffectType, CondSkillList, CondSelectTarget); grants from ToggleOnAbnormalId; self Abnormal_True on caster filters is applied from skill-areas caster_debuffs at hit time; skill_cond_*_source \"override\" marks OURS. 14070000: Suppressing Arrow tooltip: while Precision is active; Marking Shot grants Precision (client skill text, 10s).; 14090000: Marking Shot grants Precision for 10s (SkillEffect Abnormal_True group not in committed skill-areas.json).; 16330000: Dimensional Control: Self HasAbnormalGroupId 163300000 from Water spirit 16107000 (capture 000220).; 16340000: Rapid Scattershot: target afflicted with Stagger (SkillCond.dat HasAbnormalEffectType, CondSelectTarget Target)."
   },
   "skill_customizing": {
     "11000000": [

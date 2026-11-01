@@ -66,7 +66,10 @@ ABNORMALS = {
     153100001: ([['StatChange', 'MPUseDecrease', '3000']], 'Wish of Concentration (Sorcerer, 10 s): 30 % cheaper skills.'),
     100200001: ([['ImmuneAbnormal', '0', '0', '0', '0', '0', 'Stun,Hold,Sleep,Frozen,Knockdown,Aerial,Silence,Slow,Snare,Taunt', 'None']],
                 'Defiance (every class, 5 s): immune to crowd control.'),
-    100000401: ([['Stagger']], 'Stagger break state (4 s): mastery scattershot/rampage skills require HasAbnormalEffectType Stagger on the target.'),
+    100000401: ([['Stagger']], 'Legacy stagger break fallback when no breaking skill id (5 s).'),
+    161400001: ([['Stagger']], 'Jointstrike: Curse groggy break debuff on boss (OBSERVED 2026-11-01 stagger capture, 5000 ms, skill 16140000).'),
+    100000002: ([['Stun']], 'Boss groggy-break reaction (OBSERVED ~98 ms after break abnormal, caster boss, 5000 ms).'),
+    100000099: ([['Stun']], 'Player mark after boss groggy break (OBSERVED 1000 ms, source skill 1000009).'),
 }
 
 SKILLS = {

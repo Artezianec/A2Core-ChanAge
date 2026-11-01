@@ -219,7 +219,7 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
     }
 
     /// <summary>A map event: follow the player (or stop following and stand).</summary>
-    public List<byte[]> Follow(Target target, int playerKey, bool follow, long now)
+    public List<byte[]> Follow(Target target, int playerKey, bool follow, long now, bool wireInitialFollow = false)
     {
         var brain = BrainOf(target);
         if (follow)
@@ -229,7 +229,9 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
             brain.FollowKey = playerKey;
             brain.VictimKey = playerKey;
             awake.Add(target.Key);
-            return [];
+            return wireInitialFollow
+                ? [GamePackets.SummonFollowMove(target.Key, target.Position, (float)target.Direction, now)]
+                : [];
         }
         if (brain.Mode != Mode.Follow) return [];
         brain.Mode = Mode.Idle;

@@ -61,6 +61,24 @@ public sealed partial class GameSession
         return w.ToArray();
     }
 
+    /// <summary>GetGodstone item use (Daevanion codex / Wisdom Stone UI sends 0x5614): add to collection and consume stacks.</summary>
+    async Task<List<byte[]>?> UseGodstoneItemAsync(INativeCharacterStore store, Guid character, ItemState row, bool reply, int useCount, CancellationToken ct)
+    {
+        useCount = (int)Math.Clamp((long)useCount, 1L, Math.Min(row.Quantity, int.MaxValue));
+        var stoneId = row.TemplateId;
+        if (Godstones.Of(stoneId) is null) return null;
+        var consumed = await Stored(async () => await store.ConsumeItemAsync(character, row.InstanceId, row.Revision, useCount, ct) ? [[]] : []);
+        if (consumed.Count == 0) return null;
+        await RegisterGodstonesAsync([(stoneId, useCount)], ct);
+        var count = godstoneCollection.GetValueOrDefault(stoneId);
+        return
+        [
+            .. Used(row, reply),
+            GodstoneUpdatePacket(1, [(stoneId, count)]),
+            .. await InventoryChangesAsync(ct, 0, DecreaseItemUse),
+        ];
+    }
+
     async Task RegisterGodstonesAsync(IReadOnlyList<(int Id, int Delta)> updates, CancellationToken ct)
     {
         if (updates.Count == 0 || Store is not { } store || CharacterId is not { } character) return;

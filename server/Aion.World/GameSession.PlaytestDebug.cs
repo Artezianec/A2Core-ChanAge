@@ -121,7 +121,7 @@ public sealed partial class GameSession
         else if (!SpiritConditionMet(definition, skillId)) reason = "spirit_required";
         else if (!PeaceConditionMet(definition)) reason = "peace_required";
         else if (!ResourceConditionMet(definition)) reason = "resource_threshold";
-        else if (!SkillCondMet(definition)) reason = "skill_cond_required";
+        else if (!SkillCondMet(definition, 0, request.TargetKey)) reason = "skill_cond_required";
         else if (!cooldownReady) reason = "cooldown";
         else if (!castGapOk) reason = "cast_gap";
         else reason = "cast_rules";

@@ -14,7 +14,7 @@ public sealed class AchievementGrowthCompleteBatchClaimTests
     static int Op(byte[] packet) => GameSessionTestHelpers.Op(packet);
 
     [Fact]
-    public async Task Batch_claim_step_two_sends_568a_before_inventory_deltas()
+    public async Task Batch_claim_step_two_sends_inventory_before_568a()
     {
         var store = new FakeCharacterStore();
         store.Achievements.Add(new AchievementRecord(
@@ -29,8 +29,8 @@ public sealed class AchievementGrowthCompleteBatchClaimTests
         var updateIndex = batch.FindIndex(p => Op(p) == GameSession.AchievementCountUpdateNt);
         var invIndex = batch.FindIndex(p => Op(p) == 0x561b);
         Assert.True(rsIndex >= 0);
+        Assert.True(invIndex >= 0 && invIndex < rsIndex, "0x561b precedes TakeAchievementRewardBatch_RS (capture 001158)");
         Assert.True(updateIndex > rsIndex);
-        Assert.True(invIndex > rsIndex);
         Assert.Equal(0, BitConverter.ToInt32(batch[rsIndex], 2));
         Assert.Equal(2, batch[updateIndex][^1]);
 

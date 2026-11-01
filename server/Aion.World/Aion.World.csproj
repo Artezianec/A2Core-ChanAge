@@ -67,5 +67,6 @@
     <EmbeddedResource Include="../../tools/data/player-ap-pools.json" LogicalName="player-ap-pools.json" />
     <EmbeddedResource Include="../../tools/data/skill-effect-conditions.json" LogicalName="skill-effect-conditions.json" />
     <EmbeddedResource Include="../../tools/data/abnormal-stack-rules.json" LogicalName="abnormal-stack-rules.json" />
+    <EmbeddedResource Include="../../tools/data/recovery-orbs.json" LogicalName="recovery-orbs.json" />
   </ItemGroup>
 </Project>

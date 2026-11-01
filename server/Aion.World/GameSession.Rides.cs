@@ -101,6 +101,13 @@ public sealed partial class GameSession
 
     void Remember(RideRecord r) => rides[r.RideId] = new RideEntry(r.RideId, r.Level, r.SoulPoints, r.Owned);
 
+    List<byte[]> RememberRide(RideRecord r, long now)
+    {
+        var wasOwned = OwnsRide(r.RideId);
+        Remember(r);
+        return r.Owned && !wasOwned ? SyncVehicleCollectAchievements(now) : [];
+    }
+
     byte[] RideInit()
     {
         var owned = rides.Values.Where(r => r.Owned).OrderBy(r => r.RideId).ToList();
@@ -229,6 +236,55 @@ public sealed partial class GameSession
     // ---------- Item use ----------
 
     /// <summary>
+    /// 0x5614 ItemUseByItemID_RQ (dev 0x3756 + 0x1ebe, 22 bytes): uid i64 | item id i32 | use count i32 | pad i32.
+    /// The Daevanion crystal and Wisdom Stone (battle crystal) UIs use this instead of 0x5612.
+    /// </summary>
+    async Task<List<byte[]>> UseItemByItemIdAsync(byte[] plain, long now, CancellationToken ct)
+    {
+        if (plain.Length < 18)
+            return [RidePackets.ItemUseByItemIdReply(1, 0, 0, 0)];
+        var uid = BitConverter.ToInt64(plain, 2);
+        var itemId = BitConverter.ToInt32(plain, 10);
+        var useCount = Math.Max(1, BitConverter.ToInt32(plain, 14));
+        List<byte[]> Fail() => [RidePackets.ItemUseByItemIdReply(1, uid, itemId, useCount)];
+
+        storedItems.TryGetValue(uid, out var row);
+        var use = row is null ? null : Boxes.Use(row.TemplateId);
+        if (Store is not { } store || CharacterId is not { } character || row is null || row.Location != "bag"
+            || resources is null || dead || row.TemplateId != itemId || row.Quantity < useCount)
+            return Fail();
+
+        List<byte[]>? effectReplies = use?.Effect switch
+        {
+            "GetDaevanionPoint" => await UseDaevanionPointItemAsync(store, character, row, use, reply: false, ct, useCount),
+            "GetGodstone" => await UseGodstoneItemAsync(store, character, row, reply: false, useCount, ct),
+            _ when useCount == 1 => await UseItemAsync(uid, now, ct, reply: false),
+            _ => null,
+        };
+        if (effectReplies is null)
+        {
+            if (use is not null)
+                LogItemUseRefused(itemId, use.Effect, Boxes.ImplementsUseEffect(use.Effect) ? "handler_failed" : "unimplemented_use_effect");
+            return Fail();
+        }
+        if (effectReplies.Count == 0) return Fail();
+
+        if (use is not null)
+        {
+            var cooldown = Boxes.Cooldown(row.TemplateId);
+            if (cooldown.Group != "None")
+            {
+                itemCooldowns[cooldown.Group] = now + cooldown.CooldownMs;
+                MarkItemCooldownDirty();
+            }
+            effectReplies.AddRange(AchieveItemUse(itemId, use.Effect));
+            LogItemUse(itemId, use.Effect);
+        }
+
+        return [RidePackets.ItemUseByItemIdReply(0, uid, itemId, useCount), .. effectReplies];
+    }
+
+    /// <summary>
     /// 0x5612 ItemUse_RQ {i64 uid}. Refused (result 1) for an unknown or cooling item, or an effect
     /// that is not implemented; always answers 0x5613 (never leaves the request unanswered).
     /// </summary>
@@ -264,6 +320,7 @@ public sealed partial class GameSession
             "GetSkin" or "GetSkinSet" when use.Values is [{ Length: > 0 }, ..] => await UseSkinItemAsync(store, character, row, use, reply, ct),
             "GetSocialAction" when use.Values is [var emoteText, ..] && int.TryParse(emoteText, out var emote) => await UseSocialActionItemAsync(store, character, row, emote, reply, ct),
             "GetDaevanionPoint" => await UseDaevanionPointItemAsync(store, character, row, use, reply, ct),
+            "GetGodstone" => await UseGodstoneItemAsync(store, character, row, reply, 1, ct),
             "GetWing" when use.Values is [var wingText, ..] && int.TryParse(wingText, out var wing) && wing > 0 => await UseWingItemAsync(store, character, row, wing, reply, ct),
             "AscensionGrade" when use.Values is [var gradeText, ..] && int.TryParse(gradeText.Split('_')[^1], out var grade) && grade is >= 2 and <= 6 =>
                 await UseAscensionItemAsync(store, character, row, grade, reply, ct),
@@ -307,15 +364,19 @@ public sealed partial class GameSession
         RideRecord? ride = null;
         await Stored(async () => (ride = await store.UseRideItemAsync(character, row.InstanceId, row.Revision, rideId, ct)) is null ? [] : [[]]);
         if (ride is null) return null;
-        Remember(ride);
         var replies = Used(row, reply);
-        if (owned) replies.Add(RidePackets.SoulPoints([(rideId, 1)]));
+        if (owned)
+        {
+            Remember(ride);
+            replies.Add(RidePackets.SoulPoints([(rideId, 1)]));
+        }
         else
         {
             var (extra, board) = await RideBoardAsync(info, 1, ct);
             replies.Add(RidePackets.Acquired(playerKey, rideId, ride.Level, (byte)info.Type, board?.Level ?? 1, board?.Exp ?? 0));
             replies.AddRange(extra);
             await PersistDefaultRideIfUnsetAsync(rideId, ct);
+            replies.AddRange(RememberRide(ride, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
         }
         replies.AddRange(UnlockRideContentsIfNeeded());
         replies.AddRange(await InventoryChangesAsync(ct, IncreaseItemUse, DecreaseItemUse));
@@ -521,11 +582,11 @@ public sealed partial class GameSession
         await Stored(async () => (ride = await store.AcquireRideWithSoulsAsync(character, rideId, info.NeedSoul, info.Crystal, ct)) is null ? [] : [[]]);
         if (ride is null) return [RidePackets.AcquireReply(playerKey, 1)];
         var paid = Paid(rideId, soulsBefore, info.NeedSoul);
-        Remember(ride);
         var (extra, board) = await RideBoardAsync(info, 1, ct);
         await PersistDefaultRideIfUnsetAsync(rideId, ct);
+        var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         return [RidePackets.AcquireReply(playerKey, 0), .. paid, RidePackets.Acquired(playerKey, rideId, ride.Level, (byte)info.Type, board?.Level ?? 1, board?.Exp ?? 0),
-            .. extra, .. RefreshStats(), .. UnlockRideContentsIfNeeded()];
+            .. extra, .. RememberRide(ride, nowMs), .. RefreshStats(), .. UnlockRideContentsIfNeeded()];
     }
 
     /// <summary>0x9013 RideLevelUp_RQ {i32 ride}: an acquired ride levels up for VehicleLevel NeedSoulCount soul points.</summary>

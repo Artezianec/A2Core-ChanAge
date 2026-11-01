@@ -17,14 +17,9 @@ public sealed class SkillPointClientModelTests
 
     static bool IsPoints(byte[] p) => GameSessionTestHelpers.Op(p) == GameSession.SkillPointUpdateNt;
 
-    static int PointValue(byte[] packet)
-    {
-        Assert.Equal(GameSession.SkillPointUpdateNt, GameSessionTestHelpers.Op(packet));
-        Assert.Equal(1, packet[2]);
-        Assert.Equal(1, packet[3]);
-        Assert.Equal(1, packet[4]);
-        return (int)new PacketReader(packet) { Offset = 5 }.Varint();
-    }
+    static int PointValue(byte[] packet) => GameSessionTestHelpers.SkillPoint5105Spent(packet);
+
+    static int SpentOnWire(GameSession session) => session.SkillPointsEarned - session.SkillPointsLeft;
 
     [Fact]
     public void Totals_for_levels_1_to_45_are_the_cumulative_Exp_dat_BonusSkillPoint_rows()
@@ -39,7 +34,7 @@ public sealed class SkillPointClientModelTests
     }
 
     [Fact]
-    public async Task Every_5105_carries_remaining_points_matching_the_server()
+    public async Task Every_5105_carries_cumulative_spent_matching_the_server()
     {
         var data = GameSessionTestHelpers.LiveGameData;
         var store = new FakeCharacterStore { Progress = (6, 0) };
@@ -54,13 +49,13 @@ public sealed class SkillPointClientModelTests
         {
             var up = await session.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelUpRq).I32(skillId).ToArray(), Now);
             Assert.Equal(0, BitConverter.ToUInt16(GameSessionTestHelpers.SkillLevelUpRs(up), 2));
-            Assert.Equal(session.SkillPointsLeft, PointValue(up.Single(IsPoints)));
+            Assert.Equal(SpentOnWire(session), PointValue(up.Single(IsPoints)));
         }
         Assert.Equal(3, session.SkillPointsLeft);
     }
 
     [Fact]
-    public async Task Points_are_enforced_by_the_server_and_every_5105_carries_the_remaining_total()
+    public async Task Points_are_enforced_by_the_server_and_every_5105_carries_cumulative_spent()
     {
         var data = GameSessionTestHelpers.LiveGameData;
         var store = new FakeCharacterStore { Progress = (5, 0) };
@@ -76,7 +71,7 @@ public sealed class SkillPointClientModelTests
         {
             var up = await session.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelUpRq).I32(skillId).ToArray(), Now);
             results.Add(BitConverter.ToUInt16(GameSessionTestHelpers.SkillLevelUpRs(up), 2));
-            Assert.Equal(session.SkillPointsLeft, PointValue(up.Single(IsPoints)));
+            Assert.Equal(SpentOnWire(session), PointValue(up.Single(IsPoints)));
         }
         Assert.Equal([0, 0, 0, GameSession.SkillAcquireNotEnoughSkillPoint, GameSession.SkillAcquireNotEnoughSkillPoint], results);
         Assert.Equal(0, session.SkillPointsLeft);
@@ -97,22 +92,22 @@ public sealed class SkillPointClientModelTests
         Assert.Equal(6, session.Level);
         var expected = 2 + data.SkillPoints(6) - data.SkillPoints(5);
         Assert.Equal(expected, session.SkillPointsLeft);
-        Assert.Equal(expected, PointValue(replies.Single(IsPoints)));
+        Assert.Equal(SpentOnWire(session), PointValue(replies.Single(IsPoints)));
     }
 
-    /// <summary>The client window tracks the last 0x5105 remaining-points value (official body 0101010f = 15 left).</summary>
-    sealed class ClientWindow
+    /// <summary>Client UI: Exp.dat total minus cumulative spent from the last 0x5105 (capture 234615).</summary>
+    sealed class ClientWindow(int earnedTotal)
     {
-        int shown;
+        int spentFrom5105;
 
-        public int Shown => shown;
+        public int Shown => earnedTotal - spentFrom5105;
 
         public void Feed(IEnumerable<byte[]> packets)
         {
             foreach (var p in packets)
             {
                 if (GameSessionTestHelpers.Op(p) == GameSession.SkillPointUpdateNt)
-                    shown = (int)new PacketReader(p) { Offset = 5 }.Varint();
+                    spentFrom5105 = GameSessionTestHelpers.SkillPoint5105Spent(p);
             }
         }
     }
@@ -138,7 +133,7 @@ public sealed class SkillPointClientModelTests
         var store = new FakeCharacterStore { Progress = (12, 0) };
         foreach (var (skillId, lvl) in data.LearnedSkills("Gladiator", 12)) store.Skills.Add(new SkillState(skillId, lvl, null));
         var (session, entry) = await EnterAsync(store, data, 12);
-        var window = new ClientWindow();
+        var window = new ClientWindow(data.SkillPoints(12));
         window.Feed(entry);
         Assert.Equal(24, session.SkillPointsLeft);
         var skills = UpgradableLevel2(data, "Gladiator", 12).Take(4).ToList();
@@ -290,7 +285,7 @@ public sealed class SkillPointClientModelTests
 
         var refuse = await session.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelUpRq).I32(16_010_000).ToArray(), Now);
         Assert.Equal(GameSession.SkillAcquireNotEnoughCharLevel, BitConverter.ToUInt16(GameSessionTestHelpers.SkillLevelUpRs(refuse), 2));
-        Assert.Equal(left, PointValue(refuse.Single(IsPoints)));
+        Assert.Equal(SpentOnWire(session), PointValue(refuse.Single(IsPoints)));
         Assert.Equal(left, ClientDisplayedAfter(entry, refuse, level, data, "Elementalist"));
         Assert.Contains(refuse, p => GameSessionTestHelpers.Op(p) == 0x5100);
     }
@@ -358,7 +353,7 @@ public sealed class SkillPointClientModelTests
         var store = new FakeCharacterStore { Progress = (12, 0) };
         foreach (var (skillId, lvl) in data.LearnedSkills("Gladiator", 12)) store.Skills.Add(new SkillState(skillId, lvl, null));
         var (session, entry) = await EnterAsync(store, data, 12);
-        var window = new ClientWindow();
+        var window = new ClientWindow(data.SkillPoints(12));
         window.Feed(entry);
         Assert.True(ClientDisplayedAfterEntry(entry, 12, data, "Gladiator") >= 0);
         var followUp = new List<byte[]>();
@@ -424,7 +419,7 @@ public sealed class SkillPointClientModelTests
         }
 
         var (session2, entry) = await EnterAsync(store, data, 12);
-        var window = new ClientWindow();
+        var window = new ClientWindow(data.SkillPoints(12));
         window.Feed(entry);
         Assert.Equal(21, session2.SkillPointsLeft);
         Assert.Equal(21, window.Shown);
@@ -528,7 +523,7 @@ public sealed class SkillPointClientModelTests
         Assert.Equal(41, data.SkillPoints(level));
         Assert.Equal(0, session.SkillPointsLeft);
         Assert.Equal(41, serverSpent);
-        Assert.Equal(GamePackets.SkillPointUpdate(0), entry.Single(p => GameSessionTestHelpers.Op(p) == GameSession.SkillPointUpdateNt));
+        Assert.Equal(GamePackets.SkillPointUpdate(41), entry.Single(p => GameSessionTestHelpers.Op(p) == GameSession.SkillPointUpdateNt));
         var list = entry.Single(p => GameSessionTestHelpers.Op(p) == 0x5100);
         Assert.Equal(serverSpent, ClientSpentFromSkillList(list, data, "Elementalist", level));
         Assert.Equal(0, ClientDisplayedSkillPoints(list, level, data, "Elementalist"));
@@ -698,7 +693,7 @@ public sealed class SkillPointClientModelTests
             });
         }
         var after = ClientDisplayedAfter(entry, up, level, data, "Ranger");
-        var window = new ClientWindow();
+        var window = new ClientWindow(data.SkillPoints(level));
         window.Feed(entry);
         window.Feed(up);
         Assert.Equal(session.SkillPointsLeft, window.Shown);
@@ -762,7 +757,7 @@ public sealed class SkillPointClientModelTests
         Assert.True(displayedAfterLevel >= 0);
         Assert.Equal(session.SkillPointsLeft, displayedAfterLevel);
 
-        var window = new ClientWindow();
+        var window = new ClientWindow(data.SkillPoints(5));
         window.Feed(entry);
         window.Feed(levelUp);
         Assert.Equal(session.SkillPointsLeft, window.Shown);

@@ -3,12 +3,19 @@
  "orbs": {
   "1000277": {
    "name": "Basic_RecoveryOrb_01",
+   "color": "red",
    "usage": "Overlap",
    "interact_range": 40,
    "collision_radius": 45,
    "lifetime_ms": 30000,
    "despawn": true,
    "relationship": "EnvObj_MonsterEnemy",
+   "pickup": {
+    "hp_ratio_permille": 1200,
+    "mp_ratio_permille": 0,
+    "sp_ratio_permille": 0,
+    "evidence": "OURS: client red recovery orb; capture has no pickup packet."
+   },
    "hit_skills": [
     1801510,
     1801520,
@@ -17,12 +24,19 @@
   },
   "1000278": {
    "name": "Basic_RecoveryOrb_02",
+   "color": "blue",
    "usage": "Overlap",
    "interact_range": 40,
    "collision_radius": 45,
    "lifetime_ms": 30000,
    "despawn": true,
    "relationship": "EnvObj_MonsterEnemy",
+   "pickup": {
+    "hp_ratio_permille": 0,
+    "mp_ratio_permille": 1200,
+    "sp_ratio_permille": 0,
+    "evidence": "OURS: client blue recovery orb (MP), best guess."
+   },
    "hit_skills": [
     1801510,
     1801520,
@@ -31,12 +45,19 @@
   },
   "1000279": {
    "name": "Basic_RecoveryOrb_03",
+   "color": "green",
    "usage": "Overlap",
    "interact_range": 40,
    "collision_radius": 45,
    "lifetime_ms": 30000,
    "despawn": true,
    "relationship": "EnvObj_MonsterEnemy",
+   "pickup": {
+    "hp_ratio_permille": 0,
+    "mp_ratio_permille": 0,
+    "sp_ratio_permille": 1200,
+    "evidence": "OURS: client green orb likely stamina/SP regen; not confirmed in capture."
+   },
    "hit_skills": [
     1801510,
     1801520,

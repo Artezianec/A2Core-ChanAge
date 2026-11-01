@@ -16,7 +16,7 @@ public sealed class SpiritSummonStateAbnormalTests
         new PacketWriter().U16(0x3800).U16(0).I32(skill).U8(2).Varint(target).F32(0).F32(100).F32(200).F32(300).ToArray();
 
     static int SpiritStateCount(GameSession session) =>
-        session.ActiveBuffs.Count(id => id > GameSession.SpiritSummonStateAbnormalBase && id <= GameSession.SpiritSummonStateAbnormalBase + 5);
+        session.ActiveBuffs.Count(ElementalSummons.IsPlayerSpiritLinkAbnormal);
 
     static bool HasAbnormalRemove(IEnumerable<byte[]> packets) =>
         packets.Any(p => GameSessionTestHelpers.Op(p) == 0x382c);
@@ -59,17 +59,17 @@ public sealed class SpiritSummonStateAbnormalTests
         await session.HandleAsync(Cast(FireSummon, dummy.Key), t);
         await ActivatePendingAsync(session, t + 1);
         Assert.Equal(1, SpiritStateCount(session));
-        Assert.Equal(GameSession.SpiritSummonStateAbnormal, session.ActiveBuffs.Single(id => id > GameSession.SpiritSummonStateAbnormalBase));
+        Assert.Equal(GameSession.SpiritSummonStateAbnormal, session.ActiveBuffs.Single(ElementalSummons.IsPlayerSpiritLinkAbnormal));
 
         await session.HandleAsync(Cast(WaterSummon, dummy.Key), t + 16_000);
         await ActivatePendingAsync(session, t + 16_001);
         Assert.Equal(1, SpiritStateCount(session));
-        Assert.Equal(GameSession.SpiritSummonStateAbnormalBase + 2, session.ActiveBuffs.Single(id => id > GameSession.SpiritSummonStateAbnormalBase));
+        Assert.Equal(ElementalSummons.PlayerSpiritLinkAbnormal(2), session.ActiveBuffs.Single(ElementalSummons.IsPlayerSpiritLinkAbnormal));
 
         await session.HandleAsync(Cast(FireSummon, dummy.Key), t + 32_000);
         await ActivatePendingAsync(session, t + 32_001);
         Assert.Equal(1, SpiritStateCount(session));
-        Assert.Equal(GameSession.SpiritSummonStateAbnormal, session.ActiveBuffs.Single(id => id > GameSession.SpiritSummonStateAbnormalBase));
+        Assert.Equal(GameSession.SpiritSummonStateAbnormal, session.ActiveBuffs.Single(ElementalSummons.IsPlayerSpiritLinkAbnormal));
     }
 
     [Fact]

@@ -27,6 +27,25 @@ public sealed partial class GameSession
     long displacedUntil;
     /// <summary>Position reports rejected as too fast (research and the staff overview).</summary>
     public int SpeedRejects { get; private set; }
+    /// <summary>Builder Speed command multiplier (1 = normal); client MoveSpeed stat and anti-cheat both use <see cref="WireMoveSpeedPermille"/>.</summary>
+    double builderSpeedMultiplier = 1;
+
+    public double BuilderSpeedMultiplier => builderSpeedMultiplier;
+
+    /// <summary>Summed MoveSpeed permille for 0x364b: buffs plus builder multiplier (speed × (1 + permille/10000)).</summary>
+    public int WireMoveSpeedPermille()
+    {
+        var bonus = builderSpeedMultiplier <= 1 ? 0 : (int)Math.Round((builderSpeedMultiplier - 1) * 10_000);
+        return Math.Max(0, BuffStat("MoveSpeed") + bonus);
+    }
+
+    /// <summary>Staff builder: set run speed multiplier and push 0x364b MoveSpeed (stat 205).</summary>
+    public List<byte[]> SetBuilderSpeedMultiplier(double multiplier, long now)
+    {
+        builderSpeedMultiplier = multiplier < 1 ? 1 : Math.Min(multiplier, 10);
+        if (position is { } at) ResetMovementCheck(at, now);
+        return [PlayerPackets.MoveSpeedUpdate(playerKey, [(MoveSpeedStat, WireMoveSpeedPermille())])];
+    }
 
     /// <summary>The fastest this player may move now, cm/s, with the tolerance.</summary>
     public double AllowedSpeed()
@@ -34,7 +53,7 @@ public sealed partial class GameSession
         var baseSpeed = mountedRide is { } ride && Boxes.Ride(ride) is { } info
             ? (sprinting ? info.Sprint ?? info.Run ?? 1200 : info.Run ?? 900)
             : RunSpeed * (sprinting ? SprintFactor : 1);
-        return baseSpeed * (1 + Math.Max(0, BuffStat("MoveSpeed")) / 10_000.0) * SpeedTolerance;
+        return baseSpeed * (1 + WireMoveSpeedPermille() / 10_000.0) * SpeedTolerance;
     }
 
     double BurstBudget() => AllowedSpeed() * BurstSeconds + BurstSlack;

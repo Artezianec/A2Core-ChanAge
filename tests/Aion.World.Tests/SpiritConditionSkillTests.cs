@@ -111,7 +111,7 @@ public sealed class SpiritConditionSkillTests
         var spirit = Assert.Single(session.Targets!.Values, t => t.OwnerKey == session.PlayerKey);
         Assert.Contains(icon, p => GameSessionTestHelpers.Op(p) == 0xe239 && p[2] == GamePackets.ElementalSummonWireMask && p[3] == group
             && new PacketReader(p) { Offset = 4 }.Varint() == (uint)spirit.Key);
-        Assert.Contains(icon, p => GameSessionTestHelpers.Op(p) == 0x382a && session.ActiveBuffs.Contains(GameSession.SpiritSummonStateAbnormalBase + group));
+        Assert.Contains(icon, p => GameSessionTestHelpers.Op(p) == 0x382a && session.ActiveBuffs.Contains(ElementalSummons.PlayerSpiritLinkAbnormal((byte)group)));
 
         var joint = await session.HandleAsync(Cast(Jointstrike, dummy.Key), Now + 61_000);
         Assert.True(Accepted(joint), "Jointstrike is accepted while the spirit is out");
@@ -143,9 +143,8 @@ public sealed class SpiritConditionSkillTests
         Assert.True(Accepted(replies));
         var rapidWithoutStagger = await session.HandleAsync(Cast(16_340_000, dummy.Key), Now + 120_000);
         Assert.False(Accepted(rapidWithoutStagger), "Rapid Scattershot needs Stagger on the target (SkillCond)");
-        dummy.StaggerUntil = Now + 160_000;
-        dummy.Held = true;
-        var rapid = await session.HandleAsync(Cast(16_340_000, dummy.Key), Now + 150_000);
+        session.BreakNpcStaggerForTests(dummy, Now + 150_000, Jointstrike);
+        var rapid = await session.HandleAsync(Cast(16_340_000, dummy.Key), Now + 150_200);
         Assert.True(Accepted(rapid), "Rapid Scattershot is accepted while the target is staggered");
     }
 }

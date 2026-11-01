@@ -695,14 +695,13 @@ public static class GamePackets
     public static byte[] RestNotice(bool start, int key) => PacketWriter.Opcode((ushort)(start ? 0x3749 : 0x374c)).Varint(key).ToArray();
 
     /// <summary>
-    /// 0x5105 SkillPointUpdate_NT (usmap DevPacketData_GameServer_SkillPointUpdate_NT, wire opcode +0x157 from 0x3746):
-    /// varint count | CommonSkillPointInfo { mask u8 0x01, ESkillPointType u8, _point varint } per entry.
-    /// OBSERVED after official SkillLevelUp (#18470-18472 and 2026-10-31 captures): 15 points left → body 0101010f.
+    /// 0x5105 SkillPointUpdate_NT after SkillLevelUp (capture 20261101-234615): opcode + body `01 01 &lt;spent u8&gt; 00` —
+    /// count 1, mask 0x01, cumulative skill points spent (not remaining), trailing 0x00. Values 2,3,4,5 over four spends.
     /// </summary>
-    public static byte[] SkillPointUpdate(int pointsLeft, byte pointType = 1) =>
-        PacketWriter.Opcode(0x5105).Varint(1).AppendSkillPointInfo(pointsLeft, pointType).ToArray();
+    public static byte[] SkillPointUpdate(int cumulativeSpent) =>
+        PacketWriter.Opcode(0x5105).U8(1).U8(1).U8(checked((byte)Math.Clamp(cumulativeSpent, 0, 255))).U8(0).ToArray();
 
-    /// <summary>One CommonSkillPointInfo entry (mask 0x01, type, point varint) inside 0x5105, 0x3844._modify_points, etc.</summary>
+    /// <summary>CommonSkillPointInfo inside 0x3844 SkillLevelReset_RS._modify_points (type + varint point).</summary>
     public static PacketWriter AppendSkillPointInfo(this PacketWriter w, int point, byte pointType = 1) =>
         w.U8(1).U8(pointType).Varint(point);
 
@@ -781,11 +780,14 @@ public static class GamePackets
     /// equipped items container 11 with slot = equip slot. Replaces the 0x5611 candidate below,
     /// which was one byte off (its packed-bool byte came from a later record of the sample).
     /// </summary>
-    public static byte[] ItemDepotList(IReadOnlyList<InventoryItem> items)
+    public static byte[] ItemDepotList(IReadOnlyList<InventoryItem> items, ReadOnlySpan<int> slotExtendCounts = default)
     {
         var w = PacketWriter.Opcode(0x5611).U16(0x0210).Varint(items.Count);
         foreach (var item in items) WriteItem(w, item);
-        return w.Zeros(6).ToArray();
+        Span<int> counts = stackalloc int[6];
+        if (slotExtendCounts.Length >= 6) slotExtendCounts[..6].CopyTo(counts);
+        foreach (var n in counts) w.I32(n);
+        return w.ToArray();
     }
 
     /// <summary>0x561b ItemModificationList_NT: per entry type (0 add, 1 update; CANDIDATE), the item, increase/decrease/update reasons.</summary>
@@ -874,12 +876,18 @@ public static class GamePackets
         return PlayerPackets.NpcSkillEffect(targetKey, actorKey, skillId, (byte)actionSeq, effectId, effectSeq, damage, attackSpeed);
     }
 
-    /// <summary>0xe005 UpdateGroggyInfo_NT (dev 0x3b04 + 0xa501): groggy guard energy on a boss (mask 03 max+energy).</summary>
-    public static byte[] UpdateGroggyInfo(int key, int maxEnergy, int energy, bool activated = false, byte state = 1)
-    {
-        var w = PacketWriter.Opcode(0xe005).Varint(key).U8(3).U8(state).I32(maxEnergy).I32(energy);
-        return w.U8(activated ? (byte)2 : (byte)0).ToArray();
-    }
+    /// <summary>
+    /// 0xe005 UpdateGroggyInfo_NT (dev 0x3b04 + 0xa501): groggy guard on a boss.
+    /// Live wire (OBSERVED stagger boss 2026-11-01 key 898702): varint key, u8 mask 0x03 (max+energy),
+    /// u8 state, i32 max, i32 energy, u8 trailer <c>02</c> on every gauge drain. Break uses
+    /// <see cref="UpdateGroggyInfoBreak"/> (mask 0x00, no max/energy, body <c>03 02</c>).
+    /// </summary>
+    public static byte[] UpdateGroggyInfo(int key, int maxEnergy, int energy, byte state = 1) =>
+        PacketWriter.Opcode(0xe005).Varint(key).U8(3).U8(state).I32(maxEnergy).I32(energy).U8(2).ToArray();
+
+    /// <summary>0xe005 groggy break: <c>05e0 &lt;key&gt; 00 03 02</c> (8-byte payload after opcode).</summary>
+    public static byte[] UpdateGroggyInfoBreak(int key) =>
+        PacketWriter.Opcode(0xe005).Varint(key).U8(0).U8(3).U8(2).ToArray();
 
     /// <summary>0xe002 GroupRequestProgressed_NT (dev 0x3b01 + 0xa501).</summary>
     public static byte[] GroupRequestProgressed(long groupKey, int charKey) =>
@@ -930,6 +938,44 @@ public static class GamePackets
         if (npc.SpawnAct != 0) w.I32(npc.SpawnAct);
         return w.U32(spawnTag ?? (npc.UniqueKey != 0 ? npc.UniqueKey : (uint)npc.Key)).U8(0).ToArray();
     }
+
+    /// <summary>Official PC summon 0x3641 field block (13 i32 stats after HP varints).</summary>
+    public static readonly int[] NpcSummonStatBlock = [1500, 1500, 0, 0, 0, 100_000, 100, 0, 1, 0, 100_000, 0, 0];
+
+    /// <summary>Mask 0x101f: move/sub/reason/aggressive/parent/spawn_act; no parent_desc or unique key (official 2026-11-01).</summary>
+    public const ushort NpcSummonAppearMask = 0x101f;
+
+    /// <summary>NpcData spawn act on elemental spirits (OBSERVED d0002c01).</summary>
+    public const int SpiritSpawnActId = 0x012C_D000;
+
+    /// <summary>Spirit spawn skill cast immediately after 0x3641 (official capture).</summary>
+    public const int SpiritSpawnSkillId = 16_990_004;
+
+    /// <summary>
+    /// 0x3641 for a player's elemental spirit: official masked layout (152-byte bodies in capture).
+    /// Parent key is u32 LE at the tail, not a varint; owner desc and spawn_unique_key are omitted.
+    /// </summary>
+    public static byte[] NpcSummonAppear(NpcAppearance npc, int ownerKey, int wireRelationship = 2, int wireLevel = 4, uint? spawnTag = null)
+    {
+        var moveState = npc.Walking ? (byte)2 : (npc.MoveState != 0 ? npc.MoveState : NpcAppearance.FlyingOnAirStop);
+        var moveSub = npc.MoveSubstate != 0 ? npc.MoveSubstate : (byte)2;
+        var reason = npc.Reason != 0 ? npc.Reason : NpcAppearance.NpcSpawnReason;
+        var w = PacketWriter.Opcode(0x3641).Varint(npc.Key).U16(NpcSummonAppearMask).U8(0).U32((uint)npc.NpcId).U8(0).U8(2)
+            .Vec3(npc.Position).F32(npc.Direction).U16(HeadingU16(npc.Direction)).U8(npc.Dead ? 0 : 1)
+            .Varint(npc.Hp).Varint(npc.HpMax);
+        foreach (var v in NpcSummonStatBlock) w.I32(v);
+        w.U8(wireRelationship);
+        PlayerPackets.WriteAbnormals(w, npc.Abnormals ?? []);
+        w.U8(moveState).U8(moveSub).U8(reason).U8(npc.Aggressive ? (byte)1 : (byte)0);
+        w.U32((uint)ownerKey);
+        w.I32(npc.SpawnAct != 0 ? npc.SpawnAct : SpiritSpawnActId);
+        w.U8(0).U8(0).I32(wireLevel);
+        return w.U32(spawnTag ?? (uint)npc.NpcId).U8(0).ToArray();
+    }
+
+    /// <summary>0x373c follow-move for a spirit (OBSERVED 35 B; reason u8 3 before position).</summary>
+    public static byte[] SummonFollowMove(int key, Vector3d position, float direction, long nowMs) =>
+        PacketWriter.Opcode(0x373c).Varint(key).U8(3).Vec3(position).F32(direction).U8(NpcAppearance.FlyingOnAirStop).U8(2).U8(1).I64(nowMs).I32(0).ToArray();
 
     /// <summary>
     /// 0xe239 ElementalSummonActivate_NT (dev 0x3b3e): official wire (2026-10-31 Fire→Water captures) uses the same
@@ -1246,6 +1292,15 @@ public static class GamePackets
     public static byte[] TriggerSpawn(int key, int envObjId, Vector3d position, double direction, long createTime, long triggerId) =>
         PacketWriter.Opcode(0x3634).Varint(key).U8(1).U8(0).I32(envObjId).F32(position.X).F32(position.Y).F32(position.Z)
             .I32(0).F32(direction).U8(1).U8(1).U8(1).I64(createTime).I32(0).I64(triggerId).I32(0).U8(7).U8(0).U8(0).ToArray();
+
+    /// <summary>
+    /// 0x3634 EnvObjSpawn_NT for boss recovery orbs (OBSERVED 2026-11-01 stagger boss, 53 B):
+    /// type 4, EnvObjData 1000277–1000279, origin boss key varint, reason 6, relationship 28 (EnvObj_MonsterEnemy).
+    /// </summary>
+    public static byte[] BossRecoveryOrbSpawn(int key, int envObjId, Vector3d position, int originBossKey, float yaw, long createTime) =>
+        PacketWriter.Opcode(0x3634).Varint(key).U8(4).U8(0).I32(envObjId)
+            .F32((float)position.X).F32((float)position.Y).F32((float)position.Z)
+            .Varint(originBossKey).F32(yaw).U8(1).U8(1).U8(6).I64(createTime).Zeros(7).I32(0).U8(28).U8(0).ToArray();
 
     /// <summary>0x3635 EnvObjDespawn_NT: key, state, reason, despawn act (official sample e4ec03 01 01 00; widths CANDIDATE).</summary>
     public static byte[] EnvObjDespawn(int key, byte state = 1, byte reason = 1) => PacketWriter.Opcode(0x3635).Varint(key).U8(state).U8(reason).Varint(0).ToArray();

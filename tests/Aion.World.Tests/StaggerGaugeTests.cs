@@ -58,9 +58,8 @@ public sealed class StaggerGaugeTests
     {
         var session = await EnterElementalistAsync();
         var t = Now + 60_000;
-        session.Targets![Dummy].StaggerUntil = t + 5000;
-        session.Targets![Dummy].Held = true;
-        Assert.True(Accepted(await session.HandleAsync(Cast(RapidScattershot), t)));
+        session.BreakNpcStaggerForTests(session.Targets![Dummy], t, 16_140_000);
+        Assert.True(Accepted(await session.HandleAsync(Cast(RapidScattershot), t + 200)));
     }
 
     [Fact]

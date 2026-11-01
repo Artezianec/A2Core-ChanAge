@@ -85,8 +85,11 @@ public sealed class QuestLogTests
         log.Set(QuestLog.New("V", book.Find("V")!));
         var obj = log.OpenAreaObjectives().Single();
         Assert.Equal(500, obj.Value);
+        Assert.Equal(500, QuestLog.EnterVolumeSlack(obj));
         Assert.Empty(log.Entered(_ => false, 1));
         Assert.Single(log.Entered(o => o.Target == "Trig", 1));
+        var mapDup = new QuestObjective("EnterVolumePC", Target: "T", Value: 1100, Count: 1, Map: 1100);
+        Assert.Equal(0, QuestLog.EnterVolumeSlack(mapDup));
     }
 
     [Fact]

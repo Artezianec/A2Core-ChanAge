@@ -26,7 +26,7 @@ public sealed class SkillPointOfficialWireTests
         Assert.Equal(data.SkillPoints(11), session.SkillPointsLeft);
         var list = entry.Single(p => GameSessionTestHelpers.Op(p) == 0x5100);
         var pkt5105 = entry.Single(p => GameSessionTestHelpers.Op(p) == GameSession.SkillPointUpdateNt);
-        Assert.Equal(GamePackets.SkillPointUpdate(session.SkillPointsLeft), pkt5105);
+        Assert.Equal(GamePackets.SkillPointUpdate(0), pkt5105);
         var displayed = SkillPointClientModelTestsHelpers.ClientDisplayedSkillPoints(list, 11, data, "Gladiator");
         Assert.True(displayed >= 0, $"client model must not show negative points (displayed={displayed}, left={session.SkillPointsLeft})");
         Assert.Equal(session.SkillPointsLeft, displayed);
@@ -43,7 +43,37 @@ public sealed class SkillPointOfficialWireTests
         Assert.Equal([0x3656, GameSession.SkillLevelUpRs, GameSession.SkillLevelUpdateNt, GameSession.SkillPointUpdateNt],
             GameSessionTestHelpers.SkillMasteryCoreOpcodes(up));
         Assert.DoesNotContain(up, p => GameSessionTestHelpers.Op(p) == 0x5100);
-        Assert.Equal(GamePackets.SkillPointUpdate(15), up[^1]);
+        Assert.Equal(GamePackets.SkillPointUpdate(1), up[^1]);
+    }
+
+    /// <summary>capture-13328-20261101-234615: four spends emit 0x5105 cumulative spent 2,3,4,5 (not remaining).</summary>
+    [Fact]
+    public async Task Capture_234615_upgrade_burst_5105_spent_runs_2_3_4_5()
+    {
+        var data = GameSessionTestHelpers.LiveGameData;
+        const int level = 6;
+        var store = new FakeCharacterStore { Progress = (level, 0) };
+        foreach (var (skillId, lvl) in data.LearnedSkills("Gladiator", level))
+            store.Skills.Add(new SkillState(skillId, lvl, null));
+        // Official capture starts at spent=2 (one point already bought before the window).
+        var idx = store.Skills.FindIndex(s => s.SkillId == RendingBlow);
+        store.Skills[idx] = store.Skills[idx] with { Level = 2, Purchased = 2 };
+        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: level);
+        Assert.Equal(1, session.SkillPointsEarned - session.SkillPointsLeft);
+
+        var others = data.LearnedSkills("Gladiator", level)
+            .Where(k => k.SkillId >= 11_000_000 && k.SkillId != RendingBlow && data.SkillLevelCost(k.SkillId, 2) is { Cost: 1 })
+            .Select(k => k.SkillId).Take(3).ToList();
+        Assert.Equal(3, others.Count);
+        var sequence = new List<int>();
+        foreach (var skillId in new[] { RendingBlow }.Concat(others))
+        {
+            var up = await session.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelUpRq).I32(skillId).ToArray(), Now);
+            Assert.Equal(0, BitConverter.ToUInt16(GameSessionTestHelpers.SkillLevelUpRs(up), 2));
+            sequence.Add(GameSessionTestHelpers.SkillPoint5105Spent(up.Single(p => GameSessionTestHelpers.Op(p) == GameSession.SkillPointUpdateNt)));
+        }
+        Assert.Equal([2, 3, 4, 5], sequence);
+        Assert.Equal(0, session.SkillPointsLeft);
     }
 }
 

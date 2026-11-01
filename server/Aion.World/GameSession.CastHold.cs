@@ -71,10 +71,10 @@ public sealed partial class GameSession
         return SkillCooldown.LockoutMs(definition, projectile);
     }
 
-    void ScheduleNextCastAccept(long now, SkillDefinition definition, int skillId, HeldCastWireKey key)
+    void ScheduleNextCastAccept(long now, SkillDefinition definition, int skillId, HeldCastWireKey key, bool freeRecast = false)
     {
         lastAcceptedCastKey = key;
-        nextCastAcceptAtMs = now + HeldCastLockoutMs(definition, skillId);
+        nextCastAcceptAtMs = freeRecast ? now : now + HeldCastLockoutMs(definition, skillId);
     }
 
     bool IsExactHeldCastDuplicate(CastRequest request, byte[] body, long now) =>

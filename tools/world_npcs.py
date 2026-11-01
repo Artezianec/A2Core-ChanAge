@@ -117,6 +117,15 @@ def companion_hp(row):
     return row['RelationshipEntity'].endswith('::NPC_Companion') and bool(row.get('bCanBeAttacked'))
 
 
+def _groggy_guard_max(row):
+    """NpcData groggy guard max when present (0 = server uses rank defaults)."""
+    for key in ('GroggyGuardMaxEnergy', 'MaxGroggyGuardEnergy', 'GroggyGuardMax'):
+        val = row.get(key)
+        if val is not None and int(val) > 0:
+            return {'groggy_guard_max': int(val)}
+    return {}
+
+
 # Official 0x3641 HP by NpcData level for Grade 3 NormalMonsters, in units of 133 (266 = 133 x 2, 399 = 133 x 3, ...).
 # OBSERVED 2026-10-13 and in the 2026-10-19 recording (levels 1, 6, 8 added; 45 from a Grade 1 monster's 26600 / 50 x 133).
 HP_BY_LEVEL = {1: 133, 3: 199, 4: 266, 5: 399, 6: 532, 7: 665, 8: 798, 9: 931, 10: 1064, 15: 2660, 16: 3059, 30: 9975, 45: 70756}
@@ -316,7 +325,8 @@ def build(maps=MAPDATA, npc_table=NPCDATA, aggro_table=AGGRODATA, skill_table=SK
                                    'sub_type': _enum(row.get('NpcSubType', 'ENpcSubType::NormalMonster')),
                                    'grade': int(row.get('Grade') or 3),
                                    **({'air': True} if row.get('ObjectTerrainType', '').endswith('::Air') else {}),
-                                   **({'hp_max': COMPANION_HP} if companion_hp(row) else {})})
+                                   **({'hp_max': COMPANION_HP} if companion_hp(row) else {}),
+                                   **(_groggy_guard_max(row),)})
                 used_skills.update(skills)
                 unique_key = int(record.get('UniqueKey', 0)) & 0xffffffff
                 location = position['Location']
@@ -347,7 +357,8 @@ def build(maps=MAPDATA, npc_table=NPCDATA, aggro_table=AGGRODATA, skill_table=SK
                                   'no_rotation': bool(row.get('bNoRotation', False)), 'rotate_max': row.get('RotateAngleMax', 0),
                                   'sub_type': _enum(row.get('NpcSubType', 'ENpcSubType::NormalMonster')), 'grade': int(row.get('Grade') or 3),
                                   **({'air': True} if row.get('ObjectTerrainType', '').endswith('::Air') else {}),
-                                   **({'hp_max': COMPANION_HP} if companion_hp(row) else {})}
+                                   **({'hp_max': COMPANION_HP} if companion_hp(row) else {}),
+                                   **_groggy_guard_max(row)}
         used_skills.update(skills)
     out['templates'] = templates
     out['npc_skills'] = npc_skills(used_skills, skill_table, effect_table)

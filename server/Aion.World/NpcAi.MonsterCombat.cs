@@ -8,6 +8,9 @@ namespace Aion.World;
 /// </summary>
 public sealed partial class NpcAi
 {
+    /// <summary>Fired when a monster 0x3802 skill start is emitted (recovery orb waves, …).</summary>
+    public Func<Target, int, long, IReadOnlyList<byte[]>>? MonsterSkillStartHook;
+
     public const int MonsterHitStaggerMs = 300;
     public const int MonsterEndAfterLastHitMs = 500;
     public const int MonsterNextSkillMinMs = 50;
@@ -81,6 +84,7 @@ public sealed partial class NpcAi
                 var sk = data!.NpcSkill(shot.SkillId);
                 replies.Add(GamePackets.SkillStart(shot.SkillId, shot.ActionSeq, brain.Heading, target.Position, targetKey: victimKey,
                     actorKey: target.Key, cooldown: sk?.Cooldown ?? 0));
+                if (MonsterSkillStartHook is { } hook) replies.AddRange(hook(target, shot.SkillId, now));
                 continue;
             }
             if (shot.Kind == ShotKind.End)
@@ -110,7 +114,10 @@ public sealed partial class NpcAi
             {
                 target.GroggyEnergy = Math.Max(0, target.GroggyEnergy - shot.Groggy);
                 StaggerGaugeCombat.SyncGaugeFromGroggy(target);
-                StaggerGaugeCombat.AppendGroggyWire(target, replies, target.GroggyEnergy <= 0);
+                if (target.GroggyEnergy <= 0)
+                    StaggerGaugeCombat.AppendGroggyBreakWire(target, replies);
+                else
+                    StaggerGaugeCombat.AppendGroggyWire(target, replies);
             }
         }
         return replies;

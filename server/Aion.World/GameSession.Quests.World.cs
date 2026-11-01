@@ -113,7 +113,7 @@ public sealed partial class GameSession
         return replies;
     }
 
-    /// <summary>EnterVolumePC (trigger area, widened by the objective's value) and EnterSubZone objectives of active quests.</summary>
+    /// <summary>EnterVolumePC (trigger volume, optional slack from <see cref="QuestLog.EnterVolumeSlack"/>) and EnterSubZone objectives.</summary>
     async Task<List<byte[]>> AreaQuestsAsync(Vector3d at, CancellationToken ct)
     {
         if (questLog is null || !questLog.OpenAreaObjectives().Any()) return [];
@@ -121,7 +121,7 @@ public sealed partial class GameSession
         bool Inside(QuestObjective o) => o.Target is { } name && (o.Type == "EnterSubZone"
             ? Subzones.InSubzone(worldMap, name, at)
             : triggers.Any(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase)
-                && t.Contains(at, o.Value ?? 0)));
+                && t.Contains(at, QuestLog.EnterVolumeSlack(o))));
         var changed = questLog.Entered(Inside, level);
         return changed.Count == 0 ? [] : await Stored(() => QuestChangesAsync(changed, ct));
     }
@@ -176,8 +176,16 @@ public sealed partial class GameSession
         // reply (OBSERVED for every subspace trigger). The objectives themselves go by the position reports.
         foreach (var key in EnvObjKeys(plain))
             if (key is { } tk && tk - WorldObjects.FirstTriggerKey is var ti && ti >= 0 && ti < WorldObjects.TriggersOn(worldMap).Count)
-                return [GamePackets.InteractEnvObjStarted(tk, playerKey), GamePackets.InteractEnvObjCompleted(tk, playerKey),
-                    GamePackets.InteractEnvObjFinishState(tk), GamePackets.InteractEnvObjAvailableState(tk), GamePackets.InteractEnvObjReply(tk)];
+            {
+                var trigger = WorldObjects.TriggersOn(worldMap)[ti];
+                var chain = new List<byte[]>
+                {
+                    GamePackets.InteractEnvObjStarted(tk, playerKey), GamePackets.InteractEnvObjCompleted(tk, playerKey),
+                    GamePackets.InteractEnvObjFinishState(tk), GamePackets.InteractEnvObjAvailableState(tk), GamePackets.InteractEnvObjReply(tk),
+                };
+                chain.AddRange(MapEventTriggerInteract(trigger.Name, now));
+                return chain;
+            }
         int? index = null;
         foreach (var key in EnvObjKeys(plain))
             if (key is { } k && k - WorldObjects.FirstKey is var i && i >= 0 && i < objects.Count) { index = i; break; }
@@ -209,19 +217,7 @@ public sealed partial class GameSession
     /// two abnormals the official sent (18999040 for 3 s, 18999041 for 0.1 s; not in the extracted tables) and the flight points
     /// refilled (OBSERVED capture 20261019-231752 #37632-#37639: 183000 back to 250000 within 2.6 s; ours at once).
     /// </summary>
-    List<byte[]> FlyThroughRing(int key, long now)
-    {
-        var replies = new List<byte[]> { GamePackets.InteractEnvObjReply(key) };
-        var at = position ?? Vector3d.Zero;
-        replies.Add(PlayerPackets.AbnormalAdd(playerKey, [new AbnormalWire(++buffUid, FlightRingAbnormal, 3000, now + 3000, CasterKey: playerKey, RangeBase: at)]));
-        replies.Add(PlayerPackets.AbnormalAdd(playerKey, [new AbnormalWire(++buffUid, FlightRingAbnormal + 1, 100, now + 100, CasterKey: playerKey, RangeBase: at)]));
-        if (resources is { FpMax: > 0 } r && r.Fp < r.FpMax)
-        {
-            r.Fp = r.FpMax;
-            replies.AddRange(FpWireUpdates());
-        }
-        return replies;
-    }
+    List<byte[]> FlyThroughRing(int key, long now) => FlightRingPassPackets(key, now);
 
     public const int FlightRingAbnormal = 18999040;
 

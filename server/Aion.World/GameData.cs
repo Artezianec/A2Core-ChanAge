@@ -135,7 +135,8 @@ public sealed record NpcSpawn(
     [property: JsonPropertyName("skills")] int[]? Skills = null,
     [property: JsonPropertyName("height")] int Height = 0,
     [property: JsonPropertyName("no_rotation")] bool NoRotation = false,
-    uint UniqueKey = 0, int SocialAction = 0, NpcRoute? Route = null, string SubType = "NormalMonster", int Grade = 3, bool Air = false, int HpMax = 0);
+    uint UniqueKey = 0, int SocialAction = 0, NpcRoute? Route = null, string SubType = "NormalMonster", int Grade = 3, bool Air = false, int HpMax = 0,
+    [property: JsonPropertyName("groggy_guard_max")] int GroggyGuardMax = 0);
 
 /// <summary>
 /// A MapData waypoint set an NPC walks (tools/world_npcs.py routes): points, Circular / TwoWay / OneWay, walk or run.
@@ -208,7 +209,8 @@ public sealed class GameData
         [property: JsonPropertyName("sub_type")] string SubType = "NormalMonster",
         [property: JsonPropertyName("grade")] int Grade = 3,
         [property: JsonPropertyName("air")] bool Air = false,
-        [property: JsonPropertyName("hp_max")] int HpMax = 0);
+        [property: JsonPropertyName("hp_max")] int HpMax = 0,
+        [property: JsonPropertyName("groggy_guard_max")] int GroggyGuardMax = 0);
 
     /// <summary>world-npcs.json: templates by NpcData ID and spawns [name, npc_id, x, y, z, yaw] per map (tools/world_npcs.py).</summary>
     sealed record NpcFile([property: JsonPropertyName("maps")] Dictionary<string, JsonElement[][]> Maps,
@@ -751,7 +753,7 @@ public sealed class GameData
                 x.t.Skills, x.t.Height, x.t.NoRotation,
                 x.s.Length > 6 ? (uint)x.s[6].GetInt64() : 0, x.s.Length > 7 ? x.s[7].GetInt32() : 0,
                 x.s.Length > 8 && x.s[8].GetInt32() is >= 0 and var route && npcs.Routes?.GetValueOrDefault(id.ToString(System.Globalization.CultureInfo.InvariantCulture)) is { } routes
-                    && route < routes.Length ? routes[route] : null, x.t.SubType, x.t.Grade, x.t.Air, x.t.HpMax)).ToList());
+                    && route < routes.Length ? routes[route] : null, x.t.SubType, x.t.Grade, x.t.Air, x.t.HpMax, x.t.GroggyGuardMax)).ToList());
 
     readonly System.Collections.Concurrent.ConcurrentDictionary<int, IReadOnlyList<NpcSpawn>> spawnsByMap = new();
 
@@ -775,7 +777,7 @@ public sealed class GameData
     /// <summary>An NPC the server places itself (no MapData spawn), from its template: null when the template is unknown.</summary>
     public NpcSpawn? NpcFromTemplate(int npcId, string name, double[] position, double yaw) =>
         npcs.Templates.TryGetValue(npcId.ToString(System.Globalization.CultureInfo.InvariantCulture), out var t)
-            ? new NpcSpawn(name, npcId, t.Level, t.Relationship, t.Aggressive, t.WalkSpeed, t.RunSpeed, t.Radius, t.Function, position, yaw, t.AggroType, t.Aggro, t.Skills, t.Height, t.NoRotation, SubType: t.SubType, Grade: t.Grade, Air: t.Air, HpMax: t.HpMax)
+            ? new NpcSpawn(name, npcId, t.Level, t.Relationship, t.Aggressive, t.WalkSpeed, t.RunSpeed, t.Radius, t.Function, position, yaw, t.AggroType, t.Aggro, t.Skills, t.Height, t.NoRotation, SubType: t.SubType, Grade: t.Grade, Air: t.Air, HpMax: t.HpMax, GroggyGuardMax: t.GroggyGuardMax)
             : null;
 
     /// <summary>A placed spawn of the NPC (its template and name), preferring <paramref name="mapId"/>; null when it is never placed.</summary>

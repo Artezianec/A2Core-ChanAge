@@ -320,6 +320,11 @@ await using(var source=NpgsqlDataSource.Create(connectionString))
     Check(mail is not null && mail!.Attachments.Count==1,"mail post with attachment stored");
     const int kinaTemplate=930100001;
     await game.AdminAsync(second,new AdminCommand(Guid.NewGuid(),id,"grant","test",kinaTemplate,Quantity:50_000));
+    var bagExtend = await game.ExtendInventoryByGoldAsync(first, id, 0);
+    Check(bagExtend.Result == "ok" && bagExtend.Counts.InventoryByGold == 1, "gold bag slot extend (FOR UPDATE + deduct) completes on one connection");
+    Check((await game.InventoryAsync(first, id))!.ContainerExtends!.InventoryByGold == 1
+          && (await game.InventoryAsync(first, id))!.Items.Where(x => x.TemplateId == kinaTemplate).Sum(x => x.Quantity) == 45_000,
+        "bag extend persists count and deducts 5000 kinah");
     await game.AdminAsync(second,new AdminCommand(Guid.NewGuid(),staffChar,"grant","test",kinaTemplate,Quantity:50_000));
     var listGrant=await game.AdminAsync(second,new AdminCommand(Guid.NewGuid(),id,"grant","test",101));
     var tradeItem=listGrant.GetProperty("instanceId").GetGuid();

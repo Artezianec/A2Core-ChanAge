@@ -86,7 +86,7 @@ public sealed partial class GameSession
     /// <summary>Wire values for combat stats not handled by the legacy DefaultStats switch.</summary>
     IReadOnlyDictionary<int, int> ExtraSheetStats()
     {
-        var extras = new Dictionary<int, int>();
+        var extras = new Dictionary<int, int> { [104] = SkillPointsEarned }; // EStat 0x68: total earned (capture 234302/234615; remaining = earned − 5105 spent)
         foreach (var name in ItemStats.CombatStats)
         {
             if (name is "WeaponMinDamage" or "WeaponDamage" or "WeaponAccuracy" or "Critical" or "HPMax" or "MPMax" or "ArmorDefense")

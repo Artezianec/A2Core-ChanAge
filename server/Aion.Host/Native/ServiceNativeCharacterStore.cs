@@ -21,6 +21,7 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
     (CharacterState State, int MapId, Vector3d Position)? pendingLocation;
     (CharacterState State, int? MapId, Vector3d? Position)? pendingInstanceReturn;
     List<ItemState>? itemCache;
+    ContainerSlotExtendCounts containerExtends = ContainerSlotExtendCounts.Zero;
     Guid itemCacheCharacter;
 
     public Guid AccountId => identity.Account.AccountId;
@@ -141,7 +142,9 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
     async Task RefreshItemCacheAsync(Guid character, CancellationToken ct)
     {
         await ValidateAsync(ct);
-        itemCache = (await game.InventoryAsync(identity.Account, character, ct))?.Items?.ToList() ?? [];
+        var inv = await game.InventoryAsync(identity.Account, character, ct);
+        itemCache = inv?.Items?.ToList() ?? [];
+        containerExtends = inv?.ContainerExtends ?? ContainerSlotExtendCounts.Zero;
         itemCacheCharacter = character;
     }
 
@@ -435,6 +438,21 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
     {
         await ValidateAsync(ct);
         return await game.ExtendGuildStorageAsync(identity.Account, character, expectedExtension, ct);
+    }
+
+    public Task<ContainerSlotExtendCounts> ContainerSlotExtendsAsync(Guid character, CancellationToken ct) =>
+        Task.FromResult(itemCache is not null && itemCacheCharacter == character ? containerExtends : ContainerSlotExtendCounts.Zero);
+
+    public async Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendInventoryByGoldAsync(Guid character, int costIdx, CancellationToken ct)
+    {
+        await ValidateAsync(ct);
+        var outcome = await game.ExtendInventoryByGoldAsync(identity.Account, character, costIdx, ct);
+        if (outcome.Result == "ok")
+        {
+            containerExtends = outcome.Counts;
+            await RefreshItemCacheAsync(character, ct);
+        }
+        return outcome;
     }
 
     public async Task<(string Result, IReadOnlyList<(int Type, long Amount)> Wallet)> DonateGuildWalletAsync(Guid character, long kina,

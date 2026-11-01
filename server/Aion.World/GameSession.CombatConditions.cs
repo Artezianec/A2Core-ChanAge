@@ -18,7 +18,8 @@ partial class GameSession
     internal bool PlayerHasAbnormalEffect(string? effectType, long now, int? casterKey)
     {
         if (string.IsNullOrEmpty(effectType)) return false;
-        if (effectType.Equals("Stagger", StringComparison.OrdinalIgnoreCase) && StaggerUntil > now) return true;
+        if (effectType.Equals("Stagger", StringComparison.OrdinalIgnoreCase))
+            return PlayerHasGroggyBreakStagger(now);
         return buffs.Any(b => (!casterKey.HasValue || b.Uid != 0)
             && AbnormalSpecs.Types(b.AbnormalId).Any(t => t.Equals(effectType, StringComparison.OrdinalIgnoreCase)));
     }
@@ -33,9 +34,10 @@ partial class GameSession
     {
         if (targets?.TryGetValue(targetKey, out var victim) != true || victim is null) return false;
         if (string.IsNullOrEmpty(effectType)) return false;
-        if (effectType.Equals("Stagger", StringComparison.OrdinalIgnoreCase) && victim.StaggerUntil > now) return true;
+        if (effectType.Equals("Stagger", StringComparison.OrdinalIgnoreCase))
+            return NpcHasGroggyBreakStagger(targetKey, now);
         if (!npcBuffs.TryGetValue(targetKey, out var list)) return false;
-        return list.Any(b => AbnormalSpecs.Types(b.AbnormalId).Any(t => t.Equals(effectType, StringComparison.OrdinalIgnoreCase)));
+        return list.Any(b => b.ExpireAt > now && AbnormalSpecs.Types(b.AbnormalId).Any(t => t.Equals(effectType, StringComparison.OrdinalIgnoreCase)));
     }
 
     internal bool NpcHasAbnormalGroup(int targetKey, int group, int? casterKey)
@@ -73,13 +75,14 @@ partial class GameSession
     internal List<byte[]> ApplyStaggerGaugeOnPlayerHit(WorldPlayer victim, int skillId, int row, long now)
     {
         var gauge = StaggerGaugeCombat.GaugeDamage(data, skillId);
-        return StaggerGaugeCombat.AddPlayerGaugeDamage(victim.Session, gauge, playerKey, now, row == 0);
+        return StaggerGaugeCombat.AddPlayerGaugeDamage(victim.Session, gauge, playerKey, now, row == 0, this);
     }
 
-    internal void ClearPlayerStaggerIfExpired(long now)
+    internal List<byte[]> ClearPlayerStaggerIfExpired(long now)
     {
-        if (StaggerUntil <= 0 || now < StaggerUntil) return;
+        if (StaggerUntil <= 0 || now < StaggerUntil) return [];
         StaggerUntil = 0;
+        return [];
     }
 
     internal bool HasApBar => resources is { ApMax: > 0 };

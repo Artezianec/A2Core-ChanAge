@@ -191,6 +191,9 @@ public interface INativeCharacterStore : IAsyncDisposable
     Task<CharacterState> SaveInstanceReturnAsync(CharacterState state, int? mapId, Vector3d? position, CancellationToken ct);
     /// <summary>The character's stored items (bag, equipment, storage).</summary>
     Task<IReadOnlyList<ItemState>> InventoryAsync(Guid character, CancellationToken ct);
+    Task<ContainerSlotExtendCounts> ContainerSlotExtendsAsync(Guid character, CancellationToken ct) => Task.FromResult(ContainerSlotExtendCounts.Zero);
+    Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendInventoryByGoldAsync(Guid character, int costIdx, CancellationToken ct) =>
+        Task.FromResult(("none", ContainerSlotExtendCounts.Zero));
     /// <summary>Sum of Quna item stacks for the whole account (platform GameCash wallet).</summary>
     Task<long> AccountQunaBalanceAsync(CancellationToken ct) => Task.FromResult(0L);
     /// <summary>Equips a stored item in an equipment slot (null: back to the bag); false when the rules refuse it.</summary>

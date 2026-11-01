@@ -36,7 +36,8 @@ public static class RidePackets
     public const byte RespawnKisk = 1, RespawnAuto = 2, RespawnItem = 3;
     /// <summary>ESoulCrystalIncreaseReason.</summary>
     public const byte CrystallizeReason = 1, ItemReason = 2;
-    public const ushort ItemUseRq = 0x5612, ItemUseRs = 0x5613, ItemUseNt = 0x5616, ItemUseStartedNt = 0x5617, ItemUseInterruptedNt = 0x5618,
+    public const ushort ItemUseRq = 0x5612, ItemUseRs = 0x5613, ItemUseByItemIdRq = 0x5614, ItemUseByItemIdRs = 0x5615,
+        ItemUseNt = 0x5616, ItemUseStartedNt = 0x5617, ItemUseInterruptedNt = 0x5618,
         ItemUseCompletedNt = 0x5619, OpenBoxRq = 0x5646, OpenBoxRs = 0x5647;
 
     /// <summary>EGetOffRideReason.</summary>
@@ -222,16 +223,23 @@ public static class RidePackets
     /// <summary>0x5613 ItemUse_RS: result | item uid i64 | item id i32.</summary>
     public static byte[] ItemUseReply(int result, long uid, int itemId) => PacketWriter.Opcode(ItemUseRs).U16(result).I64(uid).I32(itemId).ToArray();
 
+    /// <summary>0x5615 ItemUseByItemID_RS (dev 0x3757 + 0x1ebe): result i32 | uid i64 | item id i32 | use count i32.</summary>
+    public static byte[] ItemUseByItemIdReply(int result, long uid, int itemId, int useCount) =>
+        PacketWriter.Opcode(ItemUseByItemIdRs).I32(result).I64(uid).I32(itemId).I32(useCount).I32(0).ToArray();
+
     /// <summary>0x5616 ItemUse_NT: item uid i64 | item id i32 (OBSERVED: Life Potion 530126003).</summary>
     public static byte[] ItemUsed(long uid, int itemId) => PacketWriter.Opcode(ItemUseNt).I64(uid).I32(itemId).ToArray();
 
+    /// <summary>Success wire on OpenRewardBox_RS (capture 001158: u16 0x035d before box uid; failure stays 1).</summary>
+    public const ushort OpenRewardBoxSuccessWire = 0x035d;
+
     /// <summary>
-    /// 0x5647 OpenRewardBox_RS: result | box uid i64 | box item id i32 | select index u8 | open count i32 |
+    /// 0x5647 OpenRewardBox_RS: result u16 | box uid i64 | box item id i32 | select index u8 | open count i32 |
     /// reward items array {item id i32, enchant u8, count i32}.
     /// </summary>
     public static byte[] OpenBoxReply(int result, long boxUid, int boxItemId, byte selectIndex, int openCount, IReadOnlyList<(int ItemId, long Count)> rewards)
     {
-        var w = PacketWriter.Opcode(OpenBoxRs).U16(result).I64(boxUid).I32(boxItemId).U8(selectIndex).I32(openCount).Varint(rewards.Count);
+        var w = PacketWriter.Opcode(OpenBoxRs).U16(result == 0 ? OpenRewardBoxSuccessWire : (ushort)result).I64(boxUid).I32(boxItemId).U8(selectIndex).I32(openCount).Varint(rewards.Count);
         foreach (var (item, count) in rewards) w.I32(item).U8(0).I32((int)Math.Min(int.MaxValue, count));
         return w.ToArray();
     }

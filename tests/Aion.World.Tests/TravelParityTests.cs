@@ -93,13 +93,16 @@ public sealed class TravelParityTests
         var airPathRq = new PacketWriter().U16(0x3719).Bool(false).Vec3(start).Vec3(target).ToArray();
         Assert.Equal(27, airPathRq.Length);
         var airPath = await session.HandleAsync(airPathRq, Now + 2);
-        Assert.Single(airPath);
+        Assert.Equal(4, airPath.Count);
         Assert.Equal(0x3745, GameSessionTestHelpers.Op(airPath[0]));
         var body = airPath[0];
         Assert.Equal(0, BitConverter.ToUInt16(body, 2));   // result u16, as the official reply
         Assert.Equal(1, body[4]);                           // ticket
         var path = GameSession.AirPath(start, target);
         Assert.True(body.SequenceEqual(GamePackets.RequestAirPathReply(false, start, target, path: path)));
+        Assert.Equal(0x3744, GameSessionTestHelpers.Op(airPath[1]));
+        Assert.Equal(0x8d02, GameSessionTestHelpers.Op(airPath[2]));
+        Assert.Equal(0x3746, GameSessionTestHelpers.Op(airPath[3]));
         Assert.Equal(target, path[0].Point);                // official order: target first, start last
         Assert.Equal(start, path[^1].Point);
         Assert.All(path, p => Assert.Equal(8, p.Terrain));

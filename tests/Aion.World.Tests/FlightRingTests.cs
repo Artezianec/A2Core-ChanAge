@@ -8,7 +8,7 @@ public sealed class FlightRingTests
 {
     const long Now = 1_760_090_200_000;
 
-    static async Task<GameSession> EnterAscendedAsync(FakeCharacterStore store, long now)
+    public static async Task<GameSession> EnterAscendedAsync(FakeCharacterStore store, long now)
     {
         var shared = new SharedWorld(GameData.Embedded);
         var session = new GameSession(GameData.Embedded,

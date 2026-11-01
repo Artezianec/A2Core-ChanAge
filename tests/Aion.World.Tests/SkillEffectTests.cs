@@ -283,6 +283,7 @@ public sealed class SkillEffectTests
         var caster = session.Position!.Value;
         Assert.Equal([["Pull", "200"]], SkillEffects.Rows(DimensionalControl));
         var before = Distance(caster, mob.Position);
+        session.GrantDimensionalControlEnablerForTest(Now + 6_000);
         var replies = await session.HandleAsync(Cast(DimensionalControl, mob.Key, mob.Position), Now + 6_000);
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3801 && GameSession.CastResultCode(p) == 0);
 
