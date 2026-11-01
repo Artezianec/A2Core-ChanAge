@@ -59,7 +59,7 @@ same).
 
 ## Run locally on Windows (development)
 
-Requirements: .NET 10 SDK, Python 3.11+, and a PostgreSQL build (see `tools/postgres_dev.py`, or set `AION_PG_BIN`).
+Requirements: .NET 10 SDK, Python 3.11+, Node.js LTS with npm (https://nodejs.org/; used to build the web pages), and a PostgreSQL build (see `tools/postgres_dev.py`, or set `AION_PG_BIN`).
 
 1. Clone this branch: `git clone -b v1.0.1 https://github.com/Artezianec/A2Core-ChanAge`
 2. Download `aion-server-data.tar.gz` from the [v1.0.1 release](https://github.com/Artezianec/A2Core-ChanAge/releases/tag/v1.0.1)

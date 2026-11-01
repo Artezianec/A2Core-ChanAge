@@ -43,3 +43,27 @@ def test_check_fixtures_hints_release_when_archive_missing(tmp_path, monkeypatch
     monkeypatch.setattr(start_all_windows, 'find_data_archive', lambda: None)
     assert start_all_windows.check_fixtures() == 1
     assert start_all_windows.RELEASE_URL in capsys.readouterr().out
+
+
+def test_check_node_reports_missing_npm(monkeypatch, capsys):
+    monkeypatch.delenv('AION_SKIP_WEB', raising=False)
+    monkeypatch.setattr(start_all_windows.shutil, 'which', lambda tool: None if tool == 'npm' else '/bin/' + tool)
+    assert start_all_windows.check_node() == 1
+    out = capsys.readouterr().out
+    assert 'npm' in out and 'https://nodejs.org/' in out and 'new terminal' in out
+
+
+def test_check_node_ok_or_skipped(monkeypatch):
+    monkeypatch.setattr(start_all_windows.shutil, 'which', lambda tool: '/bin/' + tool)
+    assert start_all_windows.check_node() == 0
+    monkeypatch.setattr(start_all_windows.shutil, 'which', lambda tool: None)
+    monkeypatch.setenv('AION_SKIP_WEB', '1')
+    assert start_all_windows.check_node() == 0
+
+
+def test_check_dotnet_missing(monkeypatch, capsys):
+    def boom(*a, **k):
+        raise FileNotFoundError
+    monkeypatch.setattr(start_all_windows.subprocess, 'run', boom)
+    assert start_all_windows.check_dotnet() == 1
+    assert 'dotnet.microsoft.com' in capsys.readouterr().out

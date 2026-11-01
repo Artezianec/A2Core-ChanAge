@@ -41,11 +41,27 @@ def check_dotnet() -> int:
     try:
         result = subprocess.run(['dotnet', '--version'], capture_output=True, text=True, check=False, timeout=30)
     except FileNotFoundError:
-        _msg('[ERROR] .NET SDK not found. Install .NET 10 SDK: https://dotnet.microsoft.com/download')
+        _msg('[ERROR] .NET SDK not found. Install the .NET 10 SDK: https://dotnet.microsoft.com/download/dotnet/10.0')
+        _msg('  Open a new terminal after installing.')
         return 1
     version = (result.stdout or result.stderr or '').strip().splitlines()[0] if result.returncode == 0 else ''
     if not version.startswith('10.'):
         _msg(f'[ERROR] .NET SDK 10.x required, found: {version or "unknown"}')
+        _msg('  Install the .NET 10 SDK: https://dotnet.microsoft.com/download/dotnet/10.0')
+        _msg('  Open a new terminal after installing.')
+        return 1
+    return 0
+
+
+def check_node() -> int:
+    """The Aion.Host build runs `npm ci` / `npm run build` for web/ unless AION_SKIP_WEB=1."""
+    if os.environ.get('AION_SKIP_WEB', '').lower() in ('1', 'true', 'yes'):
+        return 0
+    missing = [tool for tool in ('node', 'npm') if shutil.which(tool) is None]
+    if missing:
+        _msg(f'[ERROR] {" and ".join(missing)} not found on PATH (needed to build the web pages of Aion.Host).')
+        _msg('  Install Node.js LTS (includes npm): https://nodejs.org/')
+        _msg('  Open a new terminal after installing, then run start-all.cmd again.')
         return 1
     return 0
 
@@ -395,7 +411,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == 'check':
-        code = check_python() or check_dotnet() or check_postgres_files() or check_fixtures()
+        code = check_python() or check_dotnet() or check_node() or check_postgres_files() or check_fixtures()
         return code
     if args.command == 'postgres-up':
         return postgres_up()
