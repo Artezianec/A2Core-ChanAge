@@ -60,14 +60,14 @@ echo.
 echo Starting processes in separate windows...
 
 rem 1) Account site + API (8780)
-start "A2Core Account 8780" cmd /k "chcp 65001>nul && cd /d \"%ROOT%\" && echo [A2Core] Account + API http://127.0.0.1:8780 && python tools\run_account_server.py"
+start "A2Core Account 8780" /d "%ROOT%" cmd /k "chcp 65001>nul && echo [A2Core] Account + API http://127.0.0.1:8780 && python tools\run_account_server.py"
 
 rem 2) Login + Game + Platform bootstrap + Chat (3700, 13328, 8087, 8091) - one Aion.Host process
-start "A2Core Login Game Platform Chat" cmd /k "\"%RUNTIME%\start-native.cmd\""
+start "A2Core Login Game Platform Chat" cmd /k call "%RUNTIME%\start-native.cmd"
 
 rem 3) NCGuard TLS sink (443), optional — launcher redirects NC hostnames here
 if "%SKIPNCGUARD%"=="0" if exist "%RUNTIME%\start-ncguard.cmd" (
-  start "A2Core NCGuard 443" cmd /k "\"%RUNTIME%\start-ncguard.cmd\""
+  start "A2Core NCGuard 443" cmd /k call "%RUNTIME%\start-ncguard.cmd"
 ) else if "%SKIPNCGUARD%"=="0" (
   echo [WARNING] NCGuard fixture not found; the launcher may not reach the game without skipncguard and your own fixture.
 )
