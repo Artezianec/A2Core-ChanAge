@@ -48,3 +48,4 @@ launcher/**/obj/
 
 # Gamers4Life parity crawler cache (tools/audit_gamers4life.py)
 tools/.cache/gamers4life/
+/aion-server-data.tar.gz

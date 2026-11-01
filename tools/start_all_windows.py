@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -67,19 +68,93 @@ def check_postgres_files() -> int:
     return 0
 
 
-def check_fixtures() -> int:
-    policy = DEFAULT_POLICY / 'app-policy.json'
-    keys = KEY_FIXTURES / 'app-key.json'
+RELEASE_URL = 'https://github.com/Artezianec/A2Core-ChanAge/releases/tag/v1.0.1'
+DATA_ARCHIVE = 'aion-server-data.tar.gz'
+LOCAL = ROOT / 'research' / 'local'
+# Archive folder -> local folders the Windows stack reads (run_game_chain, Terrain/NavMesh.Locate, catalog tools).
+ARCHIVE_LAYOUT = {
+    'bootstrap/keys': ['bootstrap-fixtures/rsa-candidate-20261009'],
+    'bootstrap/policy': ['bootstrap-fixtures/policy-login-route-20261009-1230', 'bootstrap-fixtures/policy-lime-20261014'],
+    'ncguard': ['ncguard'],
+    'game-catalog-v2': ['game-catalog-v2'],
+    'terrain': ['terrain'],
+    'navmesh': ['navmesh'],
+    'wardrobe': ['wardrobe'],
+}
+
+
+def find_data_archive() -> Path | None:
+    for candidate in (ROOT / 'data' / DATA_ARCHIVE, ROOT / DATA_ARCHIVE):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _extract(archive: Path, target: Path) -> None:
+    target.mkdir(parents=True, exist_ok=True)
+    tar = shutil.which('tar')
+    if tar:
+        result = subprocess.run([tar, '-xzf', str(archive), '-C', str(target)], check=False)
+        if result.returncode == 0:
+            return
+        _msg('[WARNING] tar.exe failed; falling back to Python tarfile.')
+    import tarfile
+    with tarfile.open(archive, 'r:gz') as handle:
+        try:
+            handle.extractall(target, filter='data')
+        except TypeError:
+            handle.extractall(target)
+
+
+def install_server_data(archive: Path, local: Path = LOCAL) -> list[Path]:
+    """Unpack the release data archive into research/local; return the folders written."""
+    staging = local / '.server-data-extract'
+    if staging.exists():
+        shutil.rmtree(staging)
+    _extract(archive, staging)
+    written = []
+    try:
+        for source_name, targets in ARCHIVE_LAYOUT.items():
+            source = staging / source_name
+            if not source.is_dir():
+                continue
+            for target_name in targets:
+                target = local / target_name
+                shutil.copytree(source, target, dirs_exist_ok=True)
+                written.append(target)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    return written
+
+
+def _missing_fixtures() -> list[str]:
     missing = []
-    if not policy.is_file():
-        missing.append(str(policy))
-    if not keys.is_file():
-        missing.append(str(keys))
+    for path in (DEFAULT_POLICY / 'app-policy.json', KEY_FIXTURES / 'app-key.json'):
+        if not path.is_file():
+            missing.append(str(path))
+    return missing
+
+
+def check_fixtures() -> int:
+    missing = _missing_fixtures()
+    if missing:
+        archive = find_data_archive()
+        if archive:
+            _msg(f'Platform bootstrap fixtures are missing; unpacking {archive} ...')
+            try:
+                for path in install_server_data(archive):
+                    _msg(f'  -> {path}')
+            except Exception as error:
+                _msg(f'[ERROR] Could not unpack {archive}: {error}')
+                return 1
+            missing = _missing_fixtures()
     if missing:
         _msg('[ERROR] Platform bootstrap fixtures (8087) are missing:')
         for path in missing:
             _msg(f'  {path}')
-        _msg('  Provide research/local/bootstrap-fixtures yourself or build them with pack_server_data.')
+        _msg(f'  Download {DATA_ARCHIVE} from the release page (Assets):')
+        _msg(f'    {RELEASE_URL}')
+        _msg(f'  and put it into {ROOT / "data" / DATA_ARCHIVE} (or the repository root), then run start-all.cmd again.')
         return 1
     return 0
 

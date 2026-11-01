@@ -62,10 +62,14 @@ same).
 Requirements: .NET 10 SDK, Python 3.11+, and a PostgreSQL build (see `tools/postgres_dev.py`, or set `AION_PG_BIN`).
 
 1. Clone this branch: `git clone -b v1.0.1 https://github.com/Artezianec/A2Core-ChanAge`
-2. Double-click `start-all.cmd` (or run it from a terminal). It checks the requirements, builds `server/Aion.Host`,
+2. Download `aion-server-data.tar.gz` from the [v1.0.1 release](https://github.com/Artezianec/A2Core-ChanAge/releases/tag/v1.0.1)
+   (Assets) and put it into `data\aion-server-data.tar.gz` (the repository root also works). On the first run
+   `start-all.cmd` unpacks it with `tar.exe` into `research\local` (bootstrap fixtures, NCGuard fixture, catalogue,
+   terrain and navmesh). If the archive is missing it stops with a download hint.
+3. Double-click `start-all.cmd` (or run it from a terminal). It checks the requirements, builds `server/Aion.Host`,
    starts PostgreSQL, the account server (http://127.0.0.1:8780), the login/game/chat hosts and the launcher.
    Options: `nobuild`, `nolauncher`, `skipncguard`.
-3. Stop everything with `stop-all.cmd`.
+4. Stop everything with `stop-all.cmd`.
 
 Server settings live in `server/Aion.Host/appsettings.json`; see `docs/SERVER_CONFIGURATION.md`. No keys or passwords are
 shipped: connection strings and secrets are empty and must be provided by you (environment variables or a local override).
