@@ -36,7 +36,7 @@ public sealed class CombatDodgeCastGapTests
     }
 
     [Fact]
-    public async Task Dodge_rejected_for_cooldown_still_sends_unlock_reply()
+    public async Task Dodge_pressed_while_previous_dodge_plays_is_ignored()
     {
         var store = new FakeCharacterStore();
         var session = await GameSessionTestHelpers.EnterSharedWorldAsync(store, Now, level: 25, rng: new Random(32));
@@ -46,6 +46,6 @@ public sealed class CombatDodgeCastGapTests
         var wire = SelfDodge(dodgeId, session.PlayerKey, at);
         Assert.True(CastAccepted(await session.HandleAsync(wire, castAt)));
         var early = await session.HandleAsync(wire, castAt + 50);
-        Assert.Equal(GamePackets.DodgeResult(dodgeId, 1), early.Single());
+        Assert.Empty(early); // the 9-byte refusal mid-dash froze the client (live 2026-11-02)
     }
 }

@@ -85,14 +85,25 @@ public sealed class RangerSuppressingArrowContextTests
     }
 
     [Fact]
-    public async Task QuickSlotContextSkill_refuses_skill_outside_the_slot_stack()
+    public async Task QuickSlotContextSkill_refuses_unlearned_skill_id()
     {
+        const int ElementalistComboSkill = 16_140_000;
         var store = new FakeCharacterStore { Progress = (45, 0) };
         var session = await EnterRangerAsync(store);
-        store.QuickSlots.Clear();
-        var rs = (await session.HandleAsync(ContextUpdate(ESlot, 0, 14_010_000), Now)).First();
+        var rs = (await session.HandleAsync(ContextUpdate(6, 1, ElementalistComboSkill), Now + 500)).First();
         Assert.Equal(1, BitConverter.ToUInt16(rs, 2));
-        Assert.DoesNotContain(14_010_000, store.QuickSlots.Values.SelectMany(s => s.ContextSkills ?? []));
+        Assert.False(store.QuickSlots.TryGetValue(6, out var slot) && slot.ContextSkills?.Contains(ElementalistComboSkill) == true);
+    }
+
+    [Fact]
+    public async Task QuickSlotContextSkill_accepts_any_learned_skill_on_a_context_row()
+    {
+        const int Deadshot = 14_010_000;
+        var store = new FakeCharacterStore { Progress = (45, 0) };
+        var session = await EnterRangerAsync(store);
+        var rs = (await session.HandleAsync(ContextUpdate(ESlot, 1, Deadshot), Now + 600)).First();
+        Assert.Equal(0, BitConverter.ToUInt16(rs, 2));
+        Assert.Equal(Deadshot, store.QuickSlots[ESlot].ContextSkills![1]);
     }
 
     [Fact]
@@ -109,13 +120,15 @@ public sealed class RangerSuppressingArrowContextTests
     }
 
     [Fact]
-    public async Task Corrupt_context_stack_is_repaired_on_login()
+    public async Task Saved_custom_context_stack_persists_on_login()
     {
+        const int Deadshot = 14_010_000;
         var store = new FakeCharacterStore { Progress = (45, 0) };
         await EnterRangerAsync(store);
         var character = store.States[0].Summary.CharacterId;
+        var custom = new[] { Deadshot, SuppressingArrow, MarkingShot, 0 };
         await store.SaveQuickSlotAsync(character, ESlot,
-            new QuickSlotRecord(ESlot, 0, 0, 0, EBarSkill, [14_010_000, SuppressingArrow, MarkingShot, 0]), default);
+            new QuickSlotRecord(ESlot, 0, 0, 0, EBarSkill, custom), default);
 
         var session2 = new GameSession(GameSessionTestHelpers.LiveGameData,
             new GameSessionOptions { World = new SharedWorld(GameData.Embedded), CharacterLevel = 45, WorldId = store.WorldId, TrainingDummy = true },
@@ -125,7 +138,6 @@ public sealed class RangerSuppressingArrowContextTests
         await session2.HandleAsync(new PacketWriter().U16(0x361f).Varint((uint)wireId << 16).I32(0).Vec3(Vector3d.Zero).ToArray(), Now + 2);
 
         Assert.True(store.QuickSlots.TryGetValue(ESlot, out var slot));
-        Assert.Equal(EBarSkill, slot.ContextSkills![0]);
-        Assert.Equal(GameData.Embedded.DefaultContextSkills(EBarSkill), slot.ContextSkills);
+        Assert.Equal(custom, slot.ContextSkills);
     }
 }

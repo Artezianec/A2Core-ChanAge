@@ -21,5 +21,5 @@ public static class SkillResourceThreshold
             _ => false,
         };
 
-    static int RatioPermille(int current, int max) => max <= 0 ? 0 : current * 10_000 / max;
+    static long RatioPermille(int current, int max) => max <= 0 ? 0 : (long)current * 10_000 / max;
 }

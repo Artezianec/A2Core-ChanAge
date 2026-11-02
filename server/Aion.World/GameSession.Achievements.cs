@@ -441,8 +441,8 @@ public sealed partial class GameSession
         var category = plain[2];
         var groupId = BitConverter.ToInt32(plain, 3);
         var only = plain[7] != 0;
-        var replies = new List<byte[]>();
         var results = new List<(int Group, List<byte> GroupSteps, Dictionary<int, int> Steps)>();
+        var rewardItems = new List<int>();
         var attendanceAchievements = Achievements.Boards.Select(b => b.Achievement).ToHashSet();
         var refreshAccountContents = false;
         var grantedItems = false;
@@ -458,9 +458,10 @@ public sealed partial class GameSession
                 {
                     var taken = await TakeStepAsync(entry.Id, step, now, ct, syncInventory: false, logSource: "batch");
                     if (taken is null) break;
-                    if (entry.StepRewards(step).Count > 0) grantedItems = true;
+                    var stepRewards = entry.StepRewards(step);
+                    if (stepRewards.Count > 0) grantedItems = true;
+                    rewardItems.AddRange(stepRewards.Select(t => t.ItemId));
                     if (attendanceAchievements.Contains(entry.Id)) refreshAccountContents = true;
-                    replies.AddRange(taken);
                     steps[entry.Id] = step;
                 }
             }
@@ -471,6 +472,8 @@ public sealed partial class GameSession
                     {
                         grantedItems = true;
                         groupSteps.Add((byte)step);
+                        var row = Achievements.GroupRewards(gid)[step - 1];
+                        if (row.Length >= 2) rewardItems.Add((int)row[1]);
                     }
             }
             if (steps.Count > 0 || groupSteps.Count > 0) results.Add((gid, groupSteps, steps));
@@ -481,19 +484,18 @@ public sealed partial class GameSession
         var takeResults = results.Select(r => (r.Group, (IReadOnlyList<byte>)r.GroupSteps, (IReadOnlyDictionary<int, int>)r.Steps)).ToList();
         var batchResult = takeResults.Count > 0 ? 0 : 1;
         if (takeResults.Count > 0) await FlushAchievementsAsync(now, ct, force: true);
-        // Official claim-all (capture 001158): 0x561b inventory deltas, then TakeAchievementRewardBatch_RS.
+        // Official claim-all (capture 001158): 0x561b inventory deltas, then TakeAchievementRewardBatch_RS only.
+        // The take_result map already carries every claimed step; trailing 0x5684 per-step NTs or a 0x5683 list resend
+        // make the client rebuild the window and the "Rewards Collected" popup comes up empty.
         var batch = new List<byte[]>();
         if (inventoryChanges.Count > 0) batch.AddRange(inventoryChanges);
         batch.Add(RewardBatchReply(category, groupId, only, takeResults, batchResult));
-        batch.AddRange(replies);
         if (grantedItems)
         {
-            var rewardItems = results.SelectMany(r => r.Steps).SelectMany(kv => Achievements.Of(kv.Key)?.StepRewards(kv.Value) ?? []).Select(t => t.ItemId);
             batch.AddRange(await AutoUseAcquiredItemsAsync(rewardItems, now, ct));
             batch.AddRange(await AutoPresentGrantedTitlesAsync(rewardItems, ct));
         }
         if (refreshAccountContents) batch.Add(AccountContentsInfoList(now));
-        if (results.Any(r => r.GroupSteps.Count > 0)) batch.Add(AchievementList(now));
         return batch;
     }
 

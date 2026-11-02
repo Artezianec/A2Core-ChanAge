@@ -36,6 +36,45 @@ public sealed class DaevanionTests
     }
 
     [Fact]
+    public void Creation_slot_matches_starter_profiles_for_both_races()
+    {
+        var tables = DaevanionTables.Embedded;
+        var data = GameData.Embedded;
+        foreach (var creation in new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 })
+        {
+            var profile = data.Profile(creation, 1);
+            if (profile is null) continue;
+            var fromCreation = tables.ClassSlot(creation);
+            var fromClass = tables.ResolveClassSlot(creation, profile.Class);
+            Assert.True(fromCreation > 0, $"creation {creation}");
+            Assert.Equal(fromCreation, fromClass);
+        }
+        Assert.Equal(3, tables.ClassSlot(5));
+        Assert.Equal(3, tables.ClassSlot(13));
+        Assert.Equal(5, tables.ClassSlot(6));
+        Assert.Equal(5, tables.ClassSlot(14));
+    }
+
+    [Fact]
+    public void Class_name_overrides_creation_id_for_daevanion_slot()
+    {
+        var tables = DaevanionTables.Embedded;
+        Assert.Equal(5, tables.ResolveClassSlot(6, "Elementalist"));
+        Assert.Equal(3, tables.ResolveClassSlot(6, "Ranger"));
+        Assert.Equal(3, tables.ResolveClassSlot(5, "Ranger"));
+    }
+
+    [Fact]
+    public void ResolvePlayableClass_trusts_stored_ranger_kit_over_creation_six_profile()
+    {
+        var data = GameData.Embedded;
+        var rangerProfile = data.Profile(5, 1)!;
+        var resolved = data.ResolvePlayableClass(6, 1, rangerProfile.Skills);
+        Assert.Equal("Ranger", resolved);
+        Assert.Equal("Elementalist", data.Profile(6, 1)!.Class);
+    }
+
+    [Fact]
     public async Task Open_node_spends_bonus_points_and_persists()
     {
         var store = new FakeCharacterStore();

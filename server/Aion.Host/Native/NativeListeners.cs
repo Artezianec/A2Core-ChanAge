@@ -448,7 +448,8 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
                         Logger.LogInformation("Native game BuilderCmd_RQ ({Length} bytes): {Body}", plain.Length,
                             Convert.ToHexString(plain.AsSpan(0, Math.Min(plain.Length, 1024))));
                     else if (replies.Count == 0 && header >= 0 && !GameSession.SilentRequests.Contains(header) && GameSession.PositionReport(plain) is null && unanswered.Add(header))
-                        Logger.LogInformation("Native game unanswered opcode 0x{Opcode:x4} ({Length} bytes)", header, plain.Length);
+                        Logger.LogInformation("Native game unanswered opcode 0x{Opcode:x4} ({Length} bytes): {Body}", header, plain.Length,
+                            Convert.ToHexString(plain.AsSpan(0, Math.Min(plain.Length, 64))));
                     // In the world after 0x3622; out of it again on 0x3625 (back to character selection).
                     if (session.CharacterName != present)
                     {

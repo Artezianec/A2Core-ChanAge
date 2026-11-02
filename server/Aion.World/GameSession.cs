@@ -176,15 +176,42 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     readonly SortedSet<int> registeredWings = [];
     public IReadOnlyCollection<int> RegisteredWings => registeredWings;
 
+    /// <summary>Enchant level per registered wing (game.character_wings.enchant_level; missing = +0).</summary>
+    readonly Dictionary<int, int> wingEnchants = [];
+    /// <summary>The stored equipped wing (game.characters.equipped_wing_id), restored on map loads; 0 = race default.</summary>
+    int storedWingId;
+
+    // TODO(wing enchant): the WingEnchant request opcode is unknown (no capture). Once known, add the handler: check the
+    // WingEnchant.dat group/cost/rate, update game.character_wings.enchant_level, wingEnchants, resend WingList and RefreshStats.
     List<(int Id, byte Enchant)> OwnedWings() =>
-        registeredWings.Concat(wingId != 0 ? [wingId] : []).Distinct().Order().Select(id => (id, (byte)0)).ToList();
+        registeredWings.Concat(wingId != 0 ? [wingId] : []).Concat(HasDefaultWing ? [GamePackets.DefaultWing(profileRace)] : []).Distinct().Order()
+            .Select(id => (id, (byte)Math.Clamp(wingEnchants.GetValueOrDefault(id), 0, 255))).ToList();
+
+    static WingTables Wings => WingTables.Embedded;
+
+    /// <summary>Staff and ascended characters own their race's default wing (implied, not stored).</summary>
+    bool HasDefaultWing => resources is not null && (IsAdmin || (selected?.Ascension ?? 1) >= 2);
+
+    /// <summary>Wing stats: the equipped wing's equip stats plus every owned wing's owned stats at its enchant level.</summary>
+    int WingStat(string stat)
+    {
+        var total = Wings.EquipStat(wingId, stat);
+        foreach (var (id, enchant) in OwnedWings()) total += Wings.OwnedStat(id, enchant, stat);
+        return total;
+    }
+
+    /// <summary>The flight gauge maximum: owned wings' FPMax (client raw values; the default wing alone gives 250,000).</summary>
+    int FlightMax => WingStat("FPMax") is > 0 and var fp ? fp : FpMax;
+
+    internal int WingStatForTests(string stat) => WingStat(stat);
+    internal int EquippedWingForTests => wingId;
 
     /// <summary>Builder AcquireWingAll: every wing of the character's race, sent as the new WingList (0x5672).</summary>
     public List<byte[]> AcquireAllWings()
     {
         if (resources is null) return [];
         registeredWings.UnionWith(GamePackets.Wings(profileRace));
-        return [GamePackets.WingList(OwnedWings())];
+        return [GamePackets.WingList(OwnedWings()), .. RefreshStats()];
     }
     int profileRace = 1;
     /// <summary>Light (1) or Dark (2) for chat and social packets.</summary>
@@ -424,14 +451,21 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 return HandleBasicAtkToggleOff();
             case 0x5610: return await InventoryListAsync(ct);
             // WingChange_RQ: packed is_wing_skin, i32 wing (live 2026-10-15, 7 bytes). A registered
-            // wing becomes the equipped one for this connection (the equipped wing is not stored yet).
+            // wing becomes the equipped one and is stored (game.characters.equipped_wing_id) for the next login.
             case 0x5674 when plain.Length == 7 && resources is not null:
             {
                 var skin = (plain[2] & 1) != 0;
                 var wanted = BitConverter.ToInt32(plain, 3);
                 if (!OwnedWings().Any(w => w.Id == wanted)) return [GamePackets.WingChangeReply(wanted, skin, 1)];
-                if (!skin) wingId = wanted;
-                return [GamePackets.WingChangeReply(wanted, skin), GamePackets.WingChangeNotice(playerKey, wanted, skin)];
+                List<byte[]> changed = [GamePackets.WingChangeReply(wanted, skin), GamePackets.WingChangeNotice(playerKey, wanted, skin)];
+                if (!skin)
+                {
+                    wingId = storedWingId = wanted;
+                    if (Store is { } wingStore && CharacterId is { } wingChar)
+                        await Stored(async () => await wingStore.SetEquippedWingAsync(wingChar, wanted, ct) ? [[]] : []);
+                    changed.AddRange(RefreshStats());
+                }
+                return changed;
             }
             // Soul binding before equipping: start (0x562b uid, cost uid, cost id), cancel and
             // complete (0x562d / 0x562f uid). Only items the client was sent can be bound.
@@ -472,7 +506,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case ShopSellRq when plain.Length >= 4: return await SellItemsAsync(plain, ct);
             case ItemRemoveRq when plain.Length >= 4: return await RemoveItemsAsync(plain, ct);
             case ItemSortRq when plain.Length == 7: return await SortBagAsync(plain, ct);
-            case ItemContainerSlotExtendRq or ItemContainerSlotExtend8dRq when plain.Length == 16:
+            case ItemContainerSlotExtendRq or ItemContainerSlotExtend8dRq when plain.Length >= 16:
                 return await ExtendContainerSlotsAsync(plain, ct);
             case QuickSlotSetRq when plain.Length >= 27: return await SetQuickSlotAsync(plain, ct);
             case QuickSlotContextSkillRq when plain.Length >= 8: return await UpdateQuickSlotContextAsync(plain, ct);
@@ -678,6 +712,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         }
         if (GamePackets.WorldEntryQueryReplies.TryGetValue(header, out var reply))
             return [reply];
+        LogUnhandledPacket(header, plain);
         return [];
     }
 
@@ -1394,6 +1429,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 experience = state.Progress.Experience;
                 registeredWings.Clear();
                 registeredWings.UnionWith(await store.WingsAsync(state.Summary.CharacterId, ct));
+                wingEnchants.Clear();
+                foreach (var (wing, enchant) in await store.WingEnchantsAsync(state.Summary.CharacterId, ct)) wingEnchants[wing] = enchant;
+                storedWingId = await store.EquippedWingAsync(state.Summary.CharacterId, ct);
                 var extras = await store.ExtrasAsync(state.Summary.CharacterId, ct);
                 LoadAchievements(await store.AchievementsAsync(state.Summary.CharacterId, ct), await store.GroupRewardsTakenAsync(state.Summary.CharacterId, ct), now);
                 LoadCollections(await store.CollectionsAsync(state.Summary.CharacterId, ct));
@@ -1424,6 +1462,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 await LoadSocialAsync(ct);
                 character = new Choice(state.Summary.Name, state.Gender, state.CreationId, state.Appearance, state.VoiceType);
                 level = data.ClampLevel(state.Progress.Level);
+                var storedSkills = await store.SkillsAsync(state.Summary.CharacterId, ct);
+                className = data.ResolvePlayableClass(state.CreationId, state.Gender, storedSkills.Select(s => s.SkillId)) ?? profile.Class;
+                var playProfile = data.ProfileForClass(state.Race, state.Gender, className) ?? profile;
                 LoadDaevanion(await store.DaevanionAsync(state.Summary.CharacterId, ct));
                 var daevanionNodesBefore = daevanionNodes.ToHashSet();
                 var daevanionUsedBefore = new Dictionary<int, int>(daevanionUsed);
@@ -1434,9 +1475,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                     var progress = new DaevanionProgress([.. daevanionNodeOrder], daevanionUsed, daevanionBonus);
                     await store.SaveDaevanionAsync(state.Summary.CharacterId, progress, ct);
                 }
-                className = profile.Class;
                 RefreshKitSkillLevels();
-                LoadSkillLevels(await store.SkillsAsync(state.Summary.CharacterId, ct));
+                LoadSkillLevels(storedSkills);
                 var savedMap = state.Progress.MapId.Value;
                 // Logged out inside an instance layer: back at its exit on the field map (the copy is gone).
                 if (Instances.Of(savedMap) is { } left)
@@ -1461,7 +1501,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 instanceKey = IsInstanceMap(savedMap) ? playerKey : 0;
                 spawn = (savedMap, savedAt);
                 loadTicket = 1;
-                return [GamePackets.SelectCharacter((int)key, state.WireId, playerKey, profile.PcId, state.Appearance, now, skillCustomizing: SkillCustomizingForSelect(profile.Class, level)),
+                return [GamePackets.SelectCharacter((int)key, state.WireId, playerKey, playProfile.PcId, state.Appearance, now, skillCustomizing: SkillCustomizingForSelect(className, level)),
                     GamePackets.ClientEnvSetting(), GamePackets.PrepareEnterMap(loadTicket, savedMap, savedAt, now)];
             });
         }
@@ -1485,9 +1525,13 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         var name = character?.Name ?? options.IntroCharacter?.Name ?? "$local";
         var gender = character?.Gender ?? 1;
         var profile = selected is { } loginState ? StoredProfile(loginState) : Profile();
+        IEnumerable<int> storedSkillIds = persistedSkillLevels.Keys;
+        if (Store is { } skillStore && CharacterId is { } skillCharacter)
+            storedSkillIds = (await skillStore.SkillsAsync(skillCharacter, ct)).Select(s => s.SkillId);
         // Skills follow the character level (tools/class_skills.py), not a grant list.
-        var kit = profile is null ? [] : data.SkillListForClient(profile.Class, level, profile);
-        className = profile?.Class;
+        className = data.ResolvePlayableClass(character?.CreationId ?? 1, gender, storedSkillIds) ?? profile?.Class;
+        var playProfile = profile is null || className is null ? profile : data.ProfileForClass(profile.Race, gender, className) ?? profile;
+        var kit = playProfile is null || className is null ? [] : data.SkillListForClient(className, level, playProfile);
         RefreshKitSkillLevels();
         kitListBaselines = kit.ToDictionary(k => k.SkillId, k => k.Level);
         if (profile is not null)
@@ -1557,8 +1601,12 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         // Flight needs an equipped wing: staff and ascended characters (grade 2+) get their race's default wing and the
         // flight gauge (OBSERVED 250,000 at the ascension; drained and refilled on the ticks).
         var race = profileRace = profile?.Race ?? 1;
-        wingId = IsAdmin || (selected?.Ascension ?? 1) >= 2 ? GamePackets.DefaultWing(race) : 0;
-        resources.FpMax = resources.Fp = wingId != 0 ? FpMax : 0;
+        var flies = IsAdmin || (selected?.Ascension ?? 1) >= 2;
+        wingId = !flies ? 0 : storedWingId != 0 && (registeredWings.Contains(storedWingId) || storedWingId == GamePackets.DefaultWing(race))
+            ? storedWingId : GamePackets.DefaultWing(race);
+        RefreshStats();   // wing equip/owned stats (HP, defense, ...) now that the wing is known
+        if (fresh) (resources.Hp, resources.Mp) = (resources.HpMax, resources.MpMax);
+        resources.FpMax = resources.Fp = wingId != 0 ? FlightMax : 0;
         // An instance-layer move in or out (the level stays loaded): the official load is the short list, not the world-entry
         // set (OBSERVED entry #9676-9702: 0x3623, 0x3633, 0x3646, 0x382a, 0x364a, 0x8d00, 0x4001, 0x4002, 0x6100.., 0x922e, spawns;
         // exit #14305-14345: the same with 0x3722 and 0x3742 after 0x4002 and no dungeon state). Live 2026-10-19: with the
@@ -1738,15 +1786,13 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             replies.AddRange(SocialWorldEntry());
         }
         fogCheckAt = 0;
-        ResetMonolithClientState();
+        ResetMonolithNoticesForLoad();
         shownObjects.Clear();
         ClearRecoveryOrbs();
         shownTriggers.Clear();
         usedObjects.Clear();
         ResetEnvObjHits();
         pendingUse = null;
-        if (!shortLoad)
-            EnableMonolithNoticesAfterList();
         replies.AddRange(ObjectVisibility(at, now));
         replies.AddRange(MapEventsStart(now, resendExistingJoins: shortLoad));   // the layer's events join (0x922e) and run their first directives
         replies.AddRange(ApplyQuestWorldGating(now));
@@ -1903,7 +1949,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             weapons = (definition?.Weapons ?? []).Where(w => w != "None").ToList();
         }
         // Hold-charge skills (Deadshot): the client opens the charge with 0x381a; 0x3800 would fire instantly with no pose or cooldown pacing.
-        if (!releasingSkillCharge && definition is not null && UsesHoldChargeFlow(definition, skill))
+        // A chain step (Sorcerer Cold Wave after Ice Chain) can look like a hold-charge row set, but the client sends it as a
+        // plain 0x3800 and never opens 0x381a for it: refusing here left the step rejected on every resend (live 2026-11-02).
+        if (!releasingSkillCharge && definition is not null && !chainSkill && UsesHoldChargeFlow(definition, skill))
             return [CastReplyFor(request, false)];
         var heldDuplicate = IsExactHeldCastDuplicate(request, body, now);
         var basicChainAdvance = IsBasicChainAdvanceCast(skill, chainSkill, chainAllowed);
@@ -1913,7 +1961,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             && (resources.ApMax <= 0 || resources.Ap >= cost.Ap)
             && (SkillFamilyLearned(skill) || normalDodge || chainSkill || CarriedSkill == skill)
             && (weapons.Count == 0 || weapons.Contains(data.WeaponType(equippedWeapon) ?? ""))
-            && (sprintDash || UseConditionMet(definition, now, request.TargetKey, skill));
+            && (sprintDash || UseConditionMet(definition, now, request.TargetKey, skill))
+            && CastTargetReachValid(definition, skill, request);
         var basicAuto = definition is not null && SkillCooldown.IsBasicAutoAttack(definition);
         var toggleOff = request.HasChangeToggle && request.ChangeToggle is 0 or 2;
         var toggleOn = request.HasChangeToggle && request.ChangeToggle == 1;
@@ -1940,17 +1989,31 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         var accepted = meetsCastRules && cooldownOk && castGapOk;
         if (!accepted)
         {
+            // Pre-#452 a refused dodge still ended the swing/dodge in progress (0x3806) before the 9-byte refusal; without it
+            // the client stayed in the dash state (live 2026-11-02 Gladiator: dodge, combo, dodge, dodge -> stuck).
+            // A second dodge pressed (or resent) while the first one still plays is ignored: no reply at all. The 9-byte
+            // DodgeResult refusal here froze the client mid-dash (live 2026-11-02 Gladiator and Assassin: dodge accepted, the
+            // next dodge refused with cast_rejected -> stuck in the dash). 6a0abd4 added it for sprint auto-dodges, which
+            // keep their refusal below.
+            if (dodging && !sprinting && DodgeStillPlaying(now))
+                return IgnoreEarlyDodge(request, skill);
             if (dodging && heldDuplicate)
-                return DodgeUnlockRefusal(combatDodge);
+                return [.. DodgeRefusalRelease(now), .. DodgeUnlockRefusal(combatDodge)];
             if (!dodging && meetsCastRules && heldDuplicate)
                 return data.IsBasicAttackChainSkill(skill) ? BasicChainLockoutRefusal(request, now) : [CastReplyFor(request, false)];
+            // Held left-click combo (FixSlot root and its steps) pressed inside the swing lockout: queue it silently and answer
+            // once when it fires. A 0x3801 failure here cancelled the client's step animation (live 2026-11-02 Sorcerer: only
+            // Flame Arrow animated, Burst/Pyroclasm hit without visuals).
+            if (!dodging && meetsCastRules && data.IsBasicAttackChainSkill(skill) && (!chainSkill || chainAllowed)
+                && !(basicAuto && request.HasChangeToggle))
+                return QueueBasicChainCastSilently(body, request, skill, Math.Max(nextCastAcceptAtMs, lastAcceptedCastMs + EffectiveMinCastGapMs()), now);
             var queued = MaybeQueueEarlyChainCast(body, request, chainSkill, chainAllowed, castGapOk, now, nextCastAcceptAtMs);
             if (queued.Count > 0) return queued;
             LogSkillCastRefusal(request, skill, definition, meetsCastRules, chainAllowed, cooldownReady, castGapOk, cost, weapons);
             // A sprint dash refused for cost or cooldown stays on the 9-byte form. The mask-first reply drops the sprint.
-            if (dodging) return sprinting && variant is 7 or 8 or 9
+            if (dodging) return [.. DodgeRefusalRelease(now), .. (sprinting && variant is 7 or 8 or 9
                 ? DeliverDash(DodgeUnlockRefusal(combatDodge), variant)
-                : DodgeUnlockRefusal(combatDodge);
+                : DodgeUnlockRefusal(combatDodge))];
             // Right-click auto-attack-on-target: acknowledge toggle while the swing is still on lockout (no SkillStart).
             if (basicAuto && toggleOn && meetsCastRules && !cooldownReady)
                 return [CastReplyFor(request, true)];
@@ -1962,6 +2025,10 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         var cancelActiveCast = ShouldInterruptActiveCast(now, dodging, chainSkill, chainAllowed, heldDuplicate)
             ? InterruptActiveSkillCasts(now, dropScheduledHits: !basicChainAdvance) : [];
         List<byte[]> Finish(List<byte[]> replies) => cancelActiveCast.Count == 0 ? replies : [..cancelActiveCast, ..replies];
+        // The accepted wire answers its own silently queued copy (held resend that fired before the drain).
+        if (queuedCastWire is { } sameQueued && ParseCast(sameQueued) is { } sameRequest
+            && HeldCastWireKeyOf(sameRequest, sameQueued) == HeldCastWireKeyOf(request, body))
+            DropQueuedHeldCastSilently();
         var dismount = AbandonQueuedHeldCast(now)
             .Concat(!releasingSkillCharge && pendingSkillCharge is not null ? CancelPendingSkillCharge(sendStopReply: true) : [])
             .Concat(ForceDismount()).Concat(InterruptItemCast()).ToList();
@@ -2213,10 +2280,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     /// <summary>Defense against NPC hits: PcStatLevel Defense plus equipped items' defense stats.</summary>
     public int Defense => data.BaseStats(className, level).GetValueOrDefault("Defense") + EquipStat("ArmorDefense") + EquipStat("Defense")
         + EnchantStat("ArmorDefense") + EnchantStat("Defense") + ExceedStat("ArmorDefense") + ExceedStat("Defense") + BuffStat("Defense")
-        + BoardStat("Defense") + TitleStat("Defense") + SetStat("Defense") + DaevanionWireStat(52);
+        + BoardStat("Defense") + TitleStat("Defense") + SetStat("Defense") + WingStat("Defense") + DaevanionWireStat(52);
 
-    /// <summary>The MP pool: MPMax 1500 plus buffs.</summary>
-    int MpMax => MpMaxBase + BuffStat("MPMax") + BoardStat("MPMax") + TitleStat("MPMax") + DaevanionWireStat(199);
+    /// <summary>The MP pool: MPMax 1500 plus gear, enchant, exceed, ride, set, buffs, board, titles and Daevanion (same sources as HPMax).</summary>
+    int MpMax => MpMaxBase + EquipStat("MPMax") + EnchantStat("MPMax") + ExceedStat("MPMax") + RideStat("MPMax") + WingStat("MPMax")
+        + SetStat("MPMax") + BuffStat("MPMax") + BoardStat("MPMax") + TitleStat("MPMax") + DaevanionWireStat(199);
 
     /// <summary>
     /// The stat sheet (0x3649 / 0x364a): PcStatLevel bases plus gear, buffs, titles, Daevanion and the official sample defaults where still unknown.
@@ -2226,7 +2294,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         var basis = data.BaseStats(className, level);
         var daevanion = DaevanionWireStats();
         int D(int wire) => daevanion.GetValueOrDefault(wire);
-        var hpMax = Math.Max(1, (basis.GetValueOrDefault("HPMax") is > 0 and var hp ? hp : GamePackets.SpawnHpMax) + EquipStat("HPMax") + EnchantStat("HPMax") + ExceedStat("HPMax") + RideStat("HPMax")
+        var hpMax = Math.Max(1, (basis.GetValueOrDefault("HPMax") is > 0 and var hp ? hp : GamePackets.SpawnHpMax) + EquipStat("HPMax") + EnchantStat("HPMax") + ExceedStat("HPMax") + RideStat("HPMax") + WingStat("HPMax")
             + BuffStat("HPMax") + BoardStat("HPMax") + TitleStat("HPMax") + SetStat("HPMax") + D(193));
         var weapon = data.WeaponStatsOf(equippedWeapon);
         int WeaponLine(string name, int wire, int fallback) =>
@@ -2255,6 +2323,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         }
         if (wingId != 0 && resources is { FpMax: > 0 })
         {
+            resources.FpMax = FlightMax;
+            resources.Fp = Math.Min(resources.Fp, resources.FpMax);
             byType[247] = resources.Fp;   // FlyCost: current flight time (usmap; pairs with FPMax on the gauge)
             byType[298] = resources.FpMax;
         }
@@ -2282,7 +2352,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         resources.Mp = Math.Min(resources.Mp, resources.MpMax);
         resources.Sp = Math.Min(resources.Sp, resources.SpMax);
         resources.Ap = Math.Min(resources.Ap, Math.Max(0, resources.ApMax));
-        return [GamePackets.CharStatsUpdate(playerKey, stats, hpMax), resources.Maxima()];
+        var cpBefore = combatPower;
+        RecomputeCombatPower();
+        List<byte[]> replies = [GamePackets.CharStatsUpdate(playerKey, stats, hpMax), resources.Maxima()];
+        if (combatPower != cpBefore) replies.Add(CharCombatPowerUpdate());
+        return replies;
     }
 
     // ---------- Builder command effects (call on this session's loop, in the world) ----------

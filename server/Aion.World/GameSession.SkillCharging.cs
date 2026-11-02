@@ -104,7 +104,8 @@ partial class GameSession
             && (resources.ApMax <= 0 || resources.Ap >= cost.Ap)
             && (SkillFamilyLearned(skill) || normalDodge || chainSkill || CarriedSkill == skill)
             && (weapons.Count == 0 || weapons.Contains(data.WeaponType(equippedWeapon) ?? ""))
-            && (sprintDash || UseConditionMet(definition, now, request.TargetKey, skill));
+            && (sprintDash || UseConditionMet(definition, now, request.TargetKey, skill))
+            && CastTargetReachValid(definition, skill, request);
         var basicAuto = definition is not null && SkillCooldown.IsBasicAutoAttack(definition);
         var toggleOff = request.HasChangeToggle && request.ChangeToggle is 0 or 2;
         var toggleOn = request.HasChangeToggle && request.ChangeToggle == 1;
@@ -343,7 +344,11 @@ partial class GameSession
         if (skill != charge.SkillId)
             return [GamePackets.SkillChargingEndReply(1, skill, end.Step, end.SelectedSkill)];
         var selected = end.SelectedSkill > 0 ? end.SelectedSkill : skill;
-        return await ReleasePendingSkillChargeAsync(end.Step, selected, now, ct);
+        var definition = ResolveSkillDefinition(skill);
+        var buildMs = charge is not null && skillChargeStartedAtMs > 0 && lastChargeRepeatAtMs > 0
+            ? HoldChargeBuildMs(now) : 0;
+        var step = definition is not null ? ChargeStepForElapsed(definition, buildMs) : end.Step;
+        return await ReleasePendingSkillChargeAsync(step, selected, now, ct);
     }
 
     List<byte[]> HandleSkillChargingStop(byte[] plain)

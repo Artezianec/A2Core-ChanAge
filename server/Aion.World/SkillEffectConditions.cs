@@ -84,7 +84,7 @@ public static class SkillEffectConditions
         "Caster_HasAbnormalId" => ctx.Caster.PlayerHasAbnormalId(Value(cond, 0, 0), null),
         "ObjectType" => ObjectTypeMet(ctx, cond.Values?.FirstOrDefault()),
         _ when SkillEffectConditions.Unimplemented.Contains(cond.Type) => false,
-        _ => true,
+        _ => false,
     };
 
     /// <summary>Condition kinds not handled above (MoveType, GatherCount, SameProjectileGatherCount, …).</summary>
@@ -97,7 +97,7 @@ public static class SkillEffectConditions
     static int Value(Condition c, int index, int fallback) =>
         c.Values is { } vals && vals.Length > index && int.TryParse(vals[index], out var v) ? v : fallback;
 
-    static int Ratio(int current, int max) => max <= 0 ? 0 : current * 10_000 / max;
+    static long Ratio(int current, int max) => max <= 0 ? 0 : (long)current * 10_000 / max;
 
     static bool PlayerRatioMet(WorldPlayer victim, Condition cond)
     {

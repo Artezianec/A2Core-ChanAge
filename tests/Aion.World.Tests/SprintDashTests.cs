@@ -46,7 +46,7 @@ public sealed class SprintDashTests
     }
 
     [Fact]
-    public async Task Rapid_standalone_dodge_resends_on_cooldown_send_9_byte_DodgeResult_not_silent_drop()
+    public async Task Rapid_standalone_dodge_resends_while_dodging_are_ignored_not_refused()
     {
         var store = new FakeCharacterStore { Progress = (10, 0) };
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 10);
@@ -55,7 +55,7 @@ public sealed class SprintDashTests
         for (var i = 1; i < 8; i++)
         {
             var retry = await session.HandleAsync(DodgeCast(), Now + i * 4);
-            Assert.Equal(GamePackets.DodgeResult(GameSession.CombatDodge, 1), retry.Single());
+            Assert.Empty(retry); // the 9-byte refusal mid-dash froze the client (live 2026-11-02)
         }
     }
 

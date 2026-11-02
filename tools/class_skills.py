@@ -184,7 +184,13 @@ def cast_row(entry):
         **chain_fields(entry),
         **sealstone_field(facts, raw),
         **skill_use_conditions.use_condition_fields(entry),
+        **use_range_field(facts, raw),
     }
+
+
+def use_range_field(facts, raw):
+    use = facts.get('NeedSkillUseRange', raw.get('NeedSkillUseRange'))
+    return {} if use is None else {'range': float(use)}
 
 
 def sealstone_field(facts, raw):

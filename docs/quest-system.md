@@ -42,3 +42,20 @@ See the generated [quest-coverage.md](quest-coverage.md). Summary at generation 
 - Item acquire (`AcquireItemList` / `acquire_items` in `quests.json`): server accepts on item use when rows are present; rebuild `tools/data/quests.json` from Quest.dat to populate scroll ids (currently empty in the tracked export).
 - Reward follow-up gating by acquire type (work in progress).
 - `EnterVolumePC` radius and `CollectFakeItem` chance units are CANDIDATE readings.
+
+## Zone progress bar (world map / HUD)
+
+Checked against the 2026-11-02 Quest.dat export (WorldProbe, Quest/QuestPart/QuestType/Subzone/SubzoneGroup/Exploration/
+WorldMapUIRegion):
+
+- `Part` is set only on Hero (239) and Ascension (10) quests; QuestPart.dat has just the hero episode chapters. District,
+  Exploration, DutyMission and DutyScroll quests have no Part in the client either, so no Part can be filled in for them.
+- The zone a quest belongs to is `SubzoneGroup` (`ESubzoneGroupID_N`, 191 quests: 179 District + 12 GatherCraftMastery) or
+  `ExplorationType` (Seal 162, OccupationTerritory 42). `tools/quests.py` writes them as `subzone_group` and
+  `exploration_type` (`tools/quest_zone_fields.py` patches an existing quests.json from a Quest.dat export).
+- Subzone.dat `WorldMapFogGroupId` maps subzones onto the same `ESubzoneGroupID` values and SubzoneGroup.dat names them
+  (`STR_Subzone_*`). Exploration.dat holds only icons and messages per ExplorationType; there is no table with per-zone totals.
+- LIKELY (not confirmed by a capture): the client computes the bar itself as rewarded / total quests of the zone's
+  SubzoneGroup (plus Exploration quests on that map), using its own Quest.dat for the total and the journal (0x8d09, 0x8fbc,
+  0x8d11 with status Rewarded) for the count. No dedicated progress packet is known. So the server re-sends every rewarded
+  quest at world entry (0x8fbc + 0x8d11), not only Part quests, and the reward sends 0x8d11 before 0x8d10 like accept.

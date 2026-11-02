@@ -62,7 +62,9 @@ public sealed record QuestDefinition(
     [property: JsonPropertyName("unavailable_reason")] string? UnavailableReason = null,
     [property: JsonPropertyName("finish_map")] int? FinishMap = null,
     [property: JsonPropertyName("finish_teleport")] string? FinishTeleport = null,
-    [property: JsonPropertyName("part")] string? Part = null);
+    [property: JsonPropertyName("part")] string? Part = null,
+    [property: JsonPropertyName("subzone_group")] int? SubzoneGroup = null,
+    [property: JsonPropertyName("exploration_type")] string? ExplorationType = null);
 
 /// <summary>An AcquirableConditions row other than ClearQuest (those are Prerequisites): IncompleteQuest, ClearQuestStep, SubZone, CloseEnvObj, the masteries.</summary>
 public sealed record QuestCondition(
@@ -114,7 +116,7 @@ public sealed class QuestBook
         }
 
         partMembers = quests.Where(kv => !string.IsNullOrEmpty(kv.Value.Part))
-            .GroupBy(kv => kv.Value.Part!, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(kv => PartKey(kv.Value.Part!, kv.Value.Race), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.OrderBy(x => x.Value.Id).Select(x => x.Key).ToArray(), StringComparer.OrdinalIgnoreCase);
         partRollIndex = partMembers.SelectMany(kv => kv.Value.Select((code, i) => (code, Index: i + 1)))
             .ToDictionary(x => x.code, x => x.Index, StringComparer.OrdinalIgnoreCase);
@@ -123,9 +125,17 @@ public sealed class QuestBook
     readonly Dictionary<string, string[]> partMembers;
     readonly Dictionary<string, int> partRollIndex;
 
-    /// <summary>Quest codes in a Quest.dat Part (episode chapter), ordered by quest id (matches OBSERVED Common_Quest _roll_count 1..N).</summary>
-    public IReadOnlyList<string> PartQuests(string part) =>
-        partMembers.TryGetValue(part, out var codes) ? codes : [];
+    /// <summary>Parts are grouped per quest race (Light/Dark/All): Elyos and Asmodian chains may share a Part name.</summary>
+    static string PartKey(string part, string? race) => $"{race ?? "All"}|{part}";
+
+    /// <summary>Quest codes in a Quest.dat Part (episode chapter) for the race (1 Light, 2 Dark), ordered by quest id
+    /// (matches OBSERVED Common_Quest _roll_count 1..N). Falls back to race "All" quests when the race has none.</summary>
+    public IReadOnlyList<string> PartQuests(string part, int race)
+    {
+        var raceName = race == 2 ? "Dark" : "Light";
+        if (partMembers.TryGetValue(PartKey(part, raceName), out var codes)) return codes;
+        return partMembers.TryGetValue(PartKey(part, "All"), out var all) ? all : [];
+    }
 
     /// <summary>Common_Quest _roll_count: 1-based index within the quest's Part; 0 when Part is empty.</summary>
     public int PartRollIndex(string code) => partRollIndex.GetValueOrDefault(code);
@@ -225,7 +235,8 @@ public sealed class QuestLog(QuestBook book, int race)
     /// <summary>Why accept is blocked, or null when <see cref="CanAccept"/> would succeed.</summary>
     public string? AcceptBlockReason(QuestDefinition quest, int level, Func<QuestDefinition, bool>? conditionsHold = null)
     {
-        if (book.ById.TryGetValue(quest.Id, out var code) && quests.ContainsKey(code)) return "already_active";
+        if (book.ById.TryGetValue(quest.Id, out var code) && quests.TryGetValue(code, out var existing) && !Reacceptable(quest, existing))
+            return "already_active";
         if (quest.Unavailable) return "unavailable";
         if (!QuestBook.RaceMatches(quest, race)) return "wrong_race";
         if (level < quest.Level) return "level";
@@ -238,6 +249,13 @@ public sealed class QuestLog(QuestBook book, int race)
             return FirstFailedConditionLabel(quest, conditionsHold);
         return null;
     }
+
+    /// <summary>
+    /// A rewarded quest with repeat "Infinitely" (Quest.dat) can be taken again; the new accept overwrites the old record
+    /// (store upsert on character + quest code). Other repeat values ("None") stay one-shot.
+    /// </summary>
+    public static bool Reacceptable(QuestDefinition quest, QuestRecord existing) =>
+        existing.Status >= Rewarded && string.Equals(quest.Repeat, "Infinitely", StringComparison.OrdinalIgnoreCase);
 
     static string FirstFailedConditionLabel(QuestDefinition quest, Func<QuestDefinition, bool> conditionsHold)
     {
@@ -281,8 +299,8 @@ public sealed class QuestLog(QuestBook book, int race)
     /// </summary>
     public int PartProgressPercent(string? part)
     {
-        if (string.IsNullOrEmpty(part) || book.PartQuests(part).Count == 0) return 0;
-        var codes = book.PartQuests(part);
+        if (string.IsNullOrEmpty(part)) return 0;
+        var codes = book.PartQuests(part, race);
         var total = codes.Count;
         var units = 0.0;
         foreach (var code in codes)
@@ -314,11 +332,15 @@ public sealed class QuestLog(QuestBook book, int race)
         if (idx < 0) return 0;
         var step = steps[idx];
         var required = step.Objectives.Select((o, i) => (o, i)).Where(x => !x.o.Optional && x.i < 6).ToList();
+        // Partial credit per objective (kill 3 of 10 = 0.3), not all-or-nothing.
         var stepDone = required.Count == 0
             ? 0.5
-            : required.Count(x => record.Goals[x.i] >= x.o.Count) / (double)required.Count;
+            : required.Sum(x => ObjectiveFraction(record.Goals[x.i], x.o.Count)) / required.Count;
         return (idx + stepDone) / steps.Length;
     }
+
+    internal static double ObjectiveFraction(int have, int count) =>
+        count <= 0 ? (have > 0 ? 1 : 0) : Math.Min(have, count) / (double)count;
 
     public static QuestRecord New(string code, QuestDefinition quest) => new(code, quest.Id, 0, Incomplete, 1, new int[6]);
 

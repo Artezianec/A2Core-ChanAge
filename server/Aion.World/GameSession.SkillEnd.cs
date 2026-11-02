@@ -42,6 +42,20 @@ partial class GameSession
     internal bool SkillCastInProgress(long now) =>
         pendingSkillEnds.Count > 0 || pendingCombatHits.Count > 0 || pendingProjectiles.Count > 0 || now < nextCastAcceptAtMs;
 
+    /// <summary>The last accepted cast is a dodge whose lockout (dash) has not ended yet.</summary>
+    bool DodgeStillPlaying(long now) => IsDodgeId(lastAcceptedCastKey.SkillId) && now < nextCastAcceptAtMs + CastLockoutToleranceMs;
+
+    List<byte[]> IgnoreEarlyDodge(CastRequest request, int skill)
+    {
+        pendingSkillCastRefusalReason = "dodge_in_progress";
+        PlaytestDebug.Action("skill_cast", ("skillId", skill), ("skill", data.Skill(skill)?.Name ?? skill.ToString()),
+            ("targetKey", request.TargetKey), ("ignored", "dodge_in_progress"));
+        return [];
+    }
+
+    /// <summary>A refused dodge still ends the swing or dodge in progress so the client leaves the dash state.</summary>
+    List<byte[]> DodgeRefusalRelease(long now) => SkillCastInProgress(now) ? InterruptActiveSkillCasts(now) : [];
+
     bool ShouldInterruptActiveCast(long now, bool dodging, bool chainSkill, bool chainAllowed, bool heldDuplicate) =>
         SkillCastInProgress(now) && (dodging || (chainSkill && chainAllowed && !heldDuplicate));
 

@@ -20,6 +20,15 @@ partial class GameSession
 
     internal List<byte[]> ApplyHostileRowForTests(string[] row, int skill, Target npc, long now) => ApplyHostileRow(row, skill, npc.Key, [npc], null, now);
 
+    internal void SetApForTests(int ap, int apMax)
+    {
+        if (resources is null) return;
+        resources.ApMax = apMax;
+        resources.Ap = ap;
+    }
+
+    internal int ApForTests => resources?.Ap ?? 0;
+
     internal WorldPlayer? PvpVictimForTests(int key) => PvpVictimOf(key);
 
     internal long HateOf(Target npc) => ai.HateOf(npc, playerKey);
@@ -205,11 +214,12 @@ partial class GameSession
         if (resources is not { } r) return [];
         int low = SkillEffects.Value(row, 0), high = SkillEffects.Value(row, 1);
         var amount = rng.Next(Math.Min(low, high), Math.Max(low, high) + 1);
+        if (amount <= 0) return [];
         var ratio = row[0].EndsWith("Ratio", StringComparison.Ordinal);
         int Gain(int max) => ratio ? (int)((long)max * amount / 10_000) : amount;
         switch (row[0][..2])
         {
-            case "Hp": r.Hp = Math.Min(r.HpMax, r.Hp + Gain(r.HpMax)); break;
+            case "Hp": r.Hp = Math.Max(0, Math.Min(r.HpMax, r.Hp + Gain(r.HpMax))); break;
             case "Mp": r.Mp = Math.Min(r.MpMax, r.Mp + Gain(r.MpMax)); break;
             case "Ap" when r.ApMax > 0: r.Ap = Math.Min(r.ApMax, r.Ap + Gain(r.ApMax)); break;
             default: r.Sp = Math.Min(r.SpMax, r.Sp + Gain(r.SpMax)); break;
@@ -251,8 +261,10 @@ partial class GameSession
         if (resources is not { ApMax: > 0 } r || dead) return [];
         int low = SkillEffects.Value(row, 0), high = SkillEffects.Value(row, 1);
         var amount = rng.Next(Math.Min(low, high), Math.Max(low, high) + 1);
+        if (amount <= 0) return [];
         if (row[0].EndsWith("Ratio", StringComparison.Ordinal))
             amount = (int)((long)r.ApMax * amount / 10_000);
+        if (amount <= 0) return [];
         r.Ap = Math.Max(0, r.Ap - amount);
         return [r.ApUpdate()];
     }

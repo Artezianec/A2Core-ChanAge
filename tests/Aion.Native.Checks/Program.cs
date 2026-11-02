@@ -1147,7 +1147,7 @@ var fpWing = BitConverter.GetBytes(GameSession.FpMax).Concat(BitConverter.GetByt
 Check(staffAppear.AsSpan().IndexOf(fpWing) > 0, "staff appear carries fp/fp_max, the relationship (Light) then the default Light wing");
 Check(staffEntry.Any(b => b.SequenceEqual(GamePackets.WingList([(30200600, 0)]))), "staff world entry sends WingList with the wing");
 Check(staffSession.AcquireAllWings().Single().SequenceEqual(GamePackets.WingList(GamePackets.LightWings.Select(id => (id, (byte)0)).ToList())),
-      "AcquireWingAll sends every Light wing (41) as the WingList");
+      "AcquireWingAll sends every Light wing (42) as the WingList");
 var wingChange = await staffSession.HandleAsync(new PacketWriter().U16(0x5674).U8(0).I32(30100300).ToArray(), Now);
 Check(wingChange.Count == 2 && wingChange[0].SequenceEqual(GamePackets.WingChangeReply(30100300, false))
       && wingChange[1].SequenceEqual(GamePackets.WingChangeNotice(1, 30100300, false)), "changing to a registered wing (0x5674 -> 0x5675 + 0x5676)");

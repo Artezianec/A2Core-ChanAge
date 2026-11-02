@@ -73,7 +73,8 @@ public sealed partial class GameSession
         // client asked for AQ2602000 (the ClearQuest sub-quest of HQ2101060) every frame, 742 times, because each answer was
         // a refusal (0x8d0b result 1) it retried. Answer once with the quest as it stands (0x8d0b result 0 + 0x8d11 with its
         // status, the accept answer shape), then stay quiet on identical repeats for a while.
-        if (questLog is not null && questLog.Book.ById.TryGetValue(questId, out var takenCode) && questLog.Get(takenCode) is { } taken)
+        if (questLog is not null && questLog.Book.ById.TryGetValue(questId, out var takenCode) && questLog.Get(takenCode) is { } taken
+            && !(questLog.Book.Find(takenCode) is { } takenQuest && QuestLog.Reacceptable(takenQuest, taken)))
         {
             if (repeatedAcceptAnswered.TryGetValue(questId, out var at) && lastNow - at < RepeatedAcceptQuietMs) return [];
             repeatedAcceptAnswered[questId] = lastNow;
@@ -90,7 +91,9 @@ public sealed partial class GameSession
             return [GamePackets.QuestAcceptReply(questId, 0, 1)];
         return await Stored(async () =>
         {
-            var saved = await SaveQuestAsync(QuestLog.New(code, questLog.Book.Find(code)!), ct);
+            // A repeatable re-accept reuses the stored row (and its uid); New starts it over at step 1.
+            var saved = await SaveQuestAsync(QuestLog.New(code, questLog.Book.Find(code)!) with { Uid = questLog.Get(code)?.Uid ?? 0 }, ct);
+            repeatedAcceptAnswered.Remove(questId);
             LogQuestEvent("quest_accept", code, saved.Step, QuestLog.Incomplete);
             var replies = QuestAcceptPackets(saved, npcKey);
             replies.AddRange(ApplyQuestWorldGating(lastNow));
@@ -157,8 +160,9 @@ public sealed partial class GameSession
                 replies.AddRange(Ascend(2));
             var rewarded = record with { Status = QuestLog.Rewarded };
             questLog.Set(rewarded);
-            replies.Add(GamePackets.QuestProgress(Wire(rewarded)));
+            // QuestAdd (0x8d11) before QuestProgress (0x8d10), the same order as accept and step changes.
             replies.Add(GamePackets.QuestAdd(Wire(rewarded)));
+            replies.Add(GamePackets.QuestProgress(Wire(rewarded)));
             var unlocked = QuestUnlockTypes().Where(t => !unlockedBefore.Contains(t)).ToArray();
             if (unlocked.Length > 0 && levelAfter <= levelBeforeReward)
                 replies.Add(GamePackets.ContentsUnlockUpdate(unlocked));
@@ -194,9 +198,9 @@ public sealed partial class GameSession
         if (selected is { } state) selected = state with { Ascension = grade };
         wingId = GamePackets.DefaultWing(profileRace);
         if (resources is null) return [];
-        resources.FpMax = resources.Fp = FpMax;
+        resources.FpMax = resources.Fp = FlightMax;
         return [GamePackets.CharPoints(playerKey, [(CharPoint.MaxFp, resources.FpMax), (CharPoint.Fp, resources.Fp)]),
-                GamePackets.WingChangeNotice(playerKey, wingId, false), GamePackets.WingList(OwnedWings()), GamePackets.GlideCooltime(playerKey)];
+                GamePackets.WingChangeNotice(playerKey, wingId, false), GamePackets.WingList(OwnedWings()), GamePackets.GlideCooltime(playerKey), .. RefreshStats()];
     }
 
     /// <summary>Builder QuestAdd / QuestComplete / QuestCompleteStep / QuestSetStep / QuestDelete for a quest code or numeric id.</summary>

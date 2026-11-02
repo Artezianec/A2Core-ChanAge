@@ -18,7 +18,8 @@ partial class GameSession
         definition is not { NeedsPeace: true } || !inCombat;
 
     bool ResourceConditionMet(SkillDefinition? definition) =>
-        resources is null || SkillResourceThreshold.Met(definition?.NeedsResource, resources.Hp, resources.HpMax, resources.Mp, resources.MpMax, resources.Ap, resources.ApMax);
+        definition?.NeedsResource is null || resources is not null
+            && SkillResourceThreshold.Met(definition.NeedsResource, resources.Hp, resources.HpMax, resources.Mp, resources.MpMax, resources.Ap, resources.ApMax);
 
     /// <summary>Whether the required abnormal state for a conditional skill is present (CondSelectTarget Self / Target).</summary>
     bool SkillCondMet(SkillDefinition? definition, long now, int castTargetKey = 0)

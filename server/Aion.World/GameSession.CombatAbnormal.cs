@@ -97,6 +97,7 @@ public sealed partial class GameSession
         npc.Hp = Math.Max(0, npc.Hp - damage);
         replies.Add(GamePackets.SkillHit(npc.Key, playerKey, reflectSkill, 0, damage, false, 1));
         replies.Add(GamePackets.NpcHp(npc.Key, npc.Hp));
+        if (npc.Dead) replies.AddRange(PlayerKilledNpc(npc, reflectSkill, playerKey, now));
         return replies;
     }
 
@@ -177,6 +178,20 @@ public sealed partial class GameSession
         return replies;
     }
 
+    static NpcDot BuildNpcDot(Target target, AbnormalSpecs.DotSpec dot, int durationMs, long now)
+    {
+        var ticks = Math.Max(1, durationMs / dot.IntervalMs);
+        var total = (long)target.HpMax * dot.RatioTotal / 10_000;
+        if (dot.Cap > 0) total = Math.Min(total, dot.Cap);
+        var per = ticks > 0 ? (int)(total / ticks) : 0;
+        if (per <= 0 && total > 0) per = (int)Math.Min(total, int.MaxValue);
+        return new NpcDot
+        {
+            EffectId = dot.EffectId, IntervalMs = dot.IntervalMs, PerTick = per,
+            Remaining = (int)Math.Min(total, int.MaxValue), NextAt = now + dot.IntervalMs,
+        };
+    }
+
     void ApplyNpcDebuff(Target target, int abnormalId, int durationMs, long now, List<byte[]> replies, bool held = false, int skillId = 0, int casterKey = 0)
     {
         if (target.Dead) return;
@@ -187,8 +202,13 @@ public sealed partial class GameSession
         if (npcBuffs.TryGetValue(target.Key, out var on) && on.FirstOrDefault(b => b.AbnormalId == abnormalId) is { } running)
         {
             running.ExpireAt = now + durationMs;
+            running.Dots.Clear();
+            foreach (var dot in AbnormalSpecs.Npc(abnormalId).Dots)
+                running.Dots.Add(BuildNpcDot(target, dot, durationMs, now));
             replies.Add(PlayerPackets.AbnormalChange(target.Key, new AbnormalWire(running.Uid, abnormalId, durationMs, running.ExpireAt,
                 CasterKey: wireCaster, Level: 1, SkillId: wireSkill, RangeBase: target.Position)));
+            foreach (var dot in running.Dots)
+                replies.Add(RidePackets.AbnormalEffect(target.Key, playerKey, running.Uid, dot.EffectId, dot.Remaining, null, skillId));
             return;
         }
         var (stops, immune) = AbnormalCombat.NpcFlags(abnormalId);
@@ -200,13 +220,7 @@ public sealed partial class GameSession
         };
         // Dot_TargetMaxHP [interval, ratio of the maximum in total (1/10000), cap]: the total is spread over the abnormal's ticks.
         foreach (var dot in model.Dots)
-        {
-            var ticks = Math.Max(1, durationMs / dot.IntervalMs);
-            var total = (long)target.HpMax * dot.RatioTotal / 10_000;
-            if (dot.Cap > 0) total = Math.Min(total, dot.Cap);
-            var perTick = (int)Math.Max(1, total / ticks);
-            buff.Dots.Add(new NpcDot { EffectId = dot.EffectId, IntervalMs = dot.IntervalMs, PerTick = perTick, Remaining = perTick * ticks, NextAt = now + dot.IntervalMs });
-        }
+            buff.Dots.Add(BuildNpcDot(target, dot, durationMs, now));
         (npcBuffs.TryGetValue(target.Key, out var list) ? list : npcBuffs[target.Key] = []).Add(buff);
         RefreshNpcFlags(target);
         if (StaggerGaugeCombat.IsGroggyBreakStaggerAbnormal(abnormalId, skillId))

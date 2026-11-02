@@ -87,7 +87,7 @@ partial class GameSession
 
     internal bool HasApBar => resources is { ApMax: > 0 };
 
-    internal int ResourceRatioPermille(char kind) => kind switch
+    internal long ResourceRatioPermille(char kind) => kind switch
     {
         'H' => RatioPermille(resources?.Hp ?? 0, resources?.HpMax ?? 1),
         'M' => RatioPermille(resources?.Mp ?? 0, resources?.MpMax ?? 1),
@@ -95,5 +95,5 @@ partial class GameSession
         _ => 0,
     };
 
-    static int RatioPermille(int current, int max) => max <= 0 ? 0 : current * 10_000 / max;
+    static long RatioPermille(int current, int max) => max <= 0 ? 0 : (long)current * 10_000 / max;
 }

@@ -89,7 +89,7 @@ public sealed partial class GameSession
     void EnsureStartNodes()
     {
         if (character is null) return;
-        var slot = Daevanion.ClassSlot(character.CreationId);
+        var slot = DaevanionClassSlot();
         if (slot == 0) return;
         // Drop nodes from other class boards (legacy saves e.g. 610113 on a Ranger slot 3 / board 31).
         foreach (var id in daevanionNodes.ToList())
@@ -99,12 +99,20 @@ public sealed partial class GameSession
             UntrackDaevanionNode(id);
         }
         RecomputeDaevanionUsedFromNodes();
-        foreach (var boardId in Daevanion.BoardsForCreation(character.CreationId))
+        foreach (var boardId in DaevanionBoards())
         {
             if (level < (Daevanion.BoardOf(boardId)?.NeedLevel ?? 999)) continue;
             TrackDaevanionNode(Daevanion.StartNodeId(boardId));
         }
     }
+
+    string? DaevanionClassName() => className ?? Profile()?.Class;
+
+    int DaevanionClassSlot() =>
+        character is null ? 0 : Daevanion.ResolveClassSlot(character.CreationId, DaevanionClassName());
+
+    IEnumerable<int> DaevanionBoards() =>
+        character is null ? [] : Daevanion.BoardsForCreation(character.CreationId, DaevanionClassName());
 
     /// <summary>
     /// Level-earned Daevanion crystals per point type (client Exp.dat DaevanionPointMap; embedded level_points in daevanion.json).
@@ -117,7 +125,7 @@ public sealed partial class GameSession
 
     /// <summary>Class boards whose NeedLevel is met (ContentsUnlock.dat also quest-gates Daevanion on HQ1102060 / HQ2102065).</summary>
     bool HasLevelUnlockedClassBoard() =>
-        character is not null && Daevanion.BoardsForCreation(character.CreationId)
+        character is not null && DaevanionBoards()
             .Any(id => level >= (Daevanion.BoardOf(id)?.NeedLevel ?? 999));
 
     bool DaevanionQuestGateOpen() =>
@@ -174,7 +182,7 @@ public sealed partial class GameSession
     {
         if (character is null)
             return PacketWriter.Opcode(DaevanionBoardInfoNt).Varint(0).ToArray();
-        var boards = Daevanion.BoardsForCreation(character.CreationId)
+        var boards = DaevanionBoards()
             .Where(id => level >= (Daevanion.BoardOf(id)?.NeedLevel ?? 999))
             .OrderBy(id => id)
             .ToList();
@@ -190,7 +198,7 @@ public sealed partial class GameSession
 
     bool BoardAllowed(int boardId) =>
         character is not null && Daevanion.BoardOf(boardId) is { } board
-        && board.Slot == Daevanion.ClassSlot(character.CreationId) && level >= board.NeedLevel;
+        && board.Slot == DaevanionClassSlot() && level >= board.NeedLevel;
 
     bool CanOpenNode(int nodeId, out DaevanionNode node, out int result)
     {

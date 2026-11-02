@@ -19,9 +19,16 @@ public sealed class GodstoneSetStatTests
     [Fact]
     public void Primal_vigor_four_arcana_adds_fixing_damage_when_hp_high()
     {
-        var ids = Enumerable.Range(0, 4).Select(_ => 810160001).ToList();
+        var ids = new List<int> { 810160001, 810260001, 810360001, 810460001 };
         var bonus = ItemSetTables.Embedded.Bonus(ids, hp: 900, hpMax: 1000, mp: 500, mpMax: 1000, "FixingDamage");
         Assert.Equal(210, bonus);
+    }
+
+    [Fact]
+    public void Duplicate_equipped_item_id_counts_as_one_set_piece()
+    {
+        var ids = Enumerable.Range(0, 4).Select(_ => 810160001).ToList();
+        Assert.Equal(0, ItemSetTables.Embedded.Bonus(ids, hp: 900, hpMax: 1000, mp: 500, mpMax: 1000, "FixingDamage"));
     }
 
     [Fact]
@@ -43,7 +50,7 @@ public sealed class GodstoneSetStatTests
     [Fact]
     public void Magic_armor_four_arcana_adds_defense_when_mp_high()
     {
-        var ids = Enumerable.Range(0, 4).Select(_ => 810160002).ToList();
+        var ids = new List<int> { 810160002, 810260002, 810360002, 810460002 };
         var bonus = ItemSetTables.Embedded.Bonus(ids, hp: 900, hpMax: 1000, mp: 800, mpMax: 1000, "Defense");
         Assert.Equal(1000, bonus);
     }

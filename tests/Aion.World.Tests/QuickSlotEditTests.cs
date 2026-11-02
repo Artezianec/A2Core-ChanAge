@@ -16,6 +16,7 @@ public sealed class QuickSlotEditTests
 
     static async Task<(GameSession Session, List<byte[]> Entry)> EnterAsync(FakeCharacterStore store, bool create)
     {
+        store.Progress = (40, store.Progress.Exp);
         var session = NewSession(store);
         await session.HandleAsync(GameSessionTestHelpers.Login(), Now);
         if (create) await session.HandleAsync(GameSessionTestHelpers.LightCreate(), Now);

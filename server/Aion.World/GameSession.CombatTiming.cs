@@ -12,6 +12,12 @@ partial class GameSession
 
     readonly List<ScheduledCombatHit> pendingCombatHits = [];
 
+    internal void ScheduleCombatHitForTests(int targetKey, long dueMs, int damage) =>
+        pendingCombatHits.Add(new(110160001, new CastRequest(110160001, 0, 0, false, targetKey, 0, Vector3d.Zero), 1, targetKey,
+            new Hit(damage, false, 0), 1, dueMs, CombatHitKind.Npc, false, false));
+
+    internal int PendingCombatHitCountForTests => pendingCombatHits.Count;
+
     /// <summary>Schedules 0x3804 and HP changes at Skill.dat cast and per-row hit times (see <see cref="SkillTiming"/>).</summary>
     List<byte[]> ScheduleCombatHits(int skill, CastRequest request, long now, byte actionUid)
     {
@@ -50,7 +56,7 @@ partial class GameSession
             : targets.TryGetValue(request.TargetKey, out var direct) ? AreaTargets(area, request, direct)
             : [];
         var caster = position ?? request.Location;
-        var hitTargets = chosen.ToList();
+        var hitTargets = FilterCombatTargets(chosen.ToList(), skill, request);
         var timedRows = SkillTiming.TimedRows(definition);
         // A target-centred area (bEffectRangeNeedTarget) is one shot at the main target that splashes the others with it;
         // a ground area is one shot at the ground point that hits everyone in it when it lands there.
@@ -62,7 +68,7 @@ partial class GameSession
             if (target.Dead) continue;
             if (!target.Hostile && !CombatMayHitNeutralForOpenKillObjective(target)) continue;
             if (!PlayerMayDamageNpc(target)) continue;
-            var hits = PlayerSkillHits(skill, target.Defense);
+            var hits = PlayerSkillHits(skill, target.Defense, victimLevel: target.Level);
             var openQuestOrEventKill = CombatMayHitNeutralForOpenKillObjective(target);
             var questKill = questLog?.OpenKillNpcIds().Contains(target.NpcId) == true;
             var mapEventKill = mapEventRuns.Any(r => r.OpenKillNpcIds().Contains(target.NpcId));

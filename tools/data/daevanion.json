@@ -218,6 +218,16 @@
     "15": 6,
     "16": 8
   },
+  "class_slot": {
+    "gladiator": 1,
+    "templar": 2,
+    "ranger": 3,
+    "assassin": 4,
+    "elementalist": 5,
+    "sorcerer": 6,
+    "cleric": 7,
+    "chanter": 8
+  },
   "item_points": {
     "531360001": {
       "point": 1,

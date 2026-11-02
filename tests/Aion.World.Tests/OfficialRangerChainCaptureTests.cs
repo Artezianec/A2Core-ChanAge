@@ -102,9 +102,10 @@ public sealed class OfficialRangerChainCaptureTests
         var resend = await session.HandleAsync(Cast(Snipe), t + 17);
         Assert.Contains(resend, p => Op(p) == 0x3801 && GameSession.CastResultCode(p) == GameSession.CastNotReadyResult);
         var other = await session.HandleAsync(Cast(RapidFire), t + 30);
-        Assert.Contains(other, p => Op(p) == 0x3801 && GameSession.CastResultCode(p) == GameSession.CastNotReadyResult);
+        Assert.DoesNotContain(other, p => Op(p) == 0x3801);
         var drainAt = t + session.HeldCastLockoutRemainingMs(t + 1) + 1;
         var accept = await session.HandleAsync(Cast(RapidFire), drainAt);
+        Assert.DoesNotContain(accept, p => Op(p) == 0x3801 && GameSession.CastResultCode(p) != 0);
         Assert.Contains(accept, p => Op(p) == 0x3801 && GameSession.CastResultCode(p) == 0);
     }
 }

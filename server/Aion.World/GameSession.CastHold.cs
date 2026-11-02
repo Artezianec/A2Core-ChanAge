@@ -14,6 +14,9 @@ public sealed partial class GameSession
     long lastHeldCastWireMs;
     byte[]? queuedCastWire;
     long queuedCastAtMs;
+    long queuedSilentSinceMs;
+    /// <summary>Longest a silently queued combo press waits for its reply (longest FixSlot swing lockout is under 1 s).</summary>
+    const int MaxSilentQueueMs = 1500;
 
     /// <summary>Client resends 0x3800 / BasicAtk about every 17 ms while the key is held; no packet for ~200 ms means release.</summary>
     internal const int HeldCastActiveMs = 200;
@@ -132,6 +135,9 @@ public sealed partial class GameSession
         queuedCastWire = null;
         queuedCastAtMs = 0;
         var replies = CastReplies(wire, now);
+        pendingSkillCastRefusalReason = null;
+        // Still early (re-queued silently by CastReplies): it is answered on the next drain.
+        if (replies.Count == 0 && queuedCastWire is not null) return [];
         if (replies.Count == 0)
         {
             if (ParseCast(wire) is { } request)
@@ -152,6 +158,38 @@ public sealed partial class GameSession
     {
         queuedCastWire = null;
         queuedCastAtMs = 0;
+    }
+
+    /// <summary>
+    /// Early FixSlot combo press while held: no reply now (a 0x3801 failure cancels the client's swing animation). The wire
+    /// is answered exactly once: success when it fires at lockout end, or failure when it is replaced, abandoned on key
+    /// release, or refused at drain, so the client never waits forever (4e89355 freeze).
+    /// </summary>
+    List<byte[]> QueueBasicChainCastSilently(byte[] body, CastRequest request, int skill, long acceptAtMs, long now)
+    {
+        var key = HeldCastWireKeyOf(request, body);
+        var sameQueued = queuedCastWire is { } prior && ParseCast(prior) is { } priorRequest && HeldCastWireKeyOf(priorRequest, prior) == key;
+        var since = sameQueued ? queuedSilentSinceMs : now;
+        // Never hold a silent cast open without a reply: a press that keeps re-queueing (refused at every drain while the
+        // key stays held) is answered once it waited MaxSilentQueueMs, so the client never waits on it forever.
+        if (now - since > MaxSilentQueueMs)
+        {
+            var dropped = sameQueued ? [] : RefuseReplacedQueuedCast();
+            if (sameQueued) DropQueuedHeldCastSilently();
+            return [.. dropped, CastReplyFor(request, false)];
+        }
+        queuedSilentSinceMs = since;
+        pendingSkillCastRefusalReason = "queued";
+        PlaytestDebug.Action("skill_cast", ("skillId", skill), ("skill", data.Skill(skill)?.Name ?? skill.ToString()),
+            ("targetKey", request.TargetKey), ("queued", true));
+        if (queuedCastWire is { } existing && ParseCast(existing) is { } queued && HeldCastWireKeyOf(queued, existing) == key)
+        {
+            queuedCastWire = body;
+            return [];
+        }
+        var replies = RefuseReplacedQueuedCast();
+        QueueHeldCastWire(body, acceptAtMs);
+        return replies;
     }
 
     /// <summary>Queue an early chain step; refuses a replaced queued wire and always answers the client (0x3801 failure) so it never locks.</summary>

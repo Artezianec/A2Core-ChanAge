@@ -1292,27 +1292,24 @@
     "2959363": {
       "level": 45,
       "type": "Citizen",
-      "relationship": 4,
-      "aggressive": true,
+      "relationship": 3,
+      "aggressive": false,
       "walk_speed": 126.0,
       "run_speed": 500.0,
       "radius": 40,
       "function": "None",
-      "aggro_type": "Aggro_A",
+      "aggro_type": "AggroNormal",
       "aggro": {
-        "shape": "Circle",
-        "radius": 2000,
-        "angle": 0,
-        "inner": 0,
-        "height": 2000,
-        "z": "Both"
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
       },
       "skills": [
-        1001140,
-        1001070,
-        1001370,
-        1001080,
-        1001310
+        1000510,
+        1000540
       ],
       "height": 210,
       "no_rotation": false,
@@ -1323,27 +1320,24 @@
     "2959365": {
       "level": 45,
       "type": "Citizen",
-      "relationship": 4,
-      "aggressive": true,
+      "relationship": 3,
+      "aggressive": false,
       "walk_speed": 126.0,
       "run_speed": 500.0,
       "radius": 40,
       "function": "None",
-      "aggro_type": "Aggro_A",
+      "aggro_type": "AggroNormal",
       "aggro": {
-        "shape": "Circle",
-        "radius": 2000,
-        "angle": 0,
-        "inner": 0,
-        "height": 2000,
-        "z": "Both"
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
       },
       "skills": [
-        1001140,
-        1001070,
-        1001370,
-        1001080,
-        1001310
+        1000510,
+        1000540
       ],
       "height": 210,
       "no_rotation": false,
@@ -1354,27 +1348,24 @@
     "2959366": {
       "level": 45,
       "type": "Citizen",
-      "relationship": 4,
-      "aggressive": true,
+      "relationship": 3,
+      "aggressive": false,
       "walk_speed": 126.0,
       "run_speed": 500.0,
       "radius": 40,
       "function": "None",
-      "aggro_type": "Aggro_A",
+      "aggro_type": "AggroNormal",
       "aggro": {
-        "shape": "Circle",
-        "radius": 2000,
-        "angle": 0,
-        "inner": 0,
-        "height": 2000,
-        "z": "Both"
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
       },
       "skills": [
-        1001140,
-        1001070,
-        1001370,
-        1001080,
-        1001310
+        1000510,
+        1000540
       ],
       "height": 210,
       "no_rotation": false,

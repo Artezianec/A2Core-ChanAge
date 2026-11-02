@@ -233,6 +233,7 @@ def build() -> dict:
         'point_types': {str(v): k for k, v in POINT_TYPE.items()},
         'stat_wire': {str(v): k for k, v in stat_wire_ids().items()},
         'creation_slot': {str(k): v for k, v in build_creation_to_slot().items()},
+        'class_slot': {k: v for k, v in CLASS_SLOT.items() if k != 'fighter'},
         'item_points': {str(k): {'point': p, 'amount': a} for k, (p, a) in ITEM_POINTS.items()},
         'boards': boards,
         'nodes': nodes,

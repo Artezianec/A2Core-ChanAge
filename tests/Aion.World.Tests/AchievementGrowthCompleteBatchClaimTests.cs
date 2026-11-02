@@ -30,9 +30,10 @@ public sealed class AchievementGrowthCompleteBatchClaimTests
         var invIndex = batch.FindIndex(p => Op(p) == 0x561b);
         Assert.True(rsIndex >= 0);
         Assert.True(invIndex >= 0 && invIndex < rsIndex, "0x561b precedes TakeAchievementRewardBatch_RS (capture 001158)");
-        Assert.True(updateIndex > rsIndex);
+        Assert.Equal(-1, updateIndex);
+        Assert.DoesNotContain(batch, p => Op(p) == GameSession.AchievementListNt);
         Assert.Equal(0, BitConverter.ToInt32(batch[rsIndex], 2));
-        Assert.Equal(2, batch[updateIndex][^1]);
+        Assert.Equal(2, store.Achievements.Single(a => a.Id == GrowthCompleteAchievement).RewardedStep);
 
         var body = batch[rsIndex].AsSpan(2).ToArray();
         Assert.Equal(

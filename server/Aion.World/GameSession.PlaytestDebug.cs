@@ -199,6 +199,21 @@ public sealed partial class GameSession
         PlaytestDebug.Action("container_slot_extend",
             ("container", container), ("costIdx", costIdx), ("result", result), ("extensionCount", extensionCount));
 
+    void LogContainerSlotExtend(byte container, int costIdx, int result, int extensionCount, string reason) =>
+        PlaytestDebug.Action("container_slot_extend",
+            ("container", container), ("costIdx", costIdx), ("result", result), ("extensionCount", extensionCount), ("reason", reason));
+
+    readonly HashSet<(ushort Opcode, int Length)> loggedUnhandledPackets = [];
+
+    /// <summary>Logs an unhandled client packet once per (opcode, length): opcode, length and the first 48 bytes in hex.</summary>
+    void LogUnhandledPacket(ushort opcode, byte[] plain)
+    {
+        if (!loggedUnhandledPackets.Add((opcode, plain.Length))) return;
+        PlaytestDebug.Action("unhandled_packet",
+            ("opcode", $"0x{opcode:x4}"), ("length", plain.Length),
+            ("hex", Convert.ToHexString(plain, 0, Math.Min(plain.Length, 48))));
+    }
+
     void LogItemUse(int templateId, string? name) =>
         PlaytestDebug.Action("item_use", ("templateId", templateId), ("name", name ?? ""));
 

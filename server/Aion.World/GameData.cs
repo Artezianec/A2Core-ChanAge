@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aion.Protocol.Native;
@@ -85,7 +86,9 @@ public sealed record SkillDefinition(
     [property: JsonPropertyName("skill_cond_grant")] SkillCondGrant? SkillCondGrant = null,
     [property: JsonPropertyName("skill_cond_grant_source")] string? SkillCondGrantSource = null,
     [property: JsonPropertyName("stagger_gauge")] int StaggerGauge = 0,
-    [property: JsonPropertyName("stagger_gauge_source")] string? StaggerGaugeSource = null);
+    [property: JsonPropertyName("stagger_gauge_source")] string? StaggerGaugeSource = null,
+    /// <summary>Skill.dat NeedSkillUseRange (cm); may also come from skill-cast-ranges.json overlay.</summary>
+    [property: JsonPropertyName("range")] double UseRangeCm = 0);
 
 public sealed record WeaponStats(
     [property: JsonPropertyName("min")] int Min,
@@ -318,6 +321,21 @@ public sealed class GameData
         this.levelCap = levelCap;
     }
 
+    sealed record CastRangeFile([property: JsonPropertyName("skills")] Dictionary<string, double>? Skills);
+
+    static readonly Lazy<Dictionary<string, double>> skillCastRanges = new(() =>
+    {
+        try
+        {
+            var file = Load<CastRangeFile>("skill-cast-ranges.json");
+            return file.Skills ?? [];
+        }
+        catch (InvalidOperationException)
+        {
+            return [];
+        }
+    });
+
     static readonly Lazy<GameData> embedded = new(() => new GameData(
         Load<Dictionary<string, StarterProfile>>("starter-skills.json"), Load<ClassFile>("class-skills.json"), Load<NpcFile>("world-npcs.json"),
         Load<BaseFile>("map-bases.json").Bases, Load<PointFile>("map-points.json").Maps, Load<DevMenuFile>("dev-menu.json").Buttons,
@@ -490,6 +508,68 @@ public sealed class GameData
     public StarterProfile? Profile(int creationId, int gender, int? accountRace = null) =>
         profiles.GetValueOrDefault($"{NormalizeCreationId(creationId, accountRace)}:{gender}");
 
+    /// <summary>Enabled starter row for race/gender/class (ignores creation_id when kit drifted).</summary>
+    public StarterProfile? ProfileForClass(int race, int gender, string className)
+    {
+        foreach (var (key, profile) in profiles)
+        {
+            if (profile.Race != race || !string.Equals(profile.Class, className, StringComparison.OrdinalIgnoreCase)) continue;
+            if (int.Parse(key.Split(':')[1], CultureInfo.InvariantCulture) != gender) continue;
+            return profile;
+        }
+        return null;
+    }
+
+    /// <summary>PC skill id prefix (11–18) → class name (matches tools/skill_audit.py).</summary>
+    static readonly Dictionary<int, string> SkillFamilyClass = new()
+    {
+        [11] = "Gladiator", [12] = "Templar", [13] = "Assassin", [14] = "Ranger",
+        [15] = "Sorcerer", [16] = "Elementalist", [17] = "Cleric", [18] = "Chanter",
+    };
+
+    static int PlayableClassScore(IEnumerable<int> skillIds, string className)
+    {
+        var family = className switch
+        {
+            "Gladiator" => 11, "Templar" => 12, "Assassin" => 13, "Ranger" => 14,
+            "Sorcerer" => 15, "Elementalist" => 16, "Cleric" => 17, "Chanter" => 18,
+            _ => 0,
+        };
+        if (family == 0) return 0;
+        return skillIds.Count(id => id / 1_000_000 == family);
+    }
+
+    /// <summary>Infer class from stored character_skills kit (dominant 11–18 skill family).</summary>
+    public string? InferPlayableClassFromSkills(IEnumerable<int> skillIds)
+    {
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var id in skillIds)
+        {
+            if (id is < 11_000_000 or >= 19_000_000) continue;
+            if (!SkillFamilyClass.TryGetValue(id / 1_000_000, out var cls)) continue;
+            counts[cls] = counts.GetValueOrDefault(cls) + 1;
+        }
+        if (counts.Count == 0) return null;
+        return counts.OrderByDescending(p => p.Value).ThenBy(p => p.Key, StringComparer.Ordinal).First().Key;
+    }
+
+    /// <summary>
+    /// Playable class for skills/stats/Daevanion: starter profile from creation_id, unless persisted skills
+    /// clearly belong to another class (live client creation_id vs PCCreationInfo drift).
+    /// </summary>
+    public string? ResolvePlayableClass(int creationId, int gender, IEnumerable<int> skillIds)
+    {
+        var profile = Profile(creationId, gender);
+        if (profile is null) return InferPlayableClassFromSkills(skillIds);
+        var ids = skillIds as IReadOnlyCollection<int> ?? skillIds.ToList();
+        var inferred = InferPlayableClassFromSkills(ids);
+        if (inferred is null) return profile.Class;
+        if (string.Equals(inferred, profile.Class, StringComparison.OrdinalIgnoreCase)) return profile.Class;
+        var inferredScore = PlayableClassScore(ids, inferred);
+        var profileScore = PlayableClassScore(ids, profile.Class);
+        return inferredScore > profileScore ? inferred : profile.Class;
+    }
+
     /// <summary>Skills known at a level: (skill, highest skill level), sorted by skill ID.</summary>
     public IReadOnlyList<(int SkillId, int Level)> LearnedSkills(string className, int level)
     {
@@ -634,6 +714,14 @@ public sealed class GameData
         Skill(skillId)?.ChainNext is { Length: > 0 } next ? [.. next] : [];
 
     public SkillDefinition? Skill(int skillId) => classes.Skills.GetValueOrDefault(skillId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+    /// <summary>Skill.dat NeedSkillUseRange (cm), from class-skills export or skill-cast-ranges.json overlay.</summary>
+    public double SkillUseRangeCm(int skillId)
+    {
+        var key = skillId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (Skill(skillId) is { UseRangeCm: > 0 } definition) return definition.UseRangeCm;
+        return skillCastRanges.Value.GetValueOrDefault(key);
+    }
 
     /// <summary>Skill.dat GroupCoolTimeId; falls back to the skill id when unset in the export.</summary>
     public int CooldownGroup(int skillId) =>

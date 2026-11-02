@@ -284,6 +284,37 @@ public sealed class TravelParityTests
     }
 
     [Fact]
+    public async Task Return_scroll_cancelled_cast_does_not_start_cooldown()
+    {
+        const long t = Now + 220_000;
+        var store = new FakeCharacterStore();
+        var session = await EnterAscendedAsync(store, t);
+        store.Items.Add(FakeCharacterStore.BagItem(530560001, 2, 82));
+        await GameSessionTestHelpers.LoadInventoryAsync(session, t);
+        await session.HandleAsync(new PacketWriter().U16(RidePackets.ItemUseRq).I64(82).ToArray(), t);
+        var at = session.Position!.Value;
+        await session.HandleAsync(new PacketWriter().U16(0x3700).U8(2).Vec3(at with { X = at.X + 500 }).ToArray(), t + 500);
+        var again = await session.HandleAsync(new PacketWriter().U16(RidePackets.ItemUseRq).I64(82).ToArray(), t + 600);
+        Assert.Contains(again, p => GameSessionTestHelpers.Op(p) == RidePackets.ItemUseStartedNt);
+    }
+
+    [Fact]
+    public async Task Return_scroll_cooldown_starts_on_completion()
+    {
+        const long t = Now + 240_000;
+        var store = new FakeCharacterStore();
+        var session = await EnterAscendedAsync(store, t);
+        store.Items.Add(FakeCharacterStore.BagItem(530560001, 2, 83));
+        await GameSessionTestHelpers.LoadInventoryAsync(session, t);
+        await session.HandleAsync(new PacketWriter().U16(RidePackets.ItemUseRq).I64(83).ToArray(), t);
+        var done = await session.TickAsync(t + 3_000);
+        Assert.Contains(done, p => GameSessionTestHelpers.Op(p) == RidePackets.ItemUseCompletedNt);
+        var key = store.Items.First(i => i.TemplateId == 530560001 && i.Quantity > 0).WireId;
+        var again = await session.HandleAsync(new PacketWriter().U16(RidePackets.ItemUseRq).I64(key).ToArray(), t + 3_100);
+        Assert.DoesNotContain(again, p => GameSessionTestHelpers.Op(p) == RidePackets.ItemUseStartedNt);
+    }
+
+    [Fact]
     public async Task Death_respawn_at_bind_and_spiritstone_in_place()
     {
         const long t = Now + 300_000;

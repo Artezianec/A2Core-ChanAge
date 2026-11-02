@@ -115,6 +115,13 @@ public static class Combat
     public const int DefenseScale = 1000;
     /// <summary>CANDIDATE: effective defense divisor per point of accuracy rating (weapon + DEX-derived).</summary>
     public const int AccuracyDefenseDivisor = 50;
+    /// <summary>CANDIDATE: cap on total amplify basis points in one hit (gear + buffs).</summary>
+    public const int MaxAmplifyBp = 50_000;
+    /// <summary>CANDIDATE: skill mastery damage permille per level above 1 until Skill.dat level scaling is exported.</summary>
+    public const int SkillLevelDamagePermillePerLevel = 200;
+
+    public static double SkillLevelDamageScale(int skillLevel) =>
+        skillLevel <= 1 ? 1.0 : (10_000 + (skillLevel - 1) * SkillLevelDamagePermillePerLevel) / 10_000.0;
     public const int TrainingDummyKey = 1000;
     // NpcData 2400032 M_D1_FV_TraDummy_01_01 (training-dummy model, level 10).
     public const int SandbagNpcId = 2400032, SandbagLevel = 10;
@@ -132,36 +139,42 @@ public static class Combat
 
     public static IReadOnlyList<Hit> SkillHits(GameData data, int skillId, string? className, int level, int? weaponItem,
         int targetDefense, Random rng, bool pvp = false, int extraFixing = 0, WeaponStats? weaponOverride = null,
-        int amplifyAllBp = 0, int defensePierceBp = 0, int attackAmplifyBp = 0, int extraCritical = 0, int extraAccuracy = 0)
+        int amplifyAllBp = 0, int defensePierceBp = 0, int attackAmplifyBp = 0, int extraCritical = 0, int extraAccuracy = 0,
+        int skillLevel = 1, int victimLevel = 0, int critDamageBp = 0)
     {
         var definition = data.Skill(skillId);
         if (definition is null) return [];
         return RowHits(data, definition.Damage, className, level, weaponItem, targetDefense, rng, pvp, extraFixing, weaponOverride,
-            amplifyAllBp, defensePierceBp, attackAmplifyBp, extraCritical, extraAccuracy);
+            amplifyAllBp, defensePierceBp, attackAmplifyBp, extraCritical, extraAccuracy, skillLevel, victimLevel, critDamageBp);
     }
 
     /// <summary>The hits of explicit Damage rows (a trap's detonation group), by the same model as <see cref="SkillHits"/>.</summary>
     public static IReadOnlyList<Hit> RowHits(GameData data, IEnumerable<DamageRow> rows, string? className, int level, int? weaponItem,
         int targetDefense, Random rng, bool pvp = false, int extraFixing = 0, WeaponStats? weaponOverride = null,
-        int amplifyAllBp = 0, int defensePierceBp = 0, int attackAmplifyBp = 0, int extraCritical = 0, int extraAccuracy = 0)
+        int amplifyAllBp = 0, int defensePierceBp = 0, int attackAmplifyBp = 0, int extraCritical = 0, int extraAccuracy = 0,
+        int skillLevel = 1, int victimLevel = 0, int critDamageBp = 0)
     {
         var weapon = weaponOverride ?? data.WeaponStatsOf(weaponItem);
         var fixing = data.BaseStats(className, level).GetValueOrDefault("FixingDamage") + extraFixing;
         var critRating = weapon.Critical + extraCritical;
         var criticalChance = Math.Min(CriticalCap, critRating / 1000.0);
-        var accuracyRating = weapon.Accuracy + extraAccuracy;
+        var accuracyRating = Math.Max(0, weapon.Accuracy + extraAccuracy);
         var mitigatedDefense = Math.Max(0, (int)((long)targetDefense * (10_000 - Math.Clamp(defensePierceBp, 0, 10_000)) / 10_000));
-        mitigatedDefense = Math.Max(0, mitigatedDefense - accuracyRating / AccuracyDefenseDivisor);
-        var amplify = (10_000 + amplifyAllBp + attackAmplifyBp) / 10_000.0;
+        mitigatedDefense = Math.Max(0, (int)Math.Round(mitigatedDefense - accuracyRating / (double)AccuracyDefenseDivisor));
+        var totalAmp = Math.Clamp(amplifyAllBp + attackAmplifyBp, -9_000, MaxAmplifyBp);
+        var amplify = (10_000 + totalAmp) / 10_000.0;
+        var skillScale = SkillLevelDamageScale(skillLevel);
+        var levelGapScale = victimLevel > 0 ? LevelDiffDamageScale(level, victimLevel) : 1.0;
+        var critMult = CriticalMultiplier * (1.0 + Math.Max(0, critDamageBp) / 10_000.0);
         var hits = new List<Hit>();
         foreach (var row in rows)
         {
             var (flat, ratio) = pvp && row.Pvp is { } p ? (p.Flat, p.Ratio) : (row.Flat, row.Ratio);
             var attack = rng.Next(Math.Min(weapon.Min, weapon.Max), Math.Max(weapon.Min, weapon.Max) + 1) + fixing;
-            double raw = Roll(flat, rng) + attack * Roll(ratio, rng) / 10000.0;
+            double raw = Roll(flat, rng) + attack * Roll(ratio, rng) / 10_000.0;
             var critical = rng.NextDouble() < criticalChance;
-            if (critical) raw *= CriticalMultiplier;
-            raw *= amplify;
+            if (critical) raw *= critMult;
+            raw *= amplify * skillScale * levelGapScale;
             var amount = Math.Max(1, (int)Math.Round(raw * DefenseScale / (DefenseScale + mitigatedDefense)));
             hits.Add(new Hit(amount, critical, row.EffectId));
         }

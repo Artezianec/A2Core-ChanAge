@@ -41,6 +41,9 @@ public sealed partial class GameSession
     List<byte[]> Die(int killerKey, long now)
     {
         dead = true;
+        pendingCombatHits.Clear();
+        pendingProjectiles.Clear();
+        pendingSkillEnds.Clear();
         LogDeath(killerKey);
         diving = false;
         lastKillerKey = killerKey;

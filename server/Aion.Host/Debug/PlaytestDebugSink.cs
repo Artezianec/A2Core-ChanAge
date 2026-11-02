@@ -23,6 +23,8 @@ public sealed class PlaytestDebugSink : IPlaytestDebugSink, IAsyncDisposable
     {
         "skill_cast", "damage", "kill", "death", "resurrect", "teleport", "quest_accept", "quest_progress",
         "quest_complete", "level_up", "skill_point", "npc_talk", "npc_talk_refused", "map_event", "item_use", "item_use_refused", "item_gain",
+        // Diagnostics for unknown client requests (were file-only, so live console logs never showed them).
+        "unhandled_packet", "container_slot_extend",
     };
 
     readonly DebugOptions options;

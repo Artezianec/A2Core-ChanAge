@@ -12,7 +12,7 @@ public sealed class AttendanceBatchClaimTests
     static int Op(byte[] packet) => GameSessionTestHelpers.Op(packet);
 
     [Fact]
-    public async Task Batch_claim_sends_568a_before_5684_and_persists_rewarded_step()
+    public async Task Batch_claim_sends_568a_without_trailing_achievement_nts_and_persists_rewarded_step()
     {
         var store = new FakeCharacterStore();
         GameSessionTestHelpers.SeedAttendanceCheckedInNotRewarded(store, Now + 100);
@@ -23,12 +23,12 @@ public sealed class AttendanceBatchClaimTests
             new PacketWriter().U16(GameSession.TakeAchievementRewardBatchRq).U8(7).I32(GlobalAttendanceGroup).U8(1).ToArray(),
             Now + 101);
 
-        var updateIndex = batch.FindIndex(p => Op(p) == GameSession.AchievementCountUpdateNt);
         var rsIndex = batch.FindIndex(p => Op(p) == GameSession.TakeAchievementRewardBatchRs);
-        Assert.True(updateIndex >= 0, "expected AchievementCountUpdate_NT 0x5684");
-        Assert.True(rsIndex >= 0 && rsIndex < updateIndex, "568a must precede 5684 so the client parses batch take_result before state NTs");
+        Assert.True(rsIndex >= 0);
         Assert.Equal(0, BitConverter.ToInt32(batch[rsIndex], 2));
-        Assert.Equal(1, batch[updateIndex][^1]);
+        // Capture 001158: no per-step 0x5684 / 0x5683 after the batch reply (they empty the Rewards Collected popup).
+        Assert.DoesNotContain(batch, p => Op(p) == GameSession.AchievementCountUpdateNt);
+        Assert.DoesNotContain(batch, p => Op(p) == GameSession.AchievementListNt);
 
         var again = await session.HandleAsync(
             new PacketWriter().U16(GameSession.TakeAchievementRewardBatchRq).U8(7).I32(GlobalAttendanceGroup).U8(1).ToArray(),

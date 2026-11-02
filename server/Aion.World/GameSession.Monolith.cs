@@ -43,6 +43,21 @@ public sealed partial class GameSession
         monolithProximityInteractDelayStart.Clear();
     }
 
+    /// <summary>
+    /// World load (full or short layer load): reset per-load monolith state, then allow 0x3baa/0x3bdf on the first 0x3634.
+    /// A full load has just sent MonolithList_NT; a short layer load keeps the client's list from the full entry, so notices
+    /// must not wait for LoadPost tab 2 (they did: Empyrean Trance minimap markers were missing until the mailbox was opened).
+    /// </summary>
+    internal void ResetMonolithNoticesForLoad()
+    {
+        ResetMonolithClientState();
+        EnableMonolithNoticesAfterList();
+    }
+
+    internal bool MonolithNoticesEnabledForTests => monolithNoticesEnabled;
+
+    internal List<byte[]> MonolithEnvObjNoticesForTests(int index, WorldObject o) => MonolithEnvObjNotices(index, o).ToList();
+
     static bool PlayerWithinMonolithInteractRange(Vector3d at, WorldObject monolith)
     {
         var dx = monolith.At.X - at.X;

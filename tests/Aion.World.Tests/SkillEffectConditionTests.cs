@@ -16,6 +16,16 @@ public sealed class SkillEffectConditionTests
     }
 
     [Fact]
+    public void Unknown_condition_kind_fails_closed()
+    {
+        var session = new GameSession(GameSessionTestHelpers.LiveGameData,
+            new GameSessionOptions { World = new SharedWorld(GameData.Embedded) }, new Random(1));
+        var cond = new SkillEffectConditions.Condition("MoveType", ["Walk"]);
+        var ctx = session.BuildEffectConditionContext(null, null, 1, 1, true, 0);
+        Assert.False(SkillEffectConditions.Met(cond, ctx));
+    }
+
+    [Fact]
     public void Unimplemented_condition_kind_fails_closed()
     {
         var session = new GameSession(GameSessionTestHelpers.LiveGameData,

@@ -54,6 +54,18 @@ NPC_LIST_TYPES = {'KillNpc', 'CollectFakeItem'}
 NPC_TYPES = {'AskNpc', 'CloseNpc'}
 
 
+def _zone_fields(q: dict) -> dict:
+    """Quest.dat SubzoneGroup (ESubzoneGroupID_N -> N) and ExplorationType: the world-map zone a quest counts toward."""
+    out = {}
+    group = str(q.get('SubzoneGroup') or '')
+    if '_' in group and group.rsplit('_', 1)[1].isdigit():
+        out['subzone_group'] = int(group.rsplit('_', 1)[1])
+    exploration = str(q.get('ExplorationType') or '').split('::')[-1]
+    if exploration and exploration != 'None':
+        out['exploration_type'] = exploration
+    return out
+
+
 def _enum(value):
     return value.split('::', 1)[1] if isinstance(value, str) and '::' in value else value
 
@@ -220,6 +232,7 @@ def convert(quests, steps, reward_rows=(), class_rewards=(), strings=(), unlocks
             'level': q.get('UnlockLevel', 0),
             'recommended_level': q.get('RecommendedLevel', 0),
             'part': _none(q.get('Part')),
+            **_zone_fields(q),
             'map': _id(q.get('AcquireMapId')) or _id(q.get('CompleteMapId')),
             'acquire': acquire,
             'start_npc': None, 'start_npc_name': None,

@@ -23,7 +23,7 @@ public sealed class QuestPartProgressTests
     public void PartRollIndex_for_verteron_chapter_two()
     {
         var book = QuestBook.Embedded;
-        var part = book.PartQuests("hero_verteron_02");
+        var part = book.PartQuests("hero_verteron_02", 1);
         Assert.Equal(15, part.Count);
         Assert.Equal("HQ1102010", part[0]);
         Assert.Equal(1, book.PartRollIndex("HQ1102010"));

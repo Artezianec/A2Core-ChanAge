@@ -83143,6 +83143,7 @@
     "AscensionGrade",
     "Fix_VehicleCreatureLevel",
     "GetDaevanionPoint",
+    "GetGodstone",
     "GetKina",
     "GetNonBindingKina",
     "GetQuest",

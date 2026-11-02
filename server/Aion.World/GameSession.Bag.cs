@@ -54,20 +54,7 @@ public sealed partial class GameSession
     async Task LoadQuickSlotsAsync(INativeCharacterStore store, Guid character, CancellationToken ct)
     {
         quickSlots.Clear();
-        var repairs = new List<QuickSlotRecord>();
-        foreach (var slot in await store.QuickSlotsAsync(character, ct))
-        {
-            if (slot.Type == 0 && slot.SkillId != 0 && !ContextStackValid(slot.SkillId, ContextSkillsForSlot(slot)))
-            {
-                var fixedSlot = slot with { ContextSkills = data.DefaultContextSkills(slot.SkillId).ToArray() };
-                quickSlots[slot.Slot] = fixedSlot;
-                repairs.Add(fixedSlot);
-            }
-            else quickSlots[slot.Slot] = slot;
-        }
-        if (repairs.Count == 0) return;
-        foreach (var slot in repairs)
-            await store.SaveQuickSlotAsync(character, slot.Slot, slot, ct);
+        foreach (var slot in await store.QuickSlotsAsync(character, ct)) quickSlots[slot.Slot] = slot;
     }
 
     /// <summary>At login after <see cref="learned"/> is built: drop duplicate skill ids across the persisted bar.</summary>
@@ -176,9 +163,12 @@ public sealed partial class GameSession
     /// <summary>ItemContainerSlotExtend_RQ (0x5848 or 0x8d4f): npc i32, container u8, item uid i64, cost idx u8 (gold path uses uid 0).</summary>
     async Task<List<byte[]>> ExtendContainerSlotsAsync(byte[] plain, CancellationToken ct)
     {
-        if (plain.Length != 16) return [];
         var rq = Opcode(plain);
-        if (rq is not (ItemContainerSlotExtendRq or ItemContainerSlotExtend8dRq)) return [];
+        if (plain.Length < 16 || rq is not (ItemContainerSlotExtendRq or ItemContainerSlotExtend8dRq))
+        {
+            LogContainerSlotExtend(plain.Length > 6 ? plain[6] : (byte)0, -1, -1, -1, $"bad_request op=0x{rq:x4} len={plain.Length}");
+            return [];
+        }
         var rsOpcode = (ushort)(rq + 1);
         var ntOpcode = (ushort)(rq + 2);
         var npc = BitConverter.ToInt32(plain, 2);
@@ -195,16 +185,28 @@ public sealed partial class GameSession
             var (byItem, byGold) = counts.WireExtendPair(container);
             return PacketWriter.Opcode(ntOpcode).U8(container).I64(itemUid).U8(byItem).U8(byGold).ToArray();
         }
-        if (Store is not { } store || CharacterId is not { } character || itemUid != 0)
+        var cachedExt = container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage;
+        if (Store is not { } store || CharacterId is not { } character)
+        {
+            LogContainerSlotExtend(container, costIdx, 1, cachedExt, "no_store");
             return [Rs(1, containerSlotExtends)];
+        }
+        if (itemUid != 0)
+        {
+            LogContainerSlotExtend(container, costIdx, 1, cachedExt, $"item_path_unsupported uid={itemUid} op=0x{rq:x4} len={plain.Length}");
+            return [Rs(1, containerSlotExtends)];
+        }
         if (container is not (InventoryItem.Bag or InventoryItem.Storage))
+        {
+            LogContainerSlotExtend(container, costIdx, 1, cachedExt, "container_unsupported");
             return [Rs(1, containerSlotExtends)];
+        }
         containerSlotExtends = ContainerSlotExtendView.From(await store.ContainerSlotExtendsAsync(character, ct));
         var maxExt = container == InventoryItem.Bag ? MaxBagGoldExtensions : MaxStorageGoldExtensions;
         var currentExt = container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage;
         if (costIdx != currentExt || costIdx >= maxExt)
         {
-            LogContainerSlotExtend(container, costIdx, 4, currentExt);
+            LogContainerSlotExtend(container, costIdx, 4, currentExt, costIdx >= maxExt ? "max_reached" : $"cost_idx_mismatch expected={currentExt}");
             return [Rs(4, containerSlotExtends), .. InventoryDepotSyncPackets(), .. await InventoryChangesAsync(ct, 0, 0)];
         }
         var outcome = ("none", ContainerSlotExtendCounts.Zero);
@@ -218,13 +220,14 @@ public sealed partial class GameSession
         if (outcome.Item1 != "ok")
         {
             var fail = outcome.Item1 switch { "kina" => 3, "count" => 4, _ => 1 };
-            containerSlotExtends = ContainerSlotExtendView.From(outcome.Item2);
-            LogContainerSlotExtend(container, costIdx, fail, container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage);
+            // "none" (store refused / not owned / row missing) carries zero counts: keep the cached ones so the bag does not shrink.
+            if (outcome.Item1 != "none") containerSlotExtends = ContainerSlotExtendView.From(outcome.Item2);
+            LogContainerSlotExtend(container, costIdx, fail, container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage, $"store_{outcome.Item1}");
             return [Rs(fail, containerSlotExtends), .. await InventoryChangesAsync(ct, 0, 0)];
         }
         containerSlotExtends = ContainerSlotExtendView.From(outcome.Item2);
         var newExt = container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage;
-        LogContainerSlotExtend(container, costIdx, 0, newExt);
+        LogContainerSlotExtend(container, costIdx, 0, newExt, "ok");
         return
         [
             Rs(0, containerSlotExtends),

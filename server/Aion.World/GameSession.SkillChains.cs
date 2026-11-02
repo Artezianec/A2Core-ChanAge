@@ -9,6 +9,7 @@ namespace Aion.World;
 public sealed partial class GameSession
 {
     readonly Dictionary<int, long> activeChainSkills = [];
+    readonly Dictionary<int, long> basicChainFamilyExpiredAt = [];
 
     /// <summary>Chain skills whose window is open (skill id -> expiry ms).</summary>
     public IReadOnlyDictionary<int, long> ActiveChainSkills => activeChainSkills;
@@ -70,10 +71,26 @@ public sealed partial class GameSession
         if (data.Skill(skill) is not { ChainPrev: > 0 } || !data.IsBasicAttackChainSkill(skill) || ChainReady(skill, now))
             return false;
         var root = ChainRoot(skill);
+        // Window elapsed but no tick ran ChainExpireReplies yet (stale activeChainSkills entry).
+        if (activeChainSkills.TryGetValue(skill, out var until) && now >= until)
+        {
+            foreach (var expired in activeChainSkills.Where(p => now >= p.Value).Select(p => p.Key).ToList())
+                activeChainSkills.Remove(expired);
+            skill = root;
+            request = request with { SkillId = root };
+            basicChainFamilyExpiredAt.Remove(root);
+            return true;
+        }
+        // Pruned by ChainExpireReplies: only restart within chain_window_ms (not a never-opened follow-up).
+        if (!basicChainFamilyExpiredAt.TryGetValue(root, out var expiredAt)) return false;
+        var grace = data.Skill(skill)?.ChainWindowMs ?? 3000;
+        if (grace <= 0) grace = 3000;
+        if (now - expiredAt > grace) return false;
         skill = root;
         request = request with { SkillId = root };
         foreach (var expired in activeChainSkills.Where(p => now >= p.Value).Select(p => p.Key).ToList())
             activeChainSkills.Remove(expired);
+        basicChainFamilyExpiredAt.Remove(root);
         return true;
     }
 
@@ -88,13 +105,28 @@ public sealed partial class GameSession
         if (data.Skill(skillId) is { ChainPrev: > 0 } chain)
         {
             // Official order: the next step's 0x3818 first, then 0x3819 consuming this one.
+            var parent = chain.ChainPrev;
+            var siblings = data.ChainFollowUpIds(parent).Where(id => id != skillId).ToList();
+            foreach (var sibling in siblings) activeChainSkills.Remove(sibling);
             activeChainSkills.Remove(skillId);
+            if (siblings.Count > 0) replies.Add(GamePackets.ChainSkillDeactiveList(siblings));
             TryOpenChainChildren(skillId, now, replies);
             replies.Add(GamePackets.ChainSkillDeactiveList([skillId]));
             return replies;
         }
+        replies.AddRange(CloseChainWindowsForFamily(skillId));
         TryOpenChainChildren(skillId, now, replies);
         return replies;
+    }
+
+    /// <summary>Recasting a chain root closes every open window on that combo family (sibling branches included).</summary>
+    List<byte[]> CloseChainWindowsForFamily(int skillId)
+    {
+        if (activeChainSkills.Count == 0) return [];
+        var root = ChainRoot(skillId);
+        var toClose = activeChainSkills.Keys.Where(id => ChainRoot(id) == root).Order().ToList();
+        foreach (var id in toClose) activeChainSkills.Remove(id);
+        return toClose.Count == 0 ? [] : [GamePackets.ChainSkillDeactiveList(toClose)];
     }
 
     void TryOpenChainChildren(int parentSkillId, long now, List<byte[]> replies)
@@ -134,11 +166,20 @@ public sealed partial class GameSession
     {
         if (activeChainSkills.Count == 0) return [];
         var expired = activeChainSkills.Where(p => now >= p.Value).Select(p => p.Key).Order().ToList();
-        foreach (var id in expired) activeChainSkills.Remove(id);
+        foreach (var id in expired)
+        {
+            activeChainSkills.Remove(id);
+            if (data.IsBasicAttackChainSkill(id))
+                basicChainFamilyExpiredAt[ChainRoot(id)] = now;
+        }
         return expired.Count == 0 ? [] : [GamePackets.ChainSkillDeactiveList(expired)];
     }
 
     List<byte[]> ChainTickReplies(long now) => ChainExpireReplies(now);
+
+    internal void SetActiveChainSkillForTests(int skillId, long untilMs) => activeChainSkills[skillId] = untilMs;
+
+    internal List<byte[]> ChainCastRepliesForTests(int skillId, long now) => ChainCastReplies(skillId, now);
 
     IReadOnlyList<int> ContextSkillsForSlot(QuickSlotRecord slot) =>
         slot.ContextSkills is { Length: >= 4 } ctx ? ctx : data.DefaultContextSkills(slot.SkillId);

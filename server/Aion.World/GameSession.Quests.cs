@@ -45,20 +45,26 @@ public sealed partial class GameSession
         yield return GamePackets.QuestAdd(Wire(record));
     }
 
-    /// <summary>0x8d09 at world entry plus part HUD sync (0x8fbc cleared rows, 0x8d11 rewarded re-merge).</summary>
+    /// <summary>
+    /// 0x8d09 at world entry plus cleared-quest HUD sync (0x8fbc cleared rows, 0x8d11 rewarded re-merge). This used to cover only
+    /// quests with a Quest.dat Part, but Part is set only on Hero/Ascension quests (249 of 1429); the zone bar on the world map
+    /// counts District/Exploration/Duty quests too (Quest.dat SubzoneGroup / ExplorationType), so every known quest is re-sent.
+    /// </summary>
     List<byte[]> QuestJournalAtEntry()
     {
         if (questLog is null) return [];
         var wires = questLog.All.Select(Wire).ToList();
         if (wires.Count == 0) return [];
         var replies = new List<byte[]> { GamePackets.QuestList(wires) };
-        var cleared = questLog.All.Where(q => q.Status >= QuestLog.Rewarded && questLog.Book.Find(q.Code)?.Part is not null).Select(Wire).ToList();
+        var cleared = questLog.All.Where(q => q.Status >= QuestLog.Rewarded && IsJournalQuest(q.Code)).Select(Wire).ToList();
         if (cleared.Count > 0)
             replies.Add(GamePackets.QuestCompleteByItemUse(cleared));
-        foreach (var record in questLog.All.Where(q => q.Status == QuestLog.Rewarded && questLog.Book.Find(q.Code)?.Part is not null))
+        foreach (var record in questLog.All.Where(q => q.Status == QuestLog.Rewarded && IsJournalQuest(q.Code)))
             replies.Add(GamePackets.QuestAdd(Wire(record)));
         return replies;
     }
+
+    bool IsJournalQuest(string code) => questLog?.Book.Find(code) is not null;
 
     List<byte[]> QuestAcceptPackets(QuestRecord saved, int acceptNpcKey) =>
     [
@@ -145,6 +151,14 @@ public sealed partial class GameSession
         (questLog?.UnlockedContents() ?? []).Select(name => BuilderCommands.UnlockTypes.ToList().IndexOf(name)).Where(i => i > 0).Select(i => (byte)i);
 
     /// <summary>Saves and reports changed quests (0x8d10); quests that complete by themselves pay at once.</summary>
+    /// <summary>Debug: episode (Part) progress after a change. PartProgressPercent is server-side only; no packet carries it
+    /// (Common_Quest _roll_count is the 1-based index within the Part, not a percentage).</summary>
+    void NotePartProgress(QuestRecord record)
+    {
+        if (questLog?.Book.Find(record.Code)?.Part is not { Length: > 0 } part) return;
+        Note($"quest part {record.Code} part={part} roll={questLog.Book.PartRollIndex(record.Code)} progress={questLog.PartProgressPercent(part)}%");
+    }
+
     async Task<List<byte[]>> QuestChangesAsync(IEnumerable<QuestRecord> changed, CancellationToken ct)
     {
         var replies = new List<byte[]>();
@@ -158,8 +172,10 @@ public sealed partial class GameSession
                 {
                     Note($"quest transition {record.Code} milestone step={milestone.Step} status={milestone.Status} goals=[{string.Join(',', milestone.Goals)}]");
                     LogQuestEvent("quest_progress", record.Code, milestone.Step, milestone.Status, milestone.Goals);
-                    replies.Add(GamePackets.QuestProgress(Wire(milestone)));
+                    // QuestAdd (0x8d11) before QuestProgress (0x8d10), matching accept order.
                     replies.AddRange(QuestJournalSyncPackets(milestone));
+                    replies.Add(GamePackets.QuestProgress(Wire(milestone)));
+                    NotePartProgress(milestone);
                 }
             }
         var savedList = records.Count > 1 ? await SaveQuestBatchAsync(records, ct) : records.Count == 1 ? [await SaveQuestAsync(records[0], ct)] : [];
@@ -168,8 +184,9 @@ public sealed partial class GameSession
             var saved = savedList[i];
             Note($"quest transition {saved.Code} saved step={saved.Step} status={saved.Status} goals=[{string.Join(',', saved.Goals)}]");
             LogQuestEvent(saved.Status == QuestLog.Complete ? "quest_complete" : "quest_progress", saved.Code, saved.Step, saved.Status, saved.Goals);
-            replies.Add(GamePackets.QuestProgress(Wire(saved)));
             replies.AddRange(QuestJournalSyncPackets(saved));
+            replies.Add(GamePackets.QuestProgress(Wire(saved)));
+            NotePartProgress(saved);
             if (saved.Status == QuestLog.Complete && questLog!.Book.Find(saved.Code) is { Complete: "Auto" or "None" })
                 replies.AddRange(await QuestRewardAsync((int)saved.Uid, -1, 0, ct));
         }

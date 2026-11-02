@@ -54,7 +54,7 @@ public sealed class BasicChainLockoutWindowTests
     }
 
     [Fact]
-    public async Task Ranger_early_rapid_lockout_unlocks_client_without_advancing_chain()
+    public async Task Ranger_early_rapid_is_queued_silently_without_advancing_chain()
     {
         var session = await RangerAsync();
         var dummy = session.Targets![Combat.TrainingDummyKey];
@@ -64,7 +64,8 @@ public sealed class BasicChainLockoutWindowTests
         Assert.True(session.ActiveChainSkills.ContainsKey(RangerRapid));
 
         var early = await session.HandleAsync(Cast(RangerRapid, dummy.Key, at), t + 30);
-        Assert.Contains(early, p => GameSessionTestHelpers.Op(p) == 0x3801 && GameSession.CastResultCode(p) == GameSession.CastNotReadyResult);
+        // No 0x3801 failure: it cancelled the client's swing animation (live 2026-11-02). The queued wire is answered on drain.
+        Assert.DoesNotContain(early, p => GameSessionTestHelpers.Op(p) == 0x3801);
         Assert.DoesNotContain(early, p => GameSessionTestHelpers.Op(p) == 0x3802);
         Assert.DoesNotContain(early, p => GameSessionTestHelpers.Op(p) == 0x3819);
         Assert.True(session.ActiveChainSkills.ContainsKey(RangerRapid));

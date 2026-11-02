@@ -53,7 +53,7 @@ public sealed class ItemSetTables
     public int Bonus(IReadOnlyList<int> equippedItemIds, int hp, int hpMax, int mp, int mpMax, string stat)
     {
         var mapped = MapStat(stat);
-        var bySet = equippedItemIds.Where(itemToSet.ContainsKey).GroupBy(id => itemToSet[id]).ToDictionary(g => g.Key, g => g.Count());
+        var bySet = equippedItemIds.Distinct().Where(itemToSet.ContainsKey).GroupBy(id => itemToSet[id]).ToDictionary(g => g.Key, g => g.Count());
         var total = 0;
         foreach (var (setId, count) in bySet)
         {

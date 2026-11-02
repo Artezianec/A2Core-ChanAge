@@ -17,6 +17,7 @@ public sealed class DaevanionTables
     sealed record File([property: JsonPropertyName("boards")] Dictionary<string, BoardJson> Boards,
         [property: JsonPropertyName("nodes")] Dictionary<string, JsonElement> Nodes,
         [property: JsonPropertyName("creation_slot")] Dictionary<string, int> CreationSlot,
+        [property: JsonPropertyName("class_slot")] Dictionary<string, int>? ClassSlot,
         [property: JsonPropertyName("item_points")] Dictionary<string, ItemPointJson> ItemPoints,
         [property: JsonPropertyName("level_points")] Dictionary<string, Dictionary<string, int>>? LevelPoints,
         [property: JsonPropertyName("grid")] JsonElement Grid);
@@ -26,6 +27,7 @@ public sealed class DaevanionTables
     readonly Dictionary<int, Node> nodes;
     readonly Dictionary<int, Board> boards;
     readonly Dictionary<int, int> creationSlot;
+    readonly Dictionary<string, int> classSlot;
     readonly Dictionary<int, (int PointType, int Amount)> itemPoints;
     readonly Dictionary<int, List<int>> nodesByBoard = [];
     readonly Dictionary<int, Dictionary<int, int>> levelPoints = [];
@@ -36,6 +38,7 @@ public sealed class DaevanionTables
         boards = file.Boards.ToDictionary(p => int.Parse(p.Key, CultureInfo.InvariantCulture), p =>
             new Board(p.Value.Class, p.Value.Slot, p.Value.God, p.Value.Level, p.Value.Point));
         creationSlot = file.CreationSlot.ToDictionary(p => int.Parse(p.Key, CultureInfo.InvariantCulture), p => p.Value);
+        classSlot = (file.ClassSlot ?? []).ToDictionary(p => p.Key, p => p.Value, StringComparer.OrdinalIgnoreCase);
         itemPoints = file.ItemPoints.ToDictionary(p => int.Parse(p.Key, CultureInfo.InvariantCulture), p => (p.Value.PointType, p.Value.Amount));
         origin = (file.Grid.GetProperty("origin").GetProperty("r").GetInt32(), file.Grid.GetProperty("origin").GetProperty("c").GetInt32());
         if (file.LevelPoints is not null)
@@ -84,6 +87,21 @@ public sealed class DaevanionTables
     public Board? BoardOf(int boardId) => boards.GetValueOrDefault(boardId);
     public IReadOnlyList<int> NodesOfBoard(int boardId) => nodesByBoard.GetValueOrDefault(boardId) ?? [];
     public int ClassSlot(int creationId) => creationSlot.GetValueOrDefault(creationId);
+
+    public int ClassSlotForClassName(string? className)
+    {
+        if (string.IsNullOrWhiteSpace(className)) return 0;
+        return classSlot.GetValueOrDefault(className.ToLowerInvariant());
+    }
+
+    /// <summary>Prefer the session class name (starter profile / DB class field), then creation_id fallback.</summary>
+    public int ResolveClassSlot(int creationId, string? className)
+    {
+        var fromClass = ClassSlotForClassName(className);
+        if (fromClass != 0) return fromClass;
+        return ClassSlot(creationId);
+    }
+
     public (int PointType, int Amount)? ItemGrant(int templateId) => itemPoints.TryGetValue(templateId, out var grant) ? grant : null;
     public (int Row, int Col) Origin => origin;
 
@@ -94,14 +112,15 @@ public sealed class DaevanionTables
         return byLevel.GetValueOrDefault(level);
     }
 
-    /// <summary>Board ids for a creation profile (five gods).</summary>
-    public IEnumerable<int> BoardsForCreation(int creationId)
+    public IEnumerable<int> BoardsForSlot(int slot)
     {
-        var slot = ClassSlot(creationId);
         if (slot == 0) yield break;
         foreach (var id in boards.Keys.Where(b => boards[b].Slot == slot).OrderBy(b => b))
             yield return id;
     }
+
+    /// <summary>Board ids for a creation profile (five gods).</summary>
+    public IEnumerable<int> BoardsForCreation(int creationId, string? className = null) => BoardsForSlot(ResolveClassSlot(creationId, className));
 
     public int StartNodeId(int boardId)
     {

@@ -4,8 +4,8 @@ using Xunit;
 namespace Aion.World.Tests;
 
 /// <summary>
-/// The follow-up a turn-in adds by itself (0x8d11) is gated by Quest.dat: AcquireType Auto, or Npc given by the turn-in NPC.
-/// Regression: Zakl (Dark) got quests he had not taken from their NPC when the reward added any Next unconditionally.
+/// The follow-up a turn-in adds by itself (0x8d11) is gated by Quest.dat: only AcquireType Auto.
+/// Npc follow-ups (even from the turn-in NPC) wait for an explicit accept. Regression: reward used to add any Next unconditionally.
 /// </summary>
 public sealed class QuestFollowUpGatingTests
 {

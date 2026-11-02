@@ -176,12 +176,17 @@ public sealed class RewardBoxes
     public List<(int ItemId, long Count)>? Roll(string group, int selectIndex, int count, Random rng)
     {
         if (!file.Boxes.TryGetValue(group, out var box)) return null;
+        if (box.Select.Length > 0 && (selectIndex < 0 || selectIndex >= box.Select.Length)) return null;
         var rewards = new Dictionary<int, long>();
         void Add(int item, long n) => rewards[item] = rewards.GetValueOrDefault(item) + n;
         for (var open = 0; open < count; open++)
         {
             foreach (var item in box.Items) Add(item[0], item[1]);
-            if (box.Select.Length > 0) { var chosen = box.Select[Math.Clamp(selectIndex, 0, box.Select.Length - 1)]; Add(chosen[0], chosen[1]); }
+            if (box.Select.Length > 0)
+            {
+                var chosen = box.Select[selectIndex];
+                Add(chosen[0], chosen[1]);
+            }
             foreach (var package in box.Packages)
             {
                 var name = package[0].GetString()!;

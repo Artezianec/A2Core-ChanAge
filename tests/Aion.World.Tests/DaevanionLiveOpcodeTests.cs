@@ -124,6 +124,34 @@ public sealed class DaevanionLiveOpcodeTests
     }
 
     [Fact]
+    public async Task Creation_six_ranger_skills_at_login_use_board_31_start_310113()
+    {
+        var store = new FakeCharacterStore();
+        var data = GameData.Embedded;
+        var rangerSkills = data.Profile(5, 1)!.Skills;
+        var session = new GameSession(data, new GameSessionOptions { CharacterLevel = 16, WorldId = 1204 }, new Random(11))
+        {
+            Store = store,
+        };
+        const long now = 1_760_010_400_000;
+        await session.HandleAsync(GameSessionTestHelpers.Login(), now);
+        await session.HandleAsync(new PacketWriter().U16(0x361b).String("ArcherSix").U8(1).U32(6).Bytes([0x0c, 0x64]).U8(2).U8(1).U8(0).ToArray(), now);
+        foreach (var skillId in rangerSkills)
+            store.Skills.Add(new SkillState(skillId, 1, null, 0));
+        store.Daevanion = new DaevanionProgress([610113], new Dictionary<int, int> { [1] = 1 }, new Dictionary<int, int>());
+        store.States[0] = store.States[0] with { Progress = store.States[0].Progress with { Level = 16 } };
+        var wireId = store.States[0].WireId;
+        await session.HandleAsync(new PacketWriter().U16(0x361f).Varint((uint)wireId << 16).I32(0).Vec3(Vector3d.Zero).ToArray(), now);
+        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), now);
+
+        Assert.Equal("Ranger", session.ClassName);
+        Assert.NotNull(store.Daevanion);
+        Assert.Contains(310113, store.Daevanion!.NodeIds);
+        Assert.DoesNotContain(610113, store.Daevanion.NodeIds);
+        Assert.Equal(0, store.Daevanion.UsedPoints.GetValueOrDefault(1));
+    }
+
+    [Fact]
     public async Task EnsureStartNodes_prunes_legacy_board_61_start_and_opens_ranger_310113()
     {
         const int rangerCreation = 5;

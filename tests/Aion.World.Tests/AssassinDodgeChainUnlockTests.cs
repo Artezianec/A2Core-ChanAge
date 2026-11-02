@@ -104,8 +104,8 @@ public sealed class AssassinDodgeChainUnlockTests
         AssertCastUnlock(dodgeAfterSwift, "dodge after combo");
         Assert.True(CastAccepted(dodgeAfterSwift));
         var dodgeCd = await session.HandleAsync(SelfDodge(at, session.PlayerKey), t + 650);
-        AssertCastUnlock(dodgeCd, "dodge on cooldown after combo");
-        Assert.Equal(GamePackets.DodgeResult(Dodge, 1), dodgeCd.First(p => GameSessionTestHelpers.Op(p) == 0x3801));
+        // Pressed while the previous dodge still plays: ignored, never the 9-byte refusal that froze the client mid-dash.
+        Assert.Empty(dodgeCd);
     }
 
     [Fact]
@@ -137,8 +137,8 @@ public sealed class AssassinDodgeChainUnlockTests
 
         session.SetResource('S', session.Resource.SpMax);
         var dodgeCd = await session.HandleAsync(SelfDodge(at, session.PlayerKey), t + 700);
-        AssertCastUnlock(dodgeCd, "dodge on cooldown after mid-cast dodge");
-        Assert.Equal(GamePackets.DodgeResult(Dodge, 1), dodgeCd.First(p => GameSessionTestHelpers.Op(p) == 0x3801));
+        // Pressed while the previous dodge still plays: ignored, never the 9-byte refusal that froze the client mid-dash.
+        Assert.Empty(dodgeCd);
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public sealed class AssassinDodgeChainUnlockTests
 
         Assert.True(CastAccepted(await session.HandleAsync(SelfDodge(at, session.PlayerKey), t)));
         var dodgeCd = await session.HandleAsync(SelfDodge(at, session.PlayerKey), t + 50);
-        AssertCastUnlock(dodgeCd, "dodge on cooldown");
-        Assert.Equal(GamePackets.DodgeResult(Dodge, 1), dodgeCd.First(p => GameSessionTestHelpers.Op(p) == 0x3801));
+        // Pressed while the previous dodge still plays: ignored, never the 9-byte refusal that froze the client mid-dash.
+        Assert.Empty(dodgeCd);
     }
 }

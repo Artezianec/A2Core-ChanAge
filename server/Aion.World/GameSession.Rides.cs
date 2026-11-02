@@ -167,12 +167,20 @@ public sealed partial class GameSession
         var itemId = row?.TemplateId ?? 0;
         List<byte[]> Fail() => [RidePackets.OpenBoxReply(1, uid, itemId, select, count, [])];
         if (Store is not { } store || CharacterId is not { } character || row is null || row.Location != "bag"
+            || resources is null || dead
             || Boxes.Use(row.TemplateId) is not { Effect: "RewardBox", Values: [var group, ..] })
             return Fail();
+        var boxCooldown = Boxes.Cooldown(row.TemplateId);
+        if (boxCooldown.Group != "None" && now < itemCooldowns.GetValueOrDefault(boxCooldown.Group)) return Fail();
         count = (int)Math.Min(Math.Clamp(count, 1, Math.Max(1, Boxes.MaxOpen(group))), row.Quantity);
         if (count < 1 || Boxes.Roll(group, select, count, rng) is not { } rewards) return Fail();
         var done = await Stored(async () => await store.ConsumeAndGrantAsync(character, row.InstanceId, row.Revision, count, rewards, ct) ? [[]] : []);
         if (done.Count == 0) return Fail();
+        if (boxCooldown.Group != "None")
+        {
+            itemCooldowns[boxCooldown.Group] = now + boxCooldown.CooldownMs;
+            MarkItemCooldownDirty();
+        }
         var replies = new List<byte[]> { RidePackets.OpenBoxReply(0, uid, itemId, select, count, rewards) };
         replies.AddRange(await InventoryChangesAsync(ct, IncreaseOpenRewardBox, DecreaseOpenRewardBox));
         replies.AddRange(await AutoUseAcquiredItemsAsync(rewards.Select(r => r.Item1), now, ct));
@@ -211,6 +219,7 @@ public sealed partial class GameSession
         var replies = Used(row, reply);
         replies.AddRange(await InventoryChangesAsync(ct, 0, DecreaseItemUse));
         replies.Add(GamePackets.WingList(OwnedWings()));
+        replies.AddRange(RefreshStats());   // owned-wing stats
         return replies;
     }
 
@@ -262,6 +271,9 @@ public sealed partial class GameSession
         var use = Boxes.Use(row.TemplateId);
         if (Store is not { } store || CharacterId is not { } character || resources is null || dead)
             return Fail(uid);
+        var useCooldown = Boxes.Cooldown(row.TemplateId);
+        if (useCooldown.Group != "None" && now < itemCooldowns.GetValueOrDefault(useCooldown.Group))
+            return Fail(uid);
 
         List<byte[]>? effectReplies = use?.Effect switch
         {
@@ -281,7 +293,8 @@ public sealed partial class GameSession
         if (use is not null)
         {
             var cooldown = Boxes.Cooldown(row.TemplateId);
-            if (cooldown.Group != "None")
+            // Return scroll: the cooldown starts when the cast completes (CompleteItemCastAsync).
+            if (cooldown.Group != "None" && use.Effect != "Telpo_Home")
             {
                 itemCooldowns[cooldown.Group] = now + cooldown.CooldownMs;
                 MarkItemCooldownDirty();
@@ -303,10 +316,10 @@ public sealed partial class GameSession
         storedItems.TryGetValue(uid, out var row);
         var itemId = row?.TemplateId ?? 0;
         var use = row is null ? null : Boxes.Use(row.TemplateId);
-        if (use is { Effect: "RewardBox" }) return await OpenBoxAsync(uid, 0, 1, now, ct);
         List<byte[]> Fail() => reply ? [RidePackets.ItemUseReply(1, uid, itemId)] : [];
         if (Store is not { } store || CharacterId is not { } character || row is null || row.Location != "bag" || resources is null || dead)
             return Fail();
+        if (use is { Effect: "RewardBox" }) return await OpenBoxAsync(uid, 0, 1, now, ct);
         var questAcquire = await TryQuestAcquireFromItemAsync(store, character, row, use, now, reply, ct);
         if (questAcquire.Count > 0) return questAcquire;
         if (use is null)
@@ -343,7 +356,8 @@ public sealed partial class GameSession
             LogItemUseRefused(itemId, use.Effect, Boxes.ImplementsUseEffect(use.Effect) ? "handler_failed" : "unimplemented_use_effect");
             return Fail();
         }
-        if (cooldown.Group != "None")
+        // Return scroll: the cooldown starts when the cast completes (CompleteItemCastAsync), not at cast start.
+        if (cooldown.Group != "None" && use.Effect != "Telpo_Home")
         {
             itemCooldowns[cooldown.Group] = now + cooldown.CooldownMs;
             MarkItemCooldownDirty();
@@ -509,7 +523,14 @@ public sealed partial class GameSession
                 case "FpHeal_Item": fp += Roll(e); break;
             }
         var abnormal = effects.Any(e => e.Type == "Abnormal_True");
-        if (!ItemSkillSupported(effects) || (hp == 0 && mp == 0 && fp == 0 && !abnormal && !effects.Any(e => e.Type is "Dispel_True" or "NoEffect")))
+        var dispel = effects.Any(e => e.Type == "Dispel_True");
+        var noEffect = effects.Any(e => e.Type == "NoEffect");
+        if (hp > 0 && r.Hp >= r.HpMax) hp = 0;
+        if (mp > 0 && r.Mp >= r.MpMax) mp = 0;
+        if (fp > 0 && r.FpMax > 0 && r.Fp >= r.FpMax) fp = 0;
+        if (!ItemSkillSupported(effects) || (hp == 0 && mp == 0 && fp == 0 && !abnormal && !dispel && !noEffect))
+            return null;
+        if (abnormal && !CanApplyItemAbnormals(effects))
             return null;
         var done = await Stored(async () => await store.ConsumeItemAsync(character, row.InstanceId, row.Revision, 1, ct) ? [[]] : []);
         if (done.Count == 0) return null;
@@ -556,8 +577,17 @@ public sealed partial class GameSession
         if (itemCast is not { } cast || now < cast.DueMs) return [];
         itemCast = null;
         if (Store is not { } store || CharacterId is not { } character || !storedItems.TryGetValue(cast.Key, out var row) || resources is null || dead) return [];
+        var cooldown = Boxes.Cooldown(cast.ItemId);
+        if (row.Location != "bag" || row.TemplateId != cast.ItemId
+            || (cooldown.Group != "None" && now < itemCooldowns.GetValueOrDefault(cooldown.Group)))
+            return [RidePackets.ItemUseInterrupted(playerKey, cast.Key, cast.ItemId, 0)];
         var done = await Stored(async () => await store.ConsumeItemAsync(character, row.InstanceId, row.Revision, 1, ct) ? [[]] : []);
         if (done.Count == 0) return [RidePackets.ItemUseInterrupted(playerKey, cast.Key, cast.ItemId, 0)];
+        if (cooldown.Group != "None")
+        {
+            itemCooldowns[cooldown.Group] = now + cooldown.CooldownMs;
+            MarkItemCooldownDirty();
+        }
         var completed = RidePackets.ItemUseCompleted(playerKey, cast.Key, cast.ItemId);
         worldPlayer?.Map?.Broadcast(worldPlayer, [completed]);
         var (targetMap, home) = TelpoHomeDestination();

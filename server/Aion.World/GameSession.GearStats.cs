@@ -20,7 +20,7 @@ public sealed partial class GameSession
     /// <summary>Equipped template + rolled instance stats (alias kept for tests).</summary>
     public int GearStat(string stat) => EquipStat(stat);
 
-    int ExtraFixing => EquipStat("FixingDamage") + SetStat("FixingDamage") + TitleStat("FixingDamage")
+    int ExtraFixing => AggregatedStat("FixingDamage", ItemStats.WireOf("FixingDamage") ?? 0)
         + EnchantStat("WeaponFixingDamage") + ExceedStat("WeaponFixingDamage");
 
     /// <summary>Item.dat MainStats on all equipped pieces (tools/data/items.json).</summary>
@@ -75,13 +75,12 @@ public sealed partial class GameSession
     int EquipStat(string stat) => EquipTemplateStat(stat) + EquipInstanceStat(stat) + EquipFixedSubstatStat(stat);
 
     int AttributeStat(string stat) =>
-        data.BaseStats(className, level).GetValueOrDefault(stat) + EquipStat(stat) + BuffStat(stat) + TitleStat(stat)
-        + SetStat(stat) + BoardStat(stat) + (ItemStats.WireOf(stat) is int wire ? DaevanionWireStat(wire) : 0);
+        data.BaseStats(className, level).GetValueOrDefault(stat) + AggregatedStat(stat, ItemStats.WireOf(stat) ?? 0);
 
     /// <summary>Combat stat total used in formulas and the stat sheet.</summary>
     int AggregatedStat(string stat, int daevanionWire) =>
         EquipStat(stat) + BuffStat(stat) + TitleStat(stat) + EnchantStat(stat) + ExceedStat(stat) + BoardStat(stat)
-        + SetStat(stat) + RideStat(stat) + DaevanionWireStat(daevanionWire);
+        + SetStat(stat) + RideStat(stat) + WingStat(stat) + DaevanionWireStat(daevanionWire);
 
     /// <summary>Wire values for combat stats not handled by the legacy DefaultStats switch.</summary>
     IReadOnlyDictionary<int, int> ExtraSheetStats()
@@ -183,17 +182,21 @@ public sealed partial class GameSession
 
     int PlayerExtraAccuracy() => AttributeStat("DEX") * CombatAttributes.DexToAccuracyPerPoint;
 
-    IReadOnlyList<Hit> PlayerSkillHits(int skillId, int targetDefense, bool pvp = false) =>
+    int PlayerCritDamageBp() => CombatStat("AmplifyCriticalDamage", 29);
+
+    IReadOnlyList<Hit> PlayerSkillHits(int skillId, int targetDefense, bool pvp = false, int victimLevel = 0) =>
         Combat.SkillHits(data, skillId, className, level, equippedWeapon, targetDefense, rng, pvp,
             extraFixing: ExtraFixing, weaponOverride: PlayerWeaponStats(), amplifyAllBp: PlayerAmplifyAllBp(),
             defensePierceBp: PlayerDefensePierceBp(), attackAmplifyBp: PlayerAttackAmplifyBp(),
-            extraCritical: PlayerExtraCritical(), extraAccuracy: PlayerExtraAccuracy());
+            extraCritical: PlayerExtraCritical(), extraAccuracy: PlayerExtraAccuracy(),
+            skillLevel: SkillLevel(skillId), victimLevel: victimLevel, critDamageBp: PlayerCritDamageBp());
 
-    IReadOnlyList<Hit> PlayerRowHits(IEnumerable<DamageRow> rows, int targetDefense, bool pvp = false) =>
+    IReadOnlyList<Hit> PlayerRowHits(IEnumerable<DamageRow> rows, int targetDefense, bool pvp = false, int victimLevel = 0, int skillLevel = 1) =>
         Combat.RowHits(data, rows, className, level, equippedWeapon, targetDefense, rng, pvp,
             extraFixing: ExtraFixing, weaponOverride: PlayerWeaponStats(), amplifyAllBp: PlayerAmplifyAllBp(),
             defensePierceBp: PlayerDefensePierceBp(), attackAmplifyBp: PlayerAttackAmplifyBp(),
-            extraCritical: PlayerExtraCritical(), extraAccuracy: PlayerExtraAccuracy());
+            extraCritical: PlayerExtraCritical(), extraAccuracy: PlayerExtraAccuracy(),
+            skillLevel: skillLevel, victimLevel: victimLevel, critDamageBp: PlayerCritDamageBp());
 
     internal int AttackSpeedForTests => AttackSpeed;
 
