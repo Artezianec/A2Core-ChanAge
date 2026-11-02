@@ -223,7 +223,7 @@ public static class RidePackets
     /// <summary>0x5613 ItemUse_RS: result | item uid i64 | item id i32.</summary>
     public static byte[] ItemUseReply(int result, long uid, int itemId) => PacketWriter.Opcode(ItemUseRs).U16(result).I64(uid).I32(itemId).ToArray();
 
-    /// <summary>0x5615 ItemUseByItemID_RS (dev 0x3757 + 0x1ebe): result i32 | uid i64 | item id i32 | use count i32.</summary>
+    /// <summary>0x5615 ItemUseByItemID_RS (dev 0x3757 + 0x1ebe): result i32 | uid i64 | item id i32 | use count i32 | pad i32.</summary>
     public static byte[] ItemUseByItemIdReply(int result, long uid, int itemId, int useCount) =>
         PacketWriter.Opcode(ItemUseByItemIdRs).I32(result).I64(uid).I32(itemId).I32(useCount).I32(0).ToArray();
 

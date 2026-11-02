@@ -21,6 +21,15 @@ class LootDataEnvMappingTests(unittest.TestCase):
         envs = loot_data.build_env_loot(tables)
         self.assertEqual(['reward_manual_E_L1_HQ_GodFragment_01'], envs['1201290'])
 
+    def test_apply_env_patches_keeps_rewarddata_envs_and_adds_s1_treasure(self):
+        data = json.loads(Path('tools/data/loot.json').read_text(encoding='utf-8'))
+        before = len(data.get('envs', {}))
+        data = loot_data.apply_env_patches(data)
+        self.assertGreaterEqual(len(data['envs']), before)
+        self.assertIn('1201290', data['envs'])
+        self.assertIn('1100130', data['envs'])
+        self.assertIn('reward_manual_FieldEvent_L_TreasureBox_1100130', data['tables'])
+
 
 if __name__ == '__main__':
     unittest.main()

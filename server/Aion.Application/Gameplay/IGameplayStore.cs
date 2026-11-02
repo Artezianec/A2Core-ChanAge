@@ -58,7 +58,7 @@ public sealed record AdminCommand(Guid RequestId, Guid CharacterId, string Comma
 /// <summary>A ride (pet/mount, VehicleList id): level, soul points, and whether it is acquired (souls collect before).</summary>
 public sealed record RideRecord(int RideId, int Level, int SoulPoints, bool Owned = true);
 /// <summary>A hotbar slot: EQuickSlotType (0 skill, 1 item, ...), the item (uid, template) or skill.</summary>
-public sealed record QuickSlotRecord(int Slot, int Type, long ItemUid, int ItemId, int SkillId, int[]? ContextSkills = null);
+public sealed record QuickSlotRecord(int Slot, int Type, long ItemUid, int ItemId, int SkillId, int[]? ContextSkills = null, bool AutoUse = false);
 
 /// <summary>A creature board: ECreatureType, level, exp and its panels as JSON ({"1": [[slot, grade, stat, value, locked], ...]}).</summary>
 public sealed record CreatureBoardRecord(int Type, int Level, long Exp, string Panels);
@@ -258,6 +258,8 @@ public interface IGameplayStore
     Task<int> ExtendedCharacterSlotsAsync(VerifiedAccount account, CancellationToken ct = default) => Task.FromResult(0);
     /// <summary>Gold-paid bag row extension (ItemContainerSlotExtend): "ok", "none", "container", "kina", "count".</summary>
     Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendInventoryByGoldAsync(VerifiedAccount account, Guid character, int costIdx, CancellationToken ct = default);
+    /// <summary>Gold-paid personal warehouse row extension (ItemContainerSlotExtend, kStorage): same result codes as bag.</summary>
+    Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendStorageByGoldAsync(VerifiedAccount account, Guid character, int costIdx, CancellationToken ct = default);
     /// <summary>Moves a bag item to a bag slot; an item already there takes the moved item's old slot.</summary>
     Task<bool> MoveBagItemAsync(VerifiedAccount account, Guid character, Guid item, long revision, int slot, CancellationToken ct = default);
     /// <summary>Moves a bag or warehouse item to a slot of 'bag' or 'storage' (the item on that slot takes the old one).</summary>

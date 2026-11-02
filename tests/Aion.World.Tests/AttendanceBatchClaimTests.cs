@@ -15,9 +15,9 @@ public sealed class AttendanceBatchClaimTests
     public async Task Batch_claim_sends_568a_before_5684_and_persists_rewarded_step()
     {
         var store = new FakeCharacterStore();
+        GameSessionTestHelpers.SeedAttendanceCheckedInNotRewarded(store, Now + 100);
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
         var board = GameSession.LatestAttendanceSeasons(1, Now + 100).Single(e => e.Board.SeasonGroupId == 37).Board;
-        await session.HandleAsync([0x4d, 0xe3], Now + 100);
 
         var batch = await session.HandleAsync(
             new PacketWriter().U16(GameSession.TakeAchievementRewardBatchRq).U8(7).I32(GlobalAttendanceGroup).U8(1).ToArray(),
@@ -43,9 +43,9 @@ public sealed class AttendanceBatchClaimTests
     public async Task Single_claim_sends_5684_before_5686()
     {
         var store = new FakeCharacterStore();
+        GameSessionTestHelpers.SeedAttendanceCheckedInNotRewarded(store, Now + 100);
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
         var board = GameSession.LatestAttendanceSeasons(1, Now + 100)[0].Board;
-        await session.HandleAsync([0x4d, 0xe3], Now + 100);
         var reward = await session.HandleAsync(
             new PacketWriter().U16(GameSession.TakeAchievementRewardRq).I32(board.Achievement).U8(1).ToArray(),
             Now + 101);

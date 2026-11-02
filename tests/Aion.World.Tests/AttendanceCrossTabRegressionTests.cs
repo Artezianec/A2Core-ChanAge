@@ -45,10 +45,10 @@ public sealed class AttendanceCrossTabRegressionTests
     public async Task Claim_event_B_after_A_keeps_A_rewarded_in_5684_and_56b6()
     {
         var store = new FakeCharacterStore();
+        GameSessionTestHelpers.SeedAttendanceCheckedInNotRewarded(store, Now + 100);
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
         var seasons = GameSession.LatestAttendanceSeasons(1, Now + 100);
         var todayKey = ContentResetSchedule.GameDayKey(Now + 200);
-        await session.HandleAsync([0x4d, 0xe3], Now + 100);
 
         var first = seasons[0].Board;
         var second = seasons[1].Board;
@@ -75,25 +75,23 @@ public sealed class AttendanceCrossTabRegressionTests
     public async Task Attendance_refresh_between_claims_keeps_prior_reward_day()
     {
         var store = new FakeCharacterStore();
+        GameSessionTestHelpers.SeedAttendanceCheckedInNotRewarded(store, Now + 100);
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
         var seasons = GameSession.LatestAttendanceSeasons(1, Now + 100);
         var todayKey = ContentResetSchedule.GameDayKey(Now + 200);
-        await session.HandleAsync([0x4d, 0xe3], Now + 100);
 
         var first = seasons[0].Board;
         var last = seasons[^1].Board;
         await session.HandleAsync(
             new PacketWriter().U16(GameSession.TakeAchievementRewardRq).I32(first.Achievement).U8(1).ToArray(),
             Now + 101);
-        await session.HandleAsync([0x4d, 0xe3], Now + 102);
+        var refresh = await session.HandleAsync([0x4d, 0xe3], Now + 102);
 
-        var claimLast = await session.HandleAsync(
-            new PacketWriter().U16(GameSession.TakeAchievementRewardRq).I32(last.Achievement).U8(1).ToArray(),
-            Now + 103);
-        var contents = Assert.Single(claimLast, p => GameSessionTestHelpers.Op(p) == GameSession.AccountContentsInfoListNt);
+        var contents = Assert.Single(refresh, p => GameSessionTestHelpers.Op(p) == GameSession.AccountContentsInfoListNt);
         var first56b6 = Assert.Single(Parse56b6(contents), e => e.GroupId == first.SeasonGroupId);
         Assert.Equal(todayKey, first56b6.Value1);
         Assert.Equal(todayKey, first56b6.Value2);
+        Assert.Equal(todayKey, Assert.Single(Parse56b6(contents), e => e.GroupId == last.SeasonGroupId).Value2);
     }
 
     [Fact]
@@ -103,8 +101,8 @@ public sealed class AttendanceCrossTabRegressionTests
         var seasons = GameSession.LatestAttendanceSeasons(1, Now + 100);
         var todayKey = ContentResetSchedule.GameDayKey(Now + 200);
 
+        GameSessionTestHelpers.SeedAttendanceCheckedInNotRewarded(store, Now + 100);
         var session1 = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
-        await session1.HandleAsync([0x4d, 0xe3], Now + 100);
         foreach (var (_, board) in seasons.Take(3))
             await session1.HandleAsync(
                 new PacketWriter().U16(GameSession.TakeAchievementRewardRq).I32(board.Achievement).U8(1).ToArray(),

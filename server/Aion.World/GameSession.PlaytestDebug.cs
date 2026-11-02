@@ -195,14 +195,36 @@ public sealed partial class GameSession
     void LogSkillPoints(int skillId, int level, string context) =>
         PlaytestDebug.Action("skill_point", ("skillId", skillId), ("level", level), ("context", context));
 
+    void LogContainerSlotExtend(byte container, int costIdx, int result, int extensionCount) =>
+        PlaytestDebug.Action("container_slot_extend",
+            ("container", container), ("costIdx", costIdx), ("result", result), ("extensionCount", extensionCount));
+
     void LogItemUse(int templateId, string? name) =>
         PlaytestDebug.Action("item_use", ("templateId", templateId), ("name", name ?? ""));
 
     void LogItemUseRefused(int templateId, string? effect, string reason) =>
         PlaytestDebug.Action("item_use_refused", ("templateId", templateId), ("effect", effect ?? ""), ("reason", reason));
 
+    void LogQuickSlotAutoUse(int templateId, int slot, string source) =>
+        PlaytestDebug.Action("quickslot_auto_use", ("templateId", templateId), ("slot", slot), ("source", source));
+
     void LogItemGain(int templateId, int count, string source) =>
         PlaytestDebug.Action("item_gain", ("templateId", templateId), ("count", count), ("source", source));
+
+    void LogAchievementReward(string source, int step, IReadOnlyList<(int ItemId, long Count)> items, int? achievementId = null, int? groupId = null) =>
+        PlaytestDebug.Action("achievement_reward",
+            ("source", source),
+            ("achievementId", achievementId),
+            ("groupId", groupId),
+            ("step", step),
+            ("grants", items.Count == 0 ? "" : string.Join(';', items.Select(i => $"{i.ItemId}x{i.Count}"))));
+
+    void LogAttendanceCollect(bool checkedIn, int rewardsClaimed, int rewardsFailed, int result) =>
+        PlaytestDebug.Action("attendance_collect",
+            ("checkedIn", checkedIn),
+            ("rewardsClaimed", rewardsClaimed),
+            ("rewardsFailed", rewardsFailed),
+            ("result", result));
 
     void LogCharacterCreate(CreateRequestData request, bool accepted, int? accountRace = null, int? race = null, int resultCode = 0)
     {

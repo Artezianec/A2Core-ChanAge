@@ -74,7 +74,8 @@ public sealed class OfficialRangerChainCaptureTests
         Assert.Equal(GamePackets.ChainSkillActiveList(Snipe, [RapidFire]), step1.Single(p => Op(p) == 0x3818));
         Assert.Equal((ushort)0, GameSession.CastResultCode(step1.Single(p => Op(p) == 0x3801)));
 
-        var step2 = await session.HandleAsync(Cast(RapidFire), t + l1);
+        var t2 = t + Math.Max(l1, session.HeldCastLockoutRemainingMs(t) + 1);
+        var step2 = await session.HandleAsync(Cast(RapidFire), t2);
         var ops2 = step2.Select(Op).ToList();
         Assert.True(ops2.IndexOf(0x3802) < ops2.IndexOf(0x3818));
         Assert.True(ops2.IndexOf(0x3818) < ops2.IndexOf(0x3819));
@@ -82,7 +83,8 @@ public sealed class OfficialRangerChainCaptureTests
         Assert.Equal(GamePackets.ChainSkillActiveList(RapidFire, [SpiralArrow]), step2.Single(p => Op(p) == 0x3818));
         Assert.Equal(GamePackets.ChainSkillDeactiveList([RapidFire]), step2.Single(p => Op(p) == 0x3819));
 
-        var step3 = await session.HandleAsync(Cast(SpiralArrow), t + l1 + l2);
+        var t3 = t2 + Math.Max(l2, session.HeldCastLockoutRemainingMs(t2) + 1);
+        var step3 = await session.HandleAsync(Cast(SpiralArrow), t3);
         var ops3 = step3.Select(Op).ToList();
         Assert.DoesNotContain((ushort)0x3818, ops3);
         Assert.True(ops3.IndexOf(0x3802) < ops3.IndexOf(0x3819));
@@ -100,12 +102,9 @@ public sealed class OfficialRangerChainCaptureTests
         var resend = await session.HandleAsync(Cast(Snipe), t + 17);
         Assert.Contains(resend, p => Op(p) == 0x3801 && GameSession.CastResultCode(p) == GameSession.CastNotReadyResult);
         var other = await session.HandleAsync(Cast(RapidFire), t + 30);
-        Assert.DoesNotContain(other, p => Op(p) == 0x3801);
+        Assert.Contains(other, p => Op(p) == 0x3801 && GameSession.CastResultCode(p) == GameSession.CastNotReadyResult);
         var drainAt = t + session.HeldCastLockoutRemainingMs(t + 1) + 1;
-        var replies = new List<byte[]>();
-        for (var at = t + 30; at <= drainAt; at += 17)
-            replies.AddRange(await session.HandleAsync(Cast(RapidFire), at));
-        replies.AddRange(await session.TickAsync(drainAt));
-        Assert.Contains(replies, p => Op(p) == 0x3801 && GameSession.CastResultCode(p) == 0);
+        var accept = await session.HandleAsync(Cast(RapidFire), drainAt);
+        Assert.Contains(accept, p => Op(p) == 0x3801 && GameSession.CastResultCode(p) == 0);
     }
 }

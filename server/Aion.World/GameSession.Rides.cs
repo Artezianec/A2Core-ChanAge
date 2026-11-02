@@ -237,7 +237,7 @@ public sealed partial class GameSession
 
     /// <summary>
     /// 0x5614 ItemUseByItemID_RQ (dev 0x3756 + 0x1ebe, 22 bytes): uid i64 | item id i32 | use count i32 | pad i32.
-    /// The Daevanion crystal and Wisdom Stone (battle crystal) UIs use this instead of 0x5612.
+    /// Daevanion / godstone UIs and quickbar auto-use (may send template id with a stale uid; resolved via bag stack).
     /// </summary>
     async Task<List<byte[]>> UseItemByItemIdAsync(byte[] plain, long now, CancellationToken ct)
     {
@@ -246,13 +246,22 @@ public sealed partial class GameSession
         var uid = BitConverter.ToInt64(plain, 2);
         var itemId = BitConverter.ToInt32(plain, 10);
         var useCount = Math.Max(1, BitConverter.ToInt32(plain, 14));
-        List<byte[]> Fail() => [RidePackets.ItemUseByItemIdReply(1, uid, itemId, useCount)];
+        List<byte[]> Fail(long? failUid = null) => [RidePackets.ItemUseByItemIdReply(1, failUid ?? uid, itemId, useCount)];
 
         storedItems.TryGetValue(uid, out var row);
-        var use = row is null ? null : Boxes.Use(row.TemplateId);
-        if (Store is not { } store || CharacterId is not { } character || row is null || row.Location != "bag"
-            || resources is null || dead || row.TemplateId != itemId || row.Quantity < useCount)
-            return Fail();
+        if (row is null || row.Location != "bag" || row.TemplateId != itemId || row.Quantity < useCount)
+        {
+            if (useCount == 1 && ResolveBagStack(itemId, uid) is { } stack)
+            {
+                uid = WireKey(stack);
+                row = stack;
+            }
+            else return Fail();
+        }
+
+        var use = Boxes.Use(row.TemplateId);
+        if (Store is not { } store || CharacterId is not { } character || resources is null || dead)
+            return Fail(uid);
 
         List<byte[]>? effectReplies = use?.Effect switch
         {
@@ -265,9 +274,9 @@ public sealed partial class GameSession
         {
             if (use is not null)
                 LogItemUseRefused(itemId, use.Effect, Boxes.ImplementsUseEffect(use.Effect) ? "handler_failed" : "unimplemented_use_effect");
-            return Fail();
+            return Fail(uid);
         }
-        if (effectReplies.Count == 0) return Fail();
+        if (effectReplies.Count == 0) return Fail(uid);
 
         if (use is not null)
         {
@@ -279,6 +288,7 @@ public sealed partial class GameSession
             }
             effectReplies.AddRange(AchieveItemUse(itemId, use.Effect));
             LogItemUse(itemId, use.Effect);
+            if (use.Effect == "Skill") LogQuickSlotAutoUse(itemId, -1, "client");
         }
 
         return [RidePackets.ItemUseByItemIdReply(0, uid, itemId, useCount), .. effectReplies];

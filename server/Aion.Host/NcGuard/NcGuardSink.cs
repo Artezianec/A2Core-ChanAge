@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Logging;
+using Aion.World;
 
 namespace Aion.Host.NcGuard;
 
@@ -186,28 +187,40 @@ public sealed class NcGuardSink : BackgroundService
                 logger.LogWarning("Unhandled GPA SDK request {Method} {Path}", context.Request.Method, PathOnly(target));
         }
         if (!options.Capture)
-        {
             Interlocked.Increment(ref records);
-            await Respond(context, rule, status, response, contentTypeOverride);
-            return;
-        }
-        await captureLock.WaitAsync(context.RequestAborted);
-        try
+        else
         {
-            var bodyPath = Path.Combine(RunDirectory, "request-bodies.bin");
-            await using var output = new FileStream(bodyPath, FileMode.Append, FileAccess.Write, FileShare.Read);
-            var offset = output.Position;
-            await output.WriteAsync(bytes, context.RequestAborted);
-            await output.FlushAsync(context.RequestAborted);
-            var record = new { n = ++records, utc = DateTimeOffset.UtcNow, host, method = context.Request.Method,
-                path = target, request_line = $"{context.Request.Method} {target} {context.Request.Protocol}",
-                headers = context.Request.Headers.SelectMany(h => h.Value.Select(v => new[] { h.Key, v })).ToArray(),
-                body_offset = offset, body_len = bytes.Length, received_body_len = received, truncated = received > bytes.Length,
-                body_sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes)), response_status = status, response_bytes = response.Length };
-            await File.AppendAllTextAsync(Path.Combine(RunDirectory, "mitm-records.jsonl"), JsonSerializer.Serialize(record) + "\n", context.RequestAborted);
+            await captureLock.WaitAsync(context.RequestAborted);
+            try
+            {
+                var bodyPath = Path.Combine(RunDirectory, "request-bodies.bin");
+                await using var output = new FileStream(bodyPath, FileMode.Append, FileAccess.Write, FileShare.Read);
+                var offset = output.Position;
+                await output.WriteAsync(bytes, context.RequestAborted);
+                await output.FlushAsync(context.RequestAborted);
+                var record = new { n = ++records, utc = DateTimeOffset.UtcNow, host, method = context.Request.Method,
+                    path = target, request_line = $"{context.Request.Method} {target} {context.Request.Protocol}",
+                    headers = context.Request.Headers.SelectMany(h => h.Value.Select(v => new[] { h.Key, v })).ToArray(),
+                    body_offset = offset, body_len = bytes.Length, received_body_len = received, truncated = received > bytes.Length,
+                    body_sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes)), response_status = status, response_bytes = response.Length };
+                await File.AppendAllTextAsync(Path.Combine(RunDirectory, "mitm-records.jsonl"), JsonSerializer.Serialize(record) + "\n", context.RequestAborted);
+            }
+            finally { captureLock.Release(); }
         }
-        finally { captureLock.Release(); }
+        LogPlaytest(host, context.Request.Method, PathOnly(target), bytes.Length, status, response.Length);
         await Respond(context, rule, status, response, contentTypeOverride);
+    }
+
+    static void LogPlaytest(string host, string method, string path, int requestBytes, int status, int responseBytes)
+    {
+        if (PlaytestDebug.Sink is not { Actions: true }) return;
+        PlaytestDebug.Action("ncguard_http",
+            ("host", host),
+            ("method", method),
+            ("path", path),
+            ("request_bytes", requestBytes),
+            ("response_status", status),
+            ("response_bytes", responseBytes));
     }
 
     static string PathOnly(string target)

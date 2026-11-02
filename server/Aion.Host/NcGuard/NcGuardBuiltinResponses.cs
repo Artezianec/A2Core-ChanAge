@@ -15,6 +15,8 @@ public static class NcGuardBuiltinResponses
 
     static readonly BuiltinRule[] Rules =
     [
+        // Observed official: POST / with binary telemetry → 200 text/html, empty body (research/e259-ncguard.md).
+        new("bladnoch.ncsoft.com", "POST", "/", "text/html", []),
         new("sdk.gpa.ncsoft.com", "POST", "/authz/token", "application/json", AuthzTokenBody()),
         // CANDIDATE: some client builds call authn after authz; same token envelope until a capture refines it.
         new("sdk.gpa.ncsoft.com", "POST", "/authn/token", "application/json", AuthzTokenBody()),

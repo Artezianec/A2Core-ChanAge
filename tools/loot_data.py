@@ -41,21 +41,38 @@ def _rows(index, tables=TABLES):
 
 
 def build_env_loot(tables_out, world_objects=WORLD_OBJECTS):
-    """Map each env object id to reward_manual_{spawner name} when the table exists."""
+    """Map env ids to reward_manual tables (spawner name, EnvObjData name, field-treasure conventions)."""
     if not world_objects.exists():
         return {}
     payload = json.loads(world_objects.read_text(encoding='utf-8'))
     envs = {}
+
+    def wire(env, table):
+        if table in tables_out:
+            envs[str(env)] = [table]
+
     for entry in payload.get('maps', {}).values():
         for obj in entry.get('objects') or []:
             env = obj.get('env')
-            name = obj.get('name')
-            if not env or not name:
+            if not env:
                 continue
-            table = f'reward_manual_{name}'
-            if table in tables_out:
-                envs[str(env)] = [table]
+            name = obj.get('name')
+            if name:
+                wire(env, f'reward_manual_{name}')
+            env_name = obj.get('env_name')
+            if env_name:
+                wire(env, f'reward_manual_{env_name}')
+            wire(env, f'reward_manual_FieldEvent_L_TreasureBox_{env}')
+            wire(env, f'reward_manual_FieldEvent_D_TreasureBox_{env}')
     return envs
+
+
+def ensure_field_treasure_tables(tables_out):
+    """Field-event S1 chests (env 1100130) share the S2 tier-1 table when the export omitted their RewardItem row."""
+    tier1 = 'reward_manual_FieldEvent_L_TreasureBox_1100311'
+    s1 = 'reward_manual_FieldEvent_L_TreasureBox_1100130'
+    if tier1 in tables_out and s1 not in tables_out:
+        tables_out[s1] = json.loads(json.dumps(tables_out[tier1]))
 
 
 def fix_godfragment_token_items(tables_out):
@@ -85,7 +102,9 @@ def split_env_from_npcs(npcs, envs):
 def apply_env_patches(data):
     tables_out = data.setdefault('tables', {})
     fix_godfragment_token_items(tables_out)
-    envs = build_env_loot(tables_out)
+    ensure_field_treasure_tables(tables_out)
+    envs = dict(data.get('envs') or {})
+    envs.update(build_env_loot(tables_out))
     npcs = data.get('npcs', {})
     npcs, envs = split_env_from_npcs(npcs, envs)
     data['npcs'] = npcs
@@ -141,6 +160,7 @@ def build(tables=TABLES, catalog=CATALOG):
     npcs = {k: [n for n in v if n in tables_out] for k, v in npcs.items()}
     npcs = {k: v for k, v in npcs.items() if v}
     fix_godfragment_token_items(tables_out)
+    ensure_field_treasure_tables(tables_out)
     envs = build_env_loot(tables_out)
     npcs, envs = split_env_from_npcs(npcs, envs)
     return {'source': 'RewardData/RewardItem/RewardPackage/RewardPackageItem + Item.dat (tools/loot_data.py)',

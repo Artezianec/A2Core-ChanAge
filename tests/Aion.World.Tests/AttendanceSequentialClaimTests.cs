@@ -49,12 +49,11 @@ public sealed class AttendanceSequentialClaimTests
     public async Task Claim_second_tab_keeps_first_tab_rewarded_in_db_and_packets()
     {
         var store = new FakeCharacterStore();
+        GameSessionTestHelpers.SeedAttendanceCheckedInNotRewarded(store, Now + 100);
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
         var todayKey = ContentResetSchedule.GameDayKey(Now + 100);
         var atreiaBoard = GameSession.LatestAttendanceSeasons(1, Now + 100).Single(e => e.Board.Achievement == AtreiaAchievement).Board;
         var launchBoard = GameSession.LatestAttendanceSeasons(1, Now + 100).Single(e => e.Board.Achievement == LaunchAchievement).Board;
-
-        await session.HandleAsync([0x4d, 0xe3], Now + 100);
 
         await session.HandleAsync(
             new PacketWriter().U16(GameSession.TakeAchievementRewardRq).I32(AtreiaAchievement).U8(1).ToArray(),

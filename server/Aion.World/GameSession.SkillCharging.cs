@@ -90,7 +90,9 @@ partial class GameSession
         var normalDodge = dodging && started == combatDodge + 1 && learned.Contains(combatDodge);
         definition = normalDodge ? data.Skill(combatDodge) is { } dodge ? dodge with { Cost = dodge.Cost with { Sp = NormalDodgeSp } } : null
             : ResolveSkillDefinition(skill);
-        var cooldownKey = data.CooldownGroup(normalDodge ? combatDodge : (data.Skill(skill) is not null ? skill : SkillFamilyId(skill)));
+        var cooldownKey = normalDodge ? data.CooldownGroup(combatDodge)
+            : data.IsBasicAttackChainSkill(skill) ? BasicChainCooldownGroup(skill)
+            : data.CooldownGroup(data.Skill(skill) is not null ? skill : SkillFamilyId(skill));
         var cost = definition?.Cost ?? new SkillCost(0, 0, 0);
         if (BuffStat("MPUseDecrease") is > 0 and var cheaper) cost = cost with { Mp = cost.Mp * Math.Max(0, 10_000 - cheaper) / 10_000 };
         var weapons = (definition?.Weapons ?? []).Where(w => w != "None").ToList();
@@ -107,7 +109,8 @@ partial class GameSession
         var toggleOff = request.HasChangeToggle && request.ChangeToggle is 0 or 2;
         var toggleOn = request.HasChangeToggle && request.ChangeToggle == 1;
         if (basicAuto && toggleOff) return true;
-        var castGapOk = noCool || now - lastAcceptedCastMs >= SkillCooldown.MinCastGapMs || sprintOpeningDash;
+        var castGapOk = noCool || dodging || (chainSkill && chainAllowed)
+            || now - lastAcceptedCastMs >= SkillCooldown.MinCastGapMs || sprintOpeningDash;
         var cooldownOk = cooldownReady || sprintOpeningDash;
         if (meetsCastRules && cooldownOk && castGapOk) return true;
         if (basicAuto && toggleOn && meetsCastRules && !cooldownReady) return true;

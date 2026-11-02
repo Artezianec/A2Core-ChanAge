@@ -230,6 +230,8 @@
   "0xe241": "StartNpcInteraction_RS",
   "0xe243": "FinishNpcInteraction_RS",
   "0xe245": "KeepAliveNpcInteraction_RS",
+  "0xe259": "NCGuardData_RQ",
+  "0xe25a": "NCGuardData_RS",
   "0xe263": "TradeServerInfo_NT",
   "0xe274": "FriendList_NT",
   "0xe28c": "PresetInfo_NT",

@@ -40,7 +40,7 @@ public sealed partial class GameSession
         if (!await store.ConsumeItemAsync(character, row.InstanceId, row.Revision, 1, ct)) return [];
         storedItems.Remove(row.WireId);
         var saved = await SaveQuestAsync(QuestLog.New(code, questLog.Book.Find(code)!), ct);
-        LogQuestEvent("quest_accept", code, 0, QuestLog.Incomplete);
+        LogQuestEvent("quest_accept", code, saved.Step, QuestLog.Incomplete);
         var replies = QuestAcceptPackets(saved, 0);
         replies.AddRange(ApplyQuestWorldGating(now));
         if (reply) replies.Insert(0, RidePackets.ItemUseReply(0, WireKey(row), row.TemplateId));

@@ -42,8 +42,8 @@ public sealed class InventoryChangesTests
     public async Task Batch_claim_sends_one_inventory_diff_with_increase_reason_on_grants()
     {
         var store = new FakeCharacterStore();
+        GameSessionTestHelpers.SeedAttendanceCheckedInNotRewarded(store, Now + 100);
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
-        await session.HandleAsync([0x4d, 0xe3], Now + 100);
 
         var batch = await session.HandleAsync(
             new PacketWriter().U16(GameSession.TakeAchievementRewardBatchRq).U8(7).I32(GlobalAttendanceGroup).U8(1).ToArray(),

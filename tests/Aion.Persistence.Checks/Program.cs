@@ -325,6 +325,12 @@ await using(var source=NpgsqlDataSource.Create(connectionString))
     Check((await game.InventoryAsync(first, id))!.ContainerExtends!.InventoryByGold == 1
           && (await game.InventoryAsync(first, id))!.Items.Where(x => x.TemplateId == kinaTemplate).Sum(x => x.Quantity) == 45_000,
         "bag extend persists count and deducts 5000 kinah");
+    await game.AdminAsync(second, new AdminCommand(Guid.NewGuid(), id, "grant", "test", kinaTemplate, Quantity: 10_000));
+    var storageExtend = await game.ExtendStorageByGoldAsync(first, id, 0);
+    Check(storageExtend.Result == "ok" && storageExtend.Counts.Storage == 1, "gold warehouse slot extend persists storage_slot_extend");
+    Check((await game.InventoryAsync(first, id))!.ContainerExtends!.Storage == 1
+          && (await game.InventoryAsync(first, id))!.Items.Where(x => x.TemplateId == kinaTemplate).Sum(x => x.Quantity) == 54_000,
+        "warehouse extend deducts 1000 kinah");
     await game.AdminAsync(second,new AdminCommand(Guid.NewGuid(),staffChar,"grant","test",kinaTemplate,Quantity:50_000));
     var listGrant=await game.AdminAsync(second,new AdminCommand(Guid.NewGuid(),id,"grant","test",101));
     var tradeItem=listGrant.GetProperty("instanceId").GetGuid();

@@ -223,14 +223,23 @@ public sealed partial class GameSession
 
     const byte IncreaseEnvObjReward = 41; // EIncreaseReason kGatherSource (interaction loot)
 
-    async Task<List<byte[]>> GrantEnvObjLootAsync(int envId, CancellationToken ct)
+    async Task<(List<byte[]> Packets, string[] Tables, List<(int ItemId, long Count)> Items)> GrantEnvObjLootAsync(WorldObject obj, CancellationToken ct)
     {
-        if (!LootTables.Embedded.HasEnvLoot(envId)) return [];
-        var rolled = LootTables.Embedded.RollEnv(envId, profileRace, rng);
-        if (rolled.Count == 0) return [];
-        if (Store is not { } store || CharacterId is not { } character) return [];
+        var tables = LootTables.Embedded.ResolveEnvLootTableNames(obj.Env, obj.Name, obj.EnvName);
+        if (tables.Length == 0) return ([], tables, []);
+        var rolled = LootTables.Embedded.RollEnv(obj, profileRace, rng);
+        if (rolled.Count == 0) return ([], tables, rolled);
+        if (Store is not { } store || CharacterId is not { } character) return ([], tables, rolled);
         var granted = await Stored(async () => await store.GrantLootAsync(character, rolled, ct) ? [[]] : []);
-        return granted.Count == 0 ? [] : await InventoryChangesAsync(ct, IncreaseEnvObjReward, 0);
+        if (granted.Count == 0) return ([], tables, rolled);
+        PlaytestDebug.Action("env_chest_loot",
+            ("envId", obj.Env),
+            ("spawner", obj.Name),
+            ("envName", obj.EnvName),
+            ("tables", string.Join(", ", tables)),
+            ("items", string.Join(", ", rolled.Select(r => $"{r.ItemId}x{r.Count}"))));
+        var packets = await InventoryChangesAsync(ct, IncreaseEnvObjReward, 0);
+        return (packets, tables, rolled);
     }
 
     async Task<List<byte[]>> CompleteUseAsync(int index, CancellationToken ct, long now = 0)
@@ -259,10 +268,22 @@ public sealed partial class GameSession
         replies.AddRange(monolithReplies);
         var monolithQuest = monolithReplies.Count > 0;
         replies.AddRange(await CreditUseEnvObjQuestAsync(objects[index].Env, ct));
+        var lootTables = Array.Empty<string>();
         if (!monolithQuest)
-            replies.AddRange(await GrantEnvObjLootAsync(objects[index].Env, ct));
+        {
+            var (lootPackets, tables, granted) = await GrantEnvObjLootAsync(objects[index], ct);
+            lootTables = tables;
+            replies.AddRange(lootPackets);
+            if (LootTables.TreasureChestConsumes(tables) && granted.Count > 0)
+            {
+                usedObjects.Add(index);
+                shownObjects.Remove(index);
+                replies.Add(GamePackets.EnvObjDespawn(key, 4, 3));
+            }
+        }
         // A carried-item box comes back after its FinishDuration even when a map event counts it (FierceHornCave BombBox_02).
-        var consumed = objects[index].Carry is null && (CopyOwner ?? this).mapEventRuns.Any(r => r.WantsObject(EventName(objects[index])));
+        var consumed = objects[index].Carry is null && lootTables.Length == 0
+            && (CopyOwner ?? this).mapEventRuns.Any(r => r.WantsObject(EventName(objects[index])));
         replies.AddRange(MapEventUsedObject(EventName(objects[index]), now));
         if (consumed || destroyed)
         {

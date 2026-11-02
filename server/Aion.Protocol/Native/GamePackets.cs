@@ -745,12 +745,21 @@ public static class GamePackets
         return w.ToArray();
     }
 
+    public static byte[] QuickSlots(IReadOnlyList<(int Slot, int Type, long ItemUid, int ItemId, int SkillId, IReadOnlyList<int>? Context, bool AutoUse)> slots)
+    {
+        if (slots.Count > 127) throw new ArgumentException("Too many slots");
+        var w = PacketWriter.Opcode(0x5600).U8(slots.Count);
+        foreach (var (slot, type, uid, item, skill, context, autoUse) in slots)
+            WriteQuickSlot(w, slot, type, uid, item, skill, context, autoUse);
+        return w.ToArray();
+    }
+
     /// <summary>
     /// One QuickSlotInfo (OBSERVED, all 14 records of #376 parse to the byte): presence mask u8 (bit 0: the context-skill
     /// array), slot, EQuickSlotType (0 skill, 1 item), item uid i64, item id i32, skill id i32, [count u8 + i32s], macro u8,
     /// social action i32, toggle u8. Skill slots carry 4 context skills (the skill, then its chain), item slots none.
     /// </summary>
-    public static PacketWriter WriteQuickSlot(PacketWriter w, int slot, int type, long uid, int item, int skill, IReadOnlyList<int>? contextSkills = null)
+    public static PacketWriter WriteQuickSlot(PacketWriter w, int slot, int type, long uid, int item, int skill, IReadOnlyList<int>? contextSkills = null, bool autoUse = false)
     {
         var context = type == 0 && skill != 0;
         w.U8(context ? 1 : 0).U8(slot).U8(type).I64(uid).I32(item).I32(skill);
@@ -760,7 +769,7 @@ public static class GamePackets
             w.U8(4);
             for (var i = 0; i < 4; i++) w.I32(ids[i]);
         }
-        return w.U8(0).I32(0).U8(0);
+        return w.U8(0).I32(0).U8(autoUse ? 1 : 0);
     }
 
     /// <summary>0x5600 observed 42-byte skill-slot records.</summary>

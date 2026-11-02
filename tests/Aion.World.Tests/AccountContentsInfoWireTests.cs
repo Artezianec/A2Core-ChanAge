@@ -26,7 +26,7 @@ public sealed class AccountContentsInfoWireTests
     }
 
     [Fact]
-    public async Task Check_in_sends_today_as_value1_and_zero_reward_day()
+    public async Task Collect_on_e34d_sets_value1_and_value2_to_today()
     {
         var store = new FakeCharacterStore();
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
@@ -36,7 +36,7 @@ public sealed class AccountContentsInfoWireTests
         Assert.All(ParseEntries(contents), e =>
         {
             Assert.Equal(todayKey, e.Value1);
-            Assert.Equal(0, e.Value2);
+            Assert.Equal(todayKey, e.Value2);
         });
     }
 
@@ -44,10 +44,10 @@ public sealed class AccountContentsInfoWireTests
     public async Task After_reward_matching_board_sets_value2_to_today()
     {
         var store = new FakeCharacterStore();
+        GameSessionTestHelpers.SeedAttendanceCheckedInNotRewarded(store, Now + 100);
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
         var board = GameSession.LatestAttendanceSeasons(1, Now + 100)[0].Board;
         var todayKey = ContentResetSchedule.GameDayKey(Now + 101);
-        await session.HandleAsync([0x4d, 0xe3], Now + 100);
         var reward = await session.HandleAsync(new PacketWriter().U16(GameSession.TakeAchievementRewardRq).I32(board.Achievement).U8(1).ToArray(), Now + 101);
         var contents = Assert.Single(reward, p => GameSessionTestHelpers.Op(p) == GameSession.AccountContentsInfoListNt);
         var entry = Assert.Single(ParseEntries(contents), e => e.GroupId == board.SeasonGroupId);

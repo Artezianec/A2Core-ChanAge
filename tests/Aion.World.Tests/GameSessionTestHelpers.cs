@@ -1,3 +1,4 @@
+using Aion.Application.Gameplay;
 using Aion.Protocol.Native;
 using Aion.World;
 
@@ -11,6 +12,14 @@ public static class GameSessionTestHelpers
         new(LiveGameData, new GameSessionOptions { CharacterLevel = level, WorldId = store.WorldId }, rng ?? new Random(3)) { Store = store };
 
     public static ushort Op(byte[] packet) => (ushort)(packet[0] | packet[1] << 8);
+
+    /// <summary>Checked in today on every open attendance tab, rewards not yet taken (for 0x5685/0x5689 tests without 0xe34d auto-claim).</summary>
+    public static void SeedAttendanceCheckedInNotRewarded(FakeCharacterStore store, long nowMs, int race = 1)
+    {
+        var updated = DateTimeOffset.FromUnixTimeMilliseconds(nowMs);
+        foreach (var (_, board) in GameSession.LatestAttendanceSeasons(race, nowMs))
+            store.Achievements.Add(new AchievementRecord(board.Achievement, 1, null, 0, updated));
+    }
 
     public static byte[] SkillLevelUpRs(IEnumerable<byte[]> replies) =>
         replies.First(p => Op(p) == GameSession.SkillLevelUpRs);

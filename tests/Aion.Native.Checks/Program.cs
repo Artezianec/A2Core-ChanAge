@@ -1702,16 +1702,20 @@ var openBoards = AchievementTables.Embedded.OpenBoards(1, Now + 7490);
 var boardAch = openBoards[0].Achievement;
 var boardReward = AchievementTables.Embedded.Of(boardAch)!.StepRewards(1);
 Check(openBoards.Count >= 1 && boardReward.Count >= 1, "the attendance boards of the Light race are known with their day-one reward");
+var rewardItemBefore = staffStore.Items.Where(i => i.TemplateId == boardReward[0].ItemId).Sum(i => i.Quantity);
 var checkedIn = await staffSession.HandleAsync(new PacketWriter().U16(GameSession.AttendanceRq).ToArray(), Now + 7490);
 Check(Op(checkedIn[0]) == GameSession.AttendanceRs && checkedIn[0].Length == 4 && BitConverter.ToUInt16(checkedIn[0], 2) == 0 && checkedIn.Count(b => Op(b) == GameSession.AchievementCountUpdateNt) >= 1
-      && openBoards.All(b => staffSession.AchievementCount(b.Achievement) == 1), "Attendance_RQ: day one on every open board (0x5684 updates)");
+      && openBoards.All(b => staffSession.AchievementCount(b.Achievement) == 1)
+      && checkedIn.Any(b => Op(b) == 0x561b)
+      && staffStore.Items.Where(i => i.TemplateId == boardReward[0].ItemId).Sum(i => i.Quantity) == rewardItemBefore + boardReward[0].Count,
+      "Attendance_RQ: check-in, day-one reward items (0x561b), and 0x5684 on every open board");
 var secondCheckIn = await staffSession.HandleAsync(new PacketWriter().U16(GameSession.AttendanceRq).ToArray(), Now + 7491);
 Check(Op(secondCheckIn[0]) == GameSession.AttendanceRs && secondCheckIn[0].Length == 4 && BitConverter.ToUInt16(secondCheckIn[0], 2) == 0 && staffSession.AchievementCount(boardAch) == 1
-      && !secondCheckIn.Any(b => Op(b) == GameSession.AchievementCountUpdateNt), "a second check-in the same day returns success only (no duplicate progress)");
-var rewardItemBefore = staffStore.Items.Where(i => i.TemplateId == boardReward[0].ItemId).Sum(i => i.Quantity);
+      && !secondCheckIn.Any(b => Op(b) == GameSession.AchievementCountUpdateNt) && !secondCheckIn.Any(b => Op(b) == 0x561b),
+      "a second check-in the same day returns success only (no duplicate progress or grants)");
 var rewardTaken = await staffSession.HandleAsync(new PacketWriter().U16(GameSession.TakeAchievementRewardRq).I32(boardAch).U8(1).ToArray(), Now + 7492);
-Check(BitConverter.ToUInt16(rewardTaken[0], 2) == 0 && staffStore.Items.Where(i => i.TemplateId == boardReward[0].ItemId).Sum(i => i.Quantity) == rewardItemBefore + boardReward[0].Count
-      && rewardTaken.Any(b => Op(b) == GameSession.AchievementCountUpdateNt && b[^1] == 1), "TakeAchievementReward_RQ step 1: the board's day-one item, rewarded step 1");
+Check(BitConverter.ToUInt16(rewardTaken[0], 2) == 1 && staffStore.Items.Where(i => i.TemplateId == boardReward[0].ItemId).Sum(i => i.Quantity) == rewardItemBefore + boardReward[0].Count,
+      "TakeAchievementReward_RQ step 1 after Attendance_RQ: already rewarded (refused)");
 Check(BitConverter.ToUInt16((await staffSession.HandleAsync(new PacketWriter().U16(GameSession.TakeAchievementRewardRq).I32(boardAch).U8(2).ToArray(), Now + 7493))[0], 2) == 1,
       "step 2 (day two) cannot be taken yet");
 await staffSession.TickAsync(Now + 3_600_000);   // past the two-second flush throttle whatever clock the earlier checks ticked this session at

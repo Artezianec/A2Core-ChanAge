@@ -14,6 +14,24 @@ public sealed class QuestPartHudSyncTests
     static ushort Op(byte[] p) => GameSessionTestHelpers.Op(p);
 
     [Fact]
+    public async Task QuestSetStep_on_part_quest_sends_QuestAdd_with_roll_after_progress()
+    {
+        var store = new FakeCharacterStore();
+        store.Quests.Add(new QuestRecord("HQ1102080", 1102080, 500, QuestLog.Incomplete, 1, new int[6]));
+        var session = await GameSessionTestHelpers.EnterSharedWorldAsync(store, 1_760_006_400_000, level: 14);
+        var (_, packets) = await session.QuestCommandAsync("QuestSetStep", "HQ1102080", default, 2);
+        var progress = packets.FirstOrDefault(p => Op(p) == 0x8d10);
+        var add = packets.LastOrDefault(p => Op(p) == 0x8d11);
+        Assert.NotNull(progress);
+        Assert.NotNull(add);
+        var r = new PacketReader(add!) { Offset = 2 };
+        r.I32(); r.U8(); r.Varint();
+        for (var i = 0; i < 6; i++) r.Varint();
+        r.I32();
+        Assert.True(r.Varint() > 0, "part HUD sync should re-send Common_Quest _roll_count on QuestAdd after 0x8d10");
+    }
+
+    [Fact]
     public async Task Quest_take_reward_syncs_rewarded_status_on_progress_and_add()
     {
         var store = new FakeCharacterStore();

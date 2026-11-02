@@ -210,6 +210,30 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
         return ("ok", counts);
     }
 
+    public async Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendStorageByGoldAsync(VerifiedAccount account, Guid character, int costIdx, CancellationToken ct = default)
+    {
+        const int maxGoldExt = 31;
+        long[] costs =
+        [
+            1_000, 1_000, 1_500, 2_000, 2_500, 3_500, 5_000, 6_500, 9_000, 15_000, 20_000, 25_000, 35_000, 45_000, 60_000,
+            80_000, 150_000, 150_000, 200_000, 300_000, 400_000, 550_000, 700_000, 950_000, 1_300_000, 1_800_000, 2_500_000,
+            3_300_000, 4_500_000, 6_200_000, 8_400_000,
+        ];
+        if (costIdx is < 0 or >= maxGoldExt) return ("count", ContainerSlotExtendCounts.Zero);
+        await using var c = await source.OpenConnectionAsync(ct); await using var t = await c.BeginTransactionAsync(ct);
+        if (!await Own(c, t, account.AccountId, character, ct)) return ("none", ContainerSlotExtendCounts.Zero);
+        var goldExtObj = await Scalar(c, t, "SELECT storage_slot_extend FROM game.characters WHERE character_id=$1 FOR UPDATE", ct, character);
+        if (goldExtObj is null) return ("none", ContainerSlotExtendCounts.Zero);
+        var goldExt = Convert.ToInt16(goldExtObj);
+        if (goldExt != costIdx || goldExt >= maxGoldExt) return ("count", await ContainerExtends(c, t, character, ct));
+        if (!await DeductKina(c, t, character, costs[costIdx], ct)) return ("kina", await ContainerExtends(c, t, character, ct));
+        goldExt++;
+        await Execute(c, t, "UPDATE game.characters SET storage_slot_extend=$2,revision=revision+1 WHERE character_id=$1", ct, character, goldExt);
+        var counts = await ContainerExtends(c, t, character, ct);
+        await t.CommitAsync(ct);
+        return ("ok", counts);
+    }
+
     public async Task<bool> GrantWingAsync(VerifiedAccount account, Guid character, int wingId, CancellationToken ct=default)
     {
         if(wingId<=0) throw new GameplayException("invalid_wings");
@@ -1623,14 +1647,15 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
         await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
         if(!await Own(c,t,account.AccountId,character,ct)) return null;
         var slots=new List<QuickSlotRecord>();
-        await using(var q=Query(c,t,"SELECT slot,slot_type,item_uid,item_id,skill_id,context_skill_1,context_skill_2,context_skill_3 FROM game.quick_slots WHERE character_id=$1 ORDER BY slot",character))
+        await using(var q=Query(c,t,"SELECT slot,slot_type,item_uid,item_id,skill_id,context_skill_1,context_skill_2,context_skill_3,auto_use FROM game.quick_slots WHERE character_id=$1 ORDER BY slot",character))
         {
             await using var r=await q.ExecuteReaderAsync(ct);
             while(await r.ReadAsync(ct))
             {
                 var skill = r.GetInt32(4);
                 var ctx = new[] { skill, r.GetInt32(5), r.GetInt32(6), r.GetInt32(7) };
-                slots.Add(new(r.GetInt16(0), r.GetInt16(1), r.GetInt64(2), r.GetInt32(3), skill, ctx));
+                var autoUse = r.FieldCount > 8 && !r.IsDBNull(8) && r.GetBoolean(8);
+                slots.Add(new(r.GetInt16(0), r.GetInt16(1), r.GetInt64(2), r.GetInt32(3), skill, ctx, autoUse));
             }
         }
         await t.CommitAsync(ct); return slots;
@@ -1667,8 +1692,8 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
         else
         {
             var ctx = slot.ContextSkills is { Length: >= 4 } ids ? ids : [slot.SkillId, 0, 0, 0];
-            await Execute(c,t,"INSERT INTO game.quick_slots VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(character_id,slot) DO UPDATE SET slot_type=$3,item_uid=$4,item_id=$5,skill_id=$6,context_skill_1=$7,context_skill_2=$8,context_skill_3=$9",
-                ct,character,(short)number,(short)slot.Type,slot.ItemUid,slot.ItemId,slot.SkillId,ctx[1],ctx[2],ctx[3]);
+            await Execute(c,t,"INSERT INTO game.quick_slots VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(character_id,slot) DO UPDATE SET slot_type=$3,item_uid=$4,item_id=$5,skill_id=$6,context_skill_1=$7,context_skill_2=$8,context_skill_3=$9,auto_use=$10",
+                ct,character,(short)number,(short)slot.Type,slot.ItemUid,slot.ItemId,slot.SkillId,ctx[1],ctx[2],ctx[3],slot.AutoUse);
         }
         await t.CommitAsync(ct); return true;
     }

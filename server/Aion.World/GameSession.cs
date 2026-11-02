@@ -560,7 +560,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case TakeAchievementRewardRq: return await TakeAchievementRewardAsync(plain, now, ct);
             case TakeAchievementGroupRewardRq: return await TakeGroupRewardAsync(plain, ct);
             case TakeAchievementRewardBatchRq: return await TakeRewardBatchAsync(plain, now, ct);
-            case AttendanceRq: return Attendance(now);
+            case AttendanceRq: return await AttendanceAsync(now, ct);
             case TakeBattlePassRewardRq or LegacyTakeBattlePassRewardRq: return await TakeBattlePassRewardAsync(plain, now, ct);
             case MatchingStartRq: return MatchingStart(plain, now);
             case MatchingStartResponseRq: return MatchingStartResponse(plain, now);
@@ -1633,7 +1633,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             if (questLog is not null)
                 replies.AddRange(await QuestRecheckAsync(ct));
             if (questLog?.All.Where(q => q.Status == QuestLog.Incomplete).ToList() is { Count: > 0 } tracking)
-                foreach (var q in tracking) replies.Add(GamePackets.QuestProgress(Wire(q)));
+                foreach (var q in tracking)
+                {
+                    replies.Add(GamePackets.QuestProgress(Wire(q)));
+                    replies.AddRange(QuestJournalSyncPackets(q));
+                }
         }
         else
         {
@@ -1862,7 +1866,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         // mask-first reply as a failed dash and drop the sprint. Variant 0 accepts the running dash (bisect below); refusing it
         // with result 1 alone left the client waiting for a move unlock (live 2026-11-01 after #397).
         if (dodging && sprinting && variant == 6)
-            return [GamePackets.DodgeResult(combatDodge, 1)];
+        {
+            var pre = SkillCastInProgress(now) ? InterruptActiveSkillCasts(now) : [];
+            var dash = GamePackets.DodgeResult(combatDodge, 1);
+            return pre.Count == 0 ? [dash] : [..pre, dash];
+        }
         var sprintDash = dodging && sprinting;
         if (sprintDash && variant == 10) variant = 0;
         var sprintOpeningDash = sprintDash && now - sprintOnAt <= SprintAutoDodgeWindowMs;
@@ -1876,16 +1884,29 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         var normalDodge = dodging && started == combatDodge + 1 && learned.Contains(combatDodge);
         var definition = normalDodge ? data.Skill(combatDodge) is { } dodge ? dodge with { Cost = dodge.Cost with { Sp = NormalDodgeSp } } : null
             : ResolveSkillDefinition(skill);
-        // Hold-charge skills (Deadshot): the client opens the charge with 0x381a; 0x3800 would fire instantly with no pose or cooldown pacing.
-        if (!releasingSkillCharge && definition is not null && UsesHoldChargeFlow(definition, skill))
-            return [CastReplyFor(request, false)];
-        var cooldownKey = data.CooldownGroup(normalDodge ? combatDodge : (data.Skill(skill) is not null ? skill : SkillFamilyId(skill)));
+        var cooldownKey = normalDodge ? data.CooldownGroup(combatDodge)
+            : data.IsBasicAttackChainSkill(skill) ? BasicChainCooldownGroup(skill)
+            : data.CooldownGroup(data.Skill(skill) is not null ? skill : SkillFamilyId(skill));
         var cost = definition?.Cost ?? new SkillCost(0, 0, 0);
         if (BuffStat("MPUseDecrease") is > 0 and var cheaper) cost = cost with { Mp = cost.Mp * Math.Max(0, 10_000 - cheaper) / 10_000 };
         var weapons = (definition?.Weapons ?? []).Where(w => w != "None").ToList();
         var chainSkill = definition is { ChainPrev: > 0 };
         // A step's parent may itself be a chain-only step (Ranger 14040000 <- 14030000 <- 14020000): the learned root decides.
         var chainAllowed = !chainSkill || (ChainReady(skill, now) && ChainRootLearned(skill));
+        if (TryRestartExpiredBasicChain(ref skill, ref request, now))
+        {
+            definition = ResolveSkillDefinition(skill);
+            chainSkill = definition is { ChainPrev: > 0 };
+            chainAllowed = !chainSkill || (ChainReady(skill, now) && ChainRootLearned(skill));
+            cooldownKey = data.IsBasicAttackChainSkill(skill) ? BasicChainCooldownGroup(skill)
+                : data.CooldownGroup(data.Skill(skill) is not null ? skill : SkillFamilyId(skill));
+            weapons = (definition?.Weapons ?? []).Where(w => w != "None").ToList();
+        }
+        // Hold-charge skills (Deadshot): the client opens the charge with 0x381a; 0x3800 would fire instantly with no pose or cooldown pacing.
+        if (!releasingSkillCharge && definition is not null && UsesHoldChargeFlow(definition, skill))
+            return [CastReplyFor(request, false)];
+        var heldDuplicate = IsExactHeldCastDuplicate(request, body, now);
+        var basicChainAdvance = IsBasicChainAdvanceCast(skill, chainSkill, chainAllowed);
         var cooldownReady = SkillCooldown.CooldownReady(now, cooldowns, cooldownKey, noCool);
         var meetsCastRules = definition is not null && resources is not null && !dead && chainAllowed && !CombatCastBlocked(skill)
             && resources.Mp >= cost.Mp && resources.Sp >= cost.Sp && resources.Hp > cost.Hp
@@ -1909,17 +1930,21 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         // SkillStart with projectiles/FX, which flooded the client (stuck FX meshes, then UE "Maximum number of UObjects").
         // OBSERVED official: Tempest Shot re-accepted 229 ms apart at the least.
         var staggerReactiveCast = !dodging && StaggerReactiveFreeCast(definition, now, request.TargetKey);
-        var castGapOk = noCool || now - lastAcceptedCastMs >= SkillCooldown.MinCastGapMs || sprintOpeningDash || staggerReactiveCast;
+        // Official: non-combo chain steps and dodges skip the generic gap; FixSlot combos use BasicChainCastGapReady (projectile vs melee).
+        var castGapOk = noCool || dodging
+            || (chainSkill && chainAllowed && !data.IsBasicAttackChainSkill(skill))
+            || (chainSkill && chainAllowed && data.IsBasicAttackChainSkill(skill) && BasicChainCastGapReady(skill, now))
+            || (!chainSkill && now - lastAcceptedCastMs >= EffectiveMinCastGapMs())
+            || sprintOpeningDash || staggerReactiveCast;
         var cooldownOk = cooldownReady || sprintOpeningDash || staggerReactiveCast;
         var accepted = meetsCastRules && cooldownOk && castGapOk;
         if (!accepted)
         {
-            if (dodging && IsExactHeldCastDuplicate(request, body, now))
+            if (dodging && heldDuplicate)
                 return DodgeUnlockRefusal(combatDodge);
-            if (!dodging && meetsCastRules && IsExactHeldCastDuplicate(request, body, now))
-                return [CastReplyFor(request, false)];
-            var queued = MaybeQueueEarlyChainCast(body, request, chainSkill, chainAllowed, castGapOk, nextCastAcceptAtMs);
-            if (!releasingSkillCharge && HasDeferredQueuedCast(now)) return queued;
+            if (!dodging && meetsCastRules && heldDuplicate)
+                return data.IsBasicAttackChainSkill(skill) ? BasicChainLockoutRefusal(request, now) : [CastReplyFor(request, false)];
+            var queued = MaybeQueueEarlyChainCast(body, request, chainSkill, chainAllowed, castGapOk, now, nextCastAcceptAtMs);
             if (queued.Count > 0) return queued;
             LogSkillCastRefusal(request, skill, definition, meetsCastRules, chainAllowed, cooldownReady, castGapOk, cost, weapons);
             // A sprint dash refused for cost or cooldown stays on the 9-byte form. The mask-first reply drops the sprint.
@@ -1929,20 +1954,27 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             // Right-click auto-attack-on-target: acknowledge toggle while the swing is still on lockout (no SkillStart).
             if (basicAuto && toggleOn && meetsCastRules && !cooldownReady)
                 return [CastReplyFor(request, true)];
+            if (data.IsBasicAttackChainSkill(skill) && chainSkill && chainAllowed && !castGapOk)
+                return BasicChainLockoutRefusal(request, now);
             // Held-key duplicate 0x3800 (~17 ms): 0x3801 failure (no second 0x3802). Playtest 2026-10-31 #262 silent drop hid reason.
             return [CastReplyFor(request, false)];  // must not end another action
         }
-        var dismount = (!releasingSkillCharge && pendingSkillCharge is not null ? CancelPendingSkillCharge(sendStopReply: true) : [])
+        var cancelActiveCast = ShouldInterruptActiveCast(now, dodging, chainSkill, chainAllowed, heldDuplicate)
+            ? InterruptActiveSkillCasts(now, dropScheduledHits: !basicChainAdvance) : [];
+        List<byte[]> Finish(List<byte[]> replies) => cancelActiveCast.Count == 0 ? replies : [..cancelActiveCast, ..replies];
+        var dismount = AbandonQueuedHeldCast(now)
+            .Concat(!releasingSkillCharge && pendingSkillCharge is not null ? CancelPendingSkillCharge(sendStopReply: true) : [])
             .Concat(ForceDismount()).Concat(InterruptItemCast()).ToList();
         // The bomb thrown at a tower ends with the hit that breaks it; any other cast of it uses a charge now.
         if (DestructibleEnvObjIndex(request.TargetKey) is null) dismount.AddRange(CarrySkillStarted(skill));
-        lastAcceptedCastMs = now;
-        DropQueuedHeldCastSilently();
+        if (!dodging) lastAcceptedCastMs = now;
         skillMoveGraceUntil = now + SkillMoveGraceMs;
         var cooldown = noCool ? 0 : SkillCooldown.Reduced(SkillCooldown.EffectiveMs(definition), CoolTimeDecrease);
         var lockout = PlayerCastLockoutMs(definition!, skill);
         if (definition!.CooldownMs > 0 && lockout == definition.CooldownMs) lockout = cooldown;
-        if (!noCool && lockout > 0 && !staggerReactiveCast) cooldowns[cooldownKey] = now + lockout;
+        // FixSlot combo steps share the root group in dat but only use swing lockout between accepts, not per-step cooldown rows.
+        if (!noCool && lockout > 0 && !staggerReactiveCast && !data.IsBasicAttackChainSkill(skill))
+            cooldowns[cooldownKey] = now + lockout;
         ScheduleNextCastAccept(now, definition!, skill, HeldCastWireKeyOf(request, body), freeRecast: staggerReactiveCast);
         if (dodging)
             nextCastAcceptAtMs = Math.Max(nextCastAcceptAtMs, now + Math.Max(lockout, SkillCooldown.MinCastGapMs));
@@ -1983,7 +2015,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                     GamePackets.CharPoints(playerKey, [(CharPoint.Sp, resources!.Sp)]),
                 ];
                 if (started == combatDodge) dodgeEffectAt = (actionUid, now + delay + DodgeEffectMs);
-                return DeliverDash(dash, variant);
+                return Finish(DeliverDash(dash, variant));
             }
             if (variant == 0)
             {
@@ -1994,7 +2026,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                     resources!.Update(),
                     GamePackets.SkillStart(started, actionUid, request.Yaw, request.Location, playerKey, actorKey: playerKey, cooldown: cooldown),
                 ];
-                return bisect;
+                return Finish(bisect);
             }
             var endAt = now + (variant == 5 ? DodgeLateEndMs : DodgeAbnormalOffMs);
             List<byte[]> dodgeReplies =
@@ -2007,7 +2039,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             else if (variant == 3) dodgeAbnormalOff = (0, started, actionUid, endAt, true);
             dodgeReplies.Add(GamePackets.CharPoints(playerKey, [(CharPoint.Sp, resources!.Sp)]));
             if (variant >= 4 && started == combatDodge) dodgeEffectAt = (actionUid, now + DodgeEffectMs);
-            return dodgeReplies;   // no damage rows: nothing for CombatReplies
+            return Finish(dodgeReplies);   // no damage rows: nothing for CombatReplies
         }
         // Official order (2026-10-30): 0x3802 start, 0x3818/0x3819 chain, the 0x3801 accept, 0x8d21 when it starts combat,
         // then the 0x3803 arrows.
@@ -2031,7 +2063,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         replies.AddRange(DismissFromSkill(skill, now));
         replies.AddRange(PlaceTrap(skill, request, (byte)actionUid, now));
         replies.AddRange(PlaceZone(skill, request, (byte)actionUid, now));
-        return replies;
+        return Finish(replies);
     }
 
     /// <summary>
@@ -2795,6 +2827,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             skillChargeNextTickAtMs = now + SkillChargePendingTickMs;
         replies.AddRange(ChainTickReplies(now));
         replies.AddRange(await AutoPotionAsync(now, ct));
+        replies.AddRange(await AutoQuickSlotItemsAsync(now, ct));
         if (resources is not null)
         {
             var seconds = Math.Max(0, (now - resourceTickMs) / 1000);

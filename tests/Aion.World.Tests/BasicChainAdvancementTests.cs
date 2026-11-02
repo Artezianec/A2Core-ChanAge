@@ -79,13 +79,13 @@ public sealed class BasicChainAdvancementTests
         Assert.Contains(first, p => GameSessionTestHelpers.Op(p) == 0x3818);
         Assert.True(session.ActiveChainSkills.ContainsKey(step2));
 
-        t += StepGap(data, step1);
+        t += Math.Max(StepGap(data, step1), session.HeldCastLockoutRemainingMs(t) + 1);
         var second = await session.HandleAsync(BasicAtk(dummy.Key), t);
         Assert.Equal((ushort)0, BitConverter.ToUInt16(second.First(p => GameSessionTestHelpers.Op(p) == GameSession.BasicAtkRs), 2));
         AssertStartSkill(second.First(p => GameSessionTestHelpers.Op(p) == 0x3802), step2);
         Assert.True(session.ActiveChainSkills.ContainsKey(step3));
 
-        t += StepGap(data, step2);
+        t += Math.Max(StepGap(data, step2), session.HeldCastLockoutRemainingMs(t) + 1);
         var third = await session.HandleAsync(BasicAtk(dummy.Key), t);
         Assert.Equal((ushort)0, BitConverter.ToUInt16(third.First(p => GameSessionTestHelpers.Op(p) == GameSession.BasicAtkRs), 2));
         AssertStartSkill(third.First(p => GameSessionTestHelpers.Op(p) == 0x3802), step3);

@@ -28,10 +28,10 @@ public sealed class AttendanceAccountContentsSyncTests
     public async Task Batch_attendance_claim_refreshes_account_contents_value2()
     {
         var store = new FakeCharacterStore();
+        GameSessionTestHelpers.SeedAttendanceCheckedInNotRewarded(store, Now + 100);
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
         var atreia = GameSession.LatestAttendanceSeasons(1, Now + 100).Single(e => e.Board.SeasonGroupId == 37).Board;
         var todayKey = ContentResetSchedule.GameDayKey(Now + 100);
-        await session.HandleAsync([0x4d, 0xe3], Now + 100);
         Assert.Equal(1, session.AchievementCount(atreia.Achievement));
 
         var batch = await session.HandleAsync(
@@ -51,8 +51,6 @@ public sealed class AttendanceAccountContentsSyncTests
         var board = GameSession.LatestAttendanceSeasons(1, Now + 100).Single(e => e.Board.SeasonGroupId == 37).Board;
         await session.HandleAsync([0x4d, 0xe3], Now + 100);
         await session.HandleAsync([0x4d, 0xe3], Now + 86_400_100);
-        await session.HandleAsync(new PacketWriter().U16(GameSession.TakeAchievementRewardRq).I32(board.Achievement).U8(1).ToArray(), Now + 86_400_101);
-        await session.HandleAsync(new PacketWriter().U16(GameSession.TakeAchievementRewardRq).I32(board.Achievement).U8(2).ToArray(), Now + 86_400_102);
         var refresh = await session.HandleAsync([0x4d, 0xe3], Now + 86_400_103);
         var todayKey = ContentResetSchedule.GameDayKey(Now + 86_400_103);
         var entry = Assert.Single(ParseEntries(Assert.Single(refresh, p => GameSessionTestHelpers.Op(p) == GameSession.AccountContentsInfoListNt)),

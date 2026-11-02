@@ -440,18 +440,32 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
         return await game.ExtendGuildStorageAsync(identity.Account, character, expectedExtension, ct);
     }
 
-    public Task<ContainerSlotExtendCounts> ContainerSlotExtendsAsync(Guid character, CancellationToken ct) =>
-        Task.FromResult(itemCache is not null && itemCacheCharacter == character ? containerExtends : ContainerSlotExtendCounts.Zero);
+    public async Task<ContainerSlotExtendCounts> ContainerSlotExtendsAsync(Guid character, CancellationToken ct)
+    {
+        if (itemCache is null || itemCacheCharacter != character)
+            await RefreshItemCacheAsync(character, ct);
+        return containerExtends;
+    }
 
     public async Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendInventoryByGoldAsync(Guid character, int costIdx, CancellationToken ct)
     {
         await ValidateAsync(ct);
         var outcome = await game.ExtendInventoryByGoldAsync(identity.Account, character, costIdx, ct);
-        if (outcome.Result == "ok")
-        {
+        if (outcome.Result is "ok" or "count" or "kina")
             containerExtends = outcome.Counts;
+        if (outcome.Result == "ok")
             await RefreshItemCacheAsync(character, ct);
-        }
+        return outcome;
+    }
+
+    public async Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendStorageByGoldAsync(Guid character, int costIdx, CancellationToken ct)
+    {
+        await ValidateAsync(ct);
+        var outcome = await game.ExtendStorageByGoldAsync(identity.Account, character, costIdx, ct);
+        if (outcome.Result is "ok" or "count" or "kina")
+            containerExtends = outcome.Counts;
+        if (outcome.Result == "ok")
+            await RefreshItemCacheAsync(character, ct);
         return outcome;
     }
 

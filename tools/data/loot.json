@@ -63031,6 +63031,30 @@
           1
         ]
       ]
+    },
+    "reward_manual_FieldEvent_L_TreasureBox_1100130": {
+      "race": 0,
+      "items": [
+        [
+          534960002,
+          100000000,
+          1,
+          1
+        ],
+        [
+          534960002,
+          50000000,
+          1,
+          1
+        ],
+        [
+          534960002,
+          50000000,
+          1,
+          1
+        ]
+      ],
+      "packages": []
     }
   },
   "packages": {
@@ -69738,6 +69762,9 @@
     ],
     "2340201": [
       "reward_manual_FieldEvent_L_2340201"
+    ],
+    "1100130": [
+      "reward_manual_FieldEvent_L_TreasureBox_1100130"
     ]
   }
 }

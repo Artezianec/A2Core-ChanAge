@@ -37,4 +37,48 @@ partial class GameSession
         if (ended.Count > 0) worldPlayer?.Map?.Broadcast(worldPlayer, ended);
         return ended;
     }
+
+    /// <summary>Client is in a skill until 0x3806 (live 2026-10-30); dodge or the next chain step cancels it early.</summary>
+    internal bool SkillCastInProgress(long now) =>
+        pendingSkillEnds.Count > 0 || pendingCombatHits.Count > 0 || pendingProjectiles.Count > 0 || now < nextCastAcceptAtMs;
+
+    bool ShouldInterruptActiveCast(long now, bool dodging, bool chainSkill, bool chainAllowed, bool heldDuplicate) =>
+        SkillCastInProgress(now) && (dodging || (chainSkill && chainAllowed && !heldDuplicate));
+
+    /// <summary>
+    /// Official: dodge (or the next open chain step) cancels the swing in progress with 0x3806. FixSlot basic combos still
+    /// land arrows / rows already scheduled (live Ranger: Rapid Fire must not strip Snipe's in-flight shot, nor Spiral
+    /// Rapid Fire's three rows when the next chain step opens early).
+    /// </summary>
+    List<byte[]> InterruptActiveSkillCasts(long now, bool dropScheduledHits = true)
+    {
+        if (pendingSkillEnds.Count == 0 && pendingCombatHits.Count == 0 && pendingProjectiles.Count == 0 && now >= nextCastAcceptAtMs)
+            return [];
+        var ended = new List<byte[]>();
+        var cancelled = new HashSet<(int Skill, byte Action)>();
+        foreach (var (skill, action, _) in pendingSkillEnds.ToList())
+        {
+            cancelled.Add((skill, action));
+            ended.Add(GamePackets.SkillEnd(playerKey, skill, action));
+        }
+        pendingSkillEnds.Clear();
+        if (cancelled.Count > 0)
+        {
+            if (dropScheduledHits)
+            {
+                pendingCombatHits.RemoveAll(h => cancelled.Contains((h.SkillId, h.ActionUid)));
+                pendingProjectiles.RemoveAll(p => cancelled.Contains((p.SkillId, p.ActionUid)));
+                var skills = cancelled.Select(c => c.Skill).ToHashSet();
+                pendingSkillEffects.RemoveAll(e => skills.Contains(e.SkillId));
+            }
+        }
+        else if (now < nextCastAcceptAtMs)
+        {
+            pendingCombatHits.Clear();
+            pendingProjectiles.Clear();
+        }
+        nextCastAcceptAtMs = Math.Min(nextCastAcceptAtMs, now);
+        if (ended.Count > 0) worldPlayer?.Map?.Broadcast(worldPlayer, ended);
+        return ended;
+    }
 }

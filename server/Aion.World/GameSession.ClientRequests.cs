@@ -63,12 +63,27 @@ public sealed partial class GameSession
                 var replies = new List<byte[]> { PacketWriter.Opcode(LockOnTargetRs).U16(0).Varint(target).U16(0).ToArray() };
                 if (target > 0 && options.MapEventAskNpcProximityFallback)
                     replies.AddRange(TryMapEventAskNpcInteractFallback((int)target, now));
+                if (target > 0 && targets?.GetValueOrDefault((int)target) is { } talkNpc
+                    && questLog?.OpenTalks(talkNpc.NpcId) is { Count: > 0 })
+                    replies.AddRange(BeginNpcInteraction((int)target, now));
                 return replies;
             }
+            // NCGuardData_RQ: official server is silent (see research/e259-ncguard.md).
+            case 0xe259:
+                LogNcGuardDataRequest(plain);
+                return [];
             // Reports without a reply (SilentRequests).
-            case 0x3651 or 0x3601 or 0xe350 or 0xe259 or 0xffa0 or 0xffa1:
+            case 0x3651 or 0x3601 or 0xe350 or 0xffa0 or 0xffa1:
                 return [];
         }
         return null;
+    }
+
+    void LogNcGuardDataRequest(byte[] plain)
+    {
+        if (PlaytestDebug.Sink is not { Actions: true }) return;
+        var summary = NcGuardPacketDiagnostics.Summarize(plain, 0xe259);
+        var fields = summary.Select(kv => (kv.Key, kv.Value)).Append(("reply", (object?)"silent")).ToArray();
+        PlaytestDebug.Action("ncguard_packet", fields);
     }
 }

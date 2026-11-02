@@ -8,6 +8,16 @@ public readonly record struct ContainerSlotExtendView(int InventoryByItem, int I
     public static ContainerSlotExtendView From(ContainerSlotExtendCounts c) => new(c.InventoryByItem, c.InventoryByGold, c.Storage, c.StorageByItem, c.CharacterStorageByGold, c.CharacterStorageByItem);
     public int[] ToWireCounts() => [InventoryByItem, InventoryByGold, Storage, StorageByItem, CharacterStorageByGold, CharacterStorageByItem];
     public int BagSlotLimit => GameSession.BaseBagSlotCount + InventoryByGold * GameSession.BagSlotsPerRow + InventoryByItem * GameSession.BagSlotsPerRow;
+    public int StorageSlotLimit => GameSession.BaseStorageSlotCount + Storage * GameSession.StorageSlotsPerLine + StorageByItem * GameSession.StorageSlotsPerLine;
+
+    /// <summary>ItemContainerSlotExtend RS/NT tail counts for the requested EItemContainerType.</summary>
+    public (byte ByItem, byte ByGold) WireExtendPair(byte container) => container switch
+    {
+        InventoryItem.Bag => ((byte)InventoryByItem, (byte)InventoryByGold),
+        InventoryItem.Storage => ((byte)StorageByItem, (byte)Storage),
+        InventoryItem.AccountStorage => ((byte)CharacterStorageByItem, (byte)CharacterStorageByGold),
+        _ => (0, 0),
+    };
 }
 
 // Bag operations and the hotbar. Opcodes are catalogue index + run base: ItemMove/Remove/Sort 0x563a/0x563c/
@@ -18,8 +28,16 @@ public sealed partial class GameSession
 {
     /// <summary>Official default bag before gold/item extensions (OBSERVED 27 slots = 3×9).</summary>
     public const int BagSlotsPerRow = 9, BaseBagSlotCount = 27;
+    /// <summary>Personal warehouse (kStorage) before extensions: 25 slots = 5×5 (datamine).</summary>
+    public const int StorageSlotsPerLine = 5, BaseStorageSlotCount = 25;
     static readonly long[] BagGoldExtendCosts = [5_000, 10_000, 20_000, 30_000, 50_000, 75_000, 100_000, 150_000, 200_000, 300_000];
-    const int MaxBagGoldExtensions = 10;
+    static readonly long[] StorageGoldExtendCosts =
+    [
+        1_000, 1_000, 1_500, 2_000, 2_500, 3_500, 5_000, 6_500, 9_000, 15_000, 20_000, 25_000, 35_000, 45_000, 60_000,
+        80_000, 150_000, 150_000, 200_000, 300_000, 400_000, 550_000, 700_000, 950_000, 1_300_000, 1_800_000, 2_500_000,
+        3_300_000, 4_500_000, 6_200_000, 8_400_000,
+    ];
+    const int MaxBagGoldExtensions = 10, MaxStorageGoldExtensions = 31;
 
     public const ushort ItemMoveRq = 0x563a, ItemMoveRs = 0x563b, ItemRemoveRq = 0x563c, ItemRemoveRs = 0x563d, ItemSortRq = 0x563e, ItemSortRs = 0x563f,
         // DevPacketData 0x398A ItemContainerSlotExtend: live +0x1ebe → 0x5848 (0x56 run) or +0x53c5 → 0x8d4f (0x8d run, after SealStone 0x3989→0x8d4e).
@@ -75,19 +93,19 @@ public sealed partial class GameSession
     /// <summary>The bar at world entry: the class's default bar with the player's saved slots over it.</summary>
     byte[] Hotbar(IEnumerable<(int Slot, int SkillId)> defaults)
     {
-        var bar = new SortedDictionary<int, (int Slot, int Type, long ItemUid, int ItemId, int SkillId, IReadOnlyList<int>?)>();
+        var bar = new SortedDictionary<int, (int Slot, int Type, long ItemUid, int ItemId, int SkillId, IReadOnlyList<int>?, bool AutoUse)>();
         foreach (var (slot, skill) in defaults)
-            bar[slot] = (slot, 0, 0, 0, skill, data.DefaultContextSkills(skill));
+            bar[slot] = (slot, 0, 0, 0, skill, data.DefaultContextSkills(skill), false);
         // PCLevelQuickSlot.dat (Steam 2026-10-28 client): every class starts with its potions on the consumable bar
         // (item slots 11-18 = F1-F8, QuickSlotData bEditable); the official level-1 entry sends these item records with
         // the 8 skills (capture 20261013 #376: 14 records). Only items the player holds in the bag; saved slots win.
         foreach (var (slot, itemId) in GamePackets.LevelQuickSlotItems)
             if (storedItems.Values.Where(i => i.Location == "bag" && i.TemplateId == itemId).Select(WireKey).FirstOrDefault() is var uid and not 0)
-                bar[slot] = (slot, 1, uid, itemId, 0, null);
+                bar[slot] = (slot, 1, uid, itemId, 0, null, false);
         foreach (var s in quickSlots.Values)
         {
             if (IsClearedQuickSlot(s)) bar.Remove(s.Slot);
-            else bar[s.Slot] = (s.Slot, s.Type, s.ItemUid, s.ItemId, s.SkillId, ContextSkillsForSlot(s));
+            else bar[s.Slot] = (s.Slot, s.Type, s.ItemUid, s.ItemId, s.SkillId, ContextSkillsForSlot(s), s.AutoUse);
         }
         return GamePackets.QuickSlots(bar.Values.ToList());
     }
@@ -167,28 +185,46 @@ public sealed partial class GameSession
         var container = plain[6];
         var itemUid = BitConverter.ToInt64(plain, 7);
         var costIdx = plain[15];
-        byte[] Rs(int result, ContainerSlotExtendView counts) =>
-            PacketWriter.Opcode(rsOpcode).I32(result).I32(npc).U8(container).I64(itemUid).U8(costIdx)
-                .U8(counts.InventoryByItem).U8(counts.InventoryByGold).ToArray();
-        byte[] Nt(ContainerSlotExtendView counts) =>
-            PacketWriter.Opcode(ntOpcode).U8(container).I64(itemUid).U8(counts.InventoryByItem).U8(counts.InventoryByGold).ToArray();
-        if (Store is not { } store || CharacterId is not { } character || container != InventoryItem.Bag || itemUid != 0)
+        byte[] Rs(int result, ContainerSlotExtendView counts)
+        {
+            var (byItem, byGold) = counts.WireExtendPair(container);
+            return PacketWriter.Opcode(rsOpcode).I32(result).I32(npc).U8(container).I64(itemUid).U8(costIdx).U8(byItem).U8(byGold).ToArray();
+        }
+        byte[] Nt(ContainerSlotExtendView counts)
+        {
+            var (byItem, byGold) = counts.WireExtendPair(container);
+            return PacketWriter.Opcode(ntOpcode).U8(container).I64(itemUid).U8(byItem).U8(byGold).ToArray();
+        }
+        if (Store is not { } store || CharacterId is not { } character || itemUid != 0)
             return [Rs(1, containerSlotExtends)];
-        if (costIdx != containerSlotExtends.InventoryByGold || costIdx >= MaxBagGoldExtensions)
-            return [Rs(4, containerSlotExtends), .. await InventoryChangesAsync(ct, 0, 0)];
+        if (container is not (InventoryItem.Bag or InventoryItem.Storage))
+            return [Rs(1, containerSlotExtends)];
+        containerSlotExtends = ContainerSlotExtendView.From(await store.ContainerSlotExtendsAsync(character, ct));
+        var maxExt = container == InventoryItem.Bag ? MaxBagGoldExtensions : MaxStorageGoldExtensions;
+        var currentExt = container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage;
+        if (costIdx != currentExt || costIdx >= maxExt)
+        {
+            LogContainerSlotExtend(container, costIdx, 4, currentExt);
+            return [Rs(4, containerSlotExtends), .. InventoryDepotSyncPackets(), .. await InventoryChangesAsync(ct, 0, 0)];
+        }
         var outcome = ("none", ContainerSlotExtendCounts.Zero);
         await Stored(async () =>
         {
-            outcome = await store.ExtendInventoryByGoldAsync(character, costIdx, ct);
+            outcome = container == InventoryItem.Bag
+                ? await store.ExtendInventoryByGoldAsync(character, costIdx, ct)
+                : await store.ExtendStorageByGoldAsync(character, costIdx, ct);
             return outcome.Item1 == "ok" ? [[]] : [];
         });
         if (outcome.Item1 != "ok")
         {
             var fail = outcome.Item1 switch { "kina" => 3, "count" => 4, _ => 1 };
             containerSlotExtends = ContainerSlotExtendView.From(outcome.Item2);
+            LogContainerSlotExtend(container, costIdx, fail, container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage);
             return [Rs(fail, containerSlotExtends), .. await InventoryChangesAsync(ct, 0, 0)];
         }
         containerSlotExtends = ContainerSlotExtendView.From(outcome.Item2);
+        var newExt = container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage;
+        LogContainerSlotExtend(container, costIdx, 0, newExt);
         return
         [
             Rs(0, containerSlotExtends),
@@ -215,13 +251,30 @@ public sealed partial class GameSession
     /// </summary>
     async Task<List<byte[]>> SetQuickSlotAsync(byte[] plain, CancellationToken ct)
     {
-        int number, type, itemId, skillId;
-        long uid;
-        int[]? context = null;
+        if (!TryParseQuickSlotInfo(plain, out var number, out var type, out var uid, out var itemId, out var skillId, out var context, out var autoUse))
+            return [];
+        byte[] Reply(int result) => PacketWriter.Opcode(QuickSlotSetRs).U16(result).Raw(plain.AsSpan(2)).ToArray();
+        if (Store is not { } store || CharacterId is not { } character || type is < 0 or > 4) return [Reply(1)];
+        if (type == 1 && uid != 0 && (!storedItems.TryGetValue(uid, out var itemRow) || itemRow.Location != "bag" || itemRow.TemplateId != itemId))
+            return [Reply(1)];
+        if (type == 0 && skillId != 0 && !learned.Contains(skillId)) return [Reply(1)];
+        context ??= type == 0 && skillId != 0 ? data.DefaultContextSkills(skillId).ToArray() : null;
+        var slot = new QuickSlotRecord(number, type, uid, itemId, skillId, context, autoUse);
+        var saved = await Stored(async () => await store.SaveQuickSlotAsync(character, number, slot, ct) ? [[]] : []);
+        if (saved.Count == 0) return [Reply(1)];
+        quickSlots[number] = slot;
+        return [Reply(0)];
+    }
+
+    /// <summary>QuickSlotInfo body after opcode: mask, slot, type, item uid/id, skill id, optional context skills, macro, social, toggle.</summary>
+    static bool TryParseQuickSlotInfo(byte[] plain, out int number, out int type, out long uid, out int itemId, out int skillId, out int[]? context, out bool autoUse)
+    {
+        number = type = itemId = skillId = 0;
+        uid = 0;
+        context = null;
+        autoUse = false;
         try
         {
-            // QuickSlotInfo starts with its presence mask (live 2026-10-16 `00 0e 01 ...` for a potion on slot 14; the reader
-            // took the mask for the slot and the slot for the type, so every item drag was refused).
             var reader = new PacketReader(plain) { Offset = 2 };
             var mask = reader.U8();
             number = reader.U8(); type = reader.U8(); uid = (long)reader.U64(); itemId = (int)reader.U32(); skillId = (int)reader.U32();
@@ -232,19 +285,12 @@ public sealed partial class GameSession
                 for (var i = 0; i < count && i < 4; i++) ids[i] = (int)reader.U32();
                 context = ids;
             }
+            _ = reader.U8();
+            _ = reader.U32();
+            autoUse = reader.U8() != 0;
+            return true;
         }
-        catch (ProtocolException) { return []; }
-        byte[] Reply(int result) => PacketWriter.Opcode(QuickSlotSetRs).U16(result).Raw(plain.AsSpan(2)).ToArray();
-        if (Store is not { } store || CharacterId is not { } character || type is < 0 or > 4) return [Reply(1)];
-        if (type == 1 && uid != 0 && (!storedItems.TryGetValue(uid, out var itemRow) || itemRow.Location != "bag" || itemRow.TemplateId != itemId))
-            return [Reply(1)];
-        if (type == 0 && skillId != 0 && !learned.Contains(skillId)) return [Reply(1)];
-        context ??= type == 0 && skillId != 0 ? data.DefaultContextSkills(skillId).ToArray() : null;
-        var slot = new QuickSlotRecord(number, type, uid, itemId, skillId, context);
-        var saved = await Stored(async () => await store.SaveQuickSlotAsync(character, number, slot, ct) ? [[]] : []);
-        if (saved.Count == 0) return [Reply(1)];
-        quickSlots[number] = slot;
-        return [Reply(0)];
+        catch (ProtocolException) { return false; }
     }
 
     /// <summary>0x5603 QuickSlotReset_RQ {slot u8}: cleared, answered 0x5604 {result, slot}.</summary>
@@ -283,6 +329,62 @@ public sealed partial class GameSession
         if (saved.Count == 0) return [Reply(1)];
         foreach (var slot in changed) quickSlots[slot.Slot] = slot;
         return [Reply(0), Hotbar(profile.DefaultBar())];
+    }
+
+    /// <summary>
+    /// Hotbar auto-use (QuickSlotInfo._toggle_yn): when the item buff is missing or expired and the cooldown is ready,
+    /// consume one stack and send the normal item-use replies (in or out of combat). Also honors SetAutoUseItem ids.
+    /// </summary>
+    async Task<List<byte[]>> AutoQuickSlotItemsAsync(long now, CancellationToken ct)
+    {
+        if (resources is null || dead || Store is null || itemCast is not null) return [];
+        foreach (var slot in quickSlots.Values.OrderBy(s => s.Slot))
+        {
+            if (slot.Type != 1 || !slot.AutoUse || slot.ItemId == 0) continue;
+            if (!ItemAutoUseReady(slot.ItemId, now, out var stack)) continue;
+            var used = await UseItemAsync(WireKey(stack!), now, ct);
+            if (used.Count == 0 || used[0].Length >= 3 && used[0][2] != 0) continue;
+            LogQuickSlotAutoUse(slot.ItemId, slot.Slot, "server");
+            return used;
+        }
+        foreach (var itemId in autoUseItems.OrderBy(i => i))
+        {
+            if (quickSlots.Values.Any(s => s.Type == 1 && s.AutoUse && s.ItemId == itemId)) continue;
+            if (!ItemAutoUseReady(itemId, now, out var stack)) continue;
+            var used = await UseItemAsync(WireKey(stack!), now, ct);
+            if (used.Count == 0 || used[0].Length >= 3 && used[0][2] != 0) continue;
+            LogQuickSlotAutoUse(itemId, -1, "server_setting");
+            return used;
+        }
+        return [];
+    }
+
+    bool ItemAutoUseReady(int itemId, long now, out ItemState? stack)
+    {
+        stack = ResolveBagStack(itemId, 0);
+        if (stack is null || Boxes.Use(itemId) is not { Effect: "Skill" }) return false;
+        var cooldown = Boxes.Cooldown(itemId);
+        if (cooldown.Group != "None" && now < itemCooldowns.GetValueOrDefault(cooldown.Group)) return false;
+        return NeedsItemBuffRefresh(itemId, now);
+    }
+
+    ItemState? ResolveBagStack(int itemId, long preferredUid)
+    {
+        if (preferredUid != 0 && storedItems.TryGetValue(preferredUid, out var preferred) && preferred.Location == "bag"
+            && preferred.TemplateId == itemId && preferred.Quantity > 0)
+            return preferred;
+        return storedItems.Values.Where(i => i.Location == "bag" && i.TemplateId == itemId && i.Quantity > 0)
+            .OrderBy(i => i.Quantity).FirstOrDefault();
+    }
+
+    /// <summary>True when a skill consumable's Abnormal_True buffs are all absent or expired.</summary>
+    bool NeedsItemBuffRefresh(int itemId, long now)
+    {
+        if (Boxes.Use(itemId) is not { Effect: "Skill", Values: [var skillText, ..] } || !int.TryParse(skillText, out var skillId))
+            return false;
+        var abnormalIds = Boxes.SkillEffects(skillId).Where(e => e.Type == "Abnormal_True").Select(e => e.Value(2)).Where(id => id > 0).ToList();
+        if (abnormalIds.Count == 0) return false;
+        return !abnormalIds.Any(id => buffs.Any(b => b.AbnormalId == id && b.ExpireAt > now));
     }
 
     /// <summary>Party members on the same map within this distance share a kill's experience (OURS).</summary>

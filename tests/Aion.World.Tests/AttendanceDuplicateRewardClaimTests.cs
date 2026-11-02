@@ -14,9 +14,9 @@ public sealed class AttendanceDuplicateRewardClaimTests
     public async Task Second_claim_of_the_same_attendance_step_is_refused_and_grants_no_items()
     {
         var store = new FakeCharacterStore();
+        GameSessionTestHelpers.SeedAttendanceCheckedInNotRewarded(store, Now + 100);
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
         var board = GameSession.LatestAttendanceSeasons(1, Now + 100).Single(e => e.Board.SeasonGroupId == 37).Board;
-        await session.HandleAsync([0x4d, 0xe3], Now + 100);
 
         var itemId = AchievementTables.Embedded.Of(board.Achievement)!.StepRewards(1)[0].ItemId;
         var before = store.Items.Where(i => i.TemplateId == itemId).Sum(i => i.Quantity);

@@ -26,6 +26,57 @@ public sealed partial class GameSession
         return activeChainSkills.TryGetValue(skillId, out var until) && now < until;
     }
 
+    /// <summary>FixSlot left-click combo step (Snipe / Rapid Fire / Spiral Arrow, …): shared root cooldown group.</summary>
+    int BasicChainCooldownGroup(int skillId) => data.CooldownGroup(ChainRoot(skillId));
+
+    bool IsBasicChainAdvanceCast(int skillId, bool chainSkill, bool chainAllowed) =>
+        chainSkill && chainAllowed && data.IsBasicAttackChainSkill(skillId);
+
+    /// <summary>
+    /// FixSlot combo follow-up: projectile parents (Ranger Snipe, official 2026-10-31) wait for swing lockout; melee parents
+    /// (Assassin Breaking, chain-20261012) accept the next step during the swing (Swift ~40 ms after Breaking in capture).
+    /// </summary>
+    bool BasicChainCastGapReady(int skillId, long now)
+    {
+        if (data.Skill(skillId) is not { ChainPrev: > 0 } step || !data.IsBasicAttackChainSkill(skillId)) return true;
+        if (CastLockoutOpen(now)) return true;
+        if (CastArea(step.ChainPrev) is { Projectile: > 0 }) return false;
+        return SkillCastInProgress(now);
+    }
+
+    /// <summary>0x3801 failure while a combo window stays open; optional 0x3818 resync (Skill.dat chain_window_ms, typically 3000).</summary>
+    List<byte[]> BasicChainLockoutRefusal(CastRequest request, long now)
+    {
+        var replies = new List<byte[]> { CastReplyFor(request, false) };
+        replies.AddRange(BasicChainClientResync(now));
+        return replies;
+    }
+
+    List<byte[]> BasicChainClientResync(long now)
+    {
+        if (activeChainSkills.Count == 0) return [];
+        var replies = new List<byte[]>();
+        foreach (var (child, until) in activeChainSkills.Where(p => now < p.Value).OrderBy(p => p.Key))
+        {
+            if (data.Skill(child) is not { ChainPrev: > 0 } step) continue;
+            replies.Add(GamePackets.ChainSkillActiveList(step.ChainPrev, [child]));
+        }
+        return replies;
+    }
+
+    /// <summary>After combo_window_ms (export: 3000 on Ranger Rapid Fire / Spiral Arrow), treat input as a fresh step-1 cast.</summary>
+    bool TryRestartExpiredBasicChain(ref int skill, ref CastRequest request, long now)
+    {
+        if (data.Skill(skill) is not { ChainPrev: > 0 } || !data.IsBasicAttackChainSkill(skill) || ChainReady(skill, now))
+            return false;
+        var root = ChainRoot(skill);
+        skill = root;
+        request = request with { SkillId = root };
+        foreach (var expired in activeChainSkills.Where(p => now >= p.Value).Select(p => p.Key).ToList())
+            activeChainSkills.Remove(expired);
+        return true;
+    }
+
     /// <summary>Self abnormal rows that gate the client's chain hotbar swap must land before 0x3818 (Defiance, Savage Roar, …).</summary>
     List<byte[]> ChainCasterAbnormalReplies(int skillId, long now) =>
         UsesChainCasterAbnormalOnAccept(skillId) ? ApplyCasterSkillAbnormals(skillId, now, chainAcceptPrime: true) : [];

@@ -7,6 +7,7 @@ public sealed class ClassDodgeIdTests
 {
     [Theory]
     [InlineData(11000100, true)]
+    [InlineData(13000100, true)]
     [InlineData(16000100, true)]
     [InlineData(18000100, true)]
     [InlineData(16000101, false)]

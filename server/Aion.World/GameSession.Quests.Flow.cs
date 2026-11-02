@@ -78,7 +78,12 @@ public sealed partial class GameSession
             if (repeatedAcceptAnswered.TryGetValue(questId, out var at) && lastNow - at < RepeatedAcceptQuietMs) return [];
             repeatedAcceptAnswered[questId] = lastNow;
             Note($"QuestAccept {takenCode}: already taken (status {taken.Status}), answered with its state");
-            return [GamePackets.QuestAcceptReply(questId, (int)taken.Uid, 0), GamePackets.QuestAdd(Wire(taken, npcKey))];
+            return
+            [
+                GamePackets.QuestAcceptReply(questId, (int)taken.Uid, 0),
+                GamePackets.QuestAdd(Wire(taken, npcKey)),
+                GamePackets.QuestProgress(Wire(taken, npcKey)),
+            ];
         }
 
         if (questLog is null || !questLog.Book.ById.TryGetValue(questId, out var code) || !questLog.CanAccept(code, level, QuestConditionsHold))
@@ -86,7 +91,7 @@ public sealed partial class GameSession
         return await Stored(async () =>
         {
             var saved = await SaveQuestAsync(QuestLog.New(code, questLog.Book.Find(code)!), ct);
-            LogQuestEvent("quest_accept", code, 0, QuestLog.Incomplete);
+            LogQuestEvent("quest_accept", code, saved.Step, QuestLog.Incomplete);
             var replies = QuestAcceptPackets(saved, npcKey);
             replies.AddRange(ApplyQuestWorldGating(lastNow));
             return replies;
@@ -159,8 +164,10 @@ public sealed partial class GameSession
                 replies.Add(GamePackets.ContentsUnlockUpdate(unlocked));
             if (questLog.FollowUpOnReward(quest, level, QuestConditionsHold) is { } next)
             {
-                replies.Add(GamePackets.QuestAdd(Wire(await SaveQuestAsync(QuestLog.New(next, questLog.Book.Find(next)!), ct))));
-                LogQuestEvent("quest_accept", next, 0, QuestLog.Incomplete);
+                var follow = await SaveQuestAsync(QuestLog.New(next, questLog.Book.Find(next)!), ct);
+                replies.Add(GamePackets.QuestAdd(Wire(follow)));
+                replies.Add(GamePackets.QuestProgress(Wire(follow)));
+                LogQuestEvent("quest_accept", next, follow.Step, QuestLog.Incomplete);
             }
             else if (quest.Next is { } waiting && questLog.Book.Find(waiting) is { } follow)
                 DebugMapEvent($"quest follow-up {waiting} after {record.Code} not auto-added: acquire={follow.Acquire} startNpc={follow.StartNpc} turnInNpc={quest.FinishNpc} block={questLog.AcceptBlockReason(follow, level, QuestConditionsHold) ?? "-"}");

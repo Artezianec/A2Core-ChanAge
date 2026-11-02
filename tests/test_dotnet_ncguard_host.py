@@ -114,6 +114,62 @@ class DotnetNcGuardTests(unittest.TestCase):
 
 
 @unittest.skipUnless(HOST.exists() and shutil.which('dotnet'), 'Build Aion.Host first')
+class DotnetNcGuardBladnochBuiltinTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.port = free_port()
+        self.host = 'bladnoch.ncsoft.com'
+        (self.root / 'fixture.json').write_text(json.dumps({'rules': []}))
+        self.stop_file = self.root / 'stop'
+        env = {k: v for k, v in os.environ.items() if not k.startswith(('Aion__', 'ConnectionStrings__'))}
+        env.update(Aion__LocalPort=str(free_port()), Aion__NcGuard__Port=str(self.port),
+                   Aion__NcGuard__FixtureFile=str(self.root / 'fixture.json'),
+                   Aion__NcGuard__DataDirectory=str(self.root), Aion__NcGuard__StopFile=str(self.stop_file),
+                   Aion__NcGuard__DurationSeconds='60', Aion__NcGuard__Hosts__0=self.host,
+                   Aion__NcGuard__Capture='false')
+        self.log = (self.root / 'host.log').open('w')
+        self.process = subprocess.Popen(['dotnet', str(HOST)], cwd=HOST.parent, env=env,
+                                        stdout=self.log, stderr=subprocess.STDOUT)
+        self.addCleanup(self._stop)
+        deadline = time.monotonic() + 25
+        while time.monotonic() < deadline:
+            if self.process.poll() is not None:
+                self.fail((self.root / 'host.log').read_text())
+            try:
+                socket.create_connection(('127.0.0.1', self.port), .3).close()
+                self.context = ssl.create_default_context(cafile=str(next(self.root.glob('tls-mitm-dotnet-*')) / 'ca.pem'))
+                return
+            except (OSError, StopIteration):
+                time.sleep(.1)
+        self.fail('TLS listener did not open')
+
+    def _stop(self):
+        self.stop_file.touch()
+        try:
+            self.process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            self.process.kill()
+            self.process.wait()
+        self.log.close()
+
+    def test_post_root_returns_empty_html_200(self):
+        body = bytes(2082)
+        context = self.context
+        with socket.create_connection(('127.0.0.1', self.port), 5) as raw:
+            with context.wrap_socket(raw, server_hostname=self.host) as tls:
+                head = (f'POST / HTTP/1.1\r\nHost: {self.host}\r\n'
+                        f'Content-Type: application/octet-stream\r\nContent-Length: {len(body)}\r\nConnection: close\r\n\r\n').encode()
+                tls.sendall(head + body)
+                response = http.client.HTTPResponse(tls)
+                response.begin()
+                self.assertEqual(200, response.status)
+                self.assertEqual('text/html', response.getheader('Content-Type'))
+                self.assertEqual(b'', response.read())
+
+
+@unittest.skipUnless(HOST.exists() and shutil.which('dotnet'), 'Build Aion.Host first')
 class DotnetNcGuardGpaBuiltinTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

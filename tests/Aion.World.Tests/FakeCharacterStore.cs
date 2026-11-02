@@ -42,9 +42,35 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         if (costIdx is < 0 or >= maxGoldExt) return Task.FromResult(("count", ContainerExtends.GetValueOrDefault(character, ContainerSlotExtendCounts.Zero)));
         var cur = ContainerExtends.GetValueOrDefault(character, ContainerSlotExtendCounts.Zero);
         if (cur.InventoryByGold != costIdx || cur.InventoryByGold >= maxGoldExt) return Task.FromResult(("count", cur));
+        if (!DeductKina(costs[costIdx])) return Task.FromResult(("kina", cur));
+        var next = cur with { InventoryByGold = cur.InventoryByGold + 1 };
+        ContainerExtends[character] = next;
+        return Task.FromResult(("ok", next));
+    }
+
+    public Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendStorageByGoldAsync(Guid character, int costIdx, CancellationToken ct)
+    {
+        const int maxGoldExt = 31;
+        long[] costs =
+        [
+            1_000, 1_000, 1_500, 2_000, 2_500, 3_500, 5_000, 6_500, 9_000, 15_000, 20_000, 25_000, 35_000, 45_000, 60_000,
+            80_000, 150_000, 150_000, 200_000, 300_000, 400_000, 550_000, 700_000, 950_000, 1_300_000, 1_800_000, 2_500_000,
+            3_300_000, 4_500_000, 6_200_000, 8_400_000,
+        ];
+        if (costIdx is < 0 or >= maxGoldExt) return Task.FromResult(("count", ContainerExtends.GetValueOrDefault(character, ContainerSlotExtendCounts.Zero)));
+        var cur = ContainerExtends.GetValueOrDefault(character, ContainerSlotExtendCounts.Zero);
+        if (cur.Storage != costIdx || cur.Storage >= maxGoldExt) return Task.FromResult(("count", cur));
+        if (!DeductKina(costs[costIdx])) return Task.FromResult(("kina", cur));
+        var next = cur with { Storage = cur.Storage + 1 };
+        ContainerExtends[character] = next;
+        return Task.FromResult(("ok", next));
+    }
+
+    bool DeductKina(long amount)
+    {
         var kina = Items.Where(i => i.TemplateId == GameSession.KinaItemId && i.Location == "bag").Sum(i => i.Quantity);
-        if (kina < costs[costIdx]) return Task.FromResult(("kina", cur));
-        var left = costs[costIdx];
+        if (kina < amount) return false;
+        var left = amount;
         foreach (var row in Items.Where(i => i.TemplateId == GameSession.KinaItemId && i.Location == "bag").OrderByDescending(i => i.Quantity).ToList())
         {
             if (left <= 0) break;
@@ -54,9 +80,7 @@ public sealed class FakeCharacterStore : INativeCharacterStore
             if (row.Quantity == take) Items.RemoveAt(idx);
             else Items[idx] = row with { Quantity = row.Quantity - take, Revision = row.Revision + 1 };
         }
-        var next = cur with { InventoryByGold = cur.InventoryByGold + 1 };
-        ContainerExtends[character] = next;
-        return Task.FromResult(("ok", next));
+        return true;
     }
 
     public static ItemState BagItem(int template, long quantity, long wire, int? slot = null, JsonElement? upgrades = null)

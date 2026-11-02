@@ -168,7 +168,7 @@ public sealed partial class GameSession
         return [PacketWriter.Opcode(PotionAutoUseRs).U16(ok ? 0 : 1).U8(group).I32(first).I32(second).ToArray()];
     }
 
-    /// <summary>SetAutoUseItem_RQ {item i32, activated bool} -> RS {u16 0, {item, activated}}. Stored and listed; not used automatically yet.</summary>
+    /// <summary>SetAutoUseItem_RQ {item i32, activated bool} -> RS {u16 0, {item, activated}}. Stored; consumed on tick when buff refresh is due.</summary>
     async Task<List<byte[]>> SetItemAutoUseAsync(byte[] plain, CancellationToken ct)
     {
         var item = BitConverter.ToInt32(plain, 2);

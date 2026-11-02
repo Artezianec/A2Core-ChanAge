@@ -18,4 +18,13 @@ public sealed class LootTablesEnvTests
         var dark = loot.RollEnv(1301134, 2, new Random(1));
         Assert.Contains(dark, d => d.ItemId == 631900007 && d.Count >= 1);
     }
+
+    [Fact]
+    public void Field_treasure_S1_env_resolves_by_convention()
+    {
+        var loot = LootTables.Embedded;
+        Assert.True(loot.HasEnvLoot(1100130));
+        var rolled = loot.RollEnv(1100130, 1, new Random(42));
+        Assert.NotEmpty(rolled);
+    }
 }

@@ -18,6 +18,9 @@ public sealed partial class GameSession
     /// <summary>Client resends 0x3800 / BasicAtk about every 17 ms while the key is held; no packet for ~200 ms means release.</summary>
     internal const int HeldCastActiveMs = 200;
 
+    /// <summary>Clock slack for held lockout (official Ranger chain captures: ~17 ms resend cadence, ~50–100 ms RTT).</summary>
+    internal const int CastLockoutToleranceMs = 75;
+
     static HeldCastWireKey HeldCastWireKeyOf(CastRequest request, byte[] body) =>
         new(request.SkillId, request.TargetKey, BitConverter.ToUInt16(body, 2), request.ChangeToggle, request.HasChangeToggle);
 
@@ -77,8 +80,12 @@ public sealed partial class GameSession
         nextCastAcceptAtMs = freeRecast ? now : now + HeldCastLockoutMs(definition, skillId);
     }
 
+    bool CastLockoutOpen(long now) => now + CastLockoutToleranceMs >= nextCastAcceptAtMs;
+
+    int EffectiveMinCastGapMs() => SpeedScaledMs(SkillCooldown.MinCastGapMs);
+
     bool IsExactHeldCastDuplicate(CastRequest request, byte[] body, long now) =>
-        now < nextCastAcceptAtMs && HeldCastWireKeyOf(request, body) == lastAcceptedCastKey;
+        now + CastLockoutToleranceMs < nextCastAcceptAtMs && HeldCastWireKeyOf(request, body) == lastAcceptedCastKey;
 
     internal long HeldCastLockoutRemainingMs(long now) => nextCastAcceptAtMs <= now ? 0 : nextCastAcceptAtMs - now;
 
@@ -147,15 +154,18 @@ public sealed partial class GameSession
         queuedCastAtMs = 0;
     }
 
-    /// <summary>Queue an early chain step; refuses only a replaced queued wire. No immediate 0x3801 for the new request.</summary>
-    List<byte[]> MaybeQueueEarlyChainCast(byte[] body, CastRequest request, bool chainSkill, bool chainAllowed, bool castGapOk, long acceptAtMs)
+    /// <summary>Queue an early chain step; refuses a replaced queued wire and always answers the client (0x3801 failure) so it never locks.</summary>
+    List<byte[]> MaybeQueueEarlyChainCast(byte[] body, CastRequest request, bool chainSkill, bool chainAllowed, bool castGapOk, long now, long acceptAtMs)
     {
         if (!chainSkill || !chainAllowed || castGapOk) return [];
+        if (data.IsBasicAttackChainSkill(request.SkillId))
+            return BasicChainLockoutRefusal(request, now);
         var key = HeldCastWireKeyOf(request, body);
         if (queuedCastWire is { } existing && ParseCast(existing) is { } queued && HeldCastWireKeyOf(queued, existing) == key)
-            return [];
+            return [CastReplyFor(request, false)];
         var replies = RefuseReplacedQueuedCast();
         QueueHeldCastWire(body, acceptAtMs);
+        replies.Add(CastReplyFor(request, false));
         return replies;
     }
 }

@@ -34,6 +34,17 @@ public sealed partial class GameSession
         return new(q.QuestId, (byte)q.Status, wireStep, q.Goals, (int)q.Uid, publisher, roll);
     }
 
+    /// <summary>
+    /// Re-merge Common_Quest on 0x8d11 after every 0x8d10: the tracker HUD (objective counters, episode bar, talk UI) reads the
+    /// journal row from QuestAdd/QuestList, not progress-only packets (OBSERVED DQ1202013 step 6→7 after Etezia talk; hero Part
+    /// episodes also need _roll_count here). Accept/reward already pair add+progress; step and goal changes must too.
+    /// </summary>
+    IEnumerable<byte[]> QuestJournalSyncPackets(QuestRecord record)
+    {
+        if (record.Uid == 0) yield break;
+        yield return GamePackets.QuestAdd(Wire(record));
+    }
+
     /// <summary>0x8d09 at world entry plus part HUD sync (0x8fbc cleared rows, 0x8d11 rewarded re-merge).</summary>
     List<byte[]> QuestJournalAtEntry()
     {
@@ -148,6 +159,7 @@ public sealed partial class GameSession
                     Note($"quest transition {record.Code} milestone step={milestone.Step} status={milestone.Status} goals=[{string.Join(',', milestone.Goals)}]");
                     LogQuestEvent("quest_progress", record.Code, milestone.Step, milestone.Status, milestone.Goals);
                     replies.Add(GamePackets.QuestProgress(Wire(milestone)));
+                    replies.AddRange(QuestJournalSyncPackets(milestone));
                 }
             }
         var savedList = records.Count > 1 ? await SaveQuestBatchAsync(records, ct) : records.Count == 1 ? [await SaveQuestAsync(records[0], ct)] : [];
@@ -157,6 +169,7 @@ public sealed partial class GameSession
             Note($"quest transition {saved.Code} saved step={saved.Step} status={saved.Status} goals=[{string.Join(',', saved.Goals)}]");
             LogQuestEvent(saved.Status == QuestLog.Complete ? "quest_complete" : "quest_progress", saved.Code, saved.Step, saved.Status, saved.Goals);
             replies.Add(GamePackets.QuestProgress(Wire(saved)));
+            replies.AddRange(QuestJournalSyncPackets(saved));
             if (saved.Status == QuestLog.Complete && questLog!.Book.Find(saved.Code) is { Complete: "Auto" or "None" })
                 replies.AddRange(await QuestRewardAsync((int)saved.Uid, -1, 0, ct));
         }
@@ -257,6 +270,9 @@ public sealed partial class GameSession
 
     internal void SetQuestLogForTests(QuestLog log) => questLog = log;
 
+    internal Task<List<byte[]>> EmitQuestChangesForTests(IReadOnlyList<QuestRecord> changed, CancellationToken ct) =>
+        Stored(() => QuestChangesAsync(changed, ct));
+
     internal bool IsNpcDialogPaused(int npcKey) => ai.DialogPaused.Contains(npcKey);
 
     internal void SetMasteryLevelsForTests(int gather, IReadOnlyDictionary<int, int>? craft = null)
@@ -328,13 +344,17 @@ public sealed partial class GameSession
     /// talked NPC had no part in the next step (a quest's last talk, a talk before a layer move), the client closed the
     /// interaction at once (0xe242 within 15 ms, live 2026-10-30 HQ2101070 Garlond) and F on the last line did nothing.
     /// </summary>
-    Task<List<byte[]>> NpcInteractionAsync(int npcKey, long now, CancellationToken ct)
+    Task<List<byte[]>> NpcInteractionAsync(int npcKey, long now, CancellationToken ct) =>
+        Task.FromResult(BeginNpcInteraction(npcKey, now));
+
+    /// <summary>0xe240 and field-quest lock-on (0x3830): open dialog (0xe241) and remember open AskNpc/CloseNpc steps for 0xe242.</summary>
+    List<byte[]> BeginNpcInteraction(int npcKey, long now)
     {
         var replies = new List<byte[]> { GamePackets.StartNpcInteractionReply(npcKey, now + 300_000) };
         if (targets?.GetValueOrDefault(npcKey) is not { } npc)
         {
             LogNpcTalkRefused(npcKey, 0, null, "unknown_npc_key");
-            return Task.FromResult(replies);
+            return replies;
         }
         replies.AddRange(ai.DisengageForTalk(npc, now));
         ai.DialogPaused.Add(npcKey);
@@ -348,7 +368,7 @@ public sealed partial class GameSession
         openNpcTalk = questLog?.OpenTalks(npc.NpcId) is { Count: > 0 } talks ? (npcKey, talks) : null;
         openClearMapEventEntryKey = openNpcTalk is null && IsOpenClearMapEventEntryNpc(npc) ? npcKey : null;
         LogNpcTalk(npcKey, npc.NpcId, npc.Name, "NpcInteractionOpen");
-        return Task.FromResult(replies);
+        return replies;
     }
 
     /// <summary>The dialog ended (0xe242): quest AskNpc/CloseNpc and ClearMapEvent entry talks count here.</summary>
