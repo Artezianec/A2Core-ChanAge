@@ -9,6 +9,23 @@ combat, flight, gliding and swimming, inventory, shops, crafting, gathering, par
 account site with a staff dashboard. The launcher downloads the supported client build with the player's own Steam
 account and starts it against your server.
 
+## Features
+
+- Login, character creation and lobbies for both races (Elyos and Asmodians)
+- Open world: NPCs, monsters with AI, gathering, objects, quests, map events, monoliths and dungeons
+- Combat for all classes: skills, chains, basic attacks, dodge, buffs and debuffs
+- Flight, gliding and swimming
+- Inventory, warehouse and bag expansion, equipment, wings, shops, crafting and loot
+- Parties, legions, chat, mail, achievements and attendance rewards
+- Account website with a staff dashboard
+- A2Core Launcher: downloads the supported client build with your own Steam account and connects to your server
+
+## Requirements
+
+- Windows 10/11 (local server and launcher) or Ubuntu 26.04 (public server)
+- .NET 10 SDK, Python 3.11+, Node.js LTS with npm, PostgreSQL
+- A Steam account that owns AION2
+
 ## What is included
 
 A running version: the code under the [AGPL-3.0](LICENSE) and the game data it runs on, generated from the client:
@@ -61,7 +78,7 @@ same).
 
 Requirements: .NET 10 SDK, Python 3.11+, Node.js LTS with npm (https://nodejs.org/; used to build the web pages), and a PostgreSQL build (see `tools/postgres_dev.py`, or set `AION_PG_BIN`).
 
-1. Clone this branch: `git clone -b v1.0.1 https://github.com/Artezianec/A2Core-ChanAge`
+1. Clone this branch: `git clone https://github.com/Artezianec/A2Core-ChanAge`
 2. Download `aion-server-data.tar.gz` from the [v1.0.1 release](https://github.com/Artezianec/A2Core-ChanAge/releases/tag/v1.0.1)
    (Assets) and put it into `data\aion-server-data.tar.gz` (the repository root also works). On the first run
    `start-all.cmd` unpacks it with `tar.exe` into `research\local` (bootstrap fixtures, NCGuard fixture, catalogue,
@@ -109,3 +126,7 @@ raw extractions of your client under `research/local/` (MapData, the gameplay ta
 `AssetProbe`) run against your own client install with the client archive key, which you provide yourself
 (`research/local/archive-key-validated.json`, ignored by git). Each tool's docstring has its command.
 `tools/pack_server_data.py` builds the server data bundle from `research/local/`.
+
+## Community
+
+Join the ChanAge Discord for news, help with setup, bug reports and testing: https://discord.gg/ySPY5xcKXQ
