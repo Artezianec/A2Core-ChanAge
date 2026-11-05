@@ -28,6 +28,10 @@ tools/MapImageExport/obj/
 
 # React pages (web/) build into the host wwwroot; wardrobe-viewer.js there stays hand-written.
 web/node_modules/
+web/test-results/
+server/Aion.Host/wwwroot/account.html
+server/Aion.Host/wwwroot/account/
+server/Aion.Host/wwwroot/landing/
 server/Aion.Host/wwwroot/index.html
 server/Aion.Host/wwwroot/admin.html
 server/Aion.Host/wwwroot/assets/
@@ -48,4 +52,6 @@ launcher/**/obj/
 
 # Gamers4Life parity crawler cache (tools/audit_gamers4life.py)
 tools/.cache/gamers4life/
+server/Aion.Host/wwwroot/favicon.png
+server/Aion.Host/wwwroot/apple-touch-icon.png
 /aion-server-data.tar.gz

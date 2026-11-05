@@ -10,7 +10,7 @@ public sealed class InventoryCubeExpandTests
     const long Now = 1_700_000_000_000;
 
     static int InventoryGoldExtendTail(byte[] depot5611) =>
-        BitConverter.ToInt32(depot5611, depot5611.Length - 20);
+        depot5611[^5];
 
     [Fact]
     public async Task Gold_bag_extension_deducts_kina_and_replies_success()
@@ -28,7 +28,7 @@ public sealed class InventoryCubeExpandTests
         Assert.Equal(0, BitConverter.ToInt32(rs, 2));
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == GameSession.ItemContainerSlotExtendNt);
         Assert.Equal(1, store.ContainerExtends[character].InventoryByGold);
-        Assert.Equal(119_500, store.Items.Where(i => i.TemplateId == GameSession.KinaItemId).Sum(i => i.Quantity));
+        Assert.Equal(124_000, store.Items.Where(i => i.TemplateId == GameSession.KinaItemId).Sum(i => i.Quantity));
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x561b);
 
         var depot = replies.Last(p => GameSessionTestHelpers.Op(p) == 0x5611);
@@ -54,7 +54,7 @@ public sealed class InventoryCubeExpandTests
     }
 
     [Fact]
-    public async Task Mismatched_costIdx_resyncs_depot_so_next_request_uses_current_count()
+    public async Task Stale_client_costIdx_is_accepted_and_charges_next_tier()
     {
         var store = new FakeCharacterStore();
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now);
@@ -63,16 +63,20 @@ public sealed class InventoryCubeExpandTests
         store.Items.Add(FakeCharacterStore.BagItem(GameSession.KinaItemId, 124_500, 9005));
 
         var stale = new PacketWriter().U16(GameSession.ItemContainerSlotExtend8dRq).I32(0).U8(InventoryItem.Bag).I64(0).U8(0).ToArray();
-        var reject = await session.HandleAsync(stale, Now + 1);
-        var rs = reject.First(p => GameSessionTestHelpers.Op(p) == GameSession.ItemContainerSlotExtend8dRs);
-        Assert.Equal(4, BitConverter.ToInt32(rs, 2));
-        var depot = reject.First(p => GameSessionTestHelpers.Op(p) == 0x5611);
-        Assert.Equal(1, InventoryGoldExtendTail(depot));
-
-        var next = new PacketWriter().U16(GameSession.ItemContainerSlotExtend8dRq).I32(0).U8(InventoryItem.Bag).I64(0).U8(1).ToArray();
-        var ok = await session.HandleAsync(next, Now + 2);
-        Assert.Equal(0, BitConverter.ToInt32(ok.First(p => GameSessionTestHelpers.Op(p) == GameSession.ItemContainerSlotExtend8dRs), 2));
+        var replies = await session.HandleAsync(stale, Now + 1);
+        var rs = replies.First(p => GameSessionTestHelpers.Op(p) == GameSession.ItemContainerSlotExtend8dRs);
+        Assert.Equal(0, BitConverter.ToInt32(rs, 2));
+        Assert.Equal(2, rs[^1]);
+        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == GameSession.ItemContainerSlotExtend8dNt);
         Assert.Equal(2, store.ContainerExtends[character].InventoryByGold);
+        Assert.Equal(123_500, store.Items.Where(i => i.TemplateId == GameSession.KinaItemId).Sum(i => i.Quantity));
+        var depot = replies.Last(p => GameSessionTestHelpers.Op(p) == 0x5611);
+        Assert.Equal(2, InventoryGoldExtendTail(depot));
+
+        var again = await session.HandleAsync(stale, Now + 2);
+        Assert.Equal(0, BitConverter.ToInt32(again.First(p => GameSessionTestHelpers.Op(p) == GameSession.ItemContainerSlotExtend8dRs), 2));
+        Assert.Equal(3, store.ContainerExtends[character].InventoryByGold);
+        Assert.Equal(121_500, store.Items.Where(i => i.TemplateId == GameSession.KinaItemId).Sum(i => i.Quantity));
     }
 
     [Fact]
@@ -89,7 +93,7 @@ public sealed class InventoryCubeExpandTests
         var rs = replies.First(p => GameSessionTestHelpers.Op(p) == GameSession.ItemContainerSlotExtend8dRs);
         Assert.Equal(0, BitConverter.ToInt32(rs, 2));
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == GameSession.ItemContainerSlotExtend8dNt);
-        Assert.Equal(119_500, store.Items.Where(i => i.TemplateId == GameSession.KinaItemId).Sum(i => i.Quantity));
+        Assert.Equal(124_000, store.Items.Where(i => i.TemplateId == GameSession.KinaItemId).Sum(i => i.Quantity));
     }
 
     [Fact]
@@ -97,12 +101,20 @@ public sealed class InventoryCubeExpandTests
     {
         var store = new FakeCharacterStore();
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now);
-        store.Items.Add(FakeCharacterStore.BagItem(GameSession.KinaItemId, 1000, 9002));
+        store.Items.Add(FakeCharacterStore.BagItem(GameSession.KinaItemId, 100, 9002));
         await session.HandleAsync(new PacketWriter().U16(0x5610).ToArray(), Now);
 
         var rq = new PacketWriter().U16(GameSession.ItemContainerSlotExtendRq).I32(0).U8(InventoryItem.Bag).I64(0).U8(0).ToArray();
         var rs = (await session.HandleAsync(rq, Now + 1)).First(p => GameSessionTestHelpers.Op(p) == GameSession.ItemContainerSlotExtendRs);
         Assert.Equal(3, BitConverter.ToInt32(rs, 2));
-        Assert.Equal(1000, store.Items.Where(i => i.TemplateId == GameSession.KinaItemId).Sum(i => i.Quantity));
+        Assert.Equal(100, store.Items.Where(i => i.TemplateId == GameSession.KinaItemId).Sum(i => i.Quantity));
+    }
+
+    [Fact]
+    public void Depot_list_tail_is_six_u8_counts_like_official_samples()
+    {
+        var packet = GamePackets.ItemDepotList([], [0, 4, 2, 0, 0, 0]);
+        Assert.Equal(new byte[] { 0, 4, 2, 0, 0, 0 }, packet[^6..]);
+        Assert.Equal(GamePackets.ItemDepotList([]).Length, packet.Length);
     }
 }

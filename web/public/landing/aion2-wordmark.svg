@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="213" height="44" viewBox="0 0 213 44" role="img" aria-label="Aion 2">
+  <defs>
+    <filter id="aion-wm-shadow" width="120%" height="160%" x="-10%" y="-20%" filterUnits="objectBoundingBox">
+      <feOffset dy="2" in="SourceAlpha" result="off"/>
+      <feGaussianBlur in="off" stdDeviation="2.2" result="blur"/>
+      <feColorMatrix in="blur" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="aion-wm-ice" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f5fcff"/>
+      <stop offset="45%" stop-color="#eafcff"/>
+      <stop offset="100%" stop-color="#9ec8e8"/>
+    </linearGradient>
+    <linearGradient id="aion-wm-gold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff3d4"/>
+      <stop offset="100%" stop-color="#ffdda2"/>
+    </linearGradient>
+  </defs>
+  <g filter="url(#aion-wm-shadow)" fill="none" fill-rule="evenodd">
+    <text
+      fill="url(#aion-wm-ice)"
+      font-family="Cinzel, 'Times New Roman', serif"
+      font-size="26"
+      font-weight="700"
+      letter-spacing="0.14em"
+      x="2"
+      y="31"
+    >AION</text>
+    <text
+      fill="url(#aion-wm-gold)"
+      font-family="Cinzel, 'Times New Roman', serif"
+      font-size="30"
+      font-weight="700"
+      x="118"
+      y="33"
+    >2</text>
+  </g>
+</svg>

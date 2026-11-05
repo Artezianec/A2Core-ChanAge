@@ -41,7 +41,7 @@ public sealed record LauncherConfig(
     {
         if (!IPAddress.TryParse(ServerAddress, out var address) || address.AddressFamily != AddressFamily.InterNetwork)
             throw new InvalidDataException("serverAddress must be an IPv4 address");
-        if (!Uri.TryCreate(AccountUrl, UriKind.Absolute, out var account) || account.Scheme != Uri.UriSchemeHttps)
+        if (!Uri.TryCreate(AccountUrl, UriKind.Absolute, out var account) || !IsValidAccountUrl(account))
             throw new InvalidDataException("accountUrl must be an https URL");
         if (BootstrapPort is < 1 or > 65535) throw new InvalidDataException("bootstrapPort");
         if (SavedDirSuffix.Length is < 1 or > 32 || !SavedDirSuffix.All(char.IsAsciiLetterOrDigit))
@@ -64,4 +64,18 @@ public sealed record LauncherConfig(
 
     /// <summary>The bootstrap URL for one launch: the launch authorization is the code in the path.</summary>
     public string BootstrapUrl(string authorization) => $"http://{ServerAddress}:{BootstrapPort}/c/{authorization}";
+
+    /// <summary>HTTPS everywhere; plain HTTP only for loopback account hosts (local Aion.Host without TLS).</summary>
+    static bool IsValidAccountUrl(Uri account)
+    {
+        if (account.Scheme == Uri.UriSchemeHttps) return true;
+        if (account.Scheme != Uri.UriSchemeHttp) return false;
+        return IsLoopbackAccountHost(account.Host);
+    }
+
+    static bool IsLoopbackAccountHost(string host)
+    {
+        if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase)) return true;
+        return IPAddress.TryParse(host, out var address) && IPAddress.IsLoopback(address);
+    }
 }

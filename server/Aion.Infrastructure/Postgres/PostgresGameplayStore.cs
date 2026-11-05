@@ -194,7 +194,7 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
     public async Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendInventoryByGoldAsync(VerifiedAccount account, Guid character, int costIdx, CancellationToken ct = default)
     {
         const int maxGoldExt = 10;
-        long[] costs = [5_000, 10_000, 20_000, 30_000, 50_000, 75_000, 100_000, 150_000, 200_000, 300_000];
+        long[] costs = [500, 1_000, 2_000, 3_000, 5_000, 7_500, 10_000, 15_000, 20_000, 30_000];
         if (costIdx is < 0 or >= maxGoldExt) return ("count", ContainerSlotExtendCounts.Zero);
         await using var c = await source.OpenConnectionAsync(ct); await using var t = await c.BeginTransactionAsync(ct);
         if (!await Own(c, t, account.AccountId, character, ct)) return ("none", ContainerSlotExtendCounts.Zero);

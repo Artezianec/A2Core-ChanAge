@@ -124,6 +124,10 @@
           "goods_display_name": "Pacote do Fundador Padrão de AION 2"
         },
         {
+          "language_code": "ru-RU",
+          "goods_display_name": "Стандартный набор основателя AION 2"
+        },
+        {
           "language_code": "zh-CN",
           "goods_display_name": "AION2普通创始人礼包"
         },
@@ -222,6 +226,10 @@
           "goods_display_name": "Pacote do Fundador Deluxe de AION 2"
         },
         {
+          "language_code": "ru-RU",
+          "goods_display_name": "Deluxe-набор основателя AION 2"
+        },
+        {
           "language_code": "zh-CN",
           "goods_display_name": "AION2豪华创始人礼包"
         },
@@ -318,6 +326,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pacote do Fundador Supremo de AION 2"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Ultimate-набор основателя AION 2"
         },
         {
           "language_code": "zh-CN",
@@ -496,6 +508,10 @@
           "goods_display_name": "Melhora do Pacote Padrão para o Pacote Deluxe de AION 2"
         },
         {
+          "language_code": "ru-RU",
+          "goods_display_name": "Улучшение пакета AION 2 Standard до Deluxe"
+        },
+        {
           "language_code": "zh-CN",
           "goods_display_name": "AION2普通至豪华升级包"
         },
@@ -580,6 +596,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Melhora do Pacote Deluxe para o Pacote Definitivo de AION 2"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Улучшение пакета AION 2 Deluxe до Ultimate"
         },
         {
           "language_code": "zh-CN",
@@ -668,6 +688,10 @@
           "goods_display_name": "Melhora do Pacote Padrão para o Pacote Definitivo de AION 2"
         },
         {
+          "language_code": "ru-RU",
+          "goods_display_name": "Улучшение пакета AION 2 Standard до Ultimate"
+        },
+        {
           "language_code": "zh-CN",
           "goods_display_name": "AION2普通至终极升级包"
         },
@@ -747,6 +771,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pedra Espiritual da Ressurreição"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Камень духа воскрешения"
         }
       ],
       "display_policies": [],
@@ -815,6 +843,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Cristal da Alma"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Кристалл души"
         }
       ],
       "display_policies": [],
@@ -883,6 +915,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Solvente de Orichalcum"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Сплав орихаркона"
         }
       ],
       "display_policies": [],
@@ -951,6 +987,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Martelo de Zircão"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Циркониевый молот"
         }
       ],
       "display_policies": [],
@@ -1019,6 +1059,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Martelo de Lazúli"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Лазуритовый молот"
         }
       ],
       "display_policies": [],
@@ -1087,6 +1131,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Martelo de Pedra da Lua"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Молот из лунного камня"
         }
       ],
       "display_policies": [],
@@ -1155,6 +1203,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Solvente de Orichalcum"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Сплав орихаркона"
         }
       ],
       "display_policies": [],
@@ -1223,6 +1275,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Amaciante de Couro de Dragão Inferior"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Простой смягчитель кожи дракона"
         }
       ],
       "display_policies": [],
@@ -1291,6 +1347,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Amaciante de Couro de Dragão Intermediário"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Средний смягчитель кожи дракона"
         }
       ],
       "display_policies": [],
@@ -1359,6 +1419,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Amaciante de Couro de Dragão Superior"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Качественный смягчитель кожи дракона"
         }
       ],
       "display_policies": [],
@@ -1427,6 +1491,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Abrasivo"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Абразив"
         }
       ],
       "display_policies": [],
@@ -1495,6 +1563,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Lixa"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Наждачная бумага"
         }
       ],
       "display_policies": [],
@@ -1563,6 +1635,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Catalisador"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Катализатор"
         }
       ],
       "display_policies": [],
@@ -1631,6 +1707,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Endurecedor de Escama de Balaur Inferior"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Простой усилитель чешуи дракона"
         }
       ],
       "display_policies": [],
@@ -1699,6 +1779,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Endurecedor de Escama de Balaur Intermediário"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Средний усилитель чешуи дракона"
         }
       ],
       "display_policies": [],
@@ -1767,6 +1851,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Endurecedor de Escama de Balaur Superior"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Качественный усилитель чешуи дракона"
         }
       ],
       "display_policies": [],
@@ -1835,6 +1923,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Frasco de Vidro"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Стеклянная бутылка"
         }
       ],
       "display_policies": [],
@@ -1903,6 +1995,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Frasco de Vidro Avançado"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Качественная стеклянная бутылка"
         }
       ],
       "display_policies": [],
@@ -1971,6 +2067,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Tinta Avançada"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Превосходные чернила"
         }
       ],
       "display_policies": [],
@@ -2039,6 +2139,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Tinta Excelente"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Превосходные чернила"
         }
       ],
       "display_policies": [],
@@ -2107,6 +2211,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Catalisador"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Катализатор"
         }
       ],
       "display_policies": [],
@@ -2175,6 +2283,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Endurecedor de Escama de Balaur Inferior"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Простой усилитель чешуи дракона"
         }
       ],
       "display_policies": [],
@@ -2243,6 +2355,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Endurecedor de Escama de Balaur Intermediário"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Средний усилитель чешуи дракона"
         }
       ],
       "display_policies": [],
@@ -2311,6 +2427,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Endurecedor de Escama de Balaur Superior"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Качественный усилитель чешуи дракона"
         }
       ],
       "display_policies": [],
@@ -2379,6 +2499,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Sal"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Соль"
         }
       ],
       "display_policies": [],
@@ -2447,6 +2571,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Óleo de Ulmus"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Вязовое масло"
         }
       ],
       "display_policies": [],
@@ -2515,6 +2643,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Molho de Soja"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Соевый соус"
         }
       ],
       "display_policies": [],
@@ -2584,6 +2716,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pimenta de Verteron"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Бертронский черный перец"
         }
       ],
       "display_policies": [],
@@ -2652,6 +2788,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Curry em Pó"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Порошок карри"
         }
       ],
       "display_policies": [],
@@ -2720,6 +2860,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Manteiga de Abex"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Фессилотское масло"
         }
       ],
       "display_policies": [],
@@ -2788,6 +2932,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Macarrão Fresco de Triora"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Фенхельная лапша"
         }
       ],
       "display_policies": [],
@@ -2856,6 +3004,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Queijo"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Сыр"
         }
       ],
       "display_policies": [],
@@ -2925,6 +3077,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Energia de Od"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Эфирная энергия"
         }
       ],
       "display_policies": [],
@@ -2994,6 +3150,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Energia de Od"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Эфирная энергия"
         }
       ],
       "display_policies": [],
@@ -3063,6 +3223,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Bilhete de Conclusão Imediata: Masmorra Diária "
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Свиток завершения: Ежедн. подземелье"
         }
       ],
       "display_policies": [],
@@ -3131,6 +3295,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pedra Espiritual da Ressurreição"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Камень духа воскрешения"
         }
       ],
       "display_policies": [],
@@ -3199,6 +3367,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pergaminho de Aprimoramento de Combate"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Сундук боевых свитков усиления"
         }
       ],
       "display_policies": [],
@@ -3267,6 +3439,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Chave: Cubo Oculto"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Ключ: Скрытый куб"
         }
       ],
       "display_policies": [],
@@ -3335,6 +3511,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Códice da Alma"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Книга души"
         }
       ],
       "display_policies": [],
@@ -3404,6 +3584,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Bilhete de Expansão de Cubo"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Купон расширения куба"
         }
       ],
       "display_policies": [],
@@ -3472,6 +3656,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Bilhete de Troca de Nome"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Смена имени"
         }
       ],
       "display_policies": [],
@@ -3540,6 +3728,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Bilhete de Troca de Visual"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Смена облика"
         }
       ],
       "display_policies": [],
@@ -3608,6 +3800,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Energia da Sorte"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Аура удачи"
         }
       ],
       "display_policies": [],
@@ -3676,6 +3872,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Energia da Sorte: Rara"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Аура удачи: редкая"
         }
       ],
       "display_policies": [],
@@ -3744,6 +3944,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Energia da Sorte: Épica"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Аура удачи: легендарная"
         }
       ],
       "display_policies": [],
@@ -3813,6 +4017,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Emote: Calma"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Эмоция: Спокойствие"
         }
       ],
       "display_policies": [],
@@ -3882,6 +4090,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Emote: Elegância"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Эмоция: Элегантность"
         }
       ],
       "display_policies": [],
@@ -3951,6 +4163,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Emote: Arrogância"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Эмоция: Высокомерие"
         }
       ],
       "display_policies": [],
@@ -4020,6 +4236,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Emote: Hesitação"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Эмоция: Нерешительность"
         }
       ],
       "display_policies": [],
@@ -4089,6 +4309,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Emote: Pronto"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Эмоция: Готовность"
         }
       ],
       "display_policies": [],
@@ -4158,6 +4382,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Emote: Dia Empolgante"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Эмоция: Волнительный день"
         }
       ],
       "display_policies": [],
@@ -4227,6 +4455,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Emote: Humor"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Эмоция: Интрига"
         }
       ],
       "display_policies": [],
@@ -4296,6 +4528,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Emote: Olhar Fixo"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Эмоция: Пристальный взгляд"
         }
       ],
       "display_policies": [],
@@ -4365,6 +4601,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Mascote: Pagati"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Питомец: Пагатти"
         }
       ],
       "display_policies": [],
@@ -4433,6 +4673,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Certificado de Voto de Atreia"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Сертификат клятвы Атреи"
         }
       ],
       "display_policies": [],
@@ -4501,6 +4745,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Bilhete de Troca de Nome"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Смена имени"
         }
       ],
       "display_policies": [],
@@ -4570,6 +4818,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Bilhete de Expansão do Armazém do Personagem"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Расширение склада персонажа"
         }
       ],
       "display_policies": [],
@@ -4639,6 +4891,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Bilhete de Expansão do Armazém do Servidor"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Расширение склада сервера"
         }
       ],
       "display_policies": [],
@@ -4708,6 +4964,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Bilhete de Expansão de Cubo"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Купон расширения куба"
         }
       ],
       "display_policies": [],
@@ -4776,6 +5036,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Chave: Cubo Oculto"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Ключ: Скрытый куб"
         }
       ],
       "display_policies": [],
@@ -4844,6 +5108,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pedra Espiritual da Ressurreição"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Камень духа воскрешения"
         }
       ],
       "display_policies": [],
@@ -4913,6 +5181,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Mascote: Bilhete de Autocoleta (30 dias)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Питомец: автосбор [30 дн.]"
         }
       ],
       "display_policies": [],
@@ -5219,6 +5491,10 @@
           "goods_display_name": "Pacote do Fundador Padrão de AION 2"
         },
         {
+          "language_code": "ru-RU",
+          "goods_display_name": "Стандартный набор основателя AION 2"
+        },
+        {
           "language_code": "zh-CN",
           "goods_display_name": "AION2普通创始人礼包"
         },
@@ -5316,6 +5592,10 @@
           "goods_display_name": "Pacote do Fundador Deluxe de AION 2"
         },
         {
+          "language_code": "ru-RU",
+          "goods_display_name": "Deluxe-набор основателя AION 2"
+        },
+        {
           "language_code": "zh-CN",
           "goods_display_name": "AION2豪华创始人礼包"
         },
@@ -5411,6 +5691,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pacote do Fundador Supremo de AION 2"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Ultimate-набор основателя AION 2"
         },
         {
           "language_code": "zh-CN",
@@ -5530,6 +5814,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Fragmento de Poder"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Камень силы"
         }
       ],
       "display_policies": [],
@@ -5599,6 +5887,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pedra de Invocação de Kisk: Legião"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Камень призыва ники: для легиона"
         }
       ],
       "display_policies": [],
@@ -5668,6 +5960,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pedra de Invocação de Kisk: Tropa"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Камень призыва ники: для отряда"
         }
       ],
       "display_policies": [],
@@ -5737,6 +6033,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pedra de Invocação de Kisk: Grupo"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Камень призыва ники: для группы"
         }
       ],
       "display_policies": [],
@@ -5806,6 +6106,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pedra de Invocação de Kisk: Individual"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Камень призыва ники: личный"
         }
       ],
       "display_policies": [],
@@ -5875,6 +6179,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pedra de Invocação de Kisk: Legião"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Камень призыва ники: для легиона"
         }
       ],
       "display_policies": [],
@@ -5944,6 +6252,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pedra de Invocação de Kisk: Tropa"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Камень призыва ники: для отряда"
         }
       ],
       "display_policies": [],
@@ -6013,6 +6325,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pedra de Invocação de Kisk: Grupo"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Камень призыва ники: для группы"
         }
       ],
       "display_policies": [],
@@ -6082,6 +6398,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pedra de Invocação de Kisk: Individual"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Камень призыва ники: личный"
         }
       ],
       "display_policies": [],
@@ -6150,6 +6470,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pergaminho de Retorno ao Salão da Legião"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Свиток возвращения в убежище"
         }
       ],
       "display_policies": [],
@@ -6218,6 +6542,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pergaminho de Retorno"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Свиток возвращения"
         }
       ],
       "display_policies": [],
@@ -6286,6 +6614,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pergaminho de Bendição"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Свиток покровительства"
         }
       ],
       "display_policies": [],
@@ -6354,6 +6686,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pergaminho de Disparada"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Свиток скорости"
         }
       ],
       "display_policies": [],
@@ -6422,6 +6758,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pergaminho de Coragem"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Свиток отваги"
         }
       ],
       "display_policies": [],
@@ -6490,6 +6830,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Poção de Cura"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Зелье исцеления"
         }
       ],
       "display_policies": [],
@@ -6558,6 +6902,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Elixir de Vida"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Зелье жизни"
         }
       ],
       "display_policies": [],
@@ -6626,6 +6974,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Poção de Vida"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Зелье жизни"
         }
       ],
       "display_policies": [],
@@ -6695,6 +7047,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pimenta de Altgard"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Альтгардский черный перец"
         }
       ],
       "display_policies": [],
@@ -6769,6 +7125,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Quna x400"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Кюны x400"
         }
       ],
       "display_policies": [],
@@ -6848,6 +7208,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Quna x400"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Кюны x400"
         }
       ],
       "display_policies": [],
@@ -6927,6 +7291,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Quna x1000"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Кюны x1000"
         }
       ],
       "display_policies": [],
@@ -7006,6 +7374,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Quna x1000"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Кюны x1000"
         }
       ],
       "display_policies": [],
@@ -7085,6 +7457,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Quna x2000"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Кюны x2000"
         }
       ],
       "display_policies": [],
@@ -7164,6 +7540,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Quna x2000"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Кюны x2000"
         }
       ],
       "display_policies": [],
@@ -7243,6 +7623,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Quna x4000"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Кюны x4000"
         }
       ],
       "display_policies": [],
@@ -7322,6 +7706,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Quna x4000"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Кюны x4000"
         }
       ],
       "display_policies": [],
@@ -7401,6 +7789,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Assinatura: Plano Especial Quai"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Премиум подписка Квайринг"
         }
       ],
       "display_policies": [],
@@ -7480,6 +7872,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Assinatura: Plano Especial Quai"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Премиум подписка Квайринг"
         }
       ],
       "display_policies": [],
@@ -7943,6 +8339,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Kit Inicial da Temporada 1 de AION 2"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Начинающий AION 2 — сезон 1"
         }
       ],
       "display_policies": [
@@ -8029,6 +8429,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Kit Inicial da Temporada 1 de AION 2"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Начинающий AION 2 — сезон 1"
         }
       ],
       "display_policies": [
@@ -9005,6 +9409,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Título: Vanguarda de Atreia"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Титул: Даэв, раскрывший небеса"
         }
       ],
       "display_policies": [
@@ -9081,6 +9489,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Título: Vanguarda de Atreia"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Титул: Даэв, раскрывший небеса"
         }
       ],
       "display_policies": [
@@ -9157,6 +9569,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Daeva Ascendido (Visual: Conjunto) (Vinculado)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Вознесенный даэв (скин: комплект) (привяз.)"
         }
       ],
       "display_policies": [
@@ -9233,6 +9649,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Ária do Luar (Visual: Set) (Vinculado)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Лунная ария (скин: комплект) (привяз.)"
         }
       ],
       "display_policies": [
@@ -9309,6 +9729,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Mascote: Dragão Negro"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Питомец: Черный дракон"
         }
       ],
       "display_policies": [
@@ -9385,6 +9809,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Asas do Sol Escaldante (Vinculado)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Крылья пылающего солнца (привяз.)"
         }
       ],
       "display_policies": [
@@ -9461,6 +9889,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Asas do Sol Escaldante (Vinculado)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Крылья пылающего солнца (привяз.)"
         }
       ],
       "display_policies": [
@@ -9537,6 +9969,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pedra Espiritual da Ressurreição (Temporada 1)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Камень духа воскрешения (Сезон 1)"
         }
       ],
       "display_policies": [
@@ -9613,6 +10049,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Baú de 8 Visuais de Arma do Sol da Eternidade (Vinculado)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Сундук с 8 скинами оружия «Солнце вечности» (привяз.)"
         }
       ],
       "display_policies": [
@@ -9695,6 +10135,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Sugador de Sangue (Visual: Conjunto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Костюм кровопийцы (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -9782,6 +10226,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Sugador de Sangue (Visual: Conjunto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Костюм кровопийцы (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -9869,6 +10317,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Bruxa da Meia-Noite (Visual: Conjunto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Черная магия (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -9956,6 +10408,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Bruxa da Meia-Noite (Visual: Conjunto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Черная магия (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -10043,6 +10499,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Assassino da Noite (Visual: Conjunto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Полуночная резня (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -10130,6 +10590,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Assassino da Noite (Visual: Conjunto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Полуночная резня (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -10217,6 +10681,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Visual de Arma da Noite de Halloween"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Скин оружия «Хэллоуинский наряд»"
         }
       ],
       "display_policies": [
@@ -10304,6 +10772,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Visual de Arma da Noite de Halloween"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Скин оружия «Хэллоуинский наряд»"
         }
       ],
       "display_policies": [
@@ -10391,6 +10863,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Asas de Aranha"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Паучьи крылья"
         }
       ],
       "display_policies": [
@@ -10478,6 +10954,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Asas de Aranha"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Паучьи крылья"
         }
       ],
       "display_policies": [
@@ -10565,6 +11045,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Asas de Aranha"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Паучьи крылья"
         }
       ],
       "display_policies": [
@@ -10652,6 +11136,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Asas de Aranha"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Паучьи крылья"
         }
       ],
       "display_policies": [
@@ -10739,6 +11227,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Mascote: Carruagem de Abóbora"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Питомец: Тыквенная карета"
         }
       ],
       "display_policies": [
@@ -10826,6 +11318,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Mascote: Carruagem de Abóbora"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Питомец: Тыквенная карета"
         }
       ],
       "display_policies": [
@@ -10913,6 +11409,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Mascote: Fantasminha"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Питомец: Малыш-призрак"
         }
       ],
       "display_policies": [
@@ -11000,6 +11500,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Mascote: Fantasminha"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Питомец: Малыш-призрак"
         }
       ],
       "display_policies": [
@@ -11081,6 +11585,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Senhor Jack’O’Lantern (Visual: Elmo)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Господин Тыква (скин: шлем)"
         }
       ],
       "display_policies": [
@@ -11157,6 +11665,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Jack’O’Lantern (Visual: Elmo)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Тыква (скин: шлем)"
         }
       ],
       "display_policies": [
@@ -11233,6 +11745,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Faixas de Rosto (Visual: Elmo)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Мумия (скин: шлем)"
         }
       ],
       "display_policies": [
@@ -11309,6 +11825,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Parafusos do Frankenstein (Visual: Elmo)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Франкенштейн (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -11385,6 +11905,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Lágrimas de Sangue (Visual: Olhos)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Кровавые слезы (скин: глаза)"
         }
       ],
       "display_policies": [
@@ -11461,6 +11985,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Maquiagem de Pierrô (Visual: Olhos)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Пьеро (скин: глаза)"
         }
       ],
       "display_policies": [
@@ -11537,6 +12065,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Abóbora Palhaço (Visual: Olhos)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Тыквенная фея (скин: глаза)"
         }
       ],
       "display_policies": [
@@ -11613,6 +12145,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Cicatriz Vermelha (Visual: Olhos) "
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Красный шрам (скин: глаза)"
         }
       ],
       "display_policies": [
@@ -11689,6 +12225,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Máscara Mortal (Visual: Olhos)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Черная нить (скин: глаза)"
         }
       ],
       "display_policies": [
@@ -11765,6 +12305,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Cara de Gato Preto (Visual: Olhos)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Черная кошка (скин: глаза)"
         }
       ],
       "display_policies": [
@@ -11841,6 +12385,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Noite do Vampiro (Visual: Olhos)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Летучая мышь (скин: глаза)"
         }
       ],
       "display_policies": [
@@ -11917,6 +12465,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Tatuagem de Fantasma (Visual: Olhos)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Призраки (скин: глаза)"
         }
       ],
       "display_policies": [
@@ -11993,6 +12545,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Abóbora Fofa (Visual: Olhos)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Тыква-милашка (скин: глаза)"
         }
       ],
       "display_policies": [
@@ -12069,6 +12625,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Dentes de Drácula (Visual: Rosto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Клыки вампира (скин: лицо)"
         }
       ],
       "display_policies": [
@@ -12145,6 +12705,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Máscara de Assassino (Visual: Rosto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Намордник палача (скин: лицо)"
         }
       ],
       "display_policies": [
@@ -12220,6 +12784,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Quna x300"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Кюны x300"
         }
       ],
       "display_policies": [
@@ -12296,6 +12864,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Pedra Espiritual da Ressurreição (Temporada 1)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Камень духа воскрешения (Сезон 1)"
         }
       ],
       "display_policies": [
@@ -12383,6 +12955,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Dia da Vinda da Raposa (Visual: Conjunto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Лисий день (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -12470,6 +13046,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Dia da Vinda da Raposa (Visual: Conjunto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Лисий день (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -12557,6 +13137,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Diarista Insensível (Visual: Conjunto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Невозмутимая горничная/дворецкий (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -12644,6 +13228,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Diarista Insensível (Visual: Conjunto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Невозмутимая горничная/дворецкий (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -12731,6 +13319,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Mascote: Raposa de Nove Caudas da Chama Azul"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Питомец: Девятихвостая лисица"
         }
       ],
       "display_policies": [
@@ -12818,6 +13410,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Mascote: Raposa de Nove Caudas da Chama Azul"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Питомец: Девятихвостая лисица"
         }
       ],
       "display_policies": [
@@ -12905,6 +13501,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Mascote: Cachorrinho Rosa Brilhante"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Питомец: Глянцевый щенок"
         }
       ],
       "display_policies": [
@@ -12992,6 +13592,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Mascote: Cachorrinho Rosa Brilhante"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Питомец: Глянцевый щенок"
         }
       ],
       "display_policies": [
@@ -13079,6 +13683,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Asas de Laço de Diarista"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Крылья-бантик"
         }
       ],
       "display_policies": [
@@ -13166,6 +13774,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Asas de Laço de Diarista"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Крылья-бантик"
         }
       ],
       "display_policies": [
@@ -13253,6 +13865,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Asas de Laço de Diarista"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Крылья-бантик"
         }
       ],
       "display_policies": [
@@ -13340,6 +13956,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Asas de Laço de Diarista"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Крылья-бантик"
         }
       ],
       "display_policies": [
@@ -13427,6 +14047,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Visual de Arma da Hora do Chá Secreto"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Скин оружия «Тайное чаепитие»"
         }
       ],
       "display_policies": [
@@ -13514,6 +14138,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Visual de Arma da Hora do Chá Secreto"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Скин оружия «Тайное чаепитие»"
         }
       ],
       "display_policies": [
@@ -13595,6 +14223,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Máscara de Corvo Negro (Visual: Elmo)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Черный ворон (скин: шлем)"
         }
       ],
       "display_policies": [
@@ -13671,6 +14303,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Óculos de Diabo Vermelho (Visual: Olhos)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Дьявольские очки (скин: глаза)"
         }
       ],
       "display_policies": [
@@ -13746,6 +14382,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Tiara Preta de Diarista (Visual: Elmo)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Черный ободок (скин: шлем)"
         }
       ],
       "display_policies": [
@@ -13822,6 +14462,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Óculos de Armação Prateada (Visual: Olhos)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Очки в тонкой оправе (скин: глаза)"
         }
       ],
       "display_policies": [
@@ -13898,6 +14542,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Corrente Facial Prateada (Visual: Olhos)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Серебряная цепочка (скин: глаза)"
         }
       ],
       "display_policies": [
@@ -13974,6 +14622,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Elevação (Visual: Brinco)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "В высь (скин: серьги)"
         }
       ],
       "display_policies": [
@@ -14050,6 +14702,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Elevação (Visual: Colar)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "В высь (скин: ожерелье)"
         }
       ],
       "display_policies": [
@@ -14126,6 +14782,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Motoqueiro ((Visual: Brinco)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Байкерский шик (скин: серьги)"
         }
       ],
       "display_policies": [
@@ -14202,6 +14862,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Motoqueiro ((Visual: Colar)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Байкерский шик (скин: ожерелье)"
         }
       ],
       "display_policies": [
@@ -14278,6 +14942,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Chá da Meia-Noite ((Visual: Brinco)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Полуночное чаепитие (скин: серьги)"
         }
       ],
       "display_policies": [
@@ -14354,6 +15022,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Chá da Meia-Noite ((Visual: Colar)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Полуночное чаепитие (скин: ожерелье)"
         }
       ],
       "display_policies": [
@@ -14625,6 +15297,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Bilhete de Conclusão Imediata: Pesadelo"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Свиток завершения: Кошмар"
         }
       ],
       "display_policies": [],
@@ -15005,6 +15681,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Quna x400"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Кюны x400"
         }
       ],
       "display_policies": [],
@@ -15088,6 +15768,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Quna x1000"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Кюны x1000"
         }
       ],
       "display_policies": [],
@@ -15171,6 +15855,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Quna x2000"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Кюны x2000"
         }
       ],
       "display_policies": [],
@@ -15254,6 +15942,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Quna x4000"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Кюны x4000"
         }
       ],
       "display_policies": [],
@@ -15337,6 +16029,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Assinatura: Plano Especial Quai"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Премиум подписка Квайринг"
         }
       ],
       "display_policies": [],
@@ -15420,6 +16116,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Kit Inicial da Temporada 1 de AION 2"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Начинающий AION 2 — сезон 1"
         }
       ],
       "display_policies": [
@@ -15559,6 +16259,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Sugador de Sangue (Visual: Conjunto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Костюм кровопийцы (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -15650,6 +16354,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Bruxa da Meia-Noite (Visual: Conjunto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Черная магия (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -15741,6 +16449,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Assassino da Noite (Visual: Conjunto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Полуночная резня (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -15832,6 +16544,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Visual de Arma da Noite de Halloween"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Скин оружия «Хэллоуинский наряд»"
         }
       ],
       "display_policies": [
@@ -15923,6 +16639,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Asas de Aranha"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Паучьи крылья"
         }
       ],
       "display_policies": [
@@ -16014,6 +16734,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Asas de Aranha"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Паучьи крылья"
         }
       ],
       "display_policies": [
@@ -16105,6 +16829,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Mascote: Carruagem de Abóbora"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Питомец: Тыквенная карета"
         }
       ],
       "display_policies": [
@@ -16196,6 +16924,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Mascote: Fantasminha"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Питомец: Малыш-призрак"
         }
       ],
       "display_policies": [
@@ -16287,6 +17019,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Dia da Vinda da Raposa (Visual: Conjunto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Лисий день (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -16378,6 +17114,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Diarista Insensível (Visual: Conjunto)"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Невозмутимая горничная/дворецкий (скин: комплект)"
         }
       ],
       "display_policies": [
@@ -16469,6 +17209,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Mascote: Raposa de Nove Caudas da Chama Azul"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Питомец: Девятихвостая лисица"
         }
       ],
       "display_policies": [
@@ -16560,6 +17304,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Mascote: Cachorrinho Rosa Brilhante"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Питомец: Глянцевый щенок"
         }
       ],
       "display_policies": [
@@ -16651,6 +17399,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Asas de Laço de Diarista"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Крылья-бантик"
         }
       ],
       "display_policies": [
@@ -16742,6 +17494,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Asas de Laço de Diarista"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Крылья-бантик"
         }
       ],
       "display_policies": [
@@ -16833,6 +17589,10 @@
         {
           "language_code": "pt-BR",
           "goods_display_name": "Visual de Arma da Hora do Chá Secreto"
+        },
+        {
+          "language_code": "ru-RU",
+          "goods_display_name": "Скин оружия «Тайное чаепитие»"
         }
       ],
       "display_policies": [

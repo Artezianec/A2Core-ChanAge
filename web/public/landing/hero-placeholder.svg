@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Abstract fantasy skyline placeholder">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a3a6e" stop-opacity="0.9"/>
+      <stop offset="50%" stop-color="#3d2a5c" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#05070c" stop-opacity="0.2"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#c9a962" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#6eb5ff" stop-opacity="0.1"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <ellipse cx="900" cy="200" rx="420" ry="180" fill="url(#gold)"/>
+  <path fill="#0a1020" fill-opacity="0.85" d="M0 620 L200 520 380 580 520 480 720 560 960 420 1200 540 1400 460 1600 520 L1600 900 L0 900 Z"/>
+  <path fill="#121a2e" fill-opacity="0.9" d="M0 680 L160 640 320 700 480 620 640 690 880 600 1080 670 1280 610 1600 680 L1600 900 L0 900 Z"/>
+  <circle cx="280" cy="180" r="3" fill="#e8d5a3" opacity="0.6"/>
+  <circle cx="620" cy="120" r="2" fill="#9ecfff" opacity="0.5"/>
+  <circle cx="1100" cy="240" r="2.5" fill="#e8d5a3" opacity="0.45"/>
+</svg>

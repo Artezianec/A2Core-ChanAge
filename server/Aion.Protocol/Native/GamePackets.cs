@@ -795,7 +795,8 @@ public static class GamePackets
         foreach (var item in items) WriteItem(w, item);
         Span<int> counts = stackalloc int[6];
         if (slotExtendCounts.Length >= 6) slotExtendCounts[..6].CopyTo(counts);
-        foreach (var n in counts) w.I32(n);
+        // usmap ItemDepotList_RS: six u8 counts (official samples end in 6 zero bytes); i32 here left the client at 0 extensions.
+        foreach (var n in counts) w.U8((byte)Math.Clamp(n, 0, 255));
         return w.ToArray();
     }
 

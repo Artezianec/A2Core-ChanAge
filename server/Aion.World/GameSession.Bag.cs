@@ -30,7 +30,7 @@ public sealed partial class GameSession
     public const int BagSlotsPerRow = 9, BaseBagSlotCount = 27;
     /// <summary>Personal warehouse (kStorage) before extensions: 25 slots = 5×5 (datamine).</summary>
     public const int StorageSlotsPerLine = 5, BaseStorageSlotCount = 25;
-    static readonly long[] BagGoldExtendCosts = [5_000, 10_000, 20_000, 30_000, 50_000, 75_000, 100_000, 150_000, 200_000, 300_000];
+    static readonly long[] BagGoldExtendCosts = [500, 1_000, 2_000, 3_000, 5_000, 7_500, 10_000, 15_000, 20_000, 30_000];
     static readonly long[] StorageGoldExtendCosts =
     [
         1_000, 1_000, 1_500, 2_000, 2_500, 3_500, 5_000, 6_500, 9_000, 15_000, 20_000, 25_000, 35_000, 45_000, 60_000,
@@ -204,17 +204,21 @@ public sealed partial class GameSession
         containerSlotExtends = ContainerSlotExtendView.From(await store.ContainerSlotExtendsAsync(character, ct));
         var maxExt = container == InventoryItem.Bag ? MaxBagGoldExtensions : MaxStorageGoldExtensions;
         var currentExt = container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage;
-        if (costIdx != currentExt || costIdx >= maxExt)
+        if (currentExt >= maxExt)
         {
-            LogContainerSlotExtend(container, costIdx, 4, currentExt, costIdx >= maxExt ? "max_reached" : $"cost_idx_mismatch expected={currentExt}");
+            LogContainerSlotExtend(container, costIdx, 4, currentExt, "max_reached");
             return [Rs(4, containerSlotExtends), .. InventoryDepotSyncPackets(), .. await InventoryChangesAsync(ct, 0, 0)];
         }
+        // The live client keeps sending costIdx=0 (the price row it shows) after an extension, so its index is advisory:
+        // the server always charges the next tier (= current extension count) and accepts the request.
+        var tier = currentExt;
+        var reason = costIdx == tier ? "ok" : $"ok client_cost_idx={costIdx} tier={tier}";
         var outcome = ("none", ContainerSlotExtendCounts.Zero);
         await Stored(async () =>
         {
             outcome = container == InventoryItem.Bag
-                ? await store.ExtendInventoryByGoldAsync(character, costIdx, ct)
-                : await store.ExtendStorageByGoldAsync(character, costIdx, ct);
+                ? await store.ExtendInventoryByGoldAsync(character, tier, ct)
+                : await store.ExtendStorageByGoldAsync(character, tier, ct);
             return outcome.Item1 == "ok" ? [[]] : [];
         });
         if (outcome.Item1 != "ok")
@@ -227,7 +231,7 @@ public sealed partial class GameSession
         }
         containerSlotExtends = ContainerSlotExtendView.From(outcome.Item2);
         var newExt = container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage;
-        LogContainerSlotExtend(container, costIdx, 0, newExt, "ok");
+        LogContainerSlotExtend(container, costIdx, 0, newExt, reason);
         return
         [
             Rs(0, containerSlotExtends),

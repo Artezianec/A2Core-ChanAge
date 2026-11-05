@@ -67,6 +67,9 @@ export function AccountApp() {
 
   return (
     <div className="account-page">
+      <header className="account-top">
+        <a className="account-home-link" href="/">ChanAge · Aion 2</a>
+      </header>
       <main className="card account-card">
         <div className="card-body stack">
           <div className="stack-sm">
@@ -103,7 +106,7 @@ function LauncherDownload({ token, onMessage }: { token: string; onMessage: (m: 
     finally { setBusy(false); }
   }
   return (
-    <div className="download">
+    <div className="download" id="launcher">
       <div className="stack-sm">
         <h4>Play</h4>
         <p className="muted small">Download A2Core Launcher for Windows. It sets up the game and signs you in.</p>
@@ -152,6 +155,9 @@ function SignIn({ disabled, registrationOpen, onSubmit, onError }:
   { disabled: boolean; registrationOpen: boolean; onSubmit: (name: string, password: string, register: boolean) => Promise<void>; onError: (error: unknown) => void }) {
   const [mode, setMode] = useState<'signin' | 'register'>('signin');
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (registrationOpen && new URLSearchParams(window.location.search).get('register') === '1') setMode('register');
+  }, [registrationOpen]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;

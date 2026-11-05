@@ -1,0 +1,52 @@
+/**
+ * ChanAge · Aion 2 brand tokens (landing and account page).
+ * Gold + ice on deep night blue; original/generated art only, no NC assets.
+ */
+:root {
+  --aion-bg-deep: #03060d;
+  --aion-bg-mid: #0a1020;
+  --aion-bg-elevated: #121a30;
+  --aion-glass: rgba(8, 13, 28, 0.62);
+  --aion-glass-strong: rgba(8, 13, 28, 0.86);
+
+  --aion-ice: #eafcff;
+  --aion-ice-glow: rgba(229, 247, 255, 0.45);
+  --aion-gold: #dcb877;
+  --aion-gold-bright: #ffe7b8;
+  --aion-gold-dim: #b8945a;
+  --aion-gold-deep: #7a5a2c;
+  --aion-gold-line: rgba(201, 161, 90, 0.42);
+  --aion-gold-grad: linear-gradient(180deg, #ffe9be 0%, #e6c283 48%, #b8904f 100%);
+  --aion-steel: #37639d;
+  --aion-elyos: #8fd0ff;
+  --aion-asmodian: #b18bff;
+  --aion-ink: #1a1206;
+
+  --aion-text: #ffffff;
+  --aion-text-body: rgba(236, 242, 250, 0.86);
+  --aion-text-muted: rgba(214, 224, 236, 0.68);
+  --aion-text-faint: rgba(200, 212, 228, 0.5);
+  --aion-line: rgba(255, 255, 255, 0.14);
+  --aion-line-strong: rgba(255, 255, 255, 0.3);
+
+  --aion-ok: #8fe3a8;
+  --aion-danger: #ff9a9a;
+  --aion-pending: #e6c283;
+
+  /* Same pairing as chanage.online: Oswald for display/UI caps, Onest for text (both have Cyrillic). */
+  --aion-font-display: "Oswald", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --aion-font-body: "Onest", "Noto Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --aion-cream: #efdebf;
+  --aion-brass: #c9a15a;
+  --aion-frame: linear-gradient(105deg, rgba(201, 161, 90, 0.95), rgba(106, 88, 55, 0.8));
+  --aion-frame-fill: linear-gradient(135deg, rgba(40, 42, 50, 0.97), rgba(14, 17, 26, 0.97));
+  /* chanage.online's hand-cut frame outline */
+  --aion-cut: polygon(4% 0, 89% 2%, 100% 25%, 97% 82%, 91% 100%, 13% 97%, 0 76%, 2% 18%);
+
+  --aion-radius: 4px;
+  --aion-radius-lg: 10px;
+  --aion-radius-pill: 999px;
+  --aion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --aion-hover: 0.25s ease;
+  --aion-header-h: 76px;
+}

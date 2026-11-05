@@ -19,7 +19,12 @@ Check(config.Server.ToString() == config.ServerAddress && config.AccountUrl.Star
 Check(config.BootstrapUrl(new string('A', 64)) == $"http://{config.ServerAddress}:{config.BootstrapPort}/c/{new string('A', 64)}", "bootstrap URL carries the code");
 (config with { CertificateThumbprint = new string('a', 40) }).Validate();
 checks++;
-foreach (var bad in new[] { config with { ServerAddress = "example.com" }, config with { AccountUrl = "http://x" }, config with { SavedDirSuffix = "Steam" }, config with { CertificateThumbprint = "zz" } })
+foreach (var ok in new[] { "http://127.0.0.1:8780", "http://localhost:8780", "http://[::1]:8780" })
+{
+    (config with { AccountUrl = ok }).Validate();
+    checks++;
+}
+foreach (var bad in new[] { config with { ServerAddress = "example.com" }, config with { AccountUrl = "http://x" }, config with { AccountUrl = "http://192.168.0.1:8780" }, config with { SavedDirSuffix = "Steam" }, config with { CertificateThumbprint = "zz" } })
 {
     try { bad.Validate(); Check(false, "invalid config accepted"); } catch (InvalidDataException) { checks++; }
 }

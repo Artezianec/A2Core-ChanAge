@@ -93,7 +93,7 @@ shipped: connection strings and secrets are empty and must be provided by you (e
 
 ## Build the launcher for your server (Windows, .NET 10 SDK)
 
-1. Edit `launcher/launcher.json`: `accountUrl` (`https://<your server>:8780`), `serverAddress` (its IPv4), `name`.
+1. Edit `launcher/launcher.json`: `accountUrl` (`https://<your server>:8780`, or `http://127.0.0.1:8780` for a loopback-only host), `serverAddress` (its IPv4), `name`.
    It is embedded at build time; a `launcher.json` next to the exe overrides it.
 2. Build and publish:
 
