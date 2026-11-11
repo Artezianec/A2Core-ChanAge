@@ -107,7 +107,7 @@ public sealed partial class GameSession
                 if (PurchaseCosts([(currency, price)]) is not { } paid) return [reply(2)];
                 var order = new ShopOrderLine("membership", goodsId, 1, currency, price);
                 var pay = await PayQunaAsync(paid.Quna, new { kind = "membership", goods = goodsId },
-                    () => StoredOk(() => store.ShopBuyAsync(character, paid.Costs, [], [], [order], ct)), ct);
+                    request => StoredOk(() => store.ShopBuyAsync(character, paid.Costs, [], [], [order], ct, request)), ct);
                 if (pay != QunaPay.Done) return [reply(pay == QunaPay.NotEnough ? 2 : 1)];
                 changes.AddRange(await InventoryChangesAsync(ct, IncreaseShopBuy, DecreaseShopBuy));
             }

@@ -8,11 +8,16 @@ Ported from [KiskEmu](https://github.com/Doxylamin/KiskEmu) (AGPL-3.0) and flatt
 - `game.quna_wallets` — one row per account: `balance >= 0`, `last_entry_id`.
 - `game.quna_ledger` — append-only (update/delete triggers refuse). Every change is a row with a signed
   `delta`, `balance_after`, `reason` (`purchase`, `grant`, `refund`, `staff`, `migration`), a unique
-  `(account_id, request_id)` and JSON `details`.
-- `game.quna_apply(account, request, delta, reason, ...)` — the only way to change a balance. It locks the wallet
-  row, so concurrent spends never overdraw. A repeated `request_id` returns the first result and changes
-  nothing (`repeated = true`). The same id with a different amount or reason is refused (`request_conflict`).
-- `game.quna_refund(account, spend_request)` — gives a purchase back once (request `refund:<spend>`).
+  `(account_id, request_id)` and JSON `details`. Migration 123 changed the unique key from global
+  `request_id` to `(account_id, request_id)` so two accounts may reuse the same id.
+- `game.quna_apply(account, request, delta, reason, ...)` — the only way to change a balance. It creates the
+  wallet row with `INSERT ... ON CONFLICT`, then locks it (`SELECT ... FOR UPDATE`) before the idempotency
+  lookup, so concurrent first credits and spends stay serialised. A repeated `(account, request_id)` returns
+  the first result (`repeated = true`) when the amount and reason also match; otherwise `request_conflict`.
+  The C# wrapper maps a unique-violation race (`SQLSTATE 23505`) to that same repeat-or-conflict result.
+- `game.quna_refund(account, spend_request)` — gives a **purchase** back once (request `refund:<spend>`),
+  after locking the wallet row. A staff take cannot be refunded this way (use a staff grant). The spend id
+  must be at most 190 characters so the refund id fits the 200-character limit.
 - `game.quna_absorb_stack(account, instance, world)` — moves one bag stack into the wallet and deletes it in one
   transaction (request `stack:<instance>`), so a stack is credited exactly once.
 - `game.quna_staff_apply` / `game.quna_staff_refund` — staff changes with the actor and note in `details`, plus
@@ -25,9 +30,16 @@ Ported from [KiskEmu](https://github.com/Doxylamin/KiskEmu) (AGPL-3.0) and flatt
 - `PushingQunaWallet` (Host): after every applied change, the new balance goes to the account's sessions in the
   world, so the client's Quna display (the virtual bag stack plus `RefreshCurrency_NT 0x3bd1`) follows staff
   grants and refunds immediately. Pushes carry the ledger entry id, so a late push never shows an older balance.
-- Shop, battle pass and subscription purchases spend from the wallet first (request id per purchase). If the
-  purchase then fails, the spend is refunded.
-- The platform balance (`virtual_currency/v2.0/me/balances`) reads the wallet.
+- Shop, battle pass and subscription purchases debit Quna inside the purchase transaction (`game.quna_apply`
+  and the item/order writes commit together). If the grant fails or the process crashes mid-purchase, the
+  debit rolls back with it. A leftover spend is still refunded as a safety net. The random-shop path still
+  spends first and refunds on failure (it does not use `ShopBuy`).
+- The platform balance (`virtual_currency/v2.0/me/balances`) reads the wallet. For group 145 the answer includes
+  both `currency_id` 109 (shop checks) and 103 (`GameCashPending`). The client's Quna counter (top-left HUD,
+  Currency Info) shows only the 103 entry; 109 alone stays at 0.
+- Game logins keep the client's address on `auth.platform_client_context` and refresh it every 5 minutes while
+  connected. The lookup lasts 15 minutes; without the refresh a later balances call can miss the account and the
+  counter drops to 0.
 - The client still sees Quna as a bag stack. It is **virtual** (not stored); it shows the wallet balance.
 - Without a database (development logins), Quna stays a plain bag item, as before.
 
@@ -57,6 +69,7 @@ stacks that already exist into the wallets:
 Before applying it on a server, back up the database (`pg_dump`).
 
 Migration numbers: 094–096 belong to #484 and 097–110 are reserved for work in progress, so this one is 111.
+Migration 123 adjusts the uniqueness and refund rules on an already-applied 111; it does not move stacks again.
 
 ## Local test
 
@@ -72,3 +85,7 @@ AION_POSTGRES_TESTS=1 python3 -m unittest tests.test_postgres_dev.QunaWalletSqlT
 
 In the game: buy something in the shop, then check the account's Quna tab on the dashboard. Add Quna there while
 the character is online; the display updates without relogging.
+
+The top-left Quna counter should match the wallet at login and after a credit. Leave a character online for more
+than 15 minutes, then credit Quna from the dashboard: the counter should still update (the address refresh keeps
+the balances answer on the right account).

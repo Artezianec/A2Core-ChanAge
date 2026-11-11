@@ -188,7 +188,7 @@ public sealed partial class NpcAi
             add.CorpseRemoved = true;
             if (brains.TryGetValue(key, out var mind))
             {
-                mind.Mode = Mode.Dead; mind.Hate.Clear(); mind.VictimKey = 0; mind.Pending = null; mind.Volley.Clear();
+                mind.Mode = Mode.Dead; mind.ClearThreat(); mind.VictimKey = 0; mind.Pending = null; mind.Volley.Clear();
                 if (mind.Engaged) { mind.Engaged = false; replies.Add(GamePackets.CombatState(key, false)); }
             }
             replies.Add(GamePackets.Death(key, 7));

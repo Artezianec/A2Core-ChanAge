@@ -28,7 +28,11 @@ class StigmaDataTests(unittest.TestCase):
         costs = DATA['params']['costs']
         total = sum((band['to'] - band['from'] + 1) * band['shards'] for band in costs)
         self.assertEqual(75, total)
+        self.assertEqual(15, sum((band['to'] - band['from'] + 1) * band['shards'] for band in costs if band['to'] <= 10))
         self.assertEqual(20, DATA['params']['max_skill_level'])
+        self.assertEqual([22, 27, 32, 37, 42, 45], DATA['params']['slot_levels'])
+        self.assertIn('CONFIRMED', DATA['params']['costs_about'])
+        self.assertIn('CONFIRMED', DATA['params']['slot_levels_about'])
 
     def test_self_stigmas_have_no_borrowed_damage(self):
         for skill_id, skill in DATA['generated']['skills'].items():

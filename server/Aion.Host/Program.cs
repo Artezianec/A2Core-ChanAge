@@ -58,7 +58,7 @@ Aion.World.GameSession.ConfigureBosses(builder.Configuration.GetSection("Aion:Bo
 // Open-world field bosses (docs/FIELD-BOSSES.md): Aion:FieldBosses (Enabled, Boss/Named respawn windows, RespawnMinutesByName,
 // Announcements, SharedLoot). Retail-like hours by default.
 Aion.World.FieldBosses.Configure(builder.Configuration.GetSection("Aion:FieldBosses").Get<Aion.World.FieldBossOptions>() ?? Aion.World.FieldBossOptions.Default);
-// Aion:Stigmas (docs/STIGMAS.md): off by default; Enabled, Slots, ShardRate, MaxLevel, RequireSlot, ShardUpdateSendsSpent.
+// Aion:Stigmas (docs/STIGMAS.md): off by default; Enabled, Slots, ShardRate, MaxLevel, ResetKinah, RequireSlot, ShardUpdateSendsSpent.
 Aion.World.GameSession.ConfigureStigmas(builder.Configuration.GetSection("Aion:Stigmas").Get<Aion.World.StigmaOptions>() ?? Aion.World.StigmaOptions.Default);
 Aion.World.GameSession.ConfigureMembership(builder.Configuration.GetValue("Aion:World:MembershipByDefault", true));
 var connectionString = builder.Configuration.GetConnectionString("Aion");
@@ -82,6 +82,10 @@ if (!string.IsNullOrWhiteSpace(connectionString))
             ? new PushingQunaWallet(provider.GetRequiredService<PostgresQunaWallet>(), presence, provider.GetRequiredService<ILogger<PushingQunaWallet>>())
             : provider.GetRequiredService<PostgresQunaWallet>());
     builder.Services.AddSingleton<IWorldRegistry, PostgresWorldRegistry>();
+    // Custom NPCs (migration 122, docs/CUSTOM_NPCS.md): edited on the dashboard, placed by every world on this database.
+    builder.Services.AddSingleton<PostgresCustomNpcs>();
+    builder.Services.AddSingleton<ICustomNpcAdmin>(provider => provider.GetRequiredService<PostgresCustomNpcs>());
+    builder.Services.AddSingleton<ICustomNpcCatalog>(provider => provider.GetRequiredService<PostgresCustomNpcs>());
 }
 var accountsReady = !string.IsNullOrWhiteSpace(connectionString) && !string.IsNullOrWhiteSpace(authConnectionString);
 if (accountsReady)
@@ -344,6 +348,10 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddSingleton<WardrobeAccess>();
 var app = builder.Build();
 app.Logger.LogInformation("Bosses: {Bosses}; field bosses: {FieldBosses}", Aion.World.GameSession.BossRules, Aion.World.FieldBosses.Options);
+if (app.Services.GetService<Aion.World.SharedWorld>() is { } sharedWorld)
+    Aion.World.CustomNpcWorld.Configure(app.Services.GetService<ICustomNpcCatalog>(), sharedWorld,
+        builder.Configuration.GetValue<bool?>("Aion:CustomNpcs:AssumePatchedClients") ?? false,
+        message => app.Logger.LogInformation("{Message}", message));
 if (worldProcess is not null)
 {
     app.Logger.LogInformation("World process for world {World} ({Name}) on game port {Port}", native.WorldId, worldProcess.Name, native.GamePort);

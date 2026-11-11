@@ -5,11 +5,11 @@ namespace AionClientEditor.Patch;
 
 /// <summary>
 /// Builds a late-mount patch pak (z_A2Core_Patch-Windows_P.pak) from edited on-disk bytes.
-/// Uses a minimal UE pak v8 layout (uncompressed, AES-encrypted payloads) verified by round-trip tests.
+/// Uses the client's pak layout (v11, encrypted index, uncompressed AES payloads), read back with CUE4Parse in tests.
 /// </summary>
 public static class PatchPakBuilder
 {
-    public const string MountPoint = "../../../Aion2/";
+    public const string MountPoint = "../../../AION2/"; // same casing as the client's own paks
 
     public static void WritePak(string outputPakPath, IReadOnlyDictionary<string, byte[]> virtualPathToOnDiskBytes, FAesKey aesKey)
     {

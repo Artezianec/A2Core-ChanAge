@@ -310,8 +310,8 @@ partial class GameSession
         replies.AddRange(BossChallengeKilled(target, now));
         InstanceKill(target, now);
         killedLevels.Add(target.Level);
-        replies.AddRange(DropLoot(target, now));
-        FieldBossKilled(target, now);   // before ai.Killed: the hate table names who fought it
+        if (!FieldBossPersonalRewards(target)) replies.AddRange(DropLoot(target, now));
+        FieldBossKilled(target, now);   // before ai.Killed: the hate table and healers name who fought it
         replies.Add(GamePackets.TargetUpdate(target.Key));
         replies.Add(GamePackets.Kill(target.Key, skillId, killerKey, ServerId, StoredName, reason: (byte)(skillId == 0 ? 3 : 1),
             killerGuild: guild?.Name ?? "", killerEmblem: guild?.Emblem ?? 0));

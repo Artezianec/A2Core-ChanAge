@@ -163,7 +163,7 @@ public sealed partial class GameSession
             if (PurchaseCosts([(currency, price)]) is not { } paid) return [Reply(2)];
             var orders = passes.Select((p, i) => new ShopOrderLine("pass", (int)p[0], 1, currency, i == 0 ? price : 0)).ToList();
             var pay = await PayQunaAsync(paid.Quna, new { kind = "pass", passes = passes.Select(p => p[0]).ToArray() },
-                () => StoredOk(() => store.ShopBuyAsync(character, paid.Costs, [], [], orders, ct)), ct);
+                request => StoredOk(() => store.ShopBuyAsync(character, paid.Costs, [], [], orders, ct, request)), ct);
             if (pay != QunaPay.Done) return [Reply(pay == QunaPay.NotEnough ? 2 : 1)];
             changes.AddRange(await InventoryChangesAsync(ct, IncreaseShopBuy, DecreaseShopBuy));
         }

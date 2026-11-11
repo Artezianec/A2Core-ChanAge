@@ -51,7 +51,7 @@ MAP_EVENTS = ROOT / 'tools/data/map-events.json'
 HANDLED_USE_EFFECTS = {
     'RewardBox', 'GetVehicle', 'GetVehicleSoul', 'GetVehicleSoulCrystal', 'Fix_VehicleCreatureLevel', 'Skill',
     'Telpo_Home', 'GetKina', 'GetNonBindingKina', 'GetTitle', 'GetSkin', 'GetSkinSet', 'GetSocialAction',
-    'GetDaevanionPoint', 'GetQuest', 'GetWing', 'AscensionGrade',
+    'GetDaevanionPoint', 'GetQuest', 'GetWing', 'AscensionGrade', 'GetStigmaShard',
 }
 GODSTONES = ROOT / 'tools/data/godstones.json'
 CRYSTALS = {'SoulCrystalFeral': 1, 'SoulCrystalIntellect': 2, 'SoulCrystalNature': 3, 'SoulCrystalTrans': 4, 'SoulCrystalSpecial': 5,

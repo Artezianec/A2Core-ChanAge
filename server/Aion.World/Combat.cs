@@ -75,6 +75,9 @@ public sealed class Target
     public int GroggyMax { get; set; }
     public int GroggyEnergy { get; set; }
 
+    /// <summary>A custom NPC (staff dashboard: NPCs) this target places; null for every other NPC.</summary>
+    public Aion.Application.Gameplay.CustomNpc? Custom { get; init; }
+
     public bool Dead => Hp <= 0;
     /// <summary>When it died (ms on the killer's loop; 0: not dead or killed by something that does not set it): its corpse goes CorpseMs later.</summary>
     public long KilledAtMs { get; set; }

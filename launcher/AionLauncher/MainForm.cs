@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing.Drawing2D;
 using Aion.Launcher;
 
@@ -110,6 +111,20 @@ sealed class MainForm : Form
 
     int S(int pixels) => LogicalToDeviceUnits(pixels);
     string Title => workflow is null ? $"{Install.Name} {Install.Version}" : $"{workflow.Config.Name} {Install.Version}";
+    /// <summary>
+    /// Copies the selected server's workflow into a local. The nullable field is not considered
+    /// not-null after a check or an await, so callers that use it after either must take a copy.
+    /// </summary>
+    bool TryWorkflow([NotNullWhen(true)] out Workflow current)
+    {
+        if (workflow is { } value)
+        {
+            current = value;
+            return true;
+        }
+        current = null!;
+        return false;
+    }
     /// <summary>The width page controls take: the page's current width (so they follow the window), at least a readable minimum.</summary>
     int ContentWidth => Math.Max(S(320), stack.ClientSize.Width - S(8));
 
@@ -357,7 +372,8 @@ sealed class MainForm : Form
     /// <summary>Signed in: install a pending update or carry on.</summary>
     async Task AfterSignInAsync()
     {
-        if (pendingUpdateManifest is { } manifest && workflow.Account.SignedIn && Environment.ProcessPath is { } exe)
+        if (!TryWorkflow(out var current)) { ShowAddServer(); return; }
+        if (pendingUpdateManifest is { } manifest && current.Account.SignedIn && Environment.ProcessPath is { } exe)
         {
             pendingUpdateManifest = null;
             await InstallUpdateAsync(exe, manifest);
@@ -533,6 +549,7 @@ sealed class MainForm : Form
 
     void ShowTotpSignIn(string challengeToken, string username, bool remember)
     {
+        if (!TryWorkflow(out var current)) { ShowAddServer(); return; }
         totpChallengeToken = challengeToken;
         totpUsername = username;
         totpRemember = remember;
@@ -556,10 +573,10 @@ sealed class MainForm : Form
             var ok = await RunAsync(async ct =>
             {
                 SetStatus(LauncherLoc.StatusSigningIn);
-                await workflow.Account.CompleteTotpAsync(challengeToken, code.Text.Trim(), recovery.Text.Trim(), ct);
-                workflow.Profile.Username = username;
-                workflow.Profile.KeepSignedIn = remember;
-                workflow.Profile.SetSession(remember ? workflow.Account.Token : null, workflow.Account.ExpiresAt);
+                await current.Account.CompleteTotpAsync(challengeToken, code.Text.Trim(), recovery.Text.Trim(), ct);
+                current.Profile.Username = username;
+                current.Profile.KeepSignedIn = remember;
+                current.Profile.SetSession(remember ? current.Account.Token : null, current.Account.ExpiresAt);
                 settings.Save();
             }, code, recovery, submit);
             code.Clear();
@@ -581,6 +598,7 @@ sealed class MainForm : Form
     /// </summary>
     async Task<bool> OfferUpdateAsync()
     {
+        if (!TryWorkflow(out var current)) { ShowAddServer(); return true; }
         var exe = Environment.ProcessPath;
         if (exe is null || Environment.GetEnvironmentVariable("AION_LAUNCHER_NO_UPDATE") is { Length: > 0 }) return false;
         Page(SignInStep, LauncherLoc.TitleCheckingUpdates, null);
@@ -589,26 +607,26 @@ sealed class MainForm : Form
         var checkedOk = await RunAsync(async ct =>
         {
             SetStatus(LauncherLoc.StatusCheckingNewerVersion);
-            manifest = await workflow.Account.LauncherManifestAsync(ct);
+            manifest = await current.Account.LauncherManifestAsync(ct);
             if (manifest is not null) own = await LauncherUpdate.HashAsync(exe, ct);
         });
         // A failed check (server unreachable, unreadable exe) is not worth stopping for.
         if (!checkedOk || manifest is null || !LauncherUpdate.Needed(manifest, own!, new FileInfo(exe).Length)) return false;
 
         var version = manifest.Version is { } v ? $" ({v})" : "";
-        var intro = workflow.Account.SignedIn
+        var intro = current.Account.SignedIn
             ? LauncherLoc.UpdateIntroSignedIn(version)
             : LauncherLoc.UpdateIntroSignInRequired(version);
         Page(SignInStep, LauncherLoc.TitleUpdateAvailable(Install.Name), intro);
         AddLabel(LauncherLoc.InstalledVersion(Install.Version), muted: true);
-        var install = AddButton(workflow.Account.SignedIn ? LauncherLoc.ButtonInstallUpdate : LauncherLoc.ButtonSignInToInstall, primary: true, null, wide: true);
+        var install = AddButton(current.Account.SignedIn ? LauncherLoc.ButtonInstallUpdate : LauncherLoc.ButtonSignInToInstall, primary: true, null, wide: true);
         AddButton(LauncherLoc.ButtonNotNow, primary: false, async () => await ContinueFromSignInAsync());
         AcceptButton = install;
         pageUpdateManifest = manifest;
         pageUpdateExe = exe;
         install.Click += async (_, _) =>
         {
-            if (!workflow.Account.SignedIn)
+            if (!current.Account.SignedIn)
             {
                 pendingUpdateManifest = manifest;
                 ShowSignIn(LauncherLoc.SignInToInstallUpdate);
@@ -625,18 +643,19 @@ sealed class MainForm : Form
 
     void ShowUpdateOfferPage(string exe, AccountClient.LauncherManifest manifest)
     {
+        if (!TryWorkflow(out var current)) { ShowAddServer(); return; }
         var version = manifest.Version is { } v ? $" ({v})" : "";
-        var intro = workflow.Account.SignedIn ? LauncherLoc.UpdateIntroSignedIn(version) : LauncherLoc.UpdateIntroSignInRequired(version);
+        var intro = current.Account.SignedIn ? LauncherLoc.UpdateIntroSignedIn(version) : LauncherLoc.UpdateIntroSignInRequired(version);
         Page(SignInStep, LauncherLoc.TitleUpdateAvailable(Install.Name), intro);
         AddLabel(LauncherLoc.InstalledVersion(Install.Version), muted: true);
-        var install = AddButton(workflow.Account.SignedIn ? LauncherLoc.ButtonInstallUpdate : LauncherLoc.ButtonSignInToInstall, primary: true, null, wide: true);
+        var install = AddButton(current.Account.SignedIn ? LauncherLoc.ButtonInstallUpdate : LauncherLoc.ButtonSignInToInstall, primary: true, null, wide: true);
         AddButton(LauncherLoc.ButtonNotNow, primary: false, async () => await ContinueFromSignInAsync());
         AcceptButton = install;
         pageUpdateManifest = manifest;
         pageUpdateExe = exe;
         install.Click += async (_, _) =>
         {
-            if (!workflow.Account.SignedIn)
+            if (!current.Account.SignedIn)
             {
                 pendingUpdateManifest = manifest;
                 ShowSignIn(LauncherLoc.SignInToInstallUpdate);
@@ -649,12 +668,13 @@ sealed class MainForm : Form
 
     async Task InstallUpdateAsync(string exe, AccountClient.LauncherManifest manifest)
     {
+        if (!TryWorkflow(out var current)) { ShowAddServer(); return; }
         Page(SignInStep, LauncherLoc.TitleUpdating(Install.Name), LauncherLoc.IntroUpdating);
         var downloaded = exe + LauncherUpdate.NewSuffix;
         var ok = await RunAsync(async ct =>
         {
             SetStatus(LauncherLoc.StatusDownloadingNewVersion);
-            await workflow.Account.DownloadLauncherAsync(downloaded, ProgressReporter(), ct);
+            await current.Account.DownloadLauncherAsync(downloaded, ProgressReporter(), ct);
             SetStatus(LauncherLoc.StatusCheckingDownload);
             if (await LauncherUpdate.HashAsync(downloaded, ct) != manifest.Sha256.ToLowerInvariant())
                 throw new LauncherException(LauncherLoc.DownloadMismatch);
@@ -666,7 +686,7 @@ sealed class MainForm : Form
             var reason = status.Text;
             Page(SignInStep, LauncherLoc.TitleUpdateNotInstalled, LauncherLoc.UpdateFailedBody(reason));
             AddButton(LauncherLoc.ButtonContinueThisVersion, primary: true, async () => await NextAsync());
-            AddLink(LauncherLoc.LinkOpenAccountPage, () => Open(workflow.Config.AccountUrl));
+            AddLink(LauncherLoc.LinkOpenAccountPage, () => Open(current.Config.AccountUrl));
             rebuildPage = () => { /* update failed: static */ };
             return;
         }
@@ -691,15 +711,16 @@ sealed class MainForm : Form
 
     void ShowDownload(string? message = null)
     {
+        if (!TryWorkflow(out var current)) { ShowAddServer(); return; }
         pageDownloadMessage = message;
         var resuming = settings.DownloadFolder is not null;
         Page(GameStep, resuming ? LauncherLoc.TitleContinueDownload : LauncherLoc.TitleDownloadGame,
             LauncherLoc.IntroDownloadGame(Install.Name));
-        var folder = workflow.DownloadFolder();
+        var folder = current.DownloadFolder();
         var spaceRow = AddRequirement(null);
         spaceRow.Set(folder is not null, folder is null
-            ? LauncherLoc.SpaceRequirementFail(workflow.Build.TotalBytes / 1e9)
-            : LauncherLoc.SpaceRequirementOk(folder, workflow.StillNeeded(folder) / 1e9, Workflow.FreeBytes(folder) / 1e9));
+            ? LauncherLoc.SpaceRequirementFail(current.Build.TotalBytes / 1e9)
+            : LauncherLoc.SpaceRequirementOk(folder, current.StillNeeded(folder) / 1e9, Workflow.FreeBytes(folder) / 1e9));
         var start = AddButton(resuming ? LauncherLoc.ButtonContinueDownload : LauncherLoc.ButtonSignInSteamDownload, primary: true, null, wide: true);
         start.Visible = folder is not null;
         if (folder is null) AddButton(LauncherLoc.ButtonCheckAgain, primary: false, () => { ShowDownload(); return Task.CompletedTask; });
@@ -715,9 +736,10 @@ sealed class MainForm : Form
 
     async Task DownloadAsync()
     {
+        if (!TryWorkflow(out var current)) { ShowAddServer(); return; }
         string? folder = null;
         var ok = await RunSteamDownloadPageAsync(async (qr, progress, ct) =>
-            folder = await workflow.DownloadAsync(qr, progress, ct));
+            folder = await current.DownloadAsync(qr, progress, ct));
         if (!ok)
         {
             var reason = status.Text == LauncherLoc.StatusCancelled ? LauncherLoc.PausedDownload : status.Text;
@@ -725,7 +747,7 @@ sealed class MainForm : Form
             return;
         }
         Page(InstallStep, LauncherLoc.TitleInstallingDownloaded, LauncherLoc.IntroInstallingDownloaded);
-        if (await RunAsync(ct => workflow.AdoptAsync(folder!, s => SetStatus(s), ProgressReporter(), ct))) await NextAsync();
+        if (await RunAsync(ct => current.AdoptAsync(folder!, s => SetStatus(s), ProgressReporter(), ct))) await NextAsync();
         else AddButton(LauncherLoc.ButtonTryAgain, primary: true, async () => await NextAsync());
     }
 
@@ -810,17 +832,18 @@ sealed class MainForm : Form
 
     async Task ChooseExistingCopy()
     {
+        if (!TryWorkflow(out var current)) { ShowAddServer(); return; }
         using var dialog = new FolderBrowserDialog { Description = LauncherLoc.FolderDialogDescription };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
         StopTimer();
-        var resolved = ClientFiles.ResolveGameFolder(dialog.SelectedPath, workflow.Build);
+        var resolved = ClientFiles.ResolveGameFolder(dialog.SelectedPath, current.Build);
         if (resolved is null)
         {
             ShowDownload(LauncherLoc.ErrFolderNoGame);
             return;
         }
         BuildSurvey? survey = null;
-        if (!await RunAsync(async ct => survey = await ClientFiles.SurveyAsync(resolved, workflow.Build, ct)))
+        if (!await RunAsync(async ct => survey = await ClientFiles.SurveyAsync(resolved, current.Build, ct)))
         {
             AddButton(LauncherLoc.ButtonBack, primary: true, async () => ShowDownload());
             return;
@@ -828,12 +851,12 @@ sealed class MainForm : Form
         if (survey!.Complete)
         {
             Page(InstallStep, LauncherLoc.TitleInstallingDownloaded, LauncherLoc.IntroAdoptFolderCheck);
-            if (await RunAsync(ct => workflow.AdoptAsync(resolved, s => SetStatus(s), ProgressReporter(), ct))) await NextAsync();
+            if (await RunAsync(ct => current.AdoptAsync(resolved, s => SetStatus(s), ProgressReporter(), ct))) await NextAsync();
             else AddButton(LauncherLoc.ButtonBack, primary: true, async () => ShowDownload());
             return;
         }
         Page(GameStep, LauncherLoc.TitleUseExistingFiles,
-            LauncherLoc.IntroUseExisting(survey.PresentBytes, workflow.Build.TotalBytes, survey.StillNeeded(workflow.Build)));
+            LauncherLoc.IntroUseExisting(survey.PresentBytes, current.Build.TotalBytes, survey.StillNeeded(current.Build)));
         AddLabel(LauncherLoc.IntroExistingFolderChoice, muted: true);
         var inPlace = AddButton(LauncherLoc.UseFolderInPlace, primary: true, null, wide: true);
         var copyPrivate = AddButton(LauncherLoc.CopyThenDownload, primary: false, null, wide: true);
@@ -844,8 +867,9 @@ sealed class MainForm : Form
 
     async Task ImportExistingAsync(string source, bool useInPlace)
     {
+        if (!TryWorkflow(out var current)) { ShowAddServer(); return; }
         var ok = await RunSteamDownloadPageAsync((qr, progress, ct) =>
-            workflow.ImportExistingAsync(source, useInPlace, qr, s => SetStatus(s), progress, ProgressReporter(), ct));
+            current.ImportExistingAsync(source, useInPlace, qr, s => SetStatus(s), progress, ProgressReporter(), ct));
         if (!ok) { ShowDownload(status.Text); return; }
         await NextAsync();
     }
@@ -854,13 +878,14 @@ sealed class MainForm : Form
 
     void ShowInstall(ClientSource source)
     {
+        if (!TryWorkflow(out var current)) { ShowAddServer(); return; }
         pageInstallSource = source;
         Page(InstallStep, LauncherLoc.TitleInstallFromSource(source.Description),
-            LauncherLoc.IntroInstallFromSource(global::AionLauncher.Install.Name, source.Description, Workflow.TargetFor(source.Folder)));
+            LauncherLoc.IntroInstallFromSource(global::AionLauncher.Install.Name, source.Description, current.TargetFor(source.Folder)));
         AddLabel(LauncherLoc.WindowsFirewallOnce, muted: true);
         async Task RunInstall()
         {
-            if (await RunAsync(ct => workflow.InstallAsync(source, s => SetStatus(s), ProgressReporter(), ct))) { await NextAsync(); return; }
+            if (await RunAsync(ct => current.InstallAsync(source, s => SetStatus(s), ProgressReporter(), ct))) { await NextAsync(); return; }
             AddButton(LauncherLoc.ButtonTryAgain, primary: true, async () => await NextAsync());
         }
         BeginInvoke(async () => await RunInstall());
@@ -871,29 +896,30 @@ sealed class MainForm : Form
 
     void ShowPlay()
     {
+        if (!TryWorkflow(out var current)) { ShowAddServer(); return; }
         Page(PlayStep, LauncherLoc.TitleReadyToPlay, null);
         var who = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 0, 0, S(14)) };
-        var signedIn = new Label { AutoSize = true, ForeColor = Muted, Text = LauncherLoc.SignedInOnServer(workflow.Profile.Username ?? "", workflow.Config.Name), Margin = new Padding(0, S(2), S(6), 0) };
+        var signedIn = new Label { AutoSize = true, ForeColor = Muted, Text = LauncherLoc.SignedInOnServer(current.Profile.Username ?? "", current.Config.Name), Margin = new Padding(0, S(2), S(6), 0) };
         var signOut = new LinkLabel { AutoSize = true, Text = LauncherLoc.LinkSignOut, LinkColor = Accent, ActiveLinkColor = Accent, Margin = new Padding(0, S(2), 0, 0) };
         var servers = new LinkLabel { AutoSize = true, Text = LauncherLoc.LinkChangeServer, LinkColor = Accent, ActiveLinkColor = Accent, Margin = new Padding(0, S(2), S(10), 0) };
         servers.LinkClicked += (_, _) => ShowServers();
         who.Controls.AddRange([signedIn, signOut, servers]);
         stack.Controls.Add(who);
         AddLabel(LauncherLoc.LabelClientVersion, muted: true, size: 9F).Margin = new Padding(0, 0, 0, S(4));
-        var versions = ClientVersions.All(workflow.Config);
+        var versions = ClientVersions.All(current.Config);
         var versionBox = new ComboBox
         {
             DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, Width = ContentWidth, BackColor = Input, ForeColor = Text1,
             Font = new Font("Segoe UI", 10.5F), Margin = new Padding(0, 0, 0, S(6)), Cursor = Cursors.Hand,
         };
         foreach (var version in versions) versionBox.Items.Add(version.Name);
-        versionBox.SelectedIndex = Math.Max(0, versions.ToList().FindIndex(v => v.Id == workflow.Version.Id));
+        versionBox.SelectedIndex = Math.Max(0, versions.ToList().FindIndex(v => v.Id == current.Version.Id));
         stack.Controls.Add(versionBox);
         var versionNote = AddLabel("", muted: true, size: 9F);
         void DescribeVersion()
         {
-            var version = workflow.Version;
-            var folder = version.IsSteam ? ClientVersions.SteamFolder(version, workflow.Config, steam ??= Workflow.FindSteam()) : version.ClientPath ?? workflow.InstallFolder;
+            var version = current.Version;
+            var folder = version.IsSteam ? ClientVersions.SteamFolder(version, current.Config, steam ??= Workflow.FindSteam()) : version.ClientPath ?? current.InstallFolder;
             versionNote.Text = version.IsSteam
                 ? LauncherLoc.VersionNoteSteam(folder)
                 : LauncherLoc.VersionNotePrivate(folder ?? "");
@@ -902,9 +928,9 @@ sealed class MainForm : Form
         versionBox.SelectedIndexChanged += async (_, _) =>
         {
             var chosen = versions[versionBox.SelectedIndex];
-            if (chosen.Id == workflow.Version.Id) return;
-            if (!await RunAsync(ct => workflow.ChooseVersionAsync(chosen, ct), versionBox)) return;
-            if (!workflow.Version.IsSteam && !workflow.Installed) { await NextAsync(); return; }
+            if (chosen.Id == current.Version.Id) return;
+            if (!await RunAsync(ct => current.ChooseVersionAsync(chosen, ct), versionBox)) return;
+            if (!current.Version.IsSteam && !current.Installed) { await NextAsync(); return; }
             DescribeVersion();
         };
         var patchPaks = AddCheck(LauncherLoc.PatchPaksCheck, settings.AllowClientPatchPaks);
@@ -923,8 +949,8 @@ sealed class MainForm : Form
 
         signOut.LinkClicked += async (_, _) =>
         {
-            await workflow.Account.SignOutAsync();
-            workflow.Profile.SetSession(null, null);
+            await current.Account.SignOutAsync();
+            current.Profile.SetSession(null, null);
             settings.Save();
             ShowSignIn();
         };
@@ -935,12 +961,12 @@ sealed class MainForm : Form
             if ((steam ??= Workflow.FindSteam()) is not { } found) { ShowNoSteam(); return; }
             var ok = await RunAsync(async ct =>
             {
-                using var game = await workflow.PlayAsync(found, s => SetStatus(s), ProgressReporter(), ct);
+                using var game = await current.PlayAsync(found, s => SetStatus(s), ProgressReporter(), ct);
                 SetStatus(LauncherLoc.StatusPlaying);
                 WindowState = FormWindowState.Minimized;
                 await game.WaitForExitAsync(CancellationToken.None);
                 // The client may hand over to child processes; wait for the whole copy to close.
-                while (Elevated.GameRunning(workflow.GameFolder ?? workflow.InstallFolder!)) await Task.Delay(2000, CancellationToken.None);
+                while (Elevated.GameRunning(current.GameFolder ?? current.InstallFolder!)) await Task.Delay(2000, CancellationToken.None);
                 WindowState = FormWindowState.Normal;
                 SetStatus(LauncherLoc.StatusGameClosed);
             }, all);
@@ -952,7 +978,7 @@ sealed class MainForm : Form
             if (!await RunAsync(async ct =>
             {
                 SetStatus(LauncherLoc.StatusCheckingAllFiles);
-                var result = await workflow.VerifyAllAsync(ProgressReporter(), ct);
+                var result = await current.VerifyAllAsync(ProgressReporter(), ct);
                 if (result.Ok)
                 {
                     SetStatus(LauncherLoc.AllFilesMatch(result.Checked));
@@ -963,13 +989,13 @@ sealed class MainForm : Form
                 if (!repairFiles) SetStatus(LauncherLoc.ProblemChooseVerify(result.Problem!), true);
             }, all)) return;
             if (!repairFiles) return;
-            if (!await RunSteamDownloadPageAsync((qr, progress, ct) => workflow.RepairFilesAsync(qr, progress, ProgressReporter(), ct))) return;
+            if (!await RunSteamDownloadPageAsync((qr, progress, ct) => current.RepairFilesAsync(qr, progress, ProgressReporter(), ct))) return;
             SetStatus(LauncherLoc.AllFilesMatchShort);
         };
         repair.Click += async (_, _) => await RunAsync(async _ =>
         {
             SetStatus(LauncherLoc.StatusRestoringFirewall);
-            SetStatus(await workflow.RepairFirewallAsync() ? LauncherLoc.FirewallRestored : LauncherLoc.FirewallRepairFailed);
+            SetStatus(await current.RepairFirewallAsync() ? LauncherLoc.FirewallRestored : LauncherLoc.FirewallRepairFailed);
         }, all);
         uninstall.Click += async (_, _) =>
         {
@@ -1186,7 +1212,8 @@ sealed class MainForm : Form
             g.DrawImage(Emblem, new Rectangle(S(24), S(18), S(72), S(72)));
         }
         TextRenderer.DrawText(g, Game, new Font("Segoe UI Black", 15F), new Point(S(22), textTop), Accent);
-        TextRenderer.DrawText(g, workflow.Config.Name, new Font("Segoe UI Semibold", 11F), new Rectangle(S(24), textTop + S(34), rail.Width - S(36), S(44)), Text1,
+        var serverName = workflow is { } session ? session.Config.Name : Install.Name;
+        TextRenderer.DrawText(g, serverName, new Font("Segoe UI Semibold", 11F), new Rectangle(S(24), textTop + S(34), rail.Width - S(36), S(44)), Text1,
             TextFormatFlags.WordBreak);
         TextRenderer.DrawText(g, "v" + Install.Version, new Font("Segoe UI", 8.5F), new Point(S(24), textTop + S(62)), Muted);
         var top = RailStepsTop; var gap = RailStepGap; var size = S(28); var x = S(24);

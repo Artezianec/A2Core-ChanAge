@@ -86,8 +86,9 @@ public interface INativeCharacterStore : IAsyncDisposable
         IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, CancellationToken ct) => Task.FromResult(false);
     /// <summary>A shop purchase with its ledger lines (game.shop_orders, written in the purchase's transaction).</summary>
     Task<bool> ShopBuyAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
-        IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, IReadOnlyList<ShopOrderLine> orders, CancellationToken ct) =>
-        ShopBuyAsync(character, costs, goods, limits, ct);
+        IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, IReadOnlyList<ShopOrderLine> orders, CancellationToken ct,
+        Aion.Application.Gameplay.QunaRequest? qunaSpend = null) =>
+        qunaSpend is null ? ShopBuyAsync(character, costs, goods, limits, ct) : Task.FromResult(false);
     Task<StoredMembership?> MembershipAsync(CancellationToken ct) => Task.FromResult<StoredMembership?>(null);
     Task<bool> SaveMembershipAsync(StoredMembership membership, CancellationToken ct) => Task.FromResult(false);
     Task<IReadOnlyList<(int Target, int RecipeId, string Period, int Count)>> ConversionCountsAsync(Guid character, CancellationToken ct) =>
@@ -238,6 +239,12 @@ public interface INativeCharacterStore : IAsyncDisposable
     Task<IReadOnlyList<StigmaState>> StigmasAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<StigmaState>>([]);
     /// <summary>A stigma's level; 0 forgets it.</summary>
     Task<bool> SetStigmaAsync(Guid character, int skillId, int level, CancellationToken ct) => Task.FromResult(false);
+    /// <summary>Bonus Stigma Shard points (items, shops, staff grants); 0 when none.</summary>
+    Task<int> StigmaBonusShardsAsync(Guid character, CancellationToken ct) => Task.FromResult(0);
+    /// <summary>Adds bonus shards (amount &gt; 0) and returns the new total, or null when the write fails.</summary>
+    Task<int?> AddStigmaBonusShardsAsync(Guid character, int amount, CancellationToken ct) => Task.FromResult<int?>(null);
+    /// <summary>Forgets the listed stigmas and deducts Kinah in one step (0 Kinah = no charge). False leaves both unchanged.</summary>
+    Task<bool> SpendKinahAndForgetStigmasAsync(Guid character, long kinah, IReadOnlyList<int> skillIds, CancellationToken ct) => Task.FromResult(false);
     /// <summary>Titles, skins and masteries (read at character selection).</summary>
     Task<CharacterExtras> ExtrasAsync(Guid character, CancellationToken ct) => Task.FromResult(CharacterExtras.None);
     Task<bool> GrantTitleAsync(Guid character, int titleId, CancellationToken ct) => Task.FromResult(false);

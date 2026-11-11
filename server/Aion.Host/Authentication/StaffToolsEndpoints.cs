@@ -283,6 +283,8 @@ public static partial class StaffToolsEndpoints
             await game.AdminRecordAsync(a, "staff_backup_downloaded", null, new { name }, ct);
             return Results.File(path, "application/octet-stream", name);
         });
+
+        MapCustomNpcs(staff);
     }
 
     /// <summary>Players' tickets from the account page (signed in): open one, list their own.</summary>

@@ -10,7 +10,7 @@
    42,
    45
   ],
-  "slot_levels_about": "CANDIDATE: global's 4 slots open at levels 22, 27, 32 and 37. Korea has 6; its levels for slots 5 and 6 are not published (OURS 42 and 45). Aion:Stigmas:Slots picks how many are used (4 = global).",
+  "slot_levels_about": "CONFIRMED (global, Oct 2026 guide + kvniUsnS6cg): 4 slots open at levels 22, 27, 32 and 37. Korea has 6; its levels for slots 5 and 6 are not published (OURS 42 and 45). Aion:Stigmas:Slots picks how many are used (4 = global).",
   "max_skill_level": 20,
   "costs": [
    {
@@ -34,7 +34,7 @@
     "shards": 8
    }
   ],
-  "costs_about": "Recovered: SkillAcquireData Stigma rows, one ladder for all 117 stigma skills (75 shards for one stigma at 20). Every level needs character level 22; level 1 also needs AscensionGrade_3 (not enforced: OURS).",
+  "costs_about": "CONFIRMED (global, Oct 2026 guide + kvniUsnS6cg): SkillAcquireData Stigma rows, one ladder for all 117 stigma skills. Levels 1-5 cost 1 shard, 6-10 cost 2, 11-15 cost 4, 16-20 cost 8 (15 shards to reach 10, 75 to reach 20, cap 20). 13 stigmas per class. Every level needs character level 22; level 1 also needs AscensionGrade_3 (not enforced: OURS). A KR launch video (oHzyEGdzZso, Nov 2025) showed a different early ladder (1,1,2,2 for 1->2 .. 4->5, 6 shards refunded at LV5); that is a regional/older difference and is not the default.",
   "ascension_shards": 1,
   "shards_per_level": [
    {
@@ -48,7 +48,7 @@
     "shards": 2
    }
   ],
-  "shards_about": "CANDIDATE: 1 shard per level from 23 to 39 and 2 per level from 40 to 45 (29 from levelling at 45), plus the Ascension quest's shard at 22 (given at level 22: the quest gate is not modelled). Global's other sources (Abyss, Nightmare and Shugo Festival shops, achievements) are not modelled: Aion:Stigmas:ShardRate stands in for them."
+  "shards_about": "CANDIDATE (levelling income): 1 shard per level from 23 to 39 and 2 per level from 40 to 45 (29 from levelling at 45), plus the Ascension quest's shard at 22 (the quest gate is not modelled). Additional bonus shards come from Stigma Shard (Bound) item 531900010 (GetStigmaShard, auto-use) sold in the Abyss / Nightmare / FieldEvent shops, and from staff //stigma grant. Bonus shards are stored per character and count toward the load-time trim budget."
  },
  "generated": {
   "classes": {

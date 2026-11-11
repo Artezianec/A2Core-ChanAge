@@ -74,8 +74,10 @@ public sealed class PostgresQunaWallet(NpgsqlDataSource source) : IQunaWallet
         command.Parameters.AddWithValue(delta);
         command.Parameters.AddWithValue(note ?? "");
         try { return await ReadAsync(command, ct); }
-        catch (PostgresException failure) when (failure.SqlState is PostgresErrorCodes.UniqueViolation or PostgresErrorCodes.ForeignKeyViolation)
-        { return await Refused(account, failure.SqlState == PostgresErrorCodes.UniqueViolation ? QunaWalletRules.RequestConflict : QunaWalletRules.NotFound, ct); }
+        catch (PostgresException failure) when (failure.SqlState == PostgresErrorCodes.ForeignKeyViolation)
+        { return await Refused(account, QunaWalletRules.NotFound, ct); }
+        catch (PostgresException failure) when (failure.SqlState == PostgresErrorCodes.UniqueViolation)
+        { return await RepeatOrConflictAsync(request with { Reason = QunaWalletRules.Staff }, delta, ct); }
     }
 
     public async Task<QunaResult> StaffRefundAsync(Guid actor, Guid account, string spendRequestId, CancellationToken ct = default)
@@ -103,9 +105,25 @@ public sealed class PostgresQunaWallet(NpgsqlDataSource source) : IQunaWallet
             NpgsqlDbType = NpgsqlDbType.Jsonb,
         });
         try { return await ReadAsync(command, ct); }
-        // The same request id racing for two accounts, or an account the realm does not know.
-        catch (PostgresException error) when (error.SqlState is PostgresErrorCodes.UniqueViolation or PostgresErrorCodes.ForeignKeyViolation)
-        { return await Refused(request.AccountId, error.SqlState == PostgresErrorCodes.UniqueViolation ? QunaWalletRules.RequestConflict : QunaWalletRules.NotFound, ct); }
+        catch (PostgresException error) when (error.SqlState == PostgresErrorCodes.ForeignKeyViolation)
+        { return await Refused(request.AccountId, QunaWalletRules.NotFound, ct); }
+        // A unique-violation race on (account_id, request_id): re-read and return the first result when it matches.
+        catch (PostgresException error) when (error.SqlState == PostgresErrorCodes.UniqueViolation)
+        { return await RepeatOrConflictAsync(request, delta, ct); }
+    }
+
+    async Task<QunaResult> RepeatOrConflictAsync(QunaRequest request, long delta, CancellationToken ct)
+    {
+        await using var command = source.CreateCommand(
+            "SELECT delta, reason, balance_after, entry_id FROM game.quna_ledger WHERE account_id = $1 AND request_id = $2");
+        command.Parameters.AddWithValue(request.AccountId);
+        command.Parameters.AddWithValue(request.RequestId);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        if (await reader.ReadAsync(ct)
+            && reader.GetInt64(0) == delta
+            && reader.GetString(1) == request.Reason)
+            return new QunaResult(true, reader.GetInt64(2), reader.GetInt64(3), Repeated: true);
+        return await Refused(request.AccountId, QunaWalletRules.RequestConflict, ct);
     }
 
     static async Task<QunaResult> ReadAsync(NpgsqlCommand command, CancellationToken ct)

@@ -614,10 +614,11 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
     }
 
     public async Task<bool> ShopBuyAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
-        IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, IReadOnlyList<ShopOrderLine> orders, CancellationToken ct)
+        IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, IReadOnlyList<ShopOrderLine> orders, CancellationToken ct,
+        QunaRequest? qunaSpend = null)
     {
         await ValidateAsync(ct);
-        return await game.ShopBuyAsync(identity.Account, character, costs, goods, limits, orders, ct);
+        return await game.ShopBuyAsync(identity.Account, character, costs, goods, limits, orders, ct, qunaSpend);
     }
 
     public async Task<StoredMembership?> MembershipAsync(CancellationToken ct)
@@ -1113,6 +1114,24 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
     {
         await ValidateAsync(ct);
         return await game.SetStigmaAsync(identity.Account, character, skillId, level, ct);
+    }
+
+    public async Task<int> StigmaBonusShardsAsync(Guid character, CancellationToken ct)
+    {
+        await ValidateAsync(ct);
+        return await game.StigmaBonusShardsAsync(identity.Account, character, ct);
+    }
+
+    public async Task<int?> AddStigmaBonusShardsAsync(Guid character, int amount, CancellationToken ct)
+    {
+        await ValidateAsync(ct);
+        return await game.AddStigmaBonusShardsAsync(identity.Account, character, amount, ct);
+    }
+
+    public async Task<bool> SpendKinahAndForgetStigmasAsync(Guid character, long kinah, IReadOnlyList<int> skillIds, CancellationToken ct)
+    {
+        await ValidateAsync(ct);
+        return await game.SpendKinahAndForgetStigmasAsync(identity.Account, character, kinah, skillIds, ct);
     }
 
     public async Task<CharacterExtras> ExtrasAsync(Guid character, CancellationToken ct)

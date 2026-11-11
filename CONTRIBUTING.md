@@ -28,6 +28,7 @@ record the official server, decode the recording, and share findings safely, and
 ```bash
 dotnet build tests/Aion.Native.Checks/Aion.Native.Checks.csproj
 dotnet build tests/Aion.ClientEditor.WinFormsBuild/Aion.ClientEditor.WinFormsBuild.csproj
+dotnet build tests/Aion.Launcher.WinFormsBuild/Aion.Launcher.WinFormsBuild.csproj
 dotnet tests/Aion.Native.Checks/bin/Debug/net10.0/Aion.Native.Checks.dll   # must end without "Check failed"
 python -m unittest discover -s tests -q
 ```

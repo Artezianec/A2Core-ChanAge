@@ -575,8 +575,16 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     public Task<IReadOnlyList<QuickSlotRecord>> QuickSlotsAsync(Guid character, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<QuickSlotRecord>>(QuickSlots.Values.OrderBy(s => s.Slot).ToList());
 
+    /// <summary>The next N SaveQuickSlotAsync calls fail and leave the stored slot unchanged.</summary>
+    public int FailQuickSlotSaves { get; set; }
+
     public Task<bool> SaveQuickSlotAsync(Guid character, int number, QuickSlotRecord? slot, CancellationToken ct)
     {
+        if (FailQuickSlotSaves > 0)
+        {
+            FailQuickSlotSaves--;
+            return Task.FromResult(false);
+        }
         if (slot is null) QuickSlots.Remove(number);
         else QuickSlots[number] = slot;
         return Task.FromResult(true);
@@ -721,15 +729,22 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, CancellationToken ct) =>
         ShopBuyAsync(character, costs, goods, limits, [], ct);
 
-    public Task<bool> ShopBuyAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
-        IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, IReadOnlyList<ShopOrderLine> orders, CancellationToken ct)
+    public async Task<bool> ShopBuyAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
+        IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, IReadOnlyList<ShopOrderLine> orders, CancellationToken ct,
+        QunaRequest? qunaSpend = null)
     {
-        if (FailShopBuy) return Task.FromResult(false);
+        if (FailShopBuy) return false;
         foreach (var l in limits)
             if (Purchases.Where(p => p.GoodsId == l.GoodsId && p.Target == l.Target && p.Period == l.Period).Sum(p => p.Count) + l.Count > l.Limit)
-                return Task.FromResult(false);
+                return false;
         if (costs.Any(c => !Items.Any(i => i.InstanceId == c.Item && i.Revision == c.Revision && i.Quantity >= c.Count)))
-            return Task.FromResult(false);
+            return false;
+        if (qunaSpend is { } spend)
+        {
+            if (QunaWallet is not { } wallet) return false;
+            var spent = await wallet.SpendAsync(spend, ct);
+            if (!spent.Ok) return false;
+        }
         foreach (var (cost, revision, count) in costs) Consume(cost, revision, count);
         foreach (var l in limits) Purchases.Add((l.Target, l.GoodsId, l.Period, l.Count));
         ShopOrders.AddRange(orders);
@@ -742,7 +757,7 @@ public sealed class FakeCharacterStore : INativeCharacterStore
             else
                 Items.Add(BagItem(template, quantity, wire++));
         }
-        return Task.FromResult(true);
+        return true;
     }
 
     public Task<StoredMembership?> MembershipAsync(CancellationToken ct) => Task.FromResult(Membership);
@@ -1357,10 +1372,43 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     public Task<IReadOnlyList<StigmaState>> StigmasAsync(Guid character, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<StigmaState>>(StigmaLevels.OrderBy(p => p.Key).Select(p => new StigmaState(p.Key, p.Value)).ToList());
 
+    /// <summary>The next N SetStigmaAsync calls fail and leave the stored level unchanged.</summary>
+    public int FailStigmaSaves { get; set; }
+
     public Task<bool> SetStigmaAsync(Guid character, int skillId, int level, CancellationToken ct)
     {
+        if (FailStigmaSaves > 0)
+        {
+            FailStigmaSaves--;
+            return Task.FromResult(false);
+        }
         if (level == 0) StigmaLevels.Remove(skillId);
         else StigmaLevels[skillId] = level;
+        return Task.FromResult(true);
+    }
+
+    /// <summary>Bonus Stigma Shard points (game.character_stigma_bonus).</summary>
+    public int StigmaBonusShards { get; set; }
+
+    public Task<int> StigmaBonusShardsAsync(Guid character, CancellationToken ct) => Task.FromResult(StigmaBonusShards);
+
+    public Task<int?> AddStigmaBonusShardsAsync(Guid character, int amount, CancellationToken ct)
+    {
+        if (amount <= 0) return Task.FromResult<int?>(null);
+        StigmaBonusShards += amount;
+        return Task.FromResult<int?>(StigmaBonusShards);
+    }
+
+    public Task<bool> SpendKinahAndForgetStigmasAsync(Guid character, long kinah, IReadOnlyList<int> skillIds, CancellationToken ct)
+    {
+        if (FailStigmaSaves > 0)
+        {
+            FailStigmaSaves--;
+            return Task.FromResult(false);
+        }
+        if (kinah > 0 && !DeductKina(kinah)) return Task.FromResult(false);
+        foreach (var skillId in skillIds)
+            if (skillId > 0) StigmaLevels.Remove(skillId);
         return Task.FromResult(true);
     }
 

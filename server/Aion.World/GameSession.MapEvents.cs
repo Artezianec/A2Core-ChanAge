@@ -935,7 +935,7 @@ public sealed partial class GameSession : IMapEventHost
             brain.Directed = false;
             brain.FollowKey = 0;
             brain.ResumeFollowKey = 0;
-            brain.Hate.Clear();
+            brain.ClearThreat();
             brain.Engaged = false;
         }
         ShowSpawned(t);

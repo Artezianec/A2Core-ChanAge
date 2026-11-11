@@ -9,8 +9,9 @@ namespace Aion.World;
 // packets, so the bag shows a virtual stack (never stored) whose count is the wallet balance, refreshed after a spend or
 // grant and when the host pushes a change (PushingQunaWallet). Without a wallet (development logins) Quna stays a plain
 // bag item as before. Ported from KiskEmu (AGPL-3.0).
-// Kinah is bag item 930100001 on 0x5611 (GoldCombined). GNB slot wiring for Quna is unverified — see tools/data/currency_hud.json.
-// HTTP GET virtual_currency/v2.0/me/balances uses currency_id 109 with currency_group_id 145 (GameCash), 110 with 158 (Mileage).
+// Kinah is bag item 930100001 on 0x5611 (GoldCombined). The Quna counter (top left, Currency Info) reads neither the bag nor
+// RefreshCurrency_NT: it is the currency_id 103 (GameCashPending) entry of the HTTP balances answer, ShopQunaBalanceService.JsonBody.
+// HTTP GET virtual_currency/v2.0/me/balances uses currency_id 109 and 103 with currency_group_id 145 (GameCash), 110 with 158 (Mileage).
 // RefreshCurrency_NT (0x3bd1) map keys in usmap are ECurrencyCategory (7 GameCash, 6 Mileage), not the HTTP currency_id field.
 public sealed partial class GameSession
 {
@@ -194,37 +195,56 @@ public sealed partial class GameSession
     }
 
     /// <summary>
-    /// Takes <paramref name="quna"/> from the account wallet, then runs the purchase's own transaction (items, limits, orders);
-    /// when that fails the Quna is given back (a refund of the same request). Without Quna to take, only the purchase runs.
+    /// Runs the purchase. When it costs Quna, the debit is passed into the purchase so a Postgres ShopBuy can take it
+    /// in the same transaction as the items (a crash or a refused grant rolls both back). A leftover spend is refunded
+    /// as a safety net (the in-memory wallet, or a store that debits before a later failure). Without Quna, only the
+    /// purchase runs.
     /// </summary>
-    async Task<QunaPay> PayQunaAsync(long quna, object details, Func<Task<bool>> purchase, CancellationToken ct)
+    async Task<QunaPay> PayQunaAsync(long quna, object details, Func<Task<bool>> purchase, CancellationToken ct) =>
+        await PayQunaAsync(quna, details, _ => purchase(), ct, debitInPurchase: false);
+
+    /// <summary>Like <see cref="PayQunaAsync(long, object, Func{Task{bool}}, CancellationToken)"/>, but the purchase receives the spend and must debit it itself.</summary>
+    async Task<QunaPay> PayQunaAsync(long quna, object details, Func<QunaRequest?, Task<bool>> purchase, CancellationToken ct) =>
+        await PayQunaAsync(quna, details, purchase, ct, debitInPurchase: true);
+
+    async Task<QunaPay> PayQunaAsync(long quna, object details, Func<QunaRequest?, Task<bool>> purchase, CancellationToken ct, bool debitInPurchase)
     {
-        if (quna <= 0) return await purchase() ? QunaPay.Done : QunaPay.Failed;
+        if (quna <= 0) return await purchase(null) ? QunaPay.Done : QunaPay.Failed;
         if (Store is not { QunaWallet: { } wallet } store || CharacterId is not { } character) return QunaPay.Failed;
-        var request = $"w{store.WorldId}:{character:N}:{Guid.NewGuid():N}";
-        QunaResult spent;
-        try
+        var request = new QunaRequest(store.AccountId, $"w{store.WorldId}:{character:N}:{Guid.NewGuid():N}", quna, QunaWalletRules.Purchase,
+            store.WorldId, character, JsonSerializer.SerializeToElement(details));
+        if (!debitInPurchase)
         {
-            spent = await wallet.SpendAsync(new QunaRequest(store.AccountId, request, quna, QunaWalletRules.Purchase, store.WorldId, character,
-                JsonSerializer.SerializeToElement(details)), ct);
+            QunaResult spent;
+            try { spent = await wallet.SpendAsync(request, ct); }
+            catch (Exception error) when (error is not OperationCanceledException || !ct.IsCancellationRequested)
+            {
+                PersistenceErrors.Add("quna_spend");
+                await RefundQunaAsync(wallet, store.AccountId, request.RequestId, store.WorldId, ct);
+                return QunaPay.Failed;
+            }
+            NoteQuna(spent);
+            if (!spent.Ok) return spent.Error == QunaWalletRules.Insufficient ? QunaPay.NotEnough : QunaPay.Failed;
+            DebugShop($"Quna spent: {quna} (request {request.RequestId}, balance {spent.Balance})");
         }
+        var done = false;
+        try { done = await purchase(request); }
         catch (Exception error) when (error is not OperationCanceledException || !ct.IsCancellationRequested)
         {
-            // The spend may have reached the wallet before the call failed: give it back (nothing happens when it did not).
             PersistenceErrors.Add("quna_spend");
-            await RefundQunaAsync(wallet, store.AccountId, request, store.WorldId, ct);
+            await RefundQunaAsync(wallet, store.AccountId, request.RequestId, store.WorldId, ct);
             return QunaPay.Failed;
         }
-        NoteQuna(spent);
-        if (!spent.Ok) return spent.Error == QunaWalletRules.Insufficient ? QunaPay.NotEnough : QunaPay.Failed;
-        DebugShop($"Quna spent: {quna} (request {request}, balance {spent.Balance})");
-        var done = false;
-        try { done = await purchase(); }
-        finally
+        if (!done) await RefundQunaAsync(wallet, store.AccountId, request.RequestId, store.WorldId, ct);
+        try { NoteQuna(await wallet.BalanceAsync(store.AccountId, ct)); }
+        catch (Exception error) when (error is not OperationCanceledException || !ct.IsCancellationRequested)
+        { PersistenceErrors.Add("quna_balance"); }
+        if (done)
         {
-            if (!done) await RefundQunaAsync(wallet, store.AccountId, request, store.WorldId, ct);
+            DebugShop($"Quna purchase: {quna} (request {request.RequestId}, balance {accountQunaBalance})");
+            return QunaPay.Done;
         }
-        return done ? QunaPay.Done : QunaPay.Failed;
+        return accountQunaBalance < quna ? QunaPay.NotEnough : QunaPay.Failed;
     }
 
     async Task RefundQunaAsync(IQunaWallet wallet, Guid account, string request, int world, CancellationToken ct)

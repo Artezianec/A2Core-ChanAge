@@ -37,6 +37,10 @@ server/Aion.Host/wwwroot/admin.html
 server/Aion.Host/wwwroot/assets/
 launcher/**/bin/
 launcher/**/obj/
+editor/**/bin/
+editor/**/obj/
+tools/AionClientProbe/bin/
+tools/AionClientProbe/obj/
 
 # The server data bundle is a release download (too large for the repository): place it in data/.
 /data/

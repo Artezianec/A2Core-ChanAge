@@ -19,6 +19,7 @@ import { SignIn } from './SignIn';
 import { Home } from './Home';
 import { AccountList } from './Accounts';
 import { Worlds } from './Worlds';
+import { CustomNpcs } from './CustomNpcs';
 import { ERRORS, ROLE_LABEL, can, type StaffProfile } from './types';
 
 export function describe(error: unknown): string {
@@ -30,7 +31,7 @@ export function describe(error: unknown): string {
 
 export interface Session { token: string; username: string; profile: StaffProfile }
 export type Call = <T>(path: string, options?: { method?: string; body?: unknown }) => Promise<T>;
-type View = 'dashboard' | 'overview' | 'accounts' | 'characters' | 'moderation' | 'broadcast' | 'rewards' | 'economy' | 'activity' | 'worlds' | 'server' | 'staff';
+type View = 'dashboard' | 'overview' | 'accounts' | 'characters' | 'moderation' | 'broadcast' | 'rewards' | 'economy' | 'npcs' | 'activity' | 'worlds' | 'server' | 'staff';
 
 const STORE_KEY = 'aion-staff-session';
 interface Saved { token: string; username: string }
@@ -71,6 +72,7 @@ const NAV: { name: string; items: NavEntry[] }[] = [
     { id: 'broadcast', label: 'Announcements & events', icon: 'broadcast', permission: 'announce' },
     { id: 'rewards', label: 'Rewards', icon: 'gift', permission: 'rewardCharacters' },
     { id: 'economy', label: 'Economy', icon: 'coins', permission: 'viewEconomy' },
+    { id: 'npcs', label: 'NPCs', icon: 'pin', permission: 'viewCustomNpcs' },
   ] },
   { name: 'System', items: [
     { id: 'worlds', label: 'Worlds', icon: 'globe', permission: 'viewDashboard' },
@@ -182,6 +184,7 @@ export function AdminApp() {
         <div className="view" hidden={current !== 'staff'}>
           <AccountList call={call} profile={session.profile} active={current === 'staff'} staffOnly onOpenCharacter={openCharacter} />
         </div>
+        <div className="view" hidden={current !== 'npcs'}><CustomNpcs call={call} active={current === 'npcs'} isAdmin={allowed('editCustomNpcs')} /></div>
         <div className="view" hidden={current !== 'worlds'}><Worlds call={call} active={current === 'worlds'} /></div>
       </div>
       <NewAccountDialog open={creating} call={call} onClose={() => setCreating(false)} />

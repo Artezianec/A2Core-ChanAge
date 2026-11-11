@@ -101,6 +101,9 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         public int VictimKey { get; set; }
         /// <summary>Hate by attacker key (damage dealt, at least 1 per hit; OURS): the top one is chased.</summary>
         public Dictionary<int, long> Hate { get; } = [];
+        /// <summary>Players who healed someone already on this NPC's hate table (field-boss personal rewards).</summary>
+        public HashSet<int> Healers { get; } = [];
+        internal void ClearThreat() { Hate.Clear(); Healers.Clear(); }
         /// <summary>The player considered this tick (nearest, or the victim) for a new chase.</summary>
         internal int CandidateKey { get; set; }
         /// <summary>Patrol: the waypoint walked to and the direction along the route (+1 / -1 on TwoWay routes).</summary>
@@ -208,7 +211,7 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
     {
         var brain = BrainOf(target);
         var replies = brain.Moving ? Stop(target, brain, brain.Heading, now) : [];
-        brain.Hate.Clear();
+        brain.ClearThreat();
         brain.Engaged = false;
         brain.CandidateKey = 0;
         brain.VictimKey = 0;
@@ -660,7 +663,7 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         ResetGroggy(target);
         brain.Mode = Mode.Idle;
         brain.VictimKey = 0;
-        brain.Hate.Clear();
+        brain.ClearThreat();
         brain.WanderAtMs = WanderDelay(now);
         replies.AddRange(EndFight(brain));   // a wipe: the boss is back home, its adds go and its phases start over
         return replies;
@@ -779,7 +782,7 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         {
             if (brain.Mode != Mode.Dead)
             {
-                brain.Mode = Mode.Dead; brain.Moving = false; brain.Engaged = false; brain.Pending = null; brain.VictimKey = 0; brain.Hate.Clear();
+                brain.Mode = Mode.Dead; brain.Moving = false; brain.Engaged = false; brain.Pending = null; brain.VictimKey = 0; brain.ClearThreat();
                 target.Position = brain.Home;   // the respawn (0x3641) uses the spawn point
                 target.Direction = brain.HomeHeading;
                 brain.Heading = brain.HomeHeading;

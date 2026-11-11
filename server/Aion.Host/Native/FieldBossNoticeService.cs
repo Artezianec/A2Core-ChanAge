@@ -4,9 +4,10 @@ using Aion.World;
 namespace Aion.Host.Native;
 
 /// <summary>
-/// Field boss notices (Aion:FieldBosses:Announcements, docs/FIELD-BOSSES.md): every few seconds the notices the sessions queued
-/// (a boss's kill, its return when due) go to every player's screen in their client's language (EN or RU) and to chat in English.
-/// Ported from ckrealm/A2Core 77ac9ed FunNoticeService (AGPL-3.0).
+/// Field boss broadcasts (Aion:FieldBosses:AnnouncementScope / ChatBroadcast, docs/FIELD-BOSSES.md): every few seconds
+/// the notices the sessions queued (a boss's kill, its return when due) go to the configured audience (off, the same
+/// map, or everyone) as a centre notice in the client's language, and optionally to chat in English. Official default
+/// is off. Ported from ckrealm/A2Core 77ac9ed FunNoticeService (AGPL-3.0).
 /// </summary>
 public sealed class FieldBossNoticeService(IServiceProvider services, ILogger<FieldBossNoticeService> logger) : BackgroundService
 {
@@ -22,10 +23,16 @@ public sealed class FieldBossNoticeService(IServiceProvider services, ILogger<Fi
                     if (services.GetService<WorldPresence>() is { } presence)
                     {
                         var packet = GameSession.Notice(notice.English, notice.Russian, 20, "FFD54A");
-                        foreach (var entry in presence.All) _ = entry.Session.InvokeAsync(_ => (true, new List<byte[]> { packet }));
+                        foreach (var entry in presence.All)
+                        {
+                            if (notice.Scope == FieldBossBroadcastScope.Off) continue;
+                            if (notice.Scope == FieldBossBroadcastScope.Zone && entry.Session.MapId != notice.MapId) continue;
+                            _ = entry.Session.InvokeAsync(_ => (true, new List<byte[]> { packet }));
+                        }
                     }
-                    await StaffEndpoints.ChatAnnounceAsync(services, notice.English);
-                    logger.LogInformation("Field boss notice: {Text}", notice.English);
+                    if (FieldBosses.Options.ChatBroadcast)
+                        await StaffEndpoints.ChatAnnounceAsync(services, notice.English);
+                    logger.LogInformation("Field boss notice ({Scope}, map {Map}): {Text}", notice.Scope, notice.MapId, notice.English);
                 }
                 catch (Exception error) when (error is IOException or InvalidOperationException)
                 {

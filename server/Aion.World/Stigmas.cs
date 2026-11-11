@@ -7,8 +7,8 @@ namespace Aion.World;
 /// <summary>
 /// Stigmas (tools/data/stigmas.json, tools/stigmas.py, docs/STIGMAS.md): each class's stigma skills, the slots per character level,
 /// the Stigma Shards a character has had at its level and what each stigma level costs. Ported from ckrealm/A2Core (friends-server,
-/// AGPL-3.0). The skill lists and the cost ladder are recovered (SkillAcquireData Stigma rows); shards and slots per level are
-/// CANDIDATE until Exp.dat BonusStigmaPoint / StigmaSkillContextSlotMax are exported.
+/// AGPL-3.0). The skill lists, 13-per-class count, slot levels 22/27/32/37, cap 20 and the 1/2/4/8 cost ladder are CONFIRMED
+/// (global). Levelling shard totals are CANDIDATE until Exp.dat BonusStigmaPoint / StigmaSkillContextSlotMax are exported.
 /// </summary>
 public sealed class StigmaTable
 {
@@ -100,18 +100,24 @@ public sealed class StigmaTable
 /// <summary>
 /// Aion:Stigmas (docs/STIGMAS.md). Off by default: the stigma messages are CANDIDATE (no official stigma purchase has been
 /// captured), so a server turns them on to test. Enabled: a character from level 22 buys its class's stigma skills with Stigma
-/// Shards through the skill window's messages and casts them only from a stigma slot. Off: the stigma skills stay unlearnable,
-/// exactly as before.
+/// Shards through the skill window's messages and casts them only from a stigma slot. A reset costs ResetKinah (default 100,000;
+/// 0 is free) and refunds the spent shards. Off: the stigma skills stay unlearnable, exactly as before.
 /// </summary>
 public sealed record StigmaOptions
 {
     public bool Enabled { get; init; }
     /// <summary>Stigma slots (0 to 6): 4 matches global, 6 Korea.</summary>
     public int Slots { get; init; } = 4;
-    /// <summary>Multiplies the shards from levelling (0 to 100); global's other shard sources (shops, achievements) are not modelled.</summary>
+    /// <summary>Multiplies the shards from levelling (0 to 100). Shop and staff bonus shards are stored separately and are not multiplied.</summary>
     public double ShardRate { get; init; } = 1;
     /// <summary>Highest stigma level (1 to 20).</summary>
     public int MaxLevel { get; init; } = 20;
+    /// <summary>
+    /// Kinah charged for one stigma reset (one skill or all). Official KR launch dialog (oHzyEGdzZso, Nov 2025) showed 100,000
+    /// and a full shard refund. A later KR/TW video (8HgwN6H758A, Sep 2026) claimed reset is free: set this to 0 for that. The
+    /// same amount is charged for a single-skill reset and a reset-all (no separate official all-cost captured).
+    /// </summary>
+    public long ResetKinah { get; init; } = 100_000;
     /// <summary>A stigma casts only while it is on a quick slot; turn off if the client turns out to register stigmas another way.</summary>
     public bool RequireSlot { get; init; } = true;
     /// <summary>
@@ -128,10 +134,11 @@ public sealed record StigmaOptions
         if (Slots < 0 || Slots > table.MaxSlots) throw new InvalidOperationException($"Aion:Stigmas:Slots must be between 0 and {table.MaxSlots} (got {Slots}).");
         if (ShardRate is < 0 or > 100 || double.IsNaN(ShardRate)) throw new InvalidOperationException($"Aion:Stigmas:ShardRate must be between 0 and 100 (got {ShardRate}).");
         if (MaxLevel < 1 || MaxLevel > table.MaxSkillLevel) throw new InvalidOperationException($"Aion:Stigmas:MaxLevel must be between 1 and {table.MaxSkillLevel} (got {MaxLevel}).");
+        if (ResetKinah < 0) throw new InvalidOperationException($"Aion:Stigmas:ResetKinah must be 0 or more (got {ResetKinah}).");
         return this;
     }
 
     public override string ToString() => Enabled
-        ? string.Create(CultureInfo.InvariantCulture, $"stigmas on: {Slots} slots, shards x{ShardRate}, levels to {MaxLevel}, slot needed to cast {(RequireSlot ? "yes" : "no")}")
+        ? string.Create(CultureInfo.InvariantCulture, $"stigmas on: {Slots} slots, shards x{ShardRate}, levels to {MaxLevel}, reset {ResetKinah} kinah, slot needed to cast {(RequireSlot ? "yes" : "no")}")
         : "stigmas off";
 }

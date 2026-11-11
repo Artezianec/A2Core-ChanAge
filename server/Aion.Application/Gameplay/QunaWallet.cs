@@ -133,9 +133,10 @@ public sealed class MemoryQunaWallet : IQunaWallet
 
     public Task<QunaResult> RefundAsync(Guid account, string spendRequestId, int? worldId = null, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(spendRequestId) || spendRequestId.Length > 190) return Task.FromResult(Refused(account, QunaWalletRules.InvalidRequest));
         QunaLedgerEntry? spend;
-        lock (gate) spend = ledger.FirstOrDefault(e => e.RequestId == spendRequestId);
-        if (spend is null || spend.AccountId != account || spend.Delta >= 0) return Task.FromResult(Refused(account, QunaWalletRules.NotFound));
+        lock (gate) spend = ledger.FirstOrDefault(e => e.AccountId == account && e.RequestId == spendRequestId);
+        if (spend is null || spend.Reason != QunaWalletRules.Purchase || spend.Delta >= 0) return Task.FromResult(Refused(account, QunaWalletRules.NotFound));
         var details = JsonSerializer.SerializeToElement(new { refunds = spendRequestId });
         return Task.FromResult(Apply(new QunaRequest(account, QunaWalletRules.RefundId(spendRequestId), -spend.Delta, QunaWalletRules.Refund,
             worldId ?? spend.WorldId, spend.CharacterId, details), -spend.Delta));
@@ -159,8 +160,8 @@ public sealed class MemoryQunaWallet : IQunaWallet
         QunaResult result;
         lock (gate)
         {
-            if (ledger.FirstOrDefault(e => e.RequestId == request.RequestId) is { } done)
-                return done.AccountId == request.AccountId && done.Delta == delta
+            if (ledger.FirstOrDefault(e => e.AccountId == request.AccountId && e.RequestId == request.RequestId) is { } done)
+                return done.Delta == delta && done.Reason == request.Reason
                     ? new QunaResult(true, done.BalanceAfter, done.EntryId, Repeated: true)
                     : new QunaResult(false, wallets.GetValueOrDefault(request.AccountId).Balance, wallets.GetValueOrDefault(request.AccountId).Last, QunaWalletRules.RequestConflict);
             var (balance, last) = wallets.GetValueOrDefault(request.AccountId);

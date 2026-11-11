@@ -86,7 +86,7 @@ public sealed partial class GameSession
         }
         if (request is not { } req) return [Reply(1, openShop ?? 0)];
         var npcKey = targets?.ContainsKey(req.Npc) == true ? req.Npc : openShop ?? req.Npc;
-        if (Store is not { } store || CharacterId is not { } character || targets?.TryGetValue(npcKey, out var npc) != true || !Shops.IsGuildMerchant(npc!.NpcId) || entries.Count == 0)
+        if (Store is not { } store || CharacterId is not { } character || targets?.TryGetValue(npcKey, out var npc) != true || npc!.Custom is not null || !Shops.IsGuildMerchant(npc.NpcId) || entries.Count == 0)
             return [Reply(1, npcKey)];
         var shop = Shops.ShopName(npc.NpcId);
         if (shop is null) return [Reply(1, npcKey)];
@@ -134,10 +134,13 @@ public sealed partial class GameSession
         }
         if (PurchaseCosts(prices.Select(p => (p.Key, p.Value))) is not { } paid) return [reply(2)];
         var pay = await PayQunaAsync(paid.Quna, new { kind, goods = entries.Select(e => new[] { e.Goods, e.Count }).ToArray() },
-            () => StoredOk(() => store.ShopBuyAsync(character, paid.Costs, rewards, limits, orders, ct)), ct);
+            request => StoredOk(() => store.ShopBuyAsync(character, paid.Costs, rewards, limits, orders, ct, request)), ct);
         if (pay == QunaPay.NotEnough) return [reply(2)];
         if (pay != QunaPay.Done) return [reply(limits.Count > 0 ? 3 : 1)];
-        return [reply(0), .. await InventoryChangesAsync(ct, IncreaseShopBuy, DecreaseShopBuy)];
+        var replies = new List<byte[]> { reply(0) };
+        replies.AddRange(await InventoryChangesAsync(ct, IncreaseShopBuy, DecreaseShopBuy));
+        replies.AddRange(await AutoUseAcquiredItemsAsync(rewards.Select(r => r.Item1), now, ct));
+        return replies;
     }
 
     async Task<List<byte[]>> RandomShopInfoAsync(byte[] plain, long now, CancellationToken ct)

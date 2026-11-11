@@ -371,6 +371,35 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
         await t.CommitAsync(ct); return true;
     }
 
+    public async Task<int> StigmaBonusShardsAsync(VerifiedAccount account, Guid character, CancellationToken ct=default)
+    {
+        await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
+        if(!await Own(c,t,account.AccountId,character,ct)) return 0;
+        var shards=(int?)await Scalar(c,t,"SELECT shards FROM game.character_stigma_bonus WHERE character_id=$1",ct,character) ?? 0;
+        await t.CommitAsync(ct); return shards;
+    }
+
+    public async Task<int?> AddStigmaBonusShardsAsync(VerifiedAccount account, Guid character, int amount, CancellationToken ct=default)
+    {
+        if(amount<=0) throw new GameplayException("invalid_stigma_bonus");
+        await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
+        if(!await Own(c,t,account.AccountId,character,ct)) return null;
+        var total=(int?)await Scalar(c,t,"INSERT INTO game.character_stigma_bonus(character_id,shards) VALUES($1,$2) ON CONFLICT (character_id) DO UPDATE SET shards=game.character_stigma_bonus.shards+EXCLUDED.shards,updated_at=now() RETURNING shards",ct,character,amount);
+        if(total is null) return null;
+        await t.CommitAsync(ct); return total;
+    }
+
+    public async Task<bool> SpendKinahAndForgetStigmasAsync(VerifiedAccount account, Guid character, long kinah, IReadOnlyList<int> skillIds, CancellationToken ct=default)
+    {
+        if(kinah<0) throw new GameplayException("invalid_stigma_reset_kinah");
+        await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
+        if(!await Own(c,t,account.AccountId,character,ct)) return false;
+        if(kinah>0 && !await DeductKina(c,t,character,kinah,ct)) return false;
+        foreach(var skillId in skillIds)
+            if(skillId>0) await Execute(c,t,"DELETE FROM game.character_stigmas WHERE character_id=$1 AND skill_id=$2",ct,character,skillId);
+        await t.CommitAsync(ct); return true;
+    }
+
     public async Task<bool> SaveMasteryAsync(VerifiedAccount account, Guid character, string kind, int category, int level, long exp, CancellationToken ct=default)
     {
         if(kind is not ("craft" or "gather") || category is <0 or >5 || level is <1 or >100 || exp<0) throw new GameplayException("invalid_mastery");
@@ -609,13 +638,16 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
 
     public async Task<bool> ShopBuyAsync(VerifiedAccount account, Guid character, IReadOnlyList<(Guid Item,long Revision,int Count)> costs,
         IReadOnlyList<(int TemplateId,long Count)> goods, IReadOnlyList<(int Target,int GoodsId,string Period,int Count,int Limit)> limits,
-        IReadOnlyList<ShopOrderLine>? orders=null, CancellationToken ct=default)
+        IReadOnlyList<ShopOrderLine>? orders=null, CancellationToken ct=default, QunaRequest? qunaSpend=null)
     {
         if(orders is not null && orders.Any(o=>o.Quantity<1 || o.Price<0 || !ShopOrderKinds.Contains(o.Kind))) throw new GameplayException("invalid_shop_buy");
         // No goods with costs: a failed craft (the components are used up).
         if(goods.Count==0 && costs.Count==0 && (orders is null || orders.Count==0) || goods.Any(g=>g.Count<1) || costs.Any(x=>x.Count<1) || limits.Any(l=>l.Count<1 || l.Limit<1)) throw new GameplayException("invalid_shop_buy");
+        if(qunaSpend is { } spend && (spend.AccountId != account.AccountId || QunaWalletRules.Invalid(spend, debit: true) is not null))
+            throw new GameplayException("invalid_shop_buy");
         await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
         if(!await Own(c,t,account.AccountId,character,ct)) return false;
+        if(qunaSpend is { } quna && !await DebitQunaAsync(c,t,quna,ct)) return false;
         foreach(var (cost,revision,count) in costs)
             if(!await Consume(c,t,character,cost,revision,count,ct)) return false;
         var shopServer=limits.Any(l=>l.Target==3) ? ConversionServerOwner(await WorldOf(c,t,character,ct)) : Guid.Empty;
@@ -638,6 +670,25 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
         await Execute(c,t,"INSERT INTO audit.events(action,character_id,actor_id,details) VALUES('shop_bought',$1,$2,$3)",ct,character,account.AccountId,
             Json(new {goods=goods.Select(g=>new[]{(long)g.TemplateId,g.Count}),costs=costs.Select(x=>new{x.Item,x.Count})}));
         await t.CommitAsync(ct); return true;
+    }
+
+    /// <summary>Take Quna in this purchase transaction so a later failure rolls the debit back with the items.</summary>
+    static async Task<bool> DebitQunaAsync(NpgsqlConnection c, NpgsqlTransaction t, QunaRequest spend, CancellationToken ct)
+    {
+        await using var q = new NpgsqlCommand("SELECT ok FROM game.quna_apply($1,$2,$3,$4,$5,$6,$7)", c, t);
+        q.Parameters.AddWithValue(spend.AccountId);
+        q.Parameters.AddWithValue(spend.RequestId);
+        q.Parameters.AddWithValue(-spend.Amount);
+        q.Parameters.AddWithValue(spend.Reason);
+        q.Parameters.Add(new NpgsqlParameter { Value = (object?)spend.WorldId ?? DBNull.Value, NpgsqlDbType = NpgsqlDbType.Integer });
+        q.Parameters.Add(new NpgsqlParameter { Value = (object?)spend.CharacterId ?? DBNull.Value, NpgsqlDbType = NpgsqlDbType.Uuid });
+        q.Parameters.Add(new NpgsqlParameter
+        {
+            Value = spend.Details is { } details ? details.GetRawText() : DBNull.Value,
+            NpgsqlDbType = NpgsqlDbType.Jsonb,
+        });
+        var ok = await q.ExecuteScalarAsync(ct);
+        return ok is true;
     }
 
     static readonly HashSet<string> ShopOrderKinds=["npc","coin","guild","bm","custom","pass","membership"];

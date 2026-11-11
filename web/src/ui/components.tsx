@@ -152,6 +152,8 @@ const ICONS: Record<string, string> = {
   shield: 'M10 2l6 2.5V9c0 4-2.7 7-6 9-3.3-2-6-5-6-9V4.5zM7.5 10l2 2 3.5-4',
   gift: 'M3 8h14v3H3zM4 11h12v6H4zM10 8v9M10 8S8.5 3 6.5 4 7 8 10 8zM10 8s1.5-5 3.5-4S13 8 10 8z',
   coins: 'M10 7c3.3 0 6-1.1 6-2.5S13.3 2 10 2 4 3.1 4 4.5 6.7 7 10 7zM4 4.5v4C4 9.9 6.7 11 10 11s6-1.1 6-2.5v-4M4 8.5v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-4M4 12.5v3C4 16.9 6.7 18 10 18s6-1.1 6-2.5v-3',
+  edit: 'M4 14.5 13.5 5l2 2L6 16.5H4zM12.5 6l2 2',
+  trash: 'M5 6h10M8 6V4h4v2M7 6l.6 10h4.8L13 6',
 };
 
 export function Icon({ name, size = 18 }: { name: keyof typeof ICONS | string; size?: number }) {

@@ -63,10 +63,36 @@ public sealed class QunaWalletTests
         Assert.Equal((first.Balance, first.EntryId), (again.Balance, again.EntryId));
         Assert.Equal(3_500, (await wallet.BalanceAsync(account)).Balance);
         Assert.Equal(2, wallet.Ledger.Count);
-        // The same request id for another amount (or account) is a conflict, not a second spend.
+        // The same request id for another amount or reason is a conflict, not a second spend.
         var conflict = await wallet.SpendAsync(spend with { Amount = 10 });
         Assert.Equal(QunaWalletRules.RequestConflict, conflict.Error);
         Assert.Equal(2, wallet.Ledger.Count);
+        IQunaWallet iq = wallet;
+        var reasonConflict = await iq.StaffChangeAsync(Guid.NewGuid(), account, spend.RequestId, -1_500, "nope");
+        Assert.Equal(QunaWalletRules.RequestConflict, reasonConflict.Error);
+    }
+
+    [Fact]
+    public async Task Request_ids_are_unique_per_account_and_a_staff_take_cannot_go_below_zero()
+    {
+        var wallet = new MemoryQunaWallet();
+        var (a, b) = (Guid.NewGuid(), Guid.NewGuid());
+        wallet.Seed(a, 1_000);
+        wallet.Seed(b, 1_000);
+        Assert.True((await wallet.SpendAsync(new QunaRequest(a, "same-key", 100, QunaWalletRules.Purchase))).Ok);
+        Assert.True((await wallet.SpendAsync(new QunaRequest(b, "same-key", 200, QunaWalletRules.Purchase))).Ok);
+        Assert.Equal(900, (await wallet.BalanceAsync(a)).Balance);
+        Assert.Equal(800, (await wallet.BalanceAsync(b)).Balance);
+        IQunaWallet iq = wallet;
+        var take = await iq.StaffChangeAsync(Guid.NewGuid(), a, "staff-too-much", -901, "adjust");
+        Assert.Equal(QunaWalletRules.Insufficient, take.Error);
+        Assert.Equal(900, take.Balance);
+        Assert.Equal(QunaWalletRules.NotFound, (await wallet.RefundAsync(a, "staff-too-much")).Error);
+        // A staff take that did succeed still cannot be refunded: only a purchase can.
+        Assert.True((await iq.StaffChangeAsync(Guid.NewGuid(), a, "staff-take", -100, "")).Ok);
+        Assert.Equal(QunaWalletRules.NotFound, (await wallet.RefundAsync(a, "staff-take")).Error);
+        Assert.Equal(800, (await wallet.BalanceAsync(a)).Balance);
+        Assert.Equal(QunaWalletRules.InvalidRequest, (await wallet.RefundAsync(a, new string('x', 191))).Error);
     }
 
     [Fact]
@@ -231,9 +257,8 @@ public sealed class QunaWalletTests
         Assert.Equal(1, BitConverter.ToUInt16(bought[0], 2));
         Assert.Equal(5_000, store.QunaBalance);
         Assert.Equal(5_000, session.QunaBalance());
-        var (spend, refund) = (store.Quna.Ledger[^2], store.Quna.Ledger[^1]);
-        Assert.Equal(QunaWalletRules.Purchase, spend.Reason);
-        Assert.Equal((QunaWalletRules.Refund, QunaWalletRules.RefundId(spend.RequestId)), (refund.Reason, refund.RequestId));
+        // The debit lives in the purchase: a refused buy never writes a spend (same as a rolled-back transaction).
+        Assert.DoesNotContain(store.Quna.Ledger, e => e.Reason == QunaWalletRules.Purchase);
     }
 
     [Fact]

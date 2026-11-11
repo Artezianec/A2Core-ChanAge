@@ -137,13 +137,17 @@ partial class GameSession
         var buffRows = SkillEffects.IsFriendly(skill) && data.Skill(skill) is { Damage.Length: 0 } && area is not null ? area.CasterDebuffRows.ToList() : [];
         if (UsesChainCasterAbnormalOnAccept(skill)) buffRows = [];
         if (friendRows.Count > 0 || buffRows.Count > 0)
-            foreach (var friend in FriendlyRecipients(skill, pending.TargetKey))
+        {
+            var friends = FriendlyRecipients(skill, pending.TargetKey);
+            foreach (var friend in friends)
             {
                 var packets = new List<byte[]>();
                 foreach (var row in friendRows) packets.AddRange(friend.ReceiveFriendlyRow(row, now));
                 if (buffRows.Count > 0) packets.AddRange(friend.ReceiveBuffs(buffRows, skill, now));
                 Deliver(friend, packets, replies);
             }
+            if (friendRows.Any(r => r[0].StartsWith("Hp", StringComparison.Ordinal))) CreditFieldBossHeal(friends);
+        }
 
         var npcs = pending.EnemyKeys.Select(k => targets is not null && targets.TryGetValue(k, out var t) && !t.Dead ? t : null).OfType<Target>().ToList();
         var victim = PvpVictimOf(pending.TargetKey) is { } v && !v.Session.dead ? v : null;

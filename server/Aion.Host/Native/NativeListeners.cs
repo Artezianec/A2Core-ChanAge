@@ -397,8 +397,10 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
                             session.Store = await AuthenticateAsync(plain, ct);
                             if (session.Store is { } opened && turn is not null) session.Store = TurnStore.Wrap(opened, turn);
                             if (session.Store is null) { Logger.LogInformation("Native game closed: rejected"); return; }
-                            if (services.GetService<IPlatformSecondaryAuth>() is { } platformAuth)
-                                await platformAuth.RememberClientAsync(clientAddress, session.Store.AccountId, ct);
+                            // Keep the address on the platform account lookup (auth.platform_client_context lasts 15 minutes)
+                            // for the whole session: later balances calls (the client's Quna counter) still name this account.
+                            if (clientAddress is not null && services.GetService<IPlatformSecondaryAuth>() is { } platformAuth)
+                                _ = KeepClientAddressAsync(platformAuth, clientAddress, session.Store.AccountId, ct);
                             authenticated = true;
                         }
                         else if (!authenticated && header != 0x3602) { Logger.LogInformation("Native game closed: required"); return; }
@@ -534,6 +536,28 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
             if (session.Store is { } store) await store.DisposeAsync();
             Logger.LogInformation("Native game connection ended");
         }
+    }
+
+    /// <summary>
+    /// Keeps the client address on the platform account lookup while the session is open: now, then every 5 minutes
+    /// (the lookup lasts 15), so later platform API calls (the Quna counter's balances answer after a credit) still
+    /// name this account. Ends when the connection stops. Single-host: IPlatformSecondaryAuth is on this process
+    /// (KiskEmu uses the realm link when a remote world has no platform auth of its own).
+    /// </summary>
+    async Task KeepClientAddressAsync(IPlatformSecondaryAuth platform, IPAddress address, Guid accountId, CancellationToken ct)
+    {
+        try
+        {
+            while (true)
+            {
+                try { await platform.RememberClientAsync(address, accountId, ct); }
+                catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested)
+                { Logger.LogWarning("Did not keep the client address: {Error}", error.Message); }
+                await Task.Delay(TimeSpan.FromMinutes(5), ct);
+            }
+        }
+        catch (Exception) when (ct.IsCancellationRequested) { }
+        catch (ObjectDisposedException) { }
     }
 
     async Task<INativeCharacterStore?> AuthenticateAsync(byte[] plain, CancellationToken ct)

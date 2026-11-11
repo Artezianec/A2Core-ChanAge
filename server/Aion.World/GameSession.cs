@@ -657,8 +657,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 return await WithMapEventClearsFlushedAsync(
                 [
                     GamePackets.FinishNpcInteractionReply(npcKey),
-                    .. MapEventTalked(npcKey, null, close: false, now),
-                    .. MapEventTalked(npcKey, null, close: true, now),
+                    .. targets[npcKey].Custom is null ? MapEventTalked(npcKey, null, close: false, now) : [],
+                    .. targets[npcKey].Custom is null ? MapEventTalked(npcKey, null, close: true, now) : [],
                     .. await NpcInteractionFinishedAsync(npcKey, now, ct),
                 ], ct);
             // NpcConversation_RQ {npc key, func value}: the dialog choice of an EnterInstanceLayer NPC (OBSERVED reply 0x4007 before the move).
@@ -1464,6 +1464,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 await LoadQuickSlotsAsync(store, state.Summary.CharacterId, ct);
                 var settings = await store.CharacterSettingsAsync(state.Summary.CharacterId, ct);
                 LoadSettings(settings);
+                LoadCustomNpcFlags(settings);
                 LoadBuffSettings(settings, now);
                 LoadSkillCustomizing(settings);
                 await LoadBuybackAsync(store, state.Summary.CharacterId, ct);
@@ -1493,6 +1494,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 RefreshKitSkillLevels();
                 LoadSkillLevels(storedSkills);
                 LoadStigmas(await store.StigmasAsync(state.Summary.CharacterId, ct));
+                LoadStigmaBonus(await store.StigmaBonusShardsAsync(state.Summary.CharacterId, ct));
                 await TrimStigmasAsync(store, state.Summary.CharacterId, ct);
                 var savedMap = state.Progress.MapId.Value;
                 // Logged out inside an instance layer: back at its exit on the field map (the copy is gone).
@@ -2189,6 +2191,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             target.CorpseRemoved = false;
             target.KilledAtMs = 0;
             StaggerGaugeCombat.ResetGauge(target);
+            if (FieldBosses.Options.Enabled) FieldBosses.NoteSpawned(worldMap, target, FieldRankOf(target));
             replies.AddRange(StaggerGaugeCombat.NpcAppearPackets(target.Appearance(), target));
         }
         return replies;
@@ -3047,6 +3050,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             if (now >= aiMap.AiTickAt)
             {
                 aiMap.AiTickAt = now + 50;
+                if (options.World is { } shared) aiMap.SyncCustomNpcs(shared.CustomNpcs, shared.Data);
                 SyncSharedMapAiKillPreserve(aiMap);
                 aiMap.Ai.DefenseOf ??= key => aiMap.Players.TryGetValue(key, out var p) ? p.Session.Defense : 0;
                 aiMap.Ai.PlayerLevelOf ??= key => aiMap.Players.TryGetValue(key, out var p) ? p.Session.Level : 1;

@@ -226,9 +226,67 @@ class QunaWalletSqlTests(unittest.TestCase):
         self.assertEqual(self.scalar(f"SELECT details->>'note' FROM game.quna_ledger WHERE request_id='{request}';"), 'compensation')
         take = f'staff:{uuid.uuid4().hex}'
         self.assertEqual(self.scalar(f"SELECT ok FROM game.quna_staff_apply('{actor}','{acc}','{take}',-50,'');", role='aion_app'), 't')
-        self.assertEqual(self.scalar(f"SELECT ok FROM game.quna_staff_refund('{actor}','{acc}','{take}');", role='aion_app'), 't')
+        # A staff take is not refundable; only a purchase is.
+        self.assertEqual(self.scalar(f"SELECT ok, error FROM game.quna_staff_refund('{actor}','{acc}','{take}');", role='aion_app'), 'f|not_found')
+        buy = f'buy:{uuid.uuid4().hex}'
+        self.assertEqual(self.apply(acc, buy, -50)[0], 't')
+        self.assertEqual(self.scalar(f"SELECT ok FROM game.quna_staff_refund('{actor}','{acc}','{buy}');", role='aion_app'), 't')
         self.assertEqual(self.scalar(f"SELECT count(*) FROM audit.events WHERE action IN ('quna_staff_take','quna_staff_refund') AND details->>'account'='{acc}';"), '2')
 
+
+    def test_request_ids_are_per_account_and_compare_reason(self):
+        a, _ = self.fresh()
+        b, _ = self.fresh()
+        self.assertEqual(self.apply(a, 'shared', 100, 'grant'), ['t', '100', '', 'f'])
+        self.assertEqual(self.apply(b, 'shared', 250, 'grant'), ['t', '250', '', 'f'])
+        self.assertEqual(self.apply(a, 'shared', 100, 'grant'), ['t', '100', '', 't'])
+        self.assertEqual(self.apply(a, 'shared', 100, 'migration')[2], 'request_conflict')
+        self.assertEqual(self.apply(a, 'shared', 50, 'grant')[2], 'request_conflict')
+
+    def test_staff_cannot_take_below_zero_and_cannot_refund_a_take(self):
+        (acc, _), (actor, _) = self.fresh(), self.fresh()
+        self.apply(acc, f'g-{acc}', 80, 'grant')
+        refused = self.scalar(f"SELECT ok, balance, error FROM game.quna_staff_apply('{actor}','{acc}','take-all',-81,'');", role='aion_app')
+        self.assertEqual(refused, 'f|80|insufficient')
+        self.assertEqual(self.scalar(f"SELECT ok FROM game.quna_staff_apply('{actor}','{acc}','take-some',-20,'');", role='aion_app'), 't')
+        self.assertEqual(self.scalar(f"SELECT ok, error FROM game.quna_refund('{acc}','take-some',NULL);", role='aion_app'), 'f|not_found')
+        self.assertEqual(self.scalar(f"SELECT balance FROM game.quna_wallets WHERE account_id='{acc}';"), '60')
+
+    def test_concurrent_first_credits_and_refunds_stay_consistent(self):
+        acc, _ = self.fresh()
+        request = f'first-{uuid.uuid4()}'
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first = list(pool.map(lambda _: self.apply(acc, request, 400, 'grant'), range(2)))
+        self.assertEqual(sorted(r[3] for r in first), ['f', 't'])
+        self.assertEqual(self.scalar(f"SELECT balance, last_entry_id = (SELECT max(entry_id) FROM game.quna_ledger WHERE account_id='{acc}') FROM game.quna_wallets WHERE account_id='{acc}';"), '400|t')
+        self.apply(acc, f'buy-{acc}', -100)
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            refunds = list(pool.map(lambda _: self.scalar(f"SELECT ok, balance, repeated FROM game.quna_refund('{acc}','buy-{acc}',NULL);", role='aion_app').split('|'), range(3)))
+        self.assertTrue(all(r[0] == 't' for r in refunds))
+        self.assertEqual(sum(r[2] == 't' for r in refunds), 2)
+        self.assertEqual(self.scalar(f"SELECT balance FROM game.quna_wallets WHERE account_id='{acc}';"), '400')
+
+    def test_concurrent_absorb_credits_a_stack_once(self):
+        acc, character = self.fresh()
+        instance = self.scalar(f"INSERT INTO game.item_instances(character_id,build_id,template_id,quantity) VALUES('{character}','test',{self.QUNA},40) RETURNING instance_id;").splitlines()[0]
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda _: self.scalar(f"SELECT ok, balance, COALESCE(error,''), repeated FROM game.quna_absorb_stack('{acc}','{instance}',1);", role='aion_app').split('|'), range(2)))
+        ok = [r for r in results if r[0] == 't']
+        self.assertEqual(len(ok), 1)
+        self.assertEqual(ok[0][1], '40')
+        self.assertEqual(self.scalar(f"SELECT count(*) FROM game.item_instances WHERE instance_id='{instance}';"), '0')
+        self.assertEqual(self.scalar(f"SELECT balance FROM game.quna_wallets WHERE account_id='{acc}';"), '40')
+
+    def test_a_failed_purchase_transaction_rolls_back_the_debit(self):
+        # ShopBuy runs game.quna_apply in the same transaction as the item grant; a later failure must not keep the spend.
+        acc, _ = self.fresh()
+        self.apply(acc, f'g-{acc}', 500, 'grant')
+        buy = f'buy-{acc}'
+        self.run_sql('BEGIN;'
+                     f"SELECT ok FROM game.quna_apply('{acc}','{buy}',-200,'purchase',NULL,NULL,NULL);"
+                     'ROLLBACK;')
+        self.assertEqual(self.scalar(f"SELECT balance FROM game.quna_wallets WHERE account_id='{acc}';"), '500')
+        self.assertEqual(self.scalar(f"SELECT count(*) FROM game.quna_ledger WHERE request_id='{buy}';"), '0')
 
 @unittest.skipUnless(os.environ.get('AION_POSTGRES_TESTS') == '1', 'Requires local PostgreSQL')
 class WorldRegistrySqlTests(unittest.TestCase):
@@ -277,3 +335,52 @@ class WorldRegistrySqlTests(unittest.TestCase):
             "INSERT INTO game.worlds(world_id,name,light_server_id,dark_server_id,kind) VALUES(1209,'NoPort',1366,2366,'managed');",
         ):
             self.assertNotEqual(self.scalar(bad, role='aion_app', check=False).returncode, 0, bad)
+
+
+@unittest.skipUnless(os.environ.get('AION_POSTGRES_TESTS') == '1', 'Requires local PostgreSQL')
+class AuthCharactersGrantTests(unittest.TestCase):
+    """Migration 121: aion_auth may SELECT game.characters for the staff Accounts page, and nothing else in schema game."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.db = 'aion_auth_grant_' + secrets.token_hex(6)
+        sql(f'CREATE DATABASE {cls.db} OWNER aion_owner;', database='postgres')
+        sql(f'REVOKE ALL ON DATABASE {cls.db} FROM PUBLIC; GRANT CONNECT ON DATABASE {cls.db} TO aion_app,aion_auth;', database=cls.db)
+        sql(migration_script(sorted((ROOT / 'database' / 'migrations').glob('*.sql'))), database=cls.db)
+        cls.account, cls.character = str(uuid.uuid4()), str(uuid.uuid4())
+        sql(f"INSERT INTO auth.accounts(account_id,provider,subject) VALUES('{cls.account}','integration-test','{cls.account}');"
+            f"INSERT INTO game.characters(character_id,account_id,world_id,name,creation_id,race,gender,level) "
+            f"VALUES('{cls.character}','{cls.account}',1204,'GrantHero',1,1,1,7);", database=cls.db)
+
+    @classmethod
+    def tearDownClass(cls):
+        sql(f'DROP DATABASE {cls.db} WITH (FORCE);', database='postgres')
+
+    def scalar(self, text, role='aion_admin', check=True):
+        result = sql(text, role=role, database=self.db, check=check)
+        return result.stdout.strip() if check else result
+
+    def test_aion_auth_can_select_characters_only(self):
+        self.assertEqual(self.scalar(
+            f"SELECT name,level FROM game.characters WHERE character_id='{self.character}';", role='aion_auth'), 'GrantHero|7')
+        # The same EXISTS used by account search (IAccountDirectory.SearchAsync).
+        self.assertEqual(self.scalar(
+            f"SELECT EXISTS (SELECT 1 FROM game.characters ch WHERE ch.account_id='{self.account}' AND lower(ch.name) LIKE '%granthero%');",
+            role='aion_auth'), 't')
+        for denied in (
+            "SELECT * FROM game.item_instances WHERE false;",
+            "SELECT * FROM game.quna_wallets WHERE false;",
+            "SELECT * FROM game.worlds WHERE false;",
+            "UPDATE game.characters SET level=level WHERE false;",
+            "DELETE FROM game.characters WHERE false;",
+        ):
+            self.assertNotEqual(self.scalar(denied, role='aion_auth', check=False).returncode, 0, denied)
+
+    def test_grant_is_idempotent_and_guards_a_missing_role(self):
+        body = (ROOT / 'database' / 'migrations' / '121_aion_auth_characters_select.sql').read_text(encoding='utf-8')
+        self.assertIn("pg_roles WHERE rolname = 'aion_auth'", body)
+        # The committed migration is already applied; the DO block itself can run again.
+        self.scalar(body)
+        self.scalar(body)
+        self.assertEqual(self.scalar(
+            f"SELECT name FROM game.characters WHERE character_id='{self.character}';", role='aion_auth'), 'GrantHero')

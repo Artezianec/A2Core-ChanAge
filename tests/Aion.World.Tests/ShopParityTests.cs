@@ -80,4 +80,22 @@ public sealed class ShopParityTests
         Assert.InRange(random!.Slots, 1, 20);
         Assert.NotEmpty(random.Offers);
     }
+
+    [Fact]
+    public void Abyss_coin_shop_sells_stigma_shard_for_abyss_points()
+    {
+        var shops = ShopTables.Embedded;
+        var light = shops.GoodsInShop("coin_shop_abyss", 1, 401015113);
+        var dark = shops.GoodsInShop("coin_shop_abyss", 2, 501015113);
+        Assert.NotNull(light);
+        Assert.NotNull(dark);
+        Assert.Equal(531900010, light!.ItemId);
+        Assert.Equal(10_000, light.Price);
+        Assert.Equal(930100003, light.Currency);
+        Assert.Equal(50, light.Limit);
+        Assert.Equal(531900010, dark!.ItemId);
+        Assert.Contains(shops.LimitedGoodsInShop("coin_shop_abyss", 1), g => g.GoodsId == 401015114 && g.Row.Price == 15_000);
+        Assert.NotNull(shops.GoodsInShop("coin_shop_nightmare", 1, 402024517));
+        Assert.Null(shops.GoodsInShop("coin_shop_abyss", 1, 402024517));   // nightmare goods are not in the abyss shop
+    }
 }
