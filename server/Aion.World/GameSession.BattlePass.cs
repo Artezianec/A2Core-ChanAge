@@ -1,3 +1,4 @@
+using Aion.Application.Gameplay;
 using Aion.Protocol.Native;
 
 namespace Aion.World;
@@ -146,20 +147,24 @@ public sealed partial class GameSession
             .SelectMany(g => g.Id == itemId ? g.Passes.Where(IsPaid) : g.Passes.Where(p => p[0] == itemId && IsPaid(p)))
             .Where(p => !PassUnlocked(p)).ToList();
         if (passes.Count == 0 || shopOptions.PremiumMode == ShopPremiumMode.Disabled) return [Reply(1)];
+        var currency = shopOptions.PremiumMode == ShopPremiumMode.Kina ? KinaItemId : PlatformGoodsTables.Embedded.QunaItemId;
         var price = shopOptions.PremiumMode switch
         {
             ShopPremiumMode.Disabled => -1L,
             ShopPremiumMode.Free => 0L,
-            _ => PaidPassUnlockQunaCost,
+            _ => shopOptions.PassUnlockPrice,
         };
         if (price < 0) return [Reply(1)];
         var changes = new List<byte[]>();
         if (price > 0)
         {
             if (Store is not { } store || CharacterId is not { } character) return [Reply(1)];
-            if (CostStacks(PlatformGoodsTables.Embedded.QunaItemId, price) is not { } stacks) return [Reply(2)];
-            var done = await Stored(async () => await store.ShopBuyAsync(character, stacks, [], [], ct) ? [[]] : []);
-            if (done.Count == 0) return [Reply(1)];
+            // Quna comes from the account wallet (taken first, given back when the unlock fails); other currencies from the bag.
+            if (PurchaseCosts([(currency, price)]) is not { } paid) return [Reply(2)];
+            var orders = passes.Select((p, i) => new ShopOrderLine("pass", (int)p[0], 1, currency, i == 0 ? price : 0)).ToList();
+            var pay = await PayQunaAsync(paid.Quna, new { kind = "pass", passes = passes.Select(p => p[0]).ToArray() },
+                () => StoredOk(() => store.ShopBuyAsync(character, paid.Costs, [], [], orders, ct)), ct);
+            if (pay != QunaPay.Done) return [Reply(pay == QunaPay.NotEnough ? 2 : 1)];
             changes.AddRange(await InventoryChangesAsync(ct, IncreaseShopBuy, DecreaseShopBuy));
         }
         foreach (var pass in passes)

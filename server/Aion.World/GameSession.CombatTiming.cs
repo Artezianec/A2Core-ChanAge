@@ -272,6 +272,7 @@ partial class GameSession
         if (target.Immune && !scheduled.QuestKill && !scheduled.MapEventKill && !CombatMayHitNeutralForOpenKillObjective(target))
             hit = hit with { Amount = 0 };
         target.Hp = Math.Max(0, target.Hp - hit.Amount);
+        NoteNpcHit(target.Key, hit.Critical, now);
         var replies = new List<byte[]>
         {
             CastArea(scheduled.SkillId) is { Projectile: > 0 }
@@ -293,7 +294,7 @@ partial class GameSession
                 replies.AddRange(ApplyCasterSkillAbnormals(scheduled.SkillId, now));
             replies.AddRange(ApplyStaggerGaugeOnNpcHit(target, scheduled.SkillId, scheduled.Row, now, hit.Amount));
             if (hit.Amount > 0) LogCombatHit(scheduled.SkillId, target.Key, hit.Amount, kill: false);
-            if (hit.Amount > 0) replies.AddRange(ai.Engage(targets, target, now, playerKey, hit.Amount));
+            if (hit.Amount > 0) replies.AddRange(ai.Engage(targets, target, now, playerKey, Threat(hit.Amount)));
         }
         return replies;
     }
@@ -302,15 +303,18 @@ partial class GameSession
     List<byte[]> PlayerKilledNpc(Target target, int skillId, int killerKey, long now)
     {
         var replies = new List<byte[]>();
-        respawnAt[target.Key] = now + RespawnMs;
+        respawnAt[target.Key] = now + KillRespawnMs(target);   // RespawnMs, or a field boss's hours (Aion:FieldBosses)
+        target.KilledAtMs = now;
         killedNpcs.Add(target.NpcId);
         replies.AddRange(AchieveKill(target.NpcId));
         replies.AddRange(BossChallengeKilled(target, now));
         InstanceKill(target, now);
         killedLevels.Add(target.Level);
         replies.AddRange(DropLoot(target, now));
+        FieldBossKilled(target, now);   // before ai.Killed: the hate table names who fought it
         replies.Add(GamePackets.TargetUpdate(target.Key));
-        replies.Add(GamePackets.Kill(target.Key, skillId, killerKey, ServerId, StoredName));
+        replies.Add(GamePackets.Kill(target.Key, skillId, killerKey, ServerId, StoredName, reason: (byte)(skillId == 0 ? 3 : 1),
+            killerGuild: guild?.Name ?? "", killerEmblem: guild?.Emblem ?? 0));
         replies.AddRange(ai.Killed(target));
         // The map event last: its kill step can move the player to another map (the lake cave boss -> Ascension Subspace).
         // Live 2026-10-30: the 0x8d04 for key 2000 went out after 0x3621 PrepareEnterMap, the client applied the death to

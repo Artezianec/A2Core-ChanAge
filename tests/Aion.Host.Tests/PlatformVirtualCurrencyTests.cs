@@ -54,30 +54,36 @@ public sealed class PlatformVirtualCurrencyTests
     [Fact]
     public async Task Balance_returns_zero_when_account_unknown()
     {
-        var svc = new ShopQunaBalanceService(new WorldPresence(), platformAuth: null, accountQuna: new StubAccountQuna(50_000));
+        var wallet = new MemoryQunaWallet();
+        wallet.Seed(Guid.NewGuid(), 50_000);
+        var svc = new ShopQunaBalanceService(new WorldPresence(), platformAuth: null, wallet: wallet);
         Assert.Equal(0, await svc.BalanceAsync(IPAddress.Loopback, null, "9999999", default));
     }
 
     [Fact]
     public async Task Balance_resolves_wire_game_account_id_before_world_entry()
     {
-        var store = new FakeCharacterStore(Guid.NewGuid());
-        store.Items.Add(FakeCharacterStore.BagItem(535300006, 50_000, 9001));
-        var accountQuna = new StoreAccountQuna(store);
-        var platform = new WireOnlyPlatformAuth(store.AccountId);
-        var svc = new ShopQunaBalanceService(new WorldPresence(), platform, accountQuna);
+        var account = Guid.NewGuid();
+        var wallet = new MemoryQunaWallet();
+        wallet.Seed(account, 50_000);
+        var platform = new WireOnlyPlatformAuth(account);
+        var svc = new ShopQunaBalanceService(new WorldPresence(), platform, wallet);
         Assert.Equal(50_000, await svc.BalanceAsync(IPAddress.Loopback, platformSessionToken: null, wireAccountId: "1000001", default));
     }
 
-    sealed class StubAccountQuna(long balance) : IAccountQunaBalance
+    [Fact]
+    public async Task Platform_balance_is_the_account_wallet_after_a_spend()
     {
-        public Task<long> SumAsync(Guid accountId, CancellationToken ct) => Task.FromResult(balance);
-    }
-
-    sealed class StoreAccountQuna(FakeCharacterStore store) : IAccountQunaBalance
-    {
-        public Task<long> SumAsync(Guid accountId, CancellationToken ct) =>
-            accountId == store.AccountId ? store.AccountQunaBalanceAsync(ct) : Task.FromResult(0L);
+        // virtual_currency/v2.0/me/balances reads the account wallet directly (no item stacks are summed).
+        var account = Guid.NewGuid();
+        var wallet = new MemoryQunaWallet();
+        wallet.Seed(account, 50_000);
+        await wallet.SpendAsync(new QunaRequest(account, "spent-in-shop", 1_500, QunaWalletRules.Purchase));
+        var svc = new ShopQunaBalanceService(new WorldPresence(), new WireOnlyPlatformAuth(account), wallet);
+        var balance = await svc.BalanceAsync(IPAddress.Loopback, platformSessionToken: null, wireAccountId: "1000001", default);
+        Assert.Equal(48_500, balance);
+        using var doc = JsonDocument.Parse(ShopQunaBalanceService.JsonBody(balance, GameSession.QunaBmCurrencyGroupId));
+        Assert.Equal("48500.000000", doc.RootElement.GetProperty("total_balance").GetString());
     }
 
     sealed class WireOnlyPlatformAuth(Guid accountId) : IPlatformSecondaryAuth

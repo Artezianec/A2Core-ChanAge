@@ -27,6 +27,11 @@ public sealed record LevelCount(int Level, int Count);
 public sealed record EconomyReport(long TotalKina, int Characters, int Accounts, IReadOnlyList<RichCharacter> Richest, IReadOnlyList<ItemTotal> Items,
     IReadOnlyList<LevelCount> Levels, IReadOnlyList<DayCount> NewAccounts, IReadOnlyList<DayCount> NewCharacters);
 public sealed record AccountRef(Guid AccountId, string AccountName);
+public sealed record NamedCount(string Name, int Count);
+/// <summary>Server-wide figures for the staff dashboard (migration 096).</summary>
+public sealed record RealmStats(int Accounts, int StaffAccounts, int DisabledAccounts, int NewAccounts30Days, IReadOnlyList<DayCount> NewAccounts,
+    int Characters, IReadOnlyList<NamedCount> CharactersByWorld, IReadOnlyList<NamedCount> LevelBands, IReadOnlyList<NamedCount> Races,
+    long QunaInCirculation, int OpenTickets, int TicketsWaitingOverADay, int ActiveMutes, int ActiveBans);
 
 public interface IStaffTools
 {
@@ -65,7 +70,8 @@ public interface IStaffTools
     Task MarkEventRunAsync(long id, DateTimeOffset at, CancellationToken ct = default);
 
     Task SamplePopulationAsync(int players, int connections, CancellationToken ct = default);
-    Task<IReadOnlyList<PopulationPoint>> PopulationAsync(VerifiedAccount actor, TimeSpan window, CancellationToken ct = default);
+    Task<IReadOnlyList<PopulationPoint>> PopulationAsync(VerifiedAccount actor, TimeSpan window, int? worldId = null, CancellationToken ct = default);
+    Task<RealmStats> RealmStatsAsync(VerifiedAccount actor, CancellationToken ct = default);
 
     Task<EconomyReport> EconomyAsync(VerifiedAccount actor, CancellationToken ct = default);
     /// <summary>Characters for a bulk reward: all live ones (not deleted, account enabled).</summary>

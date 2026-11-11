@@ -91,6 +91,8 @@ public sealed partial class GameSession
             // spend model matches Exp.dat totals after a quest (or kill) level-up — AddSkillList alone leaves a stale list.
             replies.AddRange(PassiveAbnormals());
             replies.AddRange(SkillPointClientSync());
+            // New Stigma Shards (and slots) come with the level (docs/STIGMAS.md; stigmas on only).
+            replies.AddRange(StigmaShardSync());
         }
         var broadcast = PlayerPackets.LevelBroadcast(playerKey, level);
         worldPlayer?.Map?.Broadcast(worldPlayer, [broadcast]);

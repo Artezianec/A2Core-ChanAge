@@ -1,6 +1,11 @@
 // Shapes of the staff API (server/Aion.Host/Authentication/GameplayEndpoints.cs) and the wardrobe export.
 
-export interface StaffProfile { roles: string[]; buildId: string | null }
+/** GET /api/admin/me. permissions: camelCase names from StaffAccess (server checks every request). */
+export interface StaffProfile { roles: string[]; buildId: string | null; rank?: string | null; rankLabel?: string; permissions?: string[] }
+
+export function can(profile: StaffProfile, permission: string): boolean { return profile.permissions?.includes(permission) ?? false; }
+
+export const STAFF_ROLES = ['gamemaster', 'moderator', 'admin'] as const;
 
 export interface AdminCharacter {
   characterId: string; name: string; accountId: string; accountName: string; worldId: number;
@@ -41,11 +46,11 @@ export interface ViewerModule {
   createViewer(stage: HTMLElement, data: WardrobeData, hooks: { onStatus?: (t: string) => void; onError?: (t: string) => void; onChange?: () => void }): Viewer;
 }
 
-export const ROLE_LABEL: Record<string, string> = { admin: 'Admin', gamemaster: 'GameMaster' };
+export const ROLE_LABEL: Record<string, string> = { admin: 'Administrator', moderator: 'Moderator', gamemaster: 'Gamemaster' };
 export const GENDER: Record<number, 'GM' | 'GF'> = { 1: 'GM', 2: 'GF' };   // EGender::Male = 1, Female = 2
 
 export const ERRORS: Record<string, string> = {
-  forbidden: 'Your account does not have the GameMaster or Admin role.',
+  forbidden: 'Your staff rank does not allow this.',
   unknown_item: 'This item is not in the server catalogue build.',
   character_unavailable: 'That character is unavailable (deleted or its account is disabled).',
   invalid_grant: 'Quantity must be between 1 and 1,000,000.',
@@ -126,6 +131,11 @@ Object.assign(ERRORS, {
   invalid_event: 'Check the times: boosts need an end after the start and a multiplier between 0.1 and 10.',
   invalid_message: 'The message is limited to 200 characters.',
   invalid_reward: 'Add 1 to 10 items (or Kina) and a message of up to 200 characters.',
+  invalid_quna_change: 'Enter an amount other than 0 and a note of up to 200 characters.',
+  quna_insufficient: 'The wallet holds less Quna than that.',
+  quna_request_conflict: 'That change was already made with other details. Try again.',
+  quna_not_found: 'There is no such purchase (or account) to give Quna back for.',
+  quna_unavailable: 'The Quna wallet needs the game database.',
   reward_too_large: 'That reward is too large for one request (over 20,000 grants).',
   map_not_loaded: 'Nobody has loaded that map since the server started.',
   invalid_area: 'The radius must be between 1 m and 200 m.',
@@ -133,4 +143,35 @@ Object.assign(ERRORS, {
   unknown_npc: 'That NPC is not placed on any map, so it has no template.',
   backups_not_configured: 'Backups are not configured on this host.',
   backup_failed: 'The backup failed; see the server log.',
+});
+
+/** GET /api/admin/worlds (World Management). */
+export interface WorldRuntime { state: string; processId: number | null; since: string | null; players: number | null; connections: number | null; lastError: string | null; restarts: number }
+export interface WorldEntry {
+  worldId: number; name: string; lightServerId: number; darkServerId: number; kind: 'primary' | 'managed' | 'remote'; host: string | null;
+  gamePort: number | null; internalPort: number | null; enabled: boolean; levelCap: number | null; createdAt: string; updatedAt: string;
+  characters: number; listed: boolean; runtime: WorldRuntime;
+}
+export interface WorldList { canManage: boolean; supervised: boolean; publicAddress: string | null; worlds: WorldEntry[] }
+Object.assign(ERRORS, {
+  unknown_world: 'That world no longer exists.',
+  primary_world: 'The primary world is this host\'s own game port: it cannot be stopped, removed or moved here.',
+  world_enabled: 'Stop the world first.',
+  world_has_characters: 'The world still has characters, so it cannot be removed.',
+  world_id_in_use: 'That world id is already used.',
+  invalid_world_id: 'The world id must be between 1 and 65535 and cannot change.',
+  invalid_name: 'Give a name of 1 to 32 characters without leading or trailing spaces.',
+  name_in_use: 'Another world already has that name.',
+  invalid_server_ids: 'The Light and Dark row ids must differ and be between 1 and 65535.',
+  server_id_in_use: 'Another world already uses one of these server list rows.',
+  invalid_kind: 'Choose where the world runs.',
+  invalid_host: 'The address must be an IPv4 address such as 203.0.113.7.',
+  remote_needs_host: 'A world on another machine needs the address players connect to.',
+  game_port_required: 'Give the world a game port.',
+  internal_port_required: 'A world on this host needs a control port.',
+  invalid_port: 'Ports are between 1 and 65535.',
+  port_in_use: 'That port is already used by another world.',
+  invalid_level_cap: 'The level cap is between 1 and 100.',
+  not_managed: 'Only worlds on this host can be restarted from here.',
+  not_supervised: 'This host does not start worlds.',
 });

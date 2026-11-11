@@ -325,4 +325,63 @@ public static class LauncherLoc
 
     public static string DownloadRatePart(double mbPerSec) => T($"  ·  {mbPerSec:0.0} MB/s", $"  ·  {mbPerSec:0.0} МБ/с");
     public static string DownloadTimePart(string remaining) => T($"  ·  about {remaining} left", $"  ·  ~{remaining}");
+
+    // ---------- Saved servers / add server ----------
+    public static string ServerEnterAddress => T("Enter the server's address.", "Введите адрес сервера.");
+    public static string ServerBadAddress => T(
+        "That is not a server address. It looks like world.example.com or https://world.example.com:8780.",
+        "Некорректный адрес. Например: world.example.com или https://world.example.com:8780.");
+    public static string ServerNoUserInUrl => T("The server's address must not contain a user name.", "В адресе не должно быть имени пользователя.");
+    public static string ServerHttpsRequired => T("Public servers must use https:// (http is only for localhost).", "Публичные серверы — только https:// (http допустим для localhost).");
+    public static string ServerNoLauncherApi => T("That server does not offer the A2Core Launcher API. Its host needs a newer build.", "На этом сервере нет API лаунчера A2Core. Нужна более новая сборка хоста.");
+    public static string ServerNoSettings => T("The server sent no settings.", "Сервер не прислал настройки.");
+    public static string ServerReachFailed(string authority, string detail) => T($"Could not reach {authority} ({detail}).", $"Не удалось связаться с {authority} ({detail}).");
+    public static string ServerTimeout(string authority) => T($"{authority} did not answer in time.", $"{authority} не ответил вовремя.");
+    public static string ServerNotA2Core(string authority) => T($"{authority} is not an A2Core server.", $"{authority} — не сервер A2Core.");
+    public static string ServerBadSettings(string detail) => T($"The server's settings are not usable ({detail}).", $"Настройки сервера непригодны ({detail}).");
+    public static string ServerUnreachable => T("Could not reach the server.", "Не удалось связаться с сервером.");
+    public static string ErrUnexpectedBuildFingerprint => T("The server named an invalid build.", "Сервер указал недопустимую сборку.");
+
+    public static string TitleServers => T("Servers", "Серверы");
+    public static string IntroServers => T(
+        "Each server keeps its own sign-in and settings. Servers on the same game version share one game copy.",
+        "У каждого сервера свой вход и настройки. Серверы с одной версией игры делят одну копию клиента.");
+    public static string ButtonAddServer => T("Add a server", "Добавить сервер");
+    public static string LinkRemoveServer(string name) => T($"Remove {name} from this list", $"Удалить {name} из списка");
+    public static string DialogRemoveServer(string name, string launcher) => T(
+        $"Remove {name} from {launcher}?\n\nYour account there is not touched; you can add the server again later. Game copies stay.",
+        $"Удалить {name} из {launcher}?\n\nАккаунт на сервере не затрагивается; сервер можно добавить снова. Копии игры остаются.");
+    public static string TitleAddServer => T("Add a server", "Добавить сервер");
+    public static string IntroAddServer => T(
+        "Enter the address of the server's account site, as its owner gave it to you (for example world.example.com or https://world.example.com:8780).",
+        "Введите адрес страницы аккаунта сервера (например world.example.com или https://world.example.com:8780).");
+    public static string LabelServerAddress => T("Server address", "Адрес сервера");
+    public static string StatusLookingForServer => T("Looking for the server…", "Поиск сервера…");
+    public static string TitleConfirmAddServer(string name) => T($"Add {name}?", $"Добавить {name}?");
+    public static string TitleServerAlreadySaved(string name) => T($"{name} is already saved", $"{name} уже сохранён");
+    public static string LabelAccountSite(string url) => T($"Account site: {url}", $"Сайт аккаунта: {url}");
+    public static string LabelGameServer(string address) => T($"Game server: {address}", $"Игровой сервер: {address}");
+    public static string CertPinMismatch => T(
+        "This server's certificate is not the one saved for it. Someone may be pretending to be the server, or its owner replaced the certificate. Ask the server's owner before you continue.",
+        "Сертификат не совпадает с сохранённым. Возможна подмена или смена сертификата. Уточните у владельца сервера.");
+    public static string CertSelfSignedIntro => T(
+        "Windows does not know this server's certificate (the server made its own). Add the server only if its owner gave you this fingerprint and it matches exactly:",
+        "Windows не доверяет сертификату сервера (самоподписанный). Добавляйте сервер только если владелец дал вам отпечаток и он совпадает:");
+    public static string CertNowTrusted => T("The server now has a certificate Windows trusts.", "У сервера теперь сертификат, которому Windows доверяет.");
+    public static string ButtonAddServerConfirm => T("Add server", "Добавить сервер");
+    public static string ButtonUseServer => T("Use this server", "Использовать этот сервер");
+    public static string TitleConnecting(string name) => T($"Connecting to {name}", $"Подключение к {name}");
+    public static string StatusGettingServerSettings => T("Getting the server's settings…", "Получение настроек сервера…");
+    public static string LinkChooseAnotherServer => T("Choose another server", "Выбрать другой сервер");
+    public static string LinkServersSaved(int count) => T($"Not your server? Choose or add another ({count} saved)", $"Не тот сервер? Выбрать или добавить ({count} сохранено)");
+    public static string LinkChangeServer => T("Change server", "Сменить сервер");
+    public static string SignedInOnServer(string user, string server) => T($"Signed in as {user} on {server}.", $"Вход: {user} на {server}.");
+    public static string IntroSignInServer(string name) => T($"Use the account you were given for {name}.", $"Используйте аккаунт, выданный для {name}.");
+    public static string ContinuingOnServer(string user, string server) => T($"Continuing as {user} on {server}…", $"Продолжение как {user} на {server}…");
+    public static string StatusRepaintFirewall => T("Pointing the firewall rules at this server (approve the Windows prompt)…", "Перенастройка брандмауэра для этого сервера (подтвердите запрос Windows)…");
+    public static string DialogDeleteGameCopies(string list) => T(
+        $"Also delete the private game copies ({list})?\n\nYes deletes them (they can be set up again later). No keeps the files.",
+        $"Удалить локальные копии игры ({list})?\n\n«Да» — удалить (можно установить снова). «Нет» — оставить файлы.");
+    public static string ServerListCurrentSuffix => T("   (current)", "   (текущий)");
+    public static string ErrServerSettingsUnusable(string detail) => T($"The server's settings are not usable: {detail}", $"Настройки сервера непригодны: {detail}");
 }

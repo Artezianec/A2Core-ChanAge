@@ -70,15 +70,41 @@ public sealed class GmCommands(WorldPresence presence, BuilderCommands builder) 
 {
     public bool Owns(string content) => content.TrimStart().StartsWith('/');
 
+    static bool IsStigmaCommand(string text)
+    {
+        var word = text.TrimStart('/').Trim();
+        return text.StartsWith('/') && (word.Equals("stigma", StringComparison.OrdinalIgnoreCase) || word.Equals("stigmas", StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>
     /// "//report &lt;text&gt;" for every player (not a builder command): a ticket for staff with the sender's account and
     /// character; the reply to show. Null: reports are not available on this host.
     /// </summary>
     public Func<ChatIdentity, string, string, CancellationToken, Task<string>>? Report { get; init; }
 
+    /// <summary>Playerbots (docs/PLAYERBOTS.md) for "//bot"; null when Aion:Bots:Enabled is off.</summary>
+    public PlayerBots? Bots { get; init; }
+
+    static bool IsBotCommand(string line) =>
+        line.StartsWith("bot", StringComparison.OrdinalIgnoreCase) && (line.Length == 3 || char.IsWhiteSpace(line[3]));
+
     public async Task<string> HandleAsync(ChatIdentity sender, string userName, string content, CancellationToken ct)
     {
         var text = content.Trim();
+        // "/stigma" (or "//stigma") for every player: Stigma Shards, slots and stigmas (docs/STIGMAS.md); read-only.
+        if (IsStigmaCommand(text))
+        {
+            if ((presence.Find(userName) ?? presence.Find(Aion.Core.Characters.CharacterNames.Stored(userName))) is not { } reader)
+                return "Enter the world first.";
+            try
+            {
+                return await reader.Session.InvokeAsync(_ => (reader.Session.StigmaSummary(), new List<byte[]>())).WaitAsync(TimeSpan.FromSeconds(10), ct);
+            }
+            catch (Exception error) when (error is TimeoutException or TaskCanceledException)
+            {
+                return "The game connection did not respond.";
+            }
+        }
         if (!text.StartsWith("//", StringComparison.Ordinal)) return "Unknown command. Use //help.";
         var line = text[2..].Trim();
         if (line.StartsWith("report", StringComparison.OrdinalIgnoreCase) && (line.Length == 6 || char.IsWhiteSpace(line[6])))
@@ -101,10 +127,19 @@ public sealed class GmCommands(WorldPresence presence, BuilderCommands builder) 
                     ? "GM panel: press F10 (client dev helper; Ctrl+~ dev test UI). It needs the lobby admin flag: re-login after a staff change. "
                       + "Builder commands (in chat: //<command>; console: s <command>): " + string.Join(", ", BuilderCommands.Supported)
                     : "GM permission required.";
+            // "//bot ...": staff only unless Aion:Bots:PlayersMayUse; runs on the summoner's loop (it reads the lobby).
+            if (IsBotCommand(line))
+            {
+                if (Bots is null) return "Playerbots are off on this server.";
+                if (!Bots.Options.PlayersMayUse && !await builder.AllowedAsync(actor.Session, ct)) return "Playerbots are for staff on this server.";
+                var rest = line[3..].Trim();
+                return await actor.Session.InvokeAsync(async now => (await Bots.CommandAsync(actor.Session, rest, now, ct), new List<byte[]>()))
+                    .WaitAsync(TimeSpan.FromSeconds(30), ct);
+            }
             if (line.Length == 0 || line.Equals("help", StringComparison.OrdinalIgnoreCase))
                 return await builder.AllowedAsync(actor.Session, ct)
                     ? "Builder commands (in chat: //<command>; console: s <command>): " + string.Join(", ", BuilderCommands.Supported)
-                    : "Commands: //report <text> sends a report to the staff.";
+                    : "Commands: //report <text> sends a report to the staff. /stigma shows your Stigma Shards and slots.";
             return await actor.Session.InvokeAsync(async now =>
             {
                 var outcome = await builder.RunAsync(actor.Session, line, now, ct);

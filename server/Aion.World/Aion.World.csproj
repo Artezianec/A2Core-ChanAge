@@ -60,6 +60,8 @@
     <EmbeddedResource Include="../../tools/data/world-objects.json" LogicalName="world-objects.json" />
     <EmbeddedResource Include="../../tools/data/monolith-table.json" LogicalName="monolith-table.json" />
     <EmbeddedResource Include="../../tools/data/map-events.json" LogicalName="map-events.json" />
+    <!-- OURS (ported from ckrealm/A2Core): boss phases, slams and hand-made waves, tools/boss_phases.py. -->
+    <EmbeddedResource Include="../../tools/data/boss-phases.json" LogicalName="boss-phases.json" />
     <EmbeddedResource Include="../../tools/data/expedition.json" LogicalName="expedition.json" />
     <EmbeddedResource Include="../../tools/data/resets.json" LogicalName="resets.json" />
     <EmbeddedResource Include="../../tools/data/titles.json" LogicalName="titles.json" />
@@ -70,5 +72,7 @@
     <EmbeddedResource Include="../../tools/data/skill-effect-conditions.json" LogicalName="skill-effect-conditions.json" />
     <EmbeddedResource Include="../../tools/data/abnormal-stack-rules.json" LogicalName="abnormal-stack-rules.json" />
     <EmbeddedResource Include="../../tools/data/recovery-orbs.json" LogicalName="recovery-orbs.json" />
+    <EmbeddedResource Include="../../tools/data/stigmas.json" LogicalName="stigmas.json" />
+    <EmbeddedResource Include="../../tools/data/bot-rotations.json" LogicalName="bot-rotations.json" />
   </ItemGroup>
 </Project>

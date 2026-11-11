@@ -226,10 +226,11 @@ public sealed partial class GameSession
     }
 
     /// <summary>Saved stacks must keep the bar skill at index 0 matching the slot record (context rows may hold any valid skill id).</summary>
-    bool ContextStackValid(int barSkillId, IReadOnlyList<int> stack)
+    bool ContextStackValid(int barSkillId, IReadOnlyList<int> stack, IReadOnlySet<int>? barSkills = null)
     {
         if (barSkillId <= 0 || stack.Count < 4 || stack[0] != barSkillId) return false;
-        return stack.All(id => id == 0 || data.Skill(id) is not null);
+        var allowed = AllowedContextSkillIds(barSkillId);
+        return stack.All(id => id == 0 || allowed.Contains(id) || barSkills?.Contains(id) == true);
     }
 
     static void ClearSkillIdExcept(Dictionary<int, int[]> stacks, int skillId, int keepSlot, int keepIndex)

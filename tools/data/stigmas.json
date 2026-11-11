@@ -1,0 +1,3916 @@
+{
+ "params": {
+  "source": "Ported from ckrealm/A2Core friends-server (8416c5a, dbc178b; AGPL-3.0). Rebuilt with tools/stigmas.py from the client catalogue.",
+  "unlock_level": 22,
+  "slot_levels": [
+   22,
+   27,
+   32,
+   37,
+   42,
+   45
+  ],
+  "slot_levels_about": "CANDIDATE: global's 4 slots open at levels 22, 27, 32 and 37. Korea has 6; its levels for slots 5 and 6 are not published (OURS 42 and 45). Aion:Stigmas:Slots picks how many are used (4 = global).",
+  "max_skill_level": 20,
+  "costs": [
+   {
+    "from": 1,
+    "to": 5,
+    "shards": 1
+   },
+   {
+    "from": 6,
+    "to": 10,
+    "shards": 2
+   },
+   {
+    "from": 11,
+    "to": 15,
+    "shards": 4
+   },
+   {
+    "from": 16,
+    "to": 20,
+    "shards": 8
+   }
+  ],
+  "costs_about": "Recovered: SkillAcquireData Stigma rows, one ladder for all 117 stigma skills (75 shards for one stigma at 20). Every level needs character level 22; level 1 also needs AscensionGrade_3 (not enforced: OURS).",
+  "ascension_shards": 1,
+  "shards_per_level": [
+   {
+    "from": 23,
+    "to": 39,
+    "shards": 1
+   },
+   {
+    "from": 40,
+    "to": 45,
+    "shards": 2
+   }
+  ],
+  "shards_about": "CANDIDATE: 1 shard per level from 23 to 39 and 2 per level from 40 to 45 (29 from levelling at 45), plus the Ascension quest's shard at 22 (given at level 22: the quest gate is not modelled). Global's other sources (Abyss, Nightmare and Shugo Festival shops, achievements) are not modelled: Aion:Stigmas:ShardRate stands in for them."
+ },
+ "generated": {
+  "classes": {
+   "Assassin": [
+    13020000,
+    13080000,
+    13140000,
+    13180000,
+    13230000,
+    13250000,
+    13270000,
+    13280000,
+    13300000,
+    13310000,
+    13370000,
+    13390000,
+    13700000
+   ],
+   "Chanter": [
+    18130000,
+    18140000,
+    18160000,
+    18170000,
+    18190000,
+    18220000,
+    18230000,
+    18240000,
+    18250000,
+    18330000,
+    18420000,
+    18440000,
+    18700000
+   ],
+   "Cleric": [
+    17160000,
+    17190000,
+    17270000,
+    17280000,
+    17290000,
+    17300000,
+    17390000,
+    17400000,
+    17410000,
+    17420000,
+    17430000,
+    17440000,
+    17700000
+   ],
+   "Elementalist": [
+    16060000,
+    16080000,
+    16150000,
+    16170000,
+    16190000,
+    16220000,
+    16230000,
+    16240000,
+    16250000,
+    16260000,
+    16360000,
+    16370000,
+    16700000
+   ],
+   "Fighter": [
+    19280000,
+    19290000,
+    19300000,
+    19310000,
+    19320000,
+    19330000,
+    19350000,
+    19360000,
+    19370000,
+    19380000,
+    19390000,
+    19400000,
+    19460000
+   ],
+   "Gladiator": [
+    11080000,
+    11110000,
+    11130000,
+    11240000,
+    11250000,
+    11340000,
+    11380000,
+    11390000,
+    11400000,
+    11410000,
+    11430000,
+    11450000,
+    11700000
+   ],
+   "Ranger": [
+    14060000,
+    14120000,
+    14150000,
+    14160000,
+    14180000,
+    14190000,
+    14220000,
+    14270000,
+    14310000,
+    14350000,
+    14360000,
+    14380000,
+    14700000
+   ],
+   "Sorcerer": [
+    15120000,
+    15130000,
+    15140000,
+    15160000,
+    15200000,
+    15230000,
+    15300000,
+    15320000,
+    15360000,
+    15390000,
+    15400000,
+    15410000,
+    15700000
+   ],
+   "Templar": [
+    12070000,
+    12110000,
+    12120000,
+    12190000,
+    12200000,
+    12220000,
+    12230000,
+    12250000,
+    12310000,
+    12320000,
+    12410000,
+    12450000,
+    12700000
+   ]
+  },
+  "skills": {
+   "13020000": {
+    "name": "Throw Shadowblade",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Dagger"
+    ],
+    "cooldown_ms": 30000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       239,
+       239
+      ],
+      "ratio": [
+       10500,
+       10500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        234,
+        234
+       ],
+       "ratio": [
+        10290,
+        10290
+       ]
+      },
+      "effect_id": 1302000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "13080000": {
+    "name": "Evasion Stance",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Dagger"
+    ],
+    "cooldown_ms": 20000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "13140000": {
+    "name": "Shadowstep",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Dagger"
+    ],
+    "cooldown_ms": 45000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 100,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       239,
+       239
+      ],
+      "ratio": [
+       10500,
+       10500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        234,
+        234
+       ],
+       "ratio": [
+        10290,
+        10290
+       ]
+      },
+      "effect_id": 1314000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "13180000": {
+    "name": "Shadow Walk",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Dagger"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "13230000": {
+    "name": "Aerial Bind",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Dagger"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 150,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       239,
+       239
+      ],
+      "ratio": [
+       10500,
+       10500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        234,
+        234
+       ],
+       "ratio": [
+        10290,
+        10290
+       ]
+      },
+      "effect_id": 1323000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "13250000": {
+    "name": "Smoke Bomb",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Dagger"
+    ],
+    "cooldown_ms": 30000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 100,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       239,
+       239
+      ],
+      "ratio": [
+       10500,
+       10500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        234,
+        234
+       ],
+       "ratio": [
+        10290,
+        10290
+       ]
+      },
+      "effect_id": 1325000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "13270000": {
+    "name": "Savage Fang",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Dagger"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       239,
+       239
+      ],
+      "ratio": [
+       10500,
+       10500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        234,
+        234
+       ],
+       "ratio": [
+        10290,
+        10290
+       ]
+      },
+      "effect_id": 1327000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "13280000": {
+    "name": "Spiral Slice",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Dagger"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       239,
+       239
+      ],
+      "ratio": [
+       10500,
+       10500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        234,
+        234
+       ],
+       "ratio": [
+        10290,
+        10290
+       ]
+      },
+      "effect_id": 1328000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "13300000": {
+    "name": "Triniel's Dagger",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Dagger"
+    ],
+    "cooldown_ms": 45000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       239,
+       239
+      ],
+      "ratio": [
+       10500,
+       10500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        234,
+        234
+       ],
+       "ratio": [
+        10290,
+        10290
+       ]
+      },
+      "effect_id": 1330000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "13310000": {
+    "name": "Illusive Clone",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Dagger"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "13370000": {
+    "name": "Evasion Contract",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Dagger"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "13390000": {
+    "name": "Swift Contract",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Dagger"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "13700000": {
+    "name": "Assault Ambush",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Dagger"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       239,
+       239
+      ],
+      "ratio": [
+       10500,
+       10500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        234,
+        234
+       ],
+       "ratio": [
+        10290,
+        10290
+       ]
+      },
+      "effect_id": 1370000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "18130000": {
+    "name": "Fracturing Blow",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Staff"
+    ],
+    "cooldown_ms": 45000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 100,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       538,
+       538
+      ],
+      "ratio": [
+       21120,
+       21120
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        384,
+        384
+       ],
+       "ratio": [
+        15060,
+        15060
+       ]
+      },
+      "effect_id": 1813000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "18140000": {
+    "name": "Focused Defense",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Staff"
+    ],
+    "cooldown_ms": 20000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "18160000": {
+    "name": "Sprint Mantra",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Staff"
+    ],
+    "cooldown_ms": 5000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "18170000": {
+    "name": "Healing Touch",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Staff"
+    ],
+    "cooldown_ms": 30000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "18190000": {
+    "name": "Undefeated Mantra",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Staff"
+    ],
+    "cooldown_ms": 5000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "18220000": {
+    "name": "Obliterate",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Staff"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       538,
+       538
+      ],
+      "ratio": [
+       21120,
+       21120
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        384,
+        384
+       ],
+       "ratio": [
+        15060,
+        15060
+       ]
+      },
+      "effect_id": 1822000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "18230000": {
+    "name": "Ensnaring Mark",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Staff"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       538,
+       538
+      ],
+      "ratio": [
+       21120,
+       21120
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        384,
+        384
+       ],
+       "ratio": [
+        15060,
+        15060
+       ]
+      },
+      "effect_id": 1823000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "18240000": {
+    "name": "Impeding Authority",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Staff"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "18250000": {
+    "name": "Power of the Storm",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Staff"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "18330000": {
+    "name": "Marchutan's Wrath",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Staff"
+    ],
+    "cooldown_ms": 30000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       538,
+       538
+      ],
+      "ratio": [
+       21120,
+       21120
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        384,
+        384
+       ],
+       "ratio": [
+        15060,
+        15060
+       ]
+      },
+      "effect_id": 1833000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "18420000": {
+    "name": "Guardian Blessing",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Staff"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "18440000": {
+    "name": "Barrier Spell",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Staff"
+    ],
+    "cooldown_ms": 180000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "18700000": {
+    "name": "Assault Shock",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Staff"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       538,
+       538
+      ],
+      "ratio": [
+       21120,
+       21120
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        384,
+        384
+       ],
+       "ratio": [
+        15060,
+        15060
+       ]
+      },
+      "effect_id": 1870000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "17160000": {
+    "name": "Benevolence",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Mace"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "17190000": {
+    "name": "Root",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Mace"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       987,
+       987
+      ],
+      "ratio": [
+       32760,
+       32760
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        428,
+        428
+       ],
+       "ratio": [
+        14210,
+        14210
+       ]
+      },
+      "effect_id": 1719000011
+     },
+     {
+      "flat": [
+       987,
+       987
+      ],
+      "ratio": [
+       32760,
+       32760
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        428,
+        428
+       ],
+       "ratio": [
+        14210,
+        14210
+       ]
+      },
+      "effect_id": 1719000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "17270000": {
+    "name": "Salvation",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Mace"
+    ],
+    "cooldown_ms": 150000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "17280000": {
+    "name": "Power Burst",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Mace"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       987,
+       987
+      ],
+      "ratio": [
+       32760,
+       32760
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        428,
+        428
+       ],
+       "ratio": [
+        14210,
+        14210
+       ]
+      },
+      "effect_id": 1728000011
+     },
+     {
+      "flat": [
+       987,
+       987
+      ],
+      "ratio": [
+       32760,
+       32760
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        428,
+        428
+       ],
+       "ratio": [
+        14210,
+        14210
+       ]
+      },
+      "effect_id": 1728000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "17290000": {
+    "name": "Absolution",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Mace"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "17300000": {
+    "name": "Voice of Doom",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Mace"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       987,
+       987
+      ],
+      "ratio": [
+       32760,
+       32760
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        428,
+        428
+       ],
+       "ratio": [
+        14210,
+        14210
+       ]
+      },
+      "effect_id": 1730000011
+     },
+     {
+      "flat": [
+       987,
+       987
+      ],
+      "ratio": [
+       32760,
+       32760
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        428,
+        428
+       ],
+       "ratio": [
+        14210,
+        14210
+       ]
+      },
+      "effect_id": 1730000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "17390000": {
+    "name": "Summon Resurrection",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Mace"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "17400000": {
+    "name": "Earth Punishment",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Mace"
+    ],
+    "cooldown_ms": 30000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       138,
+       138
+      ],
+      "ratio": [
+       15180,
+       15180
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        112,
+        112
+       ],
+       "ratio": [
+        12309,
+        12309
+       ]
+      },
+      "effect_id": 1740000011
+     },
+     {
+      "flat": [
+       138,
+       138
+      ],
+      "ratio": [
+       15180,
+       15180
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        112,
+        112
+       ],
+       "ratio": [
+        12309,
+        12309
+       ]
+      },
+      "effect_id": 1740000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "17410000": {
+    "name": "Light of Protection",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Mace"
+    ],
+    "cooldown_ms": 5000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "17420000": {
+    "name": "Yustiel's Power",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Mace"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "17430000": {
+    "name": "Prayer of Amplification",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Mace"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "17440000": {
+    "name": "Noble Aura",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Mace"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "17700000": {
+    "name": "Assault Mark",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Mace"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       987,
+       987
+      ],
+      "ratio": [
+       32760,
+       32760
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        428,
+        428
+       ],
+       "ratio": [
+        14210,
+        14210
+       ]
+      },
+      "effect_id": 1770000011
+     },
+     {
+      "flat": [
+       987,
+       987
+      ],
+      "ratio": [
+       32760,
+       32760
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        428,
+        428
+       ],
+       "ratio": [
+        14210,
+        14210
+       ]
+      },
+      "effect_id": 1770000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "16060000": {
+    "name": "Siphon",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Orb"
+    ],
+    "cooldown_ms": 30000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       74,
+       74
+      ],
+      "ratio": [
+       7500,
+       7500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        76,
+        76
+       ],
+       "ratio": [
+        7770,
+        7770
+       ]
+      },
+      "effect_id": 1606000011
+     },
+     {
+      "flat": [
+       74,
+       74
+      ],
+      "ratio": [
+       7500,
+       7500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        76,
+        76
+       ],
+       "ratio": [
+        7770,
+        7770
+       ]
+      },
+      "effect_id": 1606000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "16080000": {
+    "name": "Cry of Terror",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Orb"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       246,
+       246
+      ],
+      "ratio": [
+       10000,
+       10000
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        246,
+        246
+       ],
+       "ratio": [
+        10000,
+        10000
+       ]
+      },
+      "effect_id": 1608000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "16150000": {
+    "name": "Jointstrike: Corrode",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Orb"
+    ],
+    "cooldown_ms": 45000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       246,
+       246
+      ],
+      "ratio": [
+       10000,
+       10000
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        246,
+        246
+       ],
+       "ratio": [
+        10000,
+        10000
+       ]
+      },
+      "effect_id": 1615000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "16170000": {
+    "name": "Command: Proxy",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Orb"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "16190000": {
+    "name": "Enhance: Spirit's Benediction",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Orb"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "16220000": {
+    "name": "Cursed Cloud",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Orb"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       246,
+       246
+      ],
+      "ratio": [
+       10000,
+       10000
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        246,
+        246
+       ],
+       "ratio": [
+        10000,
+        10000
+       ]
+      },
+      "effect_id": 1622000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "16230000": {
+    "name": "Seize Magic",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Orb"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       246,
+       246
+      ],
+      "ratio": [
+       10000,
+       10000
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        246,
+        246
+       ],
+       "ratio": [
+        10000,
+        10000
+       ]
+      },
+      "effect_id": 1623000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "16240000": {
+    "name": "Jointstrike: Destructive Attack",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Orb"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       246,
+       246
+      ],
+      "ratio": [
+       10000,
+       10000
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        246,
+        246
+       ],
+       "ratio": [
+        10000,
+        10000
+       ]
+      },
+      "effect_id": 1624000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "16250000": {
+    "name": "Summon: Ancient Spirit",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Orb"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       246,
+       246
+      ],
+      "ratio": [
+       10000,
+       10000
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        246,
+        246
+       ],
+       "ratio": [
+        10000,
+        10000
+       ]
+      },
+      "effect_id": 1625000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "16260000": {
+    "name": "Magic Block",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Orb"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       246,
+       246
+      ],
+      "ratio": [
+       10000,
+       10000
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        246,
+        246
+       ],
+       "ratio": [
+        10000,
+        10000
+       ]
+      },
+      "effect_id": 1626000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "16360000": {
+    "name": "Kaisinel's Power",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Orb"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "16370000": {
+    "name": "Flame Blessing",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Orb"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "16700000": {
+    "name": "Assault Terror",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Orb"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       246,
+       246
+      ],
+      "ratio": [
+       10000,
+       10000
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        246,
+        246
+       ],
+       "ratio": [
+        10000,
+        10000
+       ]
+      },
+      "effect_id": 1670000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "19280000": {
+    "name": "???",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Gauntlet"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "19290000": {
+    "name": "???",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Gauntlet"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       286,
+       286
+      ],
+      "ratio": [
+       12750,
+       12750
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        260,
+        260
+       ],
+       "ratio": [
+        11480,
+        11480
+       ]
+      },
+      "effect_id": 1929000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "19300000": {
+    "name": "???",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Gauntlet"
+    ],
+    "cooldown_ms": 30000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       286,
+       286
+      ],
+      "ratio": [
+       12750,
+       12750
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        260,
+        260
+       ],
+       "ratio": [
+        11480,
+        11480
+       ]
+      },
+      "effect_id": 1930000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "19310000": {
+    "name": "???",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Gauntlet"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "19320000": {
+    "name": "???",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Gauntlet"
+    ],
+    "cooldown_ms": 30000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       286,
+       286
+      ],
+      "ratio": [
+       12750,
+       12750
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        260,
+        260
+       ],
+       "ratio": [
+        11480,
+        11480
+       ]
+      },
+      "effect_id": 1932000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "19330000": {
+    "name": "???",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Gauntlet"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "19350000": {
+    "name": "???",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Gauntlet"
+    ],
+    "cooldown_ms": 20000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "19360000": {
+    "name": "???",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Gauntlet"
+    ],
+    "cooldown_ms": 180000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "19370000": {
+    "name": "???",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Gauntlet"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       286,
+       286
+      ],
+      "ratio": [
+       12750,
+       12750
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        260,
+        260
+       ],
+       "ratio": [
+        11480,
+        11480
+       ]
+      },
+      "effect_id": 1937000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "19380000": {
+    "name": "???",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Gauntlet"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       286,
+       286
+      ],
+      "ratio": [
+       12750,
+       12750
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        260,
+        260
+       ],
+       "ratio": [
+        11480,
+        11480
+       ]
+      },
+      "effect_id": 1938000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "19390000": {
+    "name": "???",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Gauntlet"
+    ],
+    "cooldown_ms": 45000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       286,
+       286
+      ],
+      "ratio": [
+       12750,
+       12750
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        260,
+        260
+       ],
+       "ratio": [
+        11480,
+        11480
+       ]
+      },
+      "effect_id": 1939000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "19400000": {
+    "name": "???",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Gauntlet"
+    ],
+    "cooldown_ms": 45000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "19460000": {
+    "name": "???",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Gauntlet"
+    ],
+    "cooldown_ms": 30000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       286,
+       286
+      ],
+      "ratio": [
+       12750,
+       12750
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        260,
+        260
+       ],
+       "ratio": [
+        11480,
+        11480
+       ]
+      },
+      "effect_id": 1946000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "11080000": {
+    "name": "Blade Toss",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Greatsword"
+    ],
+    "cooldown_ms": 20000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       207,
+       207
+      ],
+      "ratio": [
+       12500,
+       12500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        138,
+        138
+       ],
+       "ratio": [
+        11260,
+        11260
+       ]
+      },
+      "effect_id": 1108000011
+     },
+     {
+      "flat": [
+       207,
+       207
+      ],
+      "ratio": [
+       12500,
+       12500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        138,
+        138
+       ],
+       "ratio": [
+        11260,
+        11260
+       ]
+      },
+      "effect_id": 1108000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "11110000": {
+    "name": "Focused Block",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Greatsword"
+    ],
+    "cooldown_ms": 20000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "11130000": {
+    "name": "Armor of Balance",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Greatsword"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "11240000": {
+    "name": "Wrath Wave",
+    "type": "Active",
+    "target": "MainSelf",
+    "weapons": [
+     "Greatsword"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "11250000": {
+    "name": "Zikel's Blessing",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Greatsword"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "11340000": {
+    "name": "Lifestealing Blade",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Greatsword"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       1433,
+       1433
+      ],
+      "ratio": [
+       43525,
+       43525
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        538,
+        538
+       ],
+       "ratio": [
+        17088,
+        17088
+       ]
+      },
+      "effect_id": 1134000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "11380000": {
+    "name": "Tenaciousness",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Greatsword"
+    ],
+    "cooldown_ms": 150000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "11390000": {
+    "name": "Rage Burst",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Greatsword"
+    ],
+    "cooldown_ms": 45000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 100,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       1433,
+       1433
+      ],
+      "ratio": [
+       43525,
+       43525
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        538,
+        538
+       ],
+       "ratio": [
+        17088,
+        17088
+       ]
+      },
+      "effect_id": 1139000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "11400000": {
+    "name": "Lunge Stance",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Greatsword"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "11410000": {
+    "name": "Wave Armor",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Greatsword"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "11430000": {
+    "name": "Forced Restraint",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Greatsword"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 100,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       1433,
+       1433
+      ],
+      "ratio": [
+       43525,
+       43525
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        538,
+        538
+       ],
+       "ratio": [
+        17088,
+        17088
+       ]
+      },
+      "effect_id": 1143000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "11450000": {
+    "name": "Fracturing Rush",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Greatsword"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 100,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "11700000": {
+    "name": "Assault Strike",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Greatsword"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       1433,
+       1433
+      ],
+      "ratio": [
+       43525,
+       43525
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        538,
+        538
+       ],
+       "ratio": [
+        17088,
+        17088
+       ]
+      },
+      "effect_id": 1170000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "14060000": {
+    "name": "Griffon Arrow",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Bow"
+    ],
+    "cooldown_ms": 45000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       454,
+       454
+      ],
+      "ratio": [
+       19588,
+       19588
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        300,
+        300
+       ],
+       "ratio": [
+        12640,
+        12640
+       ]
+      },
+      "effect_id": 1406000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "14120000": {
+    "name": "Ambush Kick",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Bow"
+    ],
+    "cooldown_ms": 30000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       454,
+       454
+      ],
+      "ratio": [
+       19588,
+       19588
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        300,
+        300
+       ],
+       "ratio": [
+        12640,
+        12640
+       ]
+      },
+      "effect_id": 1412000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "14150000": {
+    "name": "Illusory Arrow",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Bow"
+    ],
+    "cooldown_ms": 30000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       454,
+       454
+      ],
+      "ratio": [
+       19588,
+       19588
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        300,
+        300
+       ],
+       "ratio": [
+        12640,
+        12640
+       ]
+      },
+      "effect_id": 1415000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "14160000": {
+    "name": "Sealing Arrow",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Bow"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       454,
+       454
+      ],
+      "ratio": [
+       19588,
+       19588
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        300,
+        300
+       ],
+       "ratio": [
+        12640,
+        12640
+       ]
+      },
+      "effect_id": 1416000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "14180000": {
+    "name": "Ensnaring Trap",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Bow"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "14190000": {
+    "name": "Stealth",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Bow"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "14220000": {
+    "name": "Bow of Blessing",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Bow"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "14270000": {
+    "name": "Arrow Storm",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Bow"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       454,
+       454
+      ],
+      "ratio": [
+       19588,
+       19588
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        300,
+        300
+       ],
+       "ratio": [
+        12640,
+        12640
+       ]
+      },
+      "effect_id": 1427000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "14310000": {
+    "name": "Vaizel's Authority",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Bow"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "14350000": {
+    "name": "Mother Nature's Breath",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Bow"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "14360000": {
+    "name": "Explosive Arrow",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Bow"
+    ],
+    "cooldown_ms": 45000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       454,
+       454
+      ],
+      "ratio": [
+       19588,
+       19588
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        300,
+        300
+       ],
+       "ratio": [
+        12640,
+        12640
+       ]
+      },
+      "effect_id": 1436000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "14380000": {
+    "name": "Supporting Fire",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Bow"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "14700000": {
+    "name": "Assault Smite",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Bow"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       454,
+       454
+      ],
+      "ratio": [
+       19588,
+       19588
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        300,
+        300
+       ],
+       "ratio": [
+        12640,
+        12640
+       ]
+      },
+      "effect_id": 1470000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "15120000": {
+    "name": "Glacial Smite",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Magicbook"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1512000011
+     },
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1512000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "15130000": {
+    "name": "Soul Freeze",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Magicbook"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1513000011
+     },
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1513000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "15140000": {
+    "name": "Curse: Tree",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Magicbook"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1514000011
+     },
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1514000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "15160000": {
+    "name": "Steel Barrier",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Magicbook"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "15200000": {
+    "name": "Cold Storm",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Magicbook"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1520000011
+     },
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1520000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "15230000": {
+    "name": "Arctic Armor",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Magicbook"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "15300000": {
+    "name": "Lumiel's Space",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Magicbook"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 300,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1530000011
+     },
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1530000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "15320000": {
+    "name": "Delayed Explosion",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Magicbook"
+    ],
+    "cooldown_ms": 30000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       178,
+       178
+      ],
+      "ratio": [
+       9400,
+       9400
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        179,
+        179
+       ],
+       "ratio": [
+        9470,
+        9470
+       ]
+      },
+      "effect_id": 1532000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "15360000": {
+    "name": "Divine Burst",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Magicbook"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1536000011
+     },
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1536000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "15390000": {
+    "name": "Fire Wall",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Magicbook"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1539000011
+     },
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1539000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "15400000": {
+    "name": "Element Enhancement",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Magicbook"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "15410000": {
+    "name": "Hibernation",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Magicbook"
+    ],
+    "cooldown_ms": 180000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "15700000": {
+    "name": "Assault Bombardment",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Magicbook"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1570000011
+     },
+     {
+      "flat": [
+       275,
+       275
+      ],
+      "ratio": [
+       14500,
+       14500
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        340,
+        340
+       ],
+       "ratio": [
+        17950,
+        17950
+       ]
+      },
+      "effect_id": 1570000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "12070000": {
+    "name": "Doom Shield",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Sword"
+    ],
+    "cooldown_ms": 30000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       388,
+       388
+      ],
+      "ratio": [
+       21250,
+       21250
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        250,
+        250
+       ],
+       "ratio": [
+        11260,
+        11260
+       ]
+      },
+      "effect_id": 1207000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "12110000": {
+    "name": "Shield of Protection",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Sword"
+    ],
+    "cooldown_ms": 20000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "12120000": {
+    "name": "Taunt",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Sword"
+    ],
+    "cooldown_ms": 30000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       388,
+       388
+      ],
+      "ratio": [
+       21250,
+       21250
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        250,
+        250
+       ],
+       "ratio": [
+        11260,
+        11260
+       ]
+      },
+      "effect_id": 1212000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "12190000": {
+    "name": "Second Skin",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Sword"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "12200000": {
+    "name": "Armor of Balance",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Sword"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "12220000": {
+    "name": "Grapple",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Sword"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       388,
+       388
+      ],
+      "ratio": [
+       21250,
+       21250
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        250,
+        250
+       ],
+       "ratio": [
+        11260,
+        11260
+       ]
+      },
+      "effect_id": 1222000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "12230000": {
+    "name": "Noble Armor",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Sword"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "12250000": {
+    "name": "Comrade in Arms",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Sword"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "12310000": {
+    "name": "Empyrean Lord's Punishment",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Sword"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 200,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       388,
+       388
+      ],
+      "ratio": [
+       21250,
+       21250
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        250,
+        250
+       ],
+       "ratio": [
+        11260,
+        11260
+       ]
+      },
+      "effect_id": 1231000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "12320000": {
+    "name": "Nezekan's Shield",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Sword"
+    ],
+    "cooldown_ms": 60000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "12410000": {
+    "name": "Executing Blade",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Sword"
+    ],
+    "cooldown_ms": 45000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 100,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       388,
+       388
+      ],
+      "ratio": [
+       21250,
+       21250
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        250,
+        250
+       ],
+       "ratio": [
+        11260,
+        11260
+       ]
+      },
+      "effect_id": 1241000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   },
+   "12450000": {
+    "name": "Battlefield Banner",
+    "type": "Active",
+    "target": "Self",
+    "weapons": [
+     "Sword"
+    ],
+    "cooldown_ms": 90000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [],
+    "damage_source": "none (effects not exported)"
+   },
+   "12700000": {
+    "name": "Assault Fury",
+    "type": "Active",
+    "target": "MainTarget",
+    "weapons": [
+     "Sword"
+    ],
+    "cooldown_ms": 120000,
+    "casting_ms": 0,
+    "cost": {
+     "mp": 0,
+     "hp": 0,
+     "sp": 0
+    },
+    "damage": [
+     {
+      "flat": [
+       388,
+       388
+      ],
+      "ratio": [
+       21250,
+       21250
+      ],
+      "value4": null,
+      "pvp": {
+       "flat": [
+        250,
+        250
+       ],
+       "ratio": [
+        11260,
+        11260
+       ]
+      },
+      "effect_id": 1270000011
+     }
+    ],
+    "damage_source": "OURS (comparable class skill)"
+   }
+  }
+ }
+}

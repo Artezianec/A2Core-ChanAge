@@ -123,6 +123,26 @@ public sealed class AccountClient : IDisposable
         return launch;
     }
 
+    /// <summary>Current launcher settings from the host; null when the server predates the endpoint.</summary>
+    public async Task<ServerReply?> ServerConfigAsync(CancellationToken ct = default)
+    {
+        using var response = await Send(HttpMethod.Get, ServerSetup.ConfigPath, null, ct);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        if (!response.IsSuccessStatusCode) throw new AccountException(LauncherLoc.ErrAccountServerCode((int)response.StatusCode));
+        return await response.Content.ReadFromJsonAsync<ServerReply>(ct) ?? throw new AccountException(LauncherLoc.ServerNoSettings);
+    }
+
+    /// <summary>Supported-build reference for a private client version fingerprint.</summary>
+    public async Task<(SupportedBuild Build, byte[] Json)> BuildReferenceAsync(string fingerprint, CancellationToken ct = default)
+    {
+        if (fingerprint.Length != 64 || !fingerprint.All(char.IsAsciiHexDigit)) throw new AccountException(LauncherLoc.ErrUnexpectedBuildFingerprint);
+        using var response = await Send(HttpMethod.Get, "/api/launcher/builds/" + fingerprint.ToLowerInvariant(), null, ct);
+        if (!response.IsSuccessStatusCode) throw new AccountException(LauncherLoc.ErrAccountServerCode((int)response.StatusCode));
+        var json = await response.Content.ReadAsByteArrayAsync(ct);
+        try { return (SupportedBuild.Parse(json, fingerprint), json); }
+        catch (Exception error) when (error is InvalidDataException or System.Text.Json.JsonException) { throw new AccountException(error.Message); }
+    }
+
     /// <summary>The server's launcher file, or null when the server offers none.</summary>
     public async Task<LauncherManifest?> LauncherManifestAsync(CancellationToken ct = default)
     {

@@ -91,27 +91,39 @@ export function AccountApp() {
   );
 }
 
-/** The launcher download: signed-in accounts get a short-lived link from the server, then the browser downloads it. */
+/** ZIP (exe + launcher.json for this server) or exe-only when the host has no launcher metadata yet. */
 function LauncherDownload({ token, onMessage }: { token: string; onMessage: (m: StatusMessage) => void }) {
   const [busy, setBusy] = useState(false);
   async function download() {
     setBusy(true);
     try {
-      const { url } = await api<{ url: string }>('/api/downloads/launcher', { method: 'POST', token });
+      const { url } = await api<{ url: string }>('/api/downloads/launcher?package=zip', { method: 'POST', token });
+      const zip = url.includes('launcher.zip');
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'A2Core Launcher.exe';
+      link.download = zip ? 'A2Core Launcher.zip' : 'A2Core Launcher.exe';
       link.click();
-    } catch (error) { onMessage({ text: describe(error), kind: 'error' }); }
-    finally { setBusy(false); }
+    } catch {
+      try {
+        const { url } = await api<{ url: string }>('/api/downloads/launcher', { method: 'POST', token });
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'A2Core Launcher.exe';
+        link.click();
+      } catch (error) { onMessage({ text: describe(error), kind: 'error' }); }
+    } finally { setBusy(false); }
   }
+  const addServer = `a2corelauncher://add?url=${encodeURIComponent(window.location.origin)}`;
   return (
     <div className="download" id="launcher">
       <div className="stack-sm">
         <h4>Play</h4>
-        <p className="muted small">Download A2Core Launcher for Windows. It sets up the game and signs you in.</p>
+        <p className="muted small">Download A2Core Launcher for Windows (ZIP includes launcher.json for this server).</p>
       </div>
       <Button variant="primary" block busy={busy} onClick={download}>Download A2Core Launcher</Button>
+      <p className="muted small" style={{ marginTop: '0.75rem' }}>
+        <a href={addServer}>Already have A2Core Launcher? Add this server</a>
+      </p>
     </div>
   );
 }

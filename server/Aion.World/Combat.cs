@@ -76,6 +76,8 @@ public sealed class Target
     public int GroggyEnergy { get; set; }
 
     public bool Dead => Hp <= 0;
+    /// <summary>When it died (ms on the killer's loop; 0: not dead or killed by something that does not set it): its corpse goes CorpseMs later.</summary>
+    public long KilledAtMs { get; set; }
     /// <summary>The corpse was removed (0x3642) and the NPC waits for its respawn.</summary>
     public bool CorpseRemoved { get; set; }
 

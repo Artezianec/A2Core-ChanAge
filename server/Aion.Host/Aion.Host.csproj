@@ -8,6 +8,7 @@
   <ItemGroup>
     <EmbeddedResource Include="../../tools/data/opcode-names.json" LogicalName="opcode-names.json" />
     <EmbeddedResource Include="../../tools/data/official_shop.json" LogicalName="official_shop.json" />
+    <EmbeddedResource Include="../../launcher/supported-build.json" LogicalName="supported-build.json" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Aion.Infrastructure/Aion.Infrastructure.csproj" />

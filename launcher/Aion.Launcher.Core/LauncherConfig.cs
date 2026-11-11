@@ -20,20 +20,28 @@ public sealed record LauncherConfig(
     [property: JsonPropertyName("steamClientPath"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SteamClientPath = null,
     [property: JsonPropertyName("redirectMode"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RedirectMode = null)
 {
-    public static LauncherConfig Load(string? overridePath = null)
+    /// <summary>Embedded launcher.json (the default server baked into this build).</summary>
+    public static LauncherConfig Load()
     {
-        LauncherConfig config;
-        if (overridePath is not null && File.Exists(overridePath))
-            config = JsonSerializer.Deserialize<LauncherConfig>(File.ReadAllText(overridePath)) ?? throw new InvalidDataException("launcher.json");
-        else
-        {
-            using var stream = typeof(LauncherConfig).Assembly.GetManifestResourceStream("launcher.json")
-                ?? throw new InvalidOperationException("launcher.json is not embedded");
-            config = JsonSerializer.Deserialize<LauncherConfig>(stream) ?? throw new InvalidDataException("launcher.json");
-        }
+        using var stream = typeof(LauncherConfig).Assembly.GetManifestResourceStream("launcher.json")
+            ?? throw new InvalidOperationException("launcher.json is not embedded");
+        var config = JsonSerializer.Deserialize<LauncherConfig>(stream) ?? throw new InvalidDataException("launcher.json");
         config.Validate();
         return config;
     }
+
+    /// <summary>A launcher.json on disk (download ZIP sidecar). Derives savedDirSuffix when omitted.</summary>
+    public static LauncherConfig Load(string path)
+    {
+        var config = JsonSerializer.Deserialize<LauncherConfig>(File.ReadAllText(path)) ?? throw new InvalidDataException("launcher.json");
+        if (string.IsNullOrEmpty(config.SavedDirSuffix) && Uri.TryCreate(config.AccountUrl, UriKind.Absolute, out var account))
+            config = config with { SavedDirSuffix = ServerSetup.DerivedSuffix(account) };
+        config.Validate();
+        return config;
+    }
+
+    /// <summary>launcher.json next to the exe; null when absent. Invalid file throws.</summary>
+    public static LauncherConfig? LoadDefault(string path) => File.Exists(path) ? Load(path) : null;
 
     [JsonIgnore] public IPAddress Server => IPAddress.Parse(ServerAddress);
 
@@ -73,7 +81,7 @@ public sealed record LauncherConfig(
         return IsLoopbackAccountHost(account.Host);
     }
 
-    static bool IsLoopbackAccountHost(string host)
+    public static bool IsLoopbackAccountHost(string host)
     {
         if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase)) return true;
         return IPAddress.TryParse(host, out var address) && IPAddress.IsLoopback(address);

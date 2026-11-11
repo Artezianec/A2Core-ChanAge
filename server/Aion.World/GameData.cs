@@ -713,7 +713,12 @@ public sealed class GameData
     List<int> DirectChainNext(int skillId) =>
         Skill(skillId)?.ChainNext is { Length: > 0 } next ? [.. next] : [];
 
-    public SkillDefinition? Skill(int skillId) => classes.Skills.GetValueOrDefault(skillId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    /// <summary>A skill's definition: class-skills.json (Skill.dat), else a stigma's (tools/data/stigmas.json, docs/STIGMAS.md).</summary>
+    public SkillDefinition? Skill(int skillId) =>
+        classes.Skills.GetValueOrDefault(skillId.ToString(System.Globalization.CultureInfo.InvariantCulture)) ?? StigmaTable.Embedded.Skill(skillId);
+
+    /// <summary>Stigmas: slots, shards, costs and each class's stigma skills (tools/data/stigmas.json, docs/STIGMAS.md).</summary>
+    public StigmaTable Stigmas => StigmaTable.Embedded;
 
     /// <summary>Skill.dat NeedSkillUseRange (cm), from class-skills export or skill-cast-ranges.json overlay.</summary>
     public double SkillUseRangeCm(int skillId)

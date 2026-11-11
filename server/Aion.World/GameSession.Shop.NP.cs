@@ -95,7 +95,7 @@ public sealed partial class GameSession
 
         var gameGoodsId = PlatformGoodsTables.Embedded.ResolveGameGoodsId(goodsId) ?? goodsId;
         var entries = new List<(int Goods, int Count)> { (gameGoodsId, quantity) };
-        var replies = await BuyCatalogGoodsAsync(entries, now, ct, Reply, store, character);
+        var replies = await BuyCatalogGoodsAsync("bm", entries, now, ct, Reply, store, character);
         DebugShop($"NPShopPurchase_RS result={(replies.Count > 0 ? replies[0][2] : -1)}");
         return replies;
     }

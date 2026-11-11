@@ -145,6 +145,8 @@ public sealed partial class GameSession
     void InstanceKill(Target target, long now)
     {
         if (instanceKey == 0 || Instances.Of(worldMap) is not { } instance || !instance.Boss.Contains(target.NpcId) || instanceExitAt is not null) return;
+        // Ported from KiskEmu 80a8e9b: HQ1101070 boss kill must not end the layer while its map event still runs.
+        if ((CopyOwner ?? this).mapEventRuns.Any(r => r.Name == instance.MapEvent && !r.Finished)) return;
         clearExit ??= ClearExitOf(instance.MapEvent);
         clearedEvents.Add(instance.MapEvent);
         instanceExitAt = now + InstanceExitDelayMs;

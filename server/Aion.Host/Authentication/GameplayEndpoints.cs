@@ -1,5 +1,6 @@
 using Aion.Application.Authentication;
 using Aion.Application.Gameplay;
+using Aion.Core.Security;
 
 namespace Aion.Host.Authentication;
 
@@ -49,7 +50,10 @@ public static class GameplayEndpoints
         admin.MapGet("/me",async(HttpContext ctx,IAccountAuthentication auth,IGameplayStore game,CancellationToken ct) =>
         {
             var account=await auth.AuthenticateAsync(Bearer(ctx),ct); if(account is null) return Results.Unauthorized();
-            return Results.Ok(await game.AdminProfileAsync(account,ct));
+            var profile=await game.AdminProfileAsync(account,ct);
+            var rank=StaffAccess.RankOf(profile.Roles);
+            return Results.Ok(new {profile.Roles,profile.BuildId,rank=StaffAccess.RoleOf(rank),rankLabel=StaffAccess.Label(rank),
+                permissions=StaffAccess.PermissionNames(rank)});
         });
         admin.MapGet("/characters",async(string? q,HttpContext ctx,IAccountAuthentication auth,IGameplayStore game,CancellationToken ct) =>
         {
@@ -72,7 +76,7 @@ public static class GameplayEndpoints
             if (account is null) return Results.Unauthorized();
             try
             {
-                if (!(await game.AdminProfileAsync(account, ct)).Roles.Contains("admin")) return Results.StatusCode(403);
+                if (!StaffAccess.Can((await game.AdminProfileAsync(account, ct)).Roles, StaffPermission.ManageAccounts)) return Results.StatusCode(403);
             }
             catch (GameplayException) { return Results.StatusCode(403); }
             await totp.AdminResetAsync(id, ct);
@@ -81,6 +85,7 @@ public static class GameplayEndpoints
         admin.MapPost("/commands",async(AdminCommand input,HttpContext ctx,IAccountAuthentication auth,IGameplayStore game,CancellationToken ct) =>
         {
             var account=await auth.AuthenticateAsync(Bearer(ctx),ct); if(account is null) return Results.Unauthorized();
+            if(!StaffAccess.Can((await game.AdminProfileAsync(account,ct)).Roles,StaffPermission.EditCharacters)) return Results.StatusCode(403);
             return Results.Ok(await game.AdminAsync(account,input,ct));
         });
         // Live overview: who is in the world now and where (in-memory, read under the world gate).

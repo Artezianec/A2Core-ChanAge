@@ -45,6 +45,7 @@ When both are set, account APIs, native **accounts** logins, staff tools, and ch
 | `Aion:Https:Proxy` | `false` | Account port listens on loopback only; trust `X-Forwarded-*` from local proxy |
 | `Aion:BridgeSecret` | — | ≥64 chars: internal handoff API (`/internal/*`) |
 | `Aion:Accounts:Registration` | `true` | Public sign-up on account page |
+| `Aion:Worlds:Enabled` | `false` | Multi-world (opt-in, [MULTI_WORLD.md](MULTI_WORLD.md)): the login port lists the world registry and starts managed world servers |
 
 ## `Aion:Web`
 
@@ -149,6 +150,17 @@ Bootstrap HTTP for the dev client (`GamePlatform.ini` → `ConfigurationServerUr
 | Key | Default | Description |
 |-----|---------|-------------|
 | `MapEventAskNpcProximityFallback` | `true` | When true, open map-event **AskNpc** on **Companion** or aggressive combat NpcData can complete without client talk UI: ~5 m for 3 s, or **0x3830** lock-on. Normal quest NPCs still need **0xe240** / step talk. Set `false` to disable. Env: `Aion__World__MapEventAskNpcProximityFallback=false`. |
+
+## `Aion:Bosses`
+
+Dungeon boss phases (slams, adds, enrage, frenzy) and tracked `ClearWave` waves: `Phases`, `Frenzy`, `FrenzySeconds`,
+`DamageScale`, `Waves`, `WavePartSeconds`. See [BOSSES.md](BOSSES.md).
+
+## `Aion:FieldBosses`
+
+Open-world field boss respawns (retail-like hours), EN/RU kill and return notices, and a loot roll for every fighter:
+`Enabled`, `BossRespawnMinMinutes`, `BossRespawnMaxMinutes`, `RespawnMinutesByName`, `NamedRespawnMinMinutes`,
+`NamedRespawnMaxMinutes`, `Announcements`, `SharedLoot`. See [FIELD-BOSSES.md](FIELD-BOSSES.md).
 
 ## `Aion:Debug`
 

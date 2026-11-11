@@ -54,7 +54,23 @@ public sealed partial class GameSession
     async Task LoadQuickSlotsAsync(INativeCharacterStore store, Guid character, CancellationToken ct)
     {
         quickSlots.Clear();
-        foreach (var slot in await store.QuickSlotsAsync(character, ct)) quickSlots[slot.Slot] = slot;
+        var repairs = new List<QuickSlotRecord>();
+        var saved = await store.QuickSlotsAsync(character, ct);
+        var barSkills = saved.Where(s => s.Type == 0 && s.SkillId > 0).Select(s => s.SkillId)
+            .Concat(Profile()?.DefaultBar().Select(d => d.SkillId) ?? []).Where(id => id > 0)
+            .SelectMany(AllowedContextSkillIds).ToHashSet();
+        foreach (var slot in saved)
+        {
+            if (slot.Type == 0 && slot.SkillId != 0 && !ContextStackValid(slot.SkillId, ContextSkillsForSlot(slot), barSkills))
+            {
+                var fixedSlot = slot with { ContextSkills = data.DefaultContextSkills(slot.SkillId).ToArray() };
+                quickSlots[slot.Slot] = fixedSlot;
+                repairs.Add(fixedSlot);
+            }
+            else quickSlots[slot.Slot] = slot;
+        }
+        foreach (var slot in repairs)
+            await store.SaveQuickSlotAsync(character, slot.Slot, slot, ct);
     }
 
     /// <summary>At login after <see cref="learned"/> is built: drop duplicate skill ids across the persisted bar.</summary>
@@ -264,7 +280,12 @@ public sealed partial class GameSession
         if (Store is not { } store || CharacterId is not { } character || type is < 0 or > 4) return [Reply(1)];
         if (type == 1 && uid != 0 && (!storedItems.TryGetValue(uid, out var itemRow) || itemRow.Location != "bag" || itemRow.TemplateId != itemId))
             return [Reply(1)];
-        if (type == 0 && skillId != 0 && !learned.Contains(skillId)) return [Reply(1)];
+        // A stigma needs to be learned and a free stigma slot (docs/STIGMAS.md; stigmas on only).
+        if (StigmaSlotCheck(number, type, skillId) is { } stigmaResult)
+        {
+            if (stigmaResult != 0) return [Reply(stigmaResult)];
+        }
+        else if (type == 0 && skillId != 0 && !learned.Contains(skillId)) return [Reply(1)];
         context ??= type == 0 && skillId != 0 ? data.DefaultContextSkills(skillId).ToArray() : null;
         var slot = new QuickSlotRecord(number, type, uid, itemId, skillId, context, autoUse);
         var saved = await Stored(async () => await store.SaveQuickSlotAsync(character, number, slot, ct) ? [[]] : []);

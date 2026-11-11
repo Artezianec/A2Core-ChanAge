@@ -16,6 +16,12 @@ public sealed record GameSessionOptions
     /// <summary>The login port's '$' placeholder row, when the development launch seeds one.</summary>
     public LoginCharacterRow? IntroCharacter { get; init; }
     public int WorldId { get; init; } = DevelopmentDefaults.WorldId;
+    /// <summary>
+    /// The server id the client sees for this world (character lists, friends, loot notices). Null (single host): the
+    /// historical 1204 whatever WorldId is. Multi-world (Aion:Worlds:Enabled, or a world-role process): the WorldId, so
+    /// each world's characters name their own world.
+    /// </summary>
+    public int? WireServerId { get; init; }
     /// <summary>Stored accounts: the account's staff role, if any; a character carries it only when flagged staff.</summary>
     public Func<Guid, CancellationToken, Task<string?>>? StaffRole { get; init; }
     /// <summary>Builder (GM) commands from the console (0x362e); null leaves them disabled.</summary>
@@ -41,6 +47,8 @@ public sealed record GameSessionOptions
     public bool MapEventAskNpcProximityFallback { get; init; } = true;
     /// <summary>Pass Shop / BM premium currency for this connection; null uses the host default from <see cref="GameSession.ConfigureShopOptions"/>.</summary>
     public ShopOptions? Shop { get; init; }
+    /// <summary>Aion:Stigmas for this connection (docs/STIGMAS.md); null uses the host default from <see cref="GameSession.ConfigureStigmas"/> (off).</summary>
+    public StigmaOptions? Stigmas { get; init; }
 }
 
 /// <summary>
@@ -633,8 +641,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             // InteractEnvObjStop_RQ {key}: a timed interaction cancelled (moved, or the client's cancel).
             case 0x363d when QuestKey(plain, 2) is { } stopKey:
                 if (pendingUse?.Key == stopKey) pendingUse = null;
+                if (pendingGatherLoss?.Key == stopKey) pendingGatherLoss = null;
                 return [GamePackets.InteractEnvObjStopReply(stopKey)];
-            case 0xe242 when NpcKeyFromBody(plain) is { } npcKey:
+            // The key as sent even when it is no longer among the targets (after a layer move): the failure reply below needs it
+            // (NpcKeyFromBody only resolves present keys, which made that branch unreachable).
+            case 0xe242 when (NpcKeyFromBody(plain) ?? QuestKey(plain, 2)) is { } npcKey:
                 // Once the conversation is over on the server's side (the partner removed and a map load pending, as after an
                 // NPC's layer entry) the official answer is the failure 0x3e08 with key 0 (OBSERVED #9656); the talk mode ends on it.
                 if (reloading || targets?.ContainsKey(npcKey) != true)
@@ -695,7 +706,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 // instant game-login reply arrives, so the chat server key (Lime+0x80) stayed
                 // empty. Resending in the world dropped the connection (research/chat-and-gm.md).
                 lobbyLoginSent = true;
-                return [GamePackets.LoginCharacters([], $"{loginIdentity.AccountSid}:{loginIdentity.Guid}", DevelopmentDefaults.WorldIdString,
+                return [GamePackets.LoginCharacters([], $"{loginIdentity.AccountSid}:{loginIdentity.Guid}", ServerId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     GamePackets.CommServerKey, now, isBornServer: true, chatEnableLevel: 0)];
             case 0xe34f when Store is not null && !lobbyLoginSent:
                 lobbyLoginSent = true;
@@ -1042,11 +1053,16 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     {
         var rows = await store.InventoryAsync(character, ct);
         containerSlotExtends = ContainerSlotExtendView.From(await store.ContainerSlotExtendsAsync(character, ct));
+        // Quna is the account wallet's: stacks still stored go into it, and the balance is read on the first load.
+        if (store.QunaWallet is not null && rows.Any(r => IsQunaRow(r) && r.Location == "bag")) rows = await SweepQunaStacksAsync(store, character, rows, ct);
+        if (qunaEntry < 0) await RefreshAccountQunaBalanceAsync(ct);
         storedItems.Clear();
-        foreach (var row in rows) storedItems[WireKey(row)] = row;
+        foreach (var row in rows.Where(r => !QunaInWallet || !IsQunaRow(r))) storedItems[WireKey(row)] = row;
         await EnsureRolledStatsAsync(store, character, ct);
-        var result = Layout(storedItems.Values.ToList(), selected?.WireId ?? 0, data, inventory, hints);
-        await RefreshAccountQunaBalanceAsync(ct);
+        // The virtual Quna stack is laid out with the stored rows (it keeps its slot) but is not one of them.
+        var result = Layout(WithVirtualQuna(storedItems.Values), selected?.WireId ?? 0, data, inventory, hints);
+        shownQuna ??= QunaBalance();
+        await LoadMembershipAsync(ct);
         return result;
     }
 
@@ -1106,6 +1122,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         if (Store is { } store && CharacterId is { } character)
             return await Stored(async () =>
             {
+                await RefreshAccountQunaBalanceAsync(ct);
                 var items = await LoadInventoryAsync(store, character, ct);
                 Remember(items);
                 equippedWeapon = WeaponFromInventory();
@@ -1137,7 +1154,6 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     async Task<List<byte[]>> InventoryChangesAsync(CancellationToken ct, byte increase, byte decrease, IReadOnlyDictionary<long, int>? hints = null)
     {
         if (Store is not { } store || CharacterId is not { } character) return [];
-        var beforeQuna = QunaBalance();
         var items = await LoadInventoryAsync(store, character, ct, hints);
         var changes = new List<ItemModification>();
         var gained = new List<(int ItemId, long Count)>();
@@ -1155,9 +1171,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         foreach (var gone in inventory.Values.Where(i => !kept.Contains(i.Key)))
             changes.Add(new ItemModification(2, gone, Decrease: decrease));
         Remember(items);
-        await RefreshAccountQunaBalanceAsync(ct);
         var quest = await SyncQuestCollectItemsAsync(ct);
-        var qunaRefresh = AppendQunaRefreshIfNeeded(beforeQuna);
+        var qunaRefresh = QunaRefreshIfChanged();
         if (changes.Count == 0)
             return qunaRefresh.Count == 0
                 ? (quest.Count == 0 ? acquired : [.. acquired, .. quest])
@@ -1477,6 +1492,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 }
                 RefreshKitSkillLevels();
                 LoadSkillLevels(storedSkills);
+                LoadStigmas(await store.StigmasAsync(state.Summary.CharacterId, ct));
+                await TrimStigmasAsync(store, state.Summary.CharacterId, ct);
                 var savedMap = state.Progress.MapId.Value;
                 // Logged out inside an instance layer: back at its exit on the field map (the copy is gone).
                 if (Instances.Of(savedMap) is { } left)
@@ -1733,12 +1750,13 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             {
                 // Owned skills before the hotbar (0x5100 then 0x5600; not the usmap ordinals).
                 var leveledKit = WithLevels(kit);
-                RefreshWireClientSkillList(leveledKit);
+                RefreshWireClientSkillList(WithStigmas(leveledKit));
                 var skillList = WireSkillListPacket();
                 replies.Add(skillList);
                 LogSkillPointsAtEntry();
                 replies.AddRange(SkillPointSpendBaselineSeeds());
                 replies.Add(SkillPointUpdate());
+                replies.AddRange(StigmaShardSync());
                 var actives = learned.Where(id => id >= 11_000_000 && !IsDodgeId(id) && data.Skill(id)?.Type == "Active").Order().ToList();
                 replies.Add(GamePackets.SkillOptionSlots(actives, SkillOptionMap()));
                 replies.Add([0x58, 0x8d, 0x00]);
@@ -1793,6 +1811,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         usedObjects.Clear();
         ResetEnvObjHits();
         pendingUse = null;
+        pendingGatherLoss = null;
         replies.AddRange(ObjectVisibility(at, now));
         replies.AddRange(MapEventsStart(now, resendExistingJoins: shortLoad));   // the layer's events join (0x922e) and run their first directives
         replies.AddRange(ApplyQuestWorldGating(now));
@@ -1873,7 +1892,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
 
     static int SkillFamilyId(int skillId) => skillId / 10_000 * 10_000;
 
-    bool SkillFamilyLearned(int skillId) => learned.Contains(skillId) || learned.Contains(SkillFamilyId(skillId));
+    /// <summary>Learned (its family too), or a learned stigma on a slot (docs/STIGMAS.md).</summary>
+    bool SkillFamilyLearned(int skillId) => learned.Contains(skillId) || learned.Contains(SkillFamilyId(skillId)) || StigmaCastable(skillId);
 
     SkillDefinition? ResolveSkillDefinition(int skillId) => data.Skill(skillId) ?? data.Skill(SkillFamilyId(skillId));
 
@@ -2119,6 +2139,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         replies.AddRange(EnterCombat(now));
         replies.Add(resources!.Update());
         replies.InsertRange(0, dismount);   // a cast takes the player off its ride before the skill starts
+        if (targets?.ContainsKey(request.TargetKey) == true) lastAttack = (request.TargetKey, now);   // what playerbots assist (GameSession.Bots.cs)
         replies.AddRange(ScheduleCombatHits(skill, request, now, (byte)actionUid));
         replies.AddRange(CasterMoveReplies(skill, request, definition!, now));
         replies.AddRange(AbnormalOnlyCastReplies(skill, request, definition!, now));
@@ -2155,17 +2176,18 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         {
             var due = respawnAt[key];
             if (!Targets.TryGetValue(key, out var target) || !target.Dead) continue;
-            if (!target.CorpseRemoved && now >= due - RespawnMs + CorpseMs)
+            if (!target.CorpseRemoved && now >= (target.KilledAtMs > 0 ? target.KilledAtMs : due - RespawnMs) + CorpseMs)
             {
                 target.CorpseRemoved = true;
                 replies.Add(GamePackets.Death(target.Key));
             }
             if (now < due) continue;
             respawnAt.Remove(target.Key);
-            // In a scripted layer or dungeon the dead stay dead for the run (official dungeon mobs do not respawn).
-            if (RunsMapEvents) continue;
+            // In a scripted layer or dungeon the dead stay dead for the run (official dungeon mobs do not respawn); so do boss adds.
+            if (RunsMapEvents || BossSummons.IsSummon(target.Key)) continue;
             target.Hp = target.HpMax;
             target.CorpseRemoved = false;
+            target.KilledAtMs = 0;
             StaggerGaugeCombat.ResetGauge(target);
             replies.AddRange(StaggerGaugeCombat.NpcAppearPackets(target.Appearance(), target));
         }
@@ -2233,7 +2255,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         {
             if (victim.OwnerKey != 0) { replies.AddRange(fights.Killed(victim)); replies.AddRange(SummonDied(victim, now)); continue; }
             if (killer.OwnerKey == playerKey) { replies.AddRange(PlayerKilledNpc(victim, 0, killer.Key, now)); continue; }
-            respawnAt[victim.Key] = now + RespawnMs;
+            respawnAt[victim.Key] = now + KillRespawnMs(victim);
+            victim.KilledAtMs = now;
             replies.Add(GamePackets.TargetUpdate(victim.Key));
             replies.Add(GamePackets.Kill(victim.Key, 0, killer.Key, 0, ""));
             replies.AddRange(fights.Killed(victim));
@@ -2846,6 +2869,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     public bool NeedsWorldTick(long now) =>
         !posted.IsEmpty
         || pendingUse is { } use && now >= use.DueMs
+        || pendingGatherLoss is { } gatherLoss && now >= gatherLoss.DueMs
         || dead && now >= reviveAt
         || itemCast is { } cast && now >= cast.DueMs
         || instanceExitAt is { } exit && now >= exit
@@ -2960,6 +2984,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             pendingUse = null;
             replies.AddRange(await WithMapEventClearsFlushedAsync(await CompleteUseAsync(use.Index, ct, now), ct));
         }
+        replies.AddRange(GatherLossTick(now));
         replies.AddRange(FlightRingStatResetTick(now));
         if (dead && now >= reviveAt) replies.AddRange(AutoRevive(now));
         WarnStuckReload(now);
@@ -2996,8 +3021,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         await FlushAirspaceAsync(ct);
         await FlushBossChallengeAsync(ct);
         await FlushExpeditionTicketsAsync(ct);
-        await FlushRewardLimitsAsync(ct);
-        await FlushDungeonCooltimesAsync(ct);
+        await FlushRewardLimitsAsync(now, ct);
+        await FlushDungeonCooltimesAsync(now, ct);
         await FlushBuffSettingsAsync(now, ct);
         // Play time: a minute at a time to the ElapsedTime achievements without a movement state (steps are minutes:
         // "Accumulate 3 hours of playtime" = 180). The ones naming states (Glide, Flying, Swimming) count their own minutes below.
@@ -3025,14 +3050,19 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 SyncSharedMapAiKillPreserve(aiMap);
                 aiMap.Ai.DefenseOf ??= key => aiMap.Players.TryGetValue(key, out var p) ? p.Session.Defense : 0;
                 aiMap.Ai.PlayerLevelOf ??= key => aiMap.Players.TryGetValue(key, out var p) ? p.Session.Level : 1;
-                WireMapEventNpcCombatHooks(aiMap.Ai, now);
+                // This session's map-event packets (its own instance script) go to this player only, not into the broadcast.
+                var ownMapEvents = new List<byte[]>();
+                WireMapEventNpcCombatHooks(aiMap.Ai, now, ownMapEvents);
+                aiMap.Ai.BossRules = bossRules;
                 aiMap.BroadcastAll(aiMap.Ai.Tick(aiMap.Targets, aiMap.NpcVictims(), now, (key, damage) =>
                 {
                     if (aiMap.Players.TryGetValue(key, out var victim)) victim.Send(victim.Session.NpcHitsPlayer(damage, now, aiMap.Ai.LastAttacker, aiMap.Ai.LastHitSkill));
                     return [];
                 }));
                 ClearMapEventNpcCombatHooks(aiMap.Ai);
+                replies.AddRange(ownMapEvents);
                 var npcKills = NpcKillsByNpcs(aiMap.Ai, now);
+                npcKills.AddRange(BossAdds(aiMap.Ai, aiMap.Targets, now));
                 aiMap.BroadcastAll(npcKills, worldPlayer);
                 replies.AddRange(npcKills);
             }
@@ -3045,11 +3075,13 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             if (ai.SkipLeashHealNpcIds.Count == 0) ai.SkipLeashHealNpcIds = null;
             WireMapEventNpcCombatHooks(ai, now);
             WireRecoveryOrbHooks(ai);
+            ai.BossRules = bossRules;
             replies.AddRange(Visible(ai.Tick(targets, invisible || dead || FriendlyToAll ? null : position, now, damage => NpcHitsPlayer(damage, now, ai.LastAttacker, ai.LastHitSkill))));
             ClearRecoveryOrbHooks(ai);
             ClearMapEventNpcCombatHooks(ai);
             replies.AddRange(TickRecoveryOrbs(now));
             replies.AddRange(NpcKillsByNpcs(ai, now));
+            replies.AddRange(BossAdds(ai, targets, now));
         }
         PartyTick(now);
         replies.AddRange(NpcStaggerGaugeTick(now));
@@ -3079,8 +3111,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         await FlushAirspaceAsync(ct);
         await FlushBossChallengeAsync(ct);
         await FlushExpeditionTicketsAsync(ct);
-        await FlushRewardLimitsAsync(ct);
-        await FlushDungeonCooltimesAsync(ct);
+        await FlushRewardLimitsAsync(now, ct, force: true);
+        await FlushDungeonCooltimesAsync(now, ct, force: true);
         await FlushContentResetWorkAsync(ct);
         await FlushBuffSettingsAsync(now, ct, force: true);
         await FlushPendingInstanceReturnAsync(ct);

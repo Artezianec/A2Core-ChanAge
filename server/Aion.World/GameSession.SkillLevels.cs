@@ -63,7 +63,8 @@ public sealed partial class GameSession
 
     int BoughtSkillLevel(int skillId) => MasteryLevel(skillId);
 
-    public int SkillLevel(int skillId) => BoughtSkillLevel(skillId) + DaevanionSkillBonus(skillId);
+    /// <summary>A skill's level for damage and the wire; a learned stigma's is its stigma level (docs/STIGMAS.md).</summary>
+    public int SkillLevel(int skillId) => StigmaLevelOf(skillId) ?? BoughtSkillLevel(skillId) + DaevanionSkillBonus(skillId);
 
     /// <summary>The learned kit with persisted and in-session mastery on top of the level-based ones.</summary>
     List<(int SkillId, int Level)> WithLevels(IReadOnlyList<(int SkillId, int Level)> kit) =>
@@ -108,7 +109,7 @@ public sealed partial class GameSession
     {
         if (className is null || Profile() is not { } profile) return;
         var kit = data.SkillListForClient(className, level, profile);
-        RefreshWireClientSkillList(data.WithChainVariantsOnHotbar(WithLevels(kit), profile, MasteryLevel));
+        RefreshWireClientSkillList(WithStigmas(data.WithChainVariantsOnHotbar(WithLevels(kit), profile, MasteryLevel)));
     }
 
     byte[] WireSkillListPacket()
@@ -122,7 +123,7 @@ public sealed partial class GameSession
     {
         var map = new Dictionary<int, int>();
         foreach (var (id, _) in skills)
-            map[id] = HasPurchasedMastery(id) ? MasteryLevel(id) : KitSkillLevel(id);
+            map[id] = StigmaLevelOf(id) ?? (HasPurchasedMastery(id) ? MasteryLevel(id) : KitSkillLevel(id));
         return map;
     }
 
@@ -173,6 +174,7 @@ public sealed partial class GameSession
         if (plain.Length < 6)
             return [PacketWriter.Opcode(SkillLevelUpRs).U16(1).I32(0).ToArray(), ..SkillPointClientSync()];
         var skillId = BitConverter.ToInt32(plain, 2);
+        if (IsOwnStigma(skillId)) return await StigmaLevelUpAsync(skillId, ct);
         byte[] Reply(int result) => PacketWriter.Opcode(SkillLevelUpRs).U16(result).I32(skillId).ToArray();
         var next = BoughtSkillLevel(skillId) + 1;
         if (!learned.Contains(skillId) || data.SkillLevelCost(skillId, next) is not { } cost)
@@ -278,6 +280,7 @@ public sealed partial class GameSession
         if (plain.Length < 6)
             return [PacketWriter.Opcode(SkillLevelDownRs).U16(1).I32(0).ToArray(), ..SkillPointClientSync()];
         var skillId = BitConverter.ToInt32(plain, 2);
+        if (IsOwnStigma(skillId)) return await StigmaLevelDownAsync(skillId, ct);
         byte[] Reply(int result) => PacketWriter.Opcode(SkillLevelDownRs).U16(result).I32(skillId).ToArray();
         var baseline = KitSkillLevel(skillId);
         var current = BoughtSkillLevel(skillId);
@@ -299,6 +302,7 @@ public sealed partial class GameSession
             return [PacketWriter.Opcode(SkillLevelResetRs).U16(1).U8(0).I32(0).Varint(0).Varint(0).ToArray(), ..SkillPointClientSync()];
         var acquireType = plain[2];
         var skillId = BitConverter.ToInt32(plain, 3);
+        if (StigmaRules.Enabled && (acquireType == SkillAcquireTypeStigma || IsOwnStigma(skillId))) return await StigmaResetAsync(acquireType, skillId, ct);
         var targets = (skillId == 0
             ? persistedSkillLevels.Keys.Union(skillLevels.Keys).Where(HasPurchasedMastery).ToList()
             : HasPurchasedMastery(skillId) ? [skillId] : []).ToList();

@@ -232,29 +232,63 @@ var grants = 0;
 var secured = new LoginSession(new LoginSessionOptions(), (id, _) =>
 {
     grants++;
-    return Task.FromResult(id.AuthnToken == "good" ? new LoginGrant("42", guid, [("Player1", 3, 1, 0UL)]) : null);
+    return Task.FromResult(id.AuthnToken == "good" ? new LoginGrant("42", guid, [("Player1", 3, 1, 0UL, 0)]) : null);
 });
 Check((await secured.HandleAsync([0x0a, 0x39], Now)).Close == "required", "requests before login close the connection");
-var gated = new LoginSession(new LoginSessionOptions(), (id, _) => Task.FromResult(id.AuthnToken == "good" ? new LoginGrant("42", guid, [("Player1", 3, 1, 0UL)]) : null));
+var gated = new LoginSession(new LoginSessionOptions(), (id, _) => Task.FromResult(id.AuthnToken == "good" ? new LoginGrant("42", guid, [("Player1", 3, 1, 0UL, 0)]) : null));
 Check((await gated.HandleAsync([0x02, 0x39, 1, 0, 0, 0, 0, 0, 0, 0], Now)).Close is null, "pings are allowed before login");
 Check((await gated.HandleAsync(Strings(0x3905, "", "bad", "", "", "", ""), Now)).Close == "rejected", "unknown ticket rejected");
-var accepted = new LoginSession(new LoginSessionOptions(), (id, _) => Task.FromResult(id.AuthnToken == "good" ? new LoginGrant("42", guid, [("Player1", 3, 1, 0UL)]) : null));
+var accepted = new LoginSession(new LoginSessionOptions(), (id, _) => Task.FromResult(id.AuthnToken == "good" ? new LoginGrant("42", guid, [("Player1", 3, 1, 0UL, 0)]) : null));
 var account = await accepted.HandleAsync(Strings(0x3905, "", "good", "", "", "", ""), Now);
 Check(account.Close is null && Encoding.ASCII.GetString(account.Replies.Single()).Contains("42:" + guid), "accepted login uses the granted account");
 Check((await accepted.HandleAsync([0x0a, 0x39], Now)).Replies.Single().SequenceEqual(LoginPackets.Characters([new LoginCharacterRow(1361, "Player1", 3)])), "stored characters listed");
 Check((await accepted.HandleAsync(Strings(0x3905, "", "good", "", "", "", ""), Now)).Close == "replay_rejected", "second login closes");
-var bothRaces = new LoginSession(new LoginSessionOptions(), (_, _) => Task.FromResult<LoginGrant?>(new LoginGrant("42", guid, [("Light", 3, 1, 0UL), ("Dark", 5, 2, 0UL)])));
+var bothRaces = new LoginSession(new LoginSessionOptions(), (_, _) => Task.FromResult<LoginGrant?>(new LoginGrant("42", guid, [("Light", 3, 1, 0UL, 0), ("Dark", 5, 2, 0UL, 0)])));
 await bothRaces.HandleAsync(Strings(0x3905, "", "good", "", "", "", ""), Now);
 Check((await bothRaces.HandleAsync([0x0a, 0x39], Now)).Replies.Single().SequenceEqual(LoginPackets.Characters([new LoginCharacterRow(1361, "Light", 3), new LoginCharacterRow(2361, "Dark", 5)])),
       "each character is listed on the world of its race (Light 1361, Dark 2361)");
 // The server list opens on the account's race's world (the first server in 0x3906), not always the Light one.
-var darkAccount = new LoginSession(new LoginSessionOptions(), (_, _) => Task.FromResult<LoginGrant?>(new LoginGrant("42", guid, [("Dark", 5, 2, 0UL)])));
+var darkAccount = new LoginSession(new LoginSessionOptions(), (_, _) => Task.FromResult<LoginGrant?>(new LoginGrant("42", guid, [("Dark", 5, 2, 0UL, 0)])));
 Check((await darkAccount.HandleAsync(Strings(0x3905, "", "good", "", "", "", ""), Now)).Replies.Single().SequenceEqual(LoginPackets.Account("42", guid, 2361, 1361, 2361)),
       "an Asmodian account's server list opens on the Dark world (2361), with the last Light/Dark servers 1361/2361");
 var emptyAccount = new LoginSession(new LoginSessionOptions { LastPickedRace = id => id == "42" ? 2 : null },
     (_, _) => Task.FromResult<LoginGrant?>(new LoginGrant("42", guid, [])));
 Check(BitConverter.ToUInt16((await emptyAccount.HandleAsync(Strings(0x3905, "", "good", "", "", "", ""), Now)).Replies.Single().AsSpan()[^12..]) == 2361,
       "an account without characters opens on the world it last picked");
+// Multi-world: two registered worlds (1204 on 13328, 1205 on 13329), each with a Light and a Dark row; characters are listed on
+// their own world's row, the list opens on the most recently played one, and a pick routes the grant to that world first.
+{
+    LoginWorld[] twoWorlds = [new(1204, "Alpha", 1361, 2361, "192.0.2.10", 13328), new(1205, "Beta", 1362, 2362, "192.0.2.10", 13329)];
+    var routed = new List<(string Wire, Guid Grant, int World, int Race)>();
+    var multi = new LoginSession(new LoginSessionOptions
+    {
+        Directory = twoWorlds,
+        Route = (wire, grant, world, race, _) => { routed.Add((wire, grant, world, race)); return Task.FromResult(world != 9999); },
+    }, (_, _) => Task.FromResult<LoginGrant?>(new LoginGrant("42", guid,
+        [("OnAlpha", 10, 1, 1000UL, 1204), ("OnBeta", 20, 1, 5000UL, 1205), ("Gone", 30, 2, 9000UL, 1300)])));
+    var multiAccount = await multi.HandleAsync(Strings(0x3905, "", "good", "", "", "", ""), Now);
+    Check(multiAccount.Replies.Single().SequenceEqual(LoginPackets.Account("42", guid, 1362, 1362, 2361)),
+          "multi-world: the server list opens on the most recently played listed character's row (Beta Light 1362)");
+    Check((await multi.HandleAsync([0x08, 0x39], Now)).Replies.Single().SequenceEqual(LoginPackets.WorldDirectory(
+        [new WorldRow(1361, 1, "Alpha", 1, 50), new WorldRow(2361, 2, "Alpha", 1, 50), new WorldRow(1362, 1, "Beta", 1, 50), new WorldRow(2362, 2, "Beta", 1, 50)])),
+          "multi-world: 0x3909 lists a Light and a Dark row per world");
+    Check((await multi.HandleAsync([0x0a, 0x39], Now)).Replies.Single().SequenceEqual(LoginPackets.Characters(
+        [new LoginCharacterRow(1361, "OnAlpha", 10, LastPlayedUnixMs: 1000), new LoginCharacterRow(1362, "OnBeta", 20, LastPlayedUnixMs: 5000)])),
+          "multi-world: characters are listed on their own world's row; a world not listed (stopped) hides its characters");
+    var toBeta = await multi.HandleAsync([0x0e, 0x39, 0x3a, 0x09], Now);   // 0x093a = 2362, Beta Dark
+    Check(toBeta.Replies.Single().SequenceEqual(LoginPackets.Redirect(2362, "192.0.2.10", 13329)) && routed.Single() == ("42", guid, 1205, 2),
+          "multi-world: picking Beta's Dark row routes the grant to world 1205 (race 2) and redirects to its game port");
+    Check((await multi.HandleAsync([0x0e, 0x39, 0x51, 0x05], Now)).Replies.Single().SequenceEqual(LoginPackets.Redirect(1361, "192.0.2.10", 13328)) && routed[^1].World == 1204,
+          "multi-world: picking Alpha's Light row redirects to the primary game port");
+    Check((await multi.HandleAsync([0x0e, 0x39, 0x63, 0x05], Now)).Close == "unknown_world", "multi-world: a row that is not listed is refused");
+    var refusing = new LoginSession(new LoginSessionOptions { Directory = twoWorlds, Route = (_, _, _, _, _) => Task.FromResult(false) },
+        (_, _) => Task.FromResult<LoginGrant?>(new LoginGrant("42", guid, [])));
+    await refusing.HandleAsync(Strings(0x3905, "", "good", "", "", "", ""), Now);
+    Check((await refusing.HandleAsync([0x0e, 0x39, 0x3a, 0x09], Now)).Close == "route_failed", "multi-world: a grant that cannot be routed closes the login");
+    var single = new LoginSession(new LoginSessionOptions { Directory = [twoWorlds[0]] }, (_, _) => Task.FromResult<LoginGrant?>(new LoginGrant("42", guid, [("Dark", 5, 2, 0UL, 1204)])));
+    Check((await single.HandleAsync(Strings(0x3905, "", "good", "", "", "", ""), Now)).Replies.Single().SequenceEqual(LoginPackets.Account("42", guid, 2361, 1361, 2361)),
+          "one registered world behaves as before (Dark account opens on 2361)");
+}
 Console.WriteLine($"{checks} login session checks passed.");
 
 // ---------- Game session: development flow ----------
@@ -2434,9 +2468,9 @@ Check(otherRan && tx.Held, "a storage call runs outside the turn (others run mea
 var turnStore = new FakeStore();
 var wrapped = TurnStore.Wrap(turnStore, tx);
 Check(TurnStore.Unwrap(wrapped) == turnStore && (await wrapped.WingsAsync(Guid.Empty, default)).Count == 0 && tx.Held
-      && lockWorld.Lock.Stats.Read().Since(outsideBefore).StoreCallsOutside == 2, "store calls through the wrapper run outside a held turn");
+      && lockWorld.Lock.Stats.Read().Since(outsideBefore).StoreCallsOutside == 1, "a store call that finished at once keeps the held turn");
 tx.Exit();
-Check((await wrapped.WingsAsync(Guid.Empty, default)).Count == 0 && lockWorld.Lock.Stats.Read().Since(outsideBefore).StoreCallsOutside == 2,
+Check((await wrapped.WingsAsync(Guid.Empty, default)).Count == 0 && lockWorld.Lock.Stats.Read().Since(outsideBefore).StoreCallsOutside == 1,
     "without a held turn the wrapper calls straight through");
 
 var grid = new SpatialGrid();
@@ -2856,7 +2890,11 @@ sealed class FakeStore : INativeCharacterStore
     public Task<IReadOnlyList<(int Target, int GoodsId, string Period, int Count)>> ShopPurchasesAsync(Guid character, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<(int, int, string, int)>>(Purchases.ToList());
     public Task<bool> ShopBuyAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
-        IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, CancellationToken ct)
+        IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, CancellationToken ct) =>
+        ShopBuyAsync(character, costs, goods, limits, [], ct);
+
+    public Task<bool> ShopBuyAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
+        IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, IReadOnlyList<ShopOrderLine> orders, CancellationToken ct)
     {
         foreach (var l in limits)
             if (Purchases.Where(p => p.GoodsId == l.GoodsId && p.Target == l.Target && p.Period == l.Period).Sum(p => p.Count) + l.Count > l.Limit) return Task.FromResult(false);
@@ -2868,6 +2906,9 @@ sealed class FakeStore : INativeCharacterStore
         foreach (var (template, quantity) in goods) Items.Add(new ItemState(Guid.NewGuid(), "b", template, quantity, "bag", null, 1, empty, empty, wire++));
         return Task.FromResult(true);
     }
+
+    public Task<StoredMembership?> MembershipAsync(CancellationToken ct) => Task.FromResult<StoredMembership?>(null);
+    public Task<bool> SaveMembershipAsync(StoredMembership membership, CancellationToken ct) => Task.FromResult(true);
     public Task<bool> SellToMerchantAsync(Guid character, Guid item, long revision, int count, long kina, CancellationToken ct)
     {
         var index = Items.FindIndex(i => i.InstanceId == item && i.Revision == revision && i.Location == "bag" && i.Quantity >= count);

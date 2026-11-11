@@ -39,7 +39,7 @@ public sealed partial class NpcAi
         var rows = HitsOf(id, skill);
         var release = now + skill.Cast + HitDelayMs;
         var last = release + (rows.Count - 1) * MonsterHitStaggerMs;
-        brain.Cooldowns[id] = now + Math.Max(skill.Cooldown, skill.Cast + HitDelayMs + rows.Count * MonsterHitStaggerMs + MonsterEndAfterLastHitMs);
+        brain.Cooldowns[id] = now + Math.Max(Hasted(brain, skill.Cooldown), skill.Cast + HitDelayMs + rows.Count * MonsterHitStaggerMs + MonsterEndAfterLastHitMs);
         if (skill.Cast > 0)
             brain.Volley.Add(new(release - skill.Cast, ShotKind.CastingStart, id, seq, victim.Key, 0));
         brain.Volley.Add(new(release, ShotKind.SkillStart, id, seq, victim.Key, 0));

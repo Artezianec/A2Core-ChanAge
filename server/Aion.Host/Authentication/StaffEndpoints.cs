@@ -2,6 +2,7 @@ using Aion.Application.Authentication;
 using Aion.Application.Chat;
 using Aion.Application.Gameplay;
 using Aion.Core.Accounts;
+using Aion.Core.Security;
 using Aion.Host.Chat;
 using Aion.Host.Native;
 using Aion.Protocol.Native;
@@ -37,7 +38,7 @@ public static class StaffEndpoints
         staff.MapPost("/announce", async (Announcement input, HttpContext ctx, IAccountAuthentication auth, IGameplayStore game,
             IServiceProvider services, CancellationToken ct) =>
         {
-            if (await StaffAsync(ctx, auth, game, ct) is not { } account) return Results.Unauthorized();
+            if (await StaffAsync(ctx, auth, game, ct, StaffPermission.Announce) is not { } account) return Results.Unauthorized();
             if (services.GetService<WorldPresence>() is not { } presence) return Results.NotFound();
             var text = (input.Text ?? "").Trim();
             if (text.Length is 0 or > 200 || text.Any(char.IsControl) || !input.Notice && !input.Chat) return Results.BadRequest(new { error = "invalid_announcement" });
@@ -60,7 +61,7 @@ public static class StaffEndpoints
         staff.MapPost("/players/{name}/message", async (string name, PlayerMessage input, HttpContext ctx, IAccountAuthentication auth, IGameplayStore game,
             IServiceProvider services, CancellationToken ct) =>
         {
-            if (await StaffAsync(ctx, auth, game, ct) is not { } account) return Results.Unauthorized();
+            if (await StaffAsync(ctx, auth, game, ct, StaffPermission.AssistPlayers) is not { } account) return Results.Unauthorized();
             var presence = services.GetService<WorldPresence>();
             var text = (input.Text ?? "").Trim();
             if (text.Length is 0 or > 200 || text.Any(char.IsControl)) return Results.BadRequest(new { error = "invalid_announcement" });
@@ -70,7 +71,7 @@ public static class StaffEndpoints
         staff.MapPost("/players/{name}/kick", async (string name, KickRequest input, HttpContext ctx, IAccountAuthentication auth, IGameplayStore game,
             IServiceProvider services, CancellationToken ct) =>
         {
-            if (await StaffAsync(ctx, auth, game, ct) is not { } account) return Results.Unauthorized();
+            if (await StaffAsync(ctx, auth, game, ct, StaffPermission.Sanction) is not { } account) return Results.Unauthorized();
             var presence = services.GetService<WorldPresence>();
             var reason = (input.Reason ?? "").Trim();
             if (reason.Length > 120 || reason.Any(char.IsControl)) return Results.BadRequest(new { error = "invalid_reason" });
@@ -80,7 +81,7 @@ public static class StaffEndpoints
         staff.MapPost("/players/{name}/restore", async (string name, HttpContext ctx, IAccountAuthentication auth, IGameplayStore game,
             IServiceProvider services, CancellationToken ct) =>
         {
-            if (await StaffAsync(ctx, auth, game, ct) is not { } account) return Results.Unauthorized();
+            if (await StaffAsync(ctx, auth, game, ct, StaffPermission.AssistPlayers) is not { } account) return Results.Unauthorized();
             var presence = services.GetService<WorldPresence>();
             return await OnPlayerAsync(name, presence, game, account, "staff_restore", new { }, (s, now) => s.StaffRestore(now), ct);
         });
@@ -88,7 +89,7 @@ public static class StaffEndpoints
         staff.MapPost("/players/{name}/unstuck", async (string name, HttpContext ctx, IAccountAuthentication auth, IGameplayStore game,
             IServiceProvider services, CancellationToken ct) =>
         {
-            if (await StaffAsync(ctx, auth, game, ct) is not { } account) return Results.Unauthorized();
+            if (await StaffAsync(ctx, auth, game, ct, StaffPermission.AssistPlayers) is not { } account) return Results.Unauthorized();
             var presence = services.GetService<WorldPresence>();
             return await OnPlayerAsync(name, presence, game, account, "staff_unstuck", new { }, (s, now) => s.StaffUnstuck(now), ct);
         });
@@ -96,7 +97,7 @@ public static class StaffEndpoints
         staff.MapPost("/players/{name}/teleport", async (string name, TeleportRequest input, HttpContext ctx, IAccountAuthentication auth, IGameplayStore game,
             IServiceProvider services, CancellationToken ct) =>
         {
-            if (await StaffAsync(ctx, auth, game, ct) is not { } account) return Results.Unauthorized();
+            if (await StaffAsync(ctx, auth, game, ct, StaffPermission.AssistPlayers) is not { } account) return Results.Unauthorized();
             var presence = services.GetService<WorldPresence>();
             Vector3d? at = input is { X: { } x, Y: { } y, Z: { } z } ? new Vector3d(x, y, z) : null;
             if (input.MapId <= 0 || at is { IsFinite: false }) return Results.BadRequest(new { error = "invalid_destination" });
@@ -107,7 +108,7 @@ public static class StaffEndpoints
         // Server health for the overview: players, CPU, memory, how busy the world lock is (since the last request).
         staff.MapGet("/server", async (HttpContext ctx, IAccountAuthentication auth, IGameplayStore game, IServiceProvider services, CancellationToken ct) =>
         {
-            if (await StaffAsync(ctx, auth, game, ct) is null) return Results.Unauthorized();
+            if (await StaffAsync(ctx, auth, game, ct, StaffPermission.ViewDashboard) is null) return Results.Unauthorized();
             if (services.GetService<WorldLoadReporter>() is not { } load || services.GetService<WorldPresence>() is not { } presence) return Results.NotFound();
             return Results.Ok(load.Health(presence, services.GetService<ScheduledRestart>()?.At));
         });
@@ -115,8 +116,7 @@ public static class StaffEndpoints
         staff.MapGet("/audit", async (string? action, Guid? character, long? before, int? limit, HttpContext ctx, IAccountAuthentication auth,
             IGameplayStore game, CancellationToken ct) =>
         {
-            var account = await auth.AuthenticateAsync(Bearer(ctx), ct);
-            if (account is null) return Results.Unauthorized();
+            if (await StaffAsync(ctx, auth, game, ct, StaffPermission.ViewAudit) is not { } account) return Results.Unauthorized();
             return Results.Ok(await game.AdminAuditAsync(account, action, character, before, limit ?? 100, ct));
         });
 
@@ -125,7 +125,7 @@ public static class StaffEndpoints
         staff.MapPost("/restart", async (RestartRequest input, HttpContext ctx, IAccountAuthentication auth, IGameplayStore game,
             IServiceProvider services, CancellationToken ct) =>
         {
-            if (await StaffAsync(ctx, auth, game, ct, admin: true) is not { } account) return Results.Unauthorized();
+            if (await StaffAsync(ctx, auth, game, ct, StaffPermission.ManageServer) is not { } account) return Results.Unauthorized();
             if (services.GetService<ScheduledRestart>() is not { } restart) return Results.NotFound();
             if (input.Minutes is < 0 or > 120 || (input.Reason ?? "").Length > 100) return Results.BadRequest(new { error = "invalid_restart" });
             var at = restart.Schedule(TimeSpan.FromMinutes(input.Minutes), (input.Reason ?? "").Trim());
@@ -134,7 +134,7 @@ public static class StaffEndpoints
         });
         staff.MapDelete("/restart", async (HttpContext ctx, IAccountAuthentication auth, IGameplayStore game, IServiceProvider services, CancellationToken ct) =>
         {
-            if (await StaffAsync(ctx, auth, game, ct, admin: true) is not { } account) return Results.Unauthorized();
+            if (await StaffAsync(ctx, auth, game, ct, StaffPermission.ManageServer) is not { } account) return Results.Unauthorized();
             if (services.GetService<ScheduledRestart>() is not { } restart) return Results.NotFound();
             var cancelled = restart.Cancel();
             if (cancelled) await game.AdminRecordAsync(account, "staff_restart_cancelled", null, new { }, ct);
@@ -158,14 +158,14 @@ public static class StaffEndpoints
     {
         staff.MapGet("/maps", async (HttpContext ctx, IAccountAuthentication auth, IGameplayStore game, IConfiguration config, CancellationToken ct) =>
         {
-            if (await StaffAsync(ctx, auth, game, ct) is null) return Results.Unauthorized();
+            if (await StaffAsync(ctx, auth, game, ct, StaffPermission.ViewDashboard) is null) return Results.Unauthorized();
             var root = MapImagesRoot(config);
             var index = root is null ? null : Path.Combine(root, "maps.json");
             return index is not null && File.Exists(index) ? Results.File(index, "application/json") : Results.Ok(new { });
         });
         staff.MapGet("/maps/{id:int}/image", async (int id, HttpContext ctx, IAccountAuthentication auth, IGameplayStore game, IConfiguration config, CancellationToken ct) =>
         {
-            if (await StaffAsync(ctx, auth, game, ct) is null) return Results.Unauthorized();
+            if (await StaffAsync(ctx, auth, game, ct, StaffPermission.ViewDashboard) is null) return Results.Unauthorized();
             if (MapImagesRoot(config) is not { } root) return Results.NotFound();
             foreach (var ext in new[] { ".webp", ".jpg", ".png" })
             {
@@ -182,13 +182,14 @@ public static class StaffEndpoints
 
     static bool ValidColor(string? color) => color is { Length: 6 or 8 } && color.All(char.IsAsciiHexDigit);
 
-    /// <summary>The account when it holds a staff role (admin: the admin role); a forbidden GameplayException otherwise.</summary>
-    public static async Task<VerifiedAccount?> StaffAsync(HttpContext ctx, IAccountAuthentication auth, IGameplayStore game, CancellationToken ct, bool admin = false)
+    /// <summary>The signed-in account when its staff rank holds the permission; null when not signed in, forbidden when the rank is too low.</summary>
+    public static async Task<VerifiedAccount?> StaffAsync(HttpContext ctx, IAccountAuthentication auth, IGameplayStore game, CancellationToken ct,
+        StaffPermission permission = StaffPermission.ViewDashboard)
     {
         var account = await auth.AuthenticateAsync(Bearer(ctx), ct);
         if (account is null) return null;
         var profile = await game.AdminProfileAsync(account, ct);
-        if (admin && !profile.Roles.Contains("admin")) throw new GameplayException("forbidden");
+        if (!StaffAccess.Can(profile.Roles, permission)) throw new GameplayException("forbidden");
         return account;
     }
 

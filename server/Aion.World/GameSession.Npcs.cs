@@ -87,7 +87,7 @@ public sealed partial class GameSession
                 // Quest objectives keep their NPCs streamed until done (kill credit, talk, layer entry on big maps).
                 if (QuestForcesNpcStream(t)) continue;
                 seenNpcs.Remove(t.Key);
-                replies.Add(GamePackets.Death(t.Key, 1));
+                replies.Add(GamePackets.Death(t.Key, GamePackets.DespawnOutOfView));
             }
             else if (!seen && !t.CorpseRemoved && QuestForcesNpcStream(t))
             {
