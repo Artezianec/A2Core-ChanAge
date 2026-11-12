@@ -56,7 +56,7 @@ Aion.World.GameSession.ConfigureShopOptions(new Aion.World.ShopOptions
 // Dungeon waves and boss phases (docs/BOSSES.md): Aion:Bosses (Phases, Frenzy, FrenzySeconds, DamageScale, Waves, WavePartSeconds).
 Aion.World.GameSession.ConfigureBosses(builder.Configuration.GetSection("Aion:Bosses").Get<Aion.World.BossOptions>() ?? Aion.World.BossOptions.Default);
 // Open-world field bosses (docs/FIELD-BOSSES.md): Aion:FieldBosses (Enabled, Boss/Named respawn windows, RespawnMinutesByName,
-// Announcements, SharedLoot). Retail-like hours by default.
+// Announcements, SharedLoot). Official CANDIDATE ranges by default (named 1.5-6 h, bosses 6-12 h).
 Aion.World.FieldBosses.Configure(builder.Configuration.GetSection("Aion:FieldBosses").Get<Aion.World.FieldBossOptions>() ?? Aion.World.FieldBossOptions.Default);
 // Aion:Stigmas (docs/STIGMAS.md): off by default; Enabled, Slots, ShardRate, MaxLevel, ResetKinah, RequireSlot, ShardUpdateSendsSpent.
 Aion.World.GameSession.ConfigureStigmas(builder.Configuration.GetSection("Aion:Stigmas").Get<Aion.World.StigmaOptions>() ?? Aion.World.StigmaOptions.Default);
@@ -86,6 +86,10 @@ if (!string.IsNullOrWhiteSpace(connectionString))
     builder.Services.AddSingleton<PostgresCustomNpcs>();
     builder.Services.AddSingleton<ICustomNpcAdmin>(provider => provider.GetRequiredService<PostgresCustomNpcs>());
     builder.Services.AddSingleton<ICustomNpcCatalog>(provider => provider.GetRequiredService<PostgresCustomNpcs>());
+    // Field boss respawn timers (migration 126, docs/FIELD-BOSSES.md): kept across a restart, scoped to this host's world.
+    builder.Services.AddSingleton<IFieldBossStore>(provider => new PostgresFieldBosses(
+        provider.GetRequiredService<NpgsqlDataSource>(),
+        provider.GetService<NativeOptions>()?.WorldId ?? Aion.World.DevelopmentDefaults.WorldId));
 }
 var accountsReady = !string.IsNullOrWhiteSpace(connectionString) && !string.IsNullOrWhiteSpace(authConnectionString);
 if (accountsReady)
@@ -297,11 +301,17 @@ builder.Services.AddRateLimiter(options =>
 });
 // Optional platform bootstrap for the dev client (GamePlatform.ini ConfigurationServerUrl).
 var platform = worldProcess is null ? builder.Configuration.GetSection(AionConfiguration.Platform).Get<PlatformOptions>() ?? new PlatformOptions() : new PlatformOptions();
+var ncGuard = (worldProcess is null ? builder.Configuration.GetSection(AionConfiguration.NcGuard).Get<NcGuardOptions>() ?? new NcGuardOptions() : new NcGuardOptions())
+    with { BindAddress = network.BindAddress };
+// A Steam-patched client ignores ConfigurationServerUrl and talks to api.g.nc.com over HTTPS; when we
+// MITM that host, the code-less policy must re-address api_gate/login onto it (not plain HTTP :8087).
+if (ncGuard.Port is not null && platform.ConfigApiHost is null)
+    platform = platform with { ConfigApiHost = "api.g.nc.com" };
 var platformResponses = platform.Port is not { } bootstrapPort ? null : PlatformResponses.Load(platform, network, bootstrapPort, native.LoginPort, chatPort);
 // Launchers that sign in on this host and start clients without a launch code in the bootstrap URL.
 if (platform.Port is not null && accountsReady) builder.Services.AddSingleton<LaunchPairing>();
-var ncGuard = (worldProcess is null ? builder.Configuration.GetSection(AionConfiguration.NcGuard).Get<NcGuardOptions>() ?? new NcGuardOptions() : new NcGuardOptions())
-    with { BindAddress = network.BindAddress };
+if (platform.Port is { } crlBootstrapPort && ncGuard.CrlDistributionUrl is null)
+    ncGuard = ncGuard with { CrlDistributionUrl = $"http://{network.PublicAddress}:{crlBootstrapPort}/pki/ca-root.crl" };
 if (ncGuard.Port is not null)
 {
     builder.Services.AddSingleton(ncGuard);
@@ -349,9 +359,13 @@ builder.Services.AddSingleton<WardrobeAccess>();
 var app = builder.Build();
 app.Logger.LogInformation("Bosses: {Bosses}; field bosses: {FieldBosses}", Aion.World.GameSession.BossRules, Aion.World.FieldBosses.Options);
 if (app.Services.GetService<Aion.World.SharedWorld>() is { } sharedWorld)
+{
     Aion.World.CustomNpcWorld.Configure(app.Services.GetService<ICustomNpcCatalog>(), sharedWorld,
         builder.Configuration.GetValue<bool?>("Aion:CustomNpcs:AssumePatchedClients") ?? false,
         message => app.Logger.LogInformation("{Message}", message));
+    Aion.World.FieldBossWorld.Configure(app.Services.GetService<IFieldBossStore>(), sharedWorld,
+        message => app.Logger.LogInformation("{Message}", message));
+}
 if (worldProcess is not null)
 {
     app.Logger.LogInformation("World process for world {World} ({Name}) on game port {Port}", native.WorldId, worldProcess.Name, native.GamePort);
@@ -388,9 +402,16 @@ app.UseExceptionHandler(handler => handler.Run(async context =>
 if (ncGuard.Port is { } ncGuardPort)
 {
     var sink = app.Services.GetRequiredService<NcGuardSink>();
+    // Config/login SNI hosts (mobileappconfig.g.nc.com, ...) on the TLS port are served by the platform
+    // bootstrap handler below (same app/key, app/policy, api_gate and login routes as the bootstrap port),
+    // not the fixture sink: a Steam-patched client reaches them directly and would otherwise get a 404.
+    // Only divert when the bootstrap handler is actually wired (platform.Port set).
+    var platformBootstrapOn = platform.Port is not null;
     app.Use(async (context, next) =>
     {
-        if (context.Connection.LocalPort == ncGuardPort) await sink.HandleAsync(context);
+        if (context.Connection.LocalPort == ncGuardPort
+            && !(platformBootstrapOn && PlatformBootstrapEndpoints.IsConfigHostRequest(context, ncGuardPort)))
+            await sink.HandleAsync(context);
         else await next();
     });
 }
@@ -408,7 +429,7 @@ if (platform.Port is { } platformPort)
     var accountPageBase = accountTls
         ? $"https://{network.PublicAddress}" + (https.Proxy ? "" : $":{port}")
         : $"http://{network.PublicAddress}:{port}";
-    app.UsePlatformBootstrap(platformPort, platformResponses!, platform.RequestLog, network, accountPageBase);
+    app.UsePlatformBootstrap(platformPort, platformResponses!, platform.RequestLog, network, accountPageBase, ncGuard.Port);
 }
 app.UseRateLimiter();
 if (accountsReady) app.UseStaffSessions();

@@ -920,6 +920,7 @@ public sealed partial class GameSession : IMapEventHost
     void BringBack(Target t)
     {
         t.Hp = t.HpMax;
+        ApplyEncounterHp(t);
         t.CorpseRemoved = false;
         t.Held = false;
         t.Immune = false;
@@ -944,7 +945,11 @@ public sealed partial class GameSession : IMapEventHost
 
     void MakeKillable(Target t)
     {
-        if (t.Hostile && !t.AppearNonAggressive) return;
+        if (t.Hostile && !t.AppearNonAggressive)
+        {
+            ApplyEncounterHp(t);
+            return;
+        }
         if (!t.Hostile)
         {
             t.Relationship = 11;
@@ -955,9 +960,21 @@ public sealed partial class GameSession : IMapEventHost
 
     /// <summary>A map-event NPC that was talked to (AskNpc prep sent a non-aggressive appear) and then turns Monster: the client keeps the
     /// appear-time peace state and will not select it (ranged "select a target"), so drop the talk flag and send a fresh appear.</summary>
+    /// <summary>
+    /// Official 999999 HP is for unkillable companions. Quest monsters that start as NPC_Companion
+    /// (HQ2102060 Insane Daeva) keep it until they turn Monster, then they take level-and-rank HP.
+    /// </summary>
+    void ApplyEncounterHp(Target t)
+    {
+        if (!Combat.TryApplyEncounterHp(t) || t.Dead) return;
+        mapEventOut.Add(GamePackets.NpcHp(t.Key, t.Hp));
+    }
+
     void ReappearIfTurnedHostile(Target t)
     {
-        if (!t.Hostile || t.Dead) return;
+        if (!t.Hostile) return;
+        ApplyEncounterHp(t);
+        if (t.Dead) return;
         var wasTalk = t.AppearNonAggressive;
         t.AppearNonAggressive = false;
         mapEventOut.Add(GamePackets.NpcAppear(SpawnAppearance(t)));
@@ -1018,6 +1035,7 @@ public sealed partial class GameSession : IMapEventHost
             if (!t.Dead && !t.CorpseRemoved) { already++; continue; }
             revived++;
             t.Hp = t.HpMax;
+            ApplyEncounterHp(t);
             t.CorpseRemoved = false;
             t.Held = false;
             t.Immune = false;
@@ -1215,7 +1233,11 @@ public sealed partial class GameSession : IMapEventHost
         if (MapEventTables.Relationship(relationship) is not { } value) { Note($"ChangeRelationshipEntity {spawner} {relationship}: unknown relationship"); return; }
         foreach (var t in SpawnerNpcs(spawner))
         {
-            if (t.Relationship == value) continue;
+            if (t.Relationship == value)
+            {
+                ApplyEncounterHp(t);
+                continue;
+            }
             t.Relationship = value;
             if (!t.Dead) mapEventOut.Add(GamePackets.RelationshipUpdate(t.Key, value));
             ReappearIfTurnedHostile(t);

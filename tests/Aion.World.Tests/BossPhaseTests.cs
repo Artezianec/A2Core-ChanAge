@@ -43,7 +43,7 @@ public sealed class BossPhaseTests
     {
         var all = BossPhases.Embedded.All.ToList();
         Assert.Equal(68, all.Count);
-        var slams = all.SelectMany(b => new[] { b.Script.Telegraph }.Concat((b.Script.Phases ?? []).Select(p => p.Telegraph))).OfType<BossTelegraph>().ToList();
+        var slams = all.SelectMany(b => new[] { b.Script.Telegraph }.Concat(b.Script.Telegraphs ?? []).Concat((b.Script.Phases ?? []).Select(p => p.Telegraph))).OfType<BossTelegraph>().ToList();
         Assert.All(slams, s => Assert.Contains(s.RadiusFrom, new[] { "skill-areas", "OURS" }));
         Assert.All(slams, s => Assert.Contains(s.WindUpFrom, new[] { "client cast", "OURS" }));
         Assert.All(slams.Where(s => s.RadiusFrom == "skill-areas"), s => Assert.True(SkillAreas.For(s.Skill) is { IsArea: true }));
@@ -166,6 +166,64 @@ public sealed class BossPhaseTests
         ai.Engage(map, boss, 0, Tank);
         Run(ai, map, 100, 2_000, []);
         Assert.False(ai.FightOf(boss)!.Frenzied);
+    }
+
+    [Fact]
+    public void Official_Berk_has_no_invented_adds_and_uses_a_stagger_check_at_half_health()
+    {
+        var berk = BossPhases.Embedded.Of(2300171);
+        Assert.NotNull(berk);
+        Assert.Equal("official-overlay", berk!.Source);
+        Assert.Equal("Ultimate Berk", berk.Display);
+        Assert.Equal(new[] { 75, 50, 25 }, berk.Ordered.Select(p => p.At).ToArray());
+        Assert.DoesNotContain(berk.Ordered, p => p.Adds is not null);
+        Assert.Equal(1800060, berk.Rotation[0].Skill);
+        var extinction = Assert.Single(berk.Ordered, p => p.At == 50).Telegraph;
+        Assert.NotNull(extinction);
+        Assert.Equal(1800140, extinction!.Skill);
+        Assert.True(extinction.Once);
+        Assert.True(extinction.StaggerCheck);
+        Assert.True(extinction.Land);
+        Assert.Equal(300_000, berk.Frenzy?.AfterMs);
+    }
+
+    [Fact]
+    public void A_stagger_check_is_cancelled_when_the_boss_is_held_and_is_not_retried()
+    {
+        var script = new BossScript("Test", "Test_Dungeon", "boss",
+            Telegraph: new BossTelegraph(CircleSkill, 3000, 1200, 300, Warning: "Fill!", WarningRu: "Бей!", RadiusFrom: "skill-areas", Once: true, StaggerCheck: true));
+        var (ai, map, boss) = Boss(script);
+        var damaged = new List<int>();
+        ai.Engage(map, boss, 0, Tank);
+        Run(ai, map, 100, 1_600, damaged);
+        Assert.NotNull(ai.TelegraphDueAt(boss));
+        Assert.Empty(damaged);
+
+        boss.Held = true;
+        Run(ai, map, 1_700, 2_000, damaged);
+        Assert.Null(ai.TelegraphDueAt(boss));
+        Assert.Empty(damaged);
+        Assert.Equal(0, ai.SlamsLanded);
+        // A cancelled stagger-check is not retried as the same wipe (NextSlamMs jumps by the filler interval).
+        Run(ai, map, 2_100, 4_000, damaged);
+        Assert.Equal(0, ai.SlamsLanded);
+    }
+
+    [Fact]
+    public void A_no_land_telegraph_winds_up_but_hits_nobody()
+    {
+        var script = new BossScript("Test", "Test_Dungeon", "boss",
+            Telegraph: new BossTelegraph(CircleSkill, 3000, 1200, 300, Warning: "Walls!", WarningRu: "Стены!", RadiusFrom: "skill-areas", Once: true, Land: false));
+        var (ai, map, boss) = Boss(script);
+        var damaged = new List<int>();
+        ai.Engage(map, boss, 0, Tank);
+        var replies = Run(ai, map, 100, 1_600, damaged);
+        var due = ai.TelegraphDueAt(boss);
+        Assert.NotNull(due);
+        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3809);
+        Run(ai, map, 1_700, due!.Value + 200, damaged);
+        Assert.Equal(1, ai.SlamsLanded);
+        Assert.Empty(damaged);
     }
 
     [Fact]

@@ -12,6 +12,7 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../../server/Aion.Application/Aion.Application.csproj" />
     <ProjectReference Include="../../server/Aion.World/Aion.World.csproj" />
   </ItemGroup>
   <ItemGroup>

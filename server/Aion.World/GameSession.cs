@@ -2258,7 +2258,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         {
             if (victim.OwnerKey != 0) { replies.AddRange(fights.Killed(victim)); replies.AddRange(SummonDied(victim, now)); continue; }
             if (killer.OwnerKey == playerKey) { replies.AddRange(PlayerKilledNpc(victim, 0, killer.Key, now)); continue; }
-            respawnAt[victim.Key] = now + KillRespawnMs(victim);
+            respawnAt[victim.Key] = now + KillRespawnMs(victim, now);
             victim.KilledAtMs = now;
             replies.Add(GamePackets.TargetUpdate(victim.Key));
             replies.Add(GamePackets.Kill(victim.Key, 0, killer.Key, 0, ""));

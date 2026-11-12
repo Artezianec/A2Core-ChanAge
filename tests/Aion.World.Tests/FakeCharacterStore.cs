@@ -823,6 +823,21 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         return Task.FromResult<int?>(Crystals[crystalType] = Crystals.GetValueOrDefault(crystalType) + count);
     }
 
+    public Task<RideRecord?> AddRideSoulsAsync(Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct)
+    {
+        if (rideId <= 0 || souls < 1 || !Consume(item, revision, 1)) return Task.FromResult<RideRecord?>(null);
+        var index = RideRows.FindIndex(r => r.RideId == rideId);
+        if (index < 0)
+        {
+            var created = new RideRecord(rideId, 1, souls, false);
+            RideRows.Add(created);
+            return Task.FromResult<RideRecord?>(created);
+        }
+        var updated = RideRows[index] with { SoulPoints = RideRows[index].SoulPoints + souls };
+        RideRows[index] = updated;
+        return Task.FromResult<RideRecord?>(updated);
+    }
+
     public Task<bool> ConsumeAndGrantAsync(Guid character, Guid item, long revision, int count, IReadOnlyList<(int TemplateId, long Count)> rewards, CancellationToken ct)
     {
         if (!Consume(item, revision, count)) return Task.FromResult(false);

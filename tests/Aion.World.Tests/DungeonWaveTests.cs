@@ -131,9 +131,9 @@ public sealed class DungeonWaveTests
     [Fact]
     public async Task A_boss_phase_brings_its_adds_into_the_copy_and_they_go_with_the_boss()
     {
-        var session = await EnterAsync(600001);   // Krao Cave: the boss calls 3 x 2300102 at 70% (boss-phases.json, OURS)
+        var session = await EnterAsync(600072);   // Vakron Sky Island: the boss still uses the generic 70% add script (boss-phases.json, OURS)
         var map = session.WorldPlayer!.Map!;
-        var boss = map.Targets.Values.First(x => x.NpcId == 2300171);
+        var boss = map.Targets.Values.First(x => x.NpcId == 2300812);
         boss.Hp = boss.HpMax;
         boss.CorpseRemoved = false;
         boss.Immune = false;
@@ -148,7 +148,7 @@ public sealed class DungeonWaveTests
         for (var i = 0; i < 5; i++) replies.AddRange(await session.TickAsync(t += 200));
         var adds = map.Targets.Values.Where(x => BossSummons.IsSummon(x.Key)).ToList();
         Assert.Equal(3, adds.Count);
-        Assert.All(adds, a => Assert.Equal(2300102, a.NpcId));
+        Assert.All(adds, a => Assert.Equal(2300802, a.NpcId));
         Assert.All(adds, a => Assert.False(a.Dead));
         Assert.Equal(adds.Select(a => a.Key).Order(), map.Ai.FightOf(boss)!.Adds.Order());
 

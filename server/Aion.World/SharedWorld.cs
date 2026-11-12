@@ -30,6 +30,12 @@ public sealed class SharedWorld(GameData data)
     /// <summary>The custom NPCs this host places (the shared catalogue, refreshed by CustomNpcWorld).</summary>
     public CustomNpcDirectory CustomNpcs { get; } = new();
 
+    /// <summary>Official field boss respawn timers (stored in game.field_bosses by FieldBossWorld).</summary>
+    public FieldBossTimers FieldBossTimers { get; } = new(data);
+
+    /// <summary>Unix ms now (tests set their own clock).</summary>
+    public Func<long> Clock { get; set; } = () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
     public int AllocateKey() => FirstPlayerKey + Interlocked.Increment(ref lastKey);
 
     /// <summary>
@@ -43,6 +49,7 @@ public sealed class SharedWorld(GameData data)
         {
             maps[key] = map = new MapInstance(mapId, Combat.MapTargets(data, mapId), new NpcAi(new Random(), data)) { Instance = instance };
             if (instance == 0) map.SyncCustomNpcs(CustomNpcs, data);
+            if (instance == 0) map.SyncFieldBosses(FieldBossTimers, Clock());
             if (instance != 0 && MapEventTables.Embedded.DungeonOfMap(mapId) is { } room)
                 Patch20261028.ScaleBossHp(map.Targets.Values, MapEventTables.Embedded.DungeonIdOfMap(mapId), room);
         }

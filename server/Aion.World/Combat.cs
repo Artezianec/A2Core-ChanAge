@@ -247,9 +247,32 @@ public static class Combat
         _ => 1.0,
     };
 
-    /// <summary>A spawn's HP: the level's Grade 3 curve scaled by its rank's unit.</summary>
-    public static int HpFor(NpcSpawn spawn) => spawn.HpMax > 0 ? spawn.HpMax
-        : Math.Max(1, (int)Math.Round(HpForLevel(spawn.Level) * (double)HpUnit(spawn.SubType, spawn.Grade) / HpBaseUnit));
+    /// <summary>
+    /// Official NpcData HP for unkillable companions and citizens (Salros, Nania, onlookers). Some quest monsters
+    /// (HQ2102060 Insane Daeva) also carry it while they are still NPC_Companion; once they turn hostile the encounter
+    /// HP from <see cref="HpFor(int,string,int)"/> replaces it so they can be killed.
+    /// </summary>
+    public const int OfficialCompanionHp = 999_999;
+
+    /// <summary>A spawn's HP: an explicit NpcData value (including official 999999 companion HP), else the level curve.</summary>
+    public static int HpFor(NpcSpawn spawn) => spawn.HpMax > 0 ? spawn.HpMax : EncounterHp(spawn.Level, spawn.SubType, spawn.Grade);
+
+    /// <summary>Level-and-rank HP, ignoring an official 999999 companion sentinel.</summary>
+    public static int EncounterHp(int level, string subType, int grade) =>
+        Math.Max(1, (int)Math.Round(HpForLevel(level) * (double)HpUnit(subType, grade) / HpBaseUnit));
+
+    /// <summary>
+    /// A 999999-HP NPC that has become attackable (ChangeRelationshipEntity / a KillNpc step) takes encounter HP.
+    /// Returns whether the pool changed.
+    /// </summary>
+    public static bool TryApplyEncounterHp(Target t)
+    {
+        if (!t.Hostile || t.HpMax != OfficialCompanionHp) return false;
+        var hp = EncounterHp(t.Level, t.SubType, t.Grade);
+        t.HpMax = hp;
+        if (!t.Dead) t.Hp = hp;
+        return true;
+    }
 
     public static int HpForLevel(int level)
     {

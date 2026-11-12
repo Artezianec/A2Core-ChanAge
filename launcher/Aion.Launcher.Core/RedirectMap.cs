@@ -31,8 +31,8 @@ public static class RedirectMap
     public static string Format(IPAddress server, IEnumerable<string> hostnames) =>
         string.Join(';', hostnames.Select(host => $"{host}={server}"));
 
-    /// <summary>Every NC hostname the launcher sends to <paramref name="server"/>.</summary>
-    public static string FormatForServer(IPAddress server) => Format(server, HostsFile.Hostnames);
+    /// <summary>Every hostname the launcher sends to <paramref name="server"/> (NCGuard and the official config/login hosts).</summary>
+    public static string FormatForServer(IPAddress server) => Format(server, HostsFile.AllHostnames);
 
     public static void WriteMapFile(string path, IPAddress server)
     {

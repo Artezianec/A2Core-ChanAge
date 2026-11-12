@@ -199,6 +199,7 @@ var server = IPAddress.Parse("203.0.113.5");
 var original = "127.0.0.1 localhost\r\n# keep me\r\n";
 var withBlock = HostsFile.With(original, server);
 Check(HostsFile.HasBlock(withBlock) && withBlock.Contains("203.0.113.5 bladnoch.ncsoft.com") && withBlock.Contains("# keep me"), "hosts block added");
+        Check(withBlock.Contains("203.0.113.5 mobileappconfig.g.nc.com") && withBlock.Contains("203.0.113.5 api.g.nc.com"), "hosts block redirects the official config and login hosts");
 Check(HostsFile.With(withBlock, server).Split("bladnoch").Length == 2, "hosts block replaced, not duplicated");
 Check(HostsFile.Without(withBlock) == original && !HostsFile.HasBlock(HostsFile.Without(withBlock)), "hosts block removed exactly");
 var legacy = original + "# >>> AION2 private server (added by AionLauncher; removed when the game closes)\r\n203.0.113.5 bladnoch.ncsoft.com\r\n# <<< AION2 private server\r\n";
@@ -208,9 +209,9 @@ Check(!withBlock.Contains("AION", StringComparison.OrdinalIgnoreCase), "hosts bl
 // ---------- DNS redirect map and mode ----------
 var redirectServer = IPAddress.Parse("203.0.113.5");
 var formatted = RedirectMap.FormatForServer(redirectServer);
-Check(formatted.Contains("sdk.gpa.ncsoft.com=203.0.113.5") && formatted.Split(';').Length == HostsFile.Hostnames.Length, "redirect map lists every NC hostname");
+Check(formatted.Contains("sdk.gpa.ncsoft.com=203.0.113.5") && formatted.Contains("mobileappconfig.g.nc.com=203.0.113.5") && formatted.Split(';').Length == HostsFile.AllHostnames.Length, "redirect map lists every NC and config hostname");
 var parsed = RedirectMap.Parse(formatted);
-Check(parsed["bladnoch.ncsoft.com"].Equals(redirectServer) && parsed.Count == HostsFile.Hostnames.Length, "redirect map parses");
+Check(parsed["bladnoch.ncsoft.com"].Equals(redirectServer) && parsed["mobileappconfig.g.nc.com"].Equals(redirectServer) && parsed.Count == HostsFile.AllHostnames.Length, "redirect map parses");
 Check(RedirectMap.Parse("Host.EXAMPLE=1.2.3.4")["host.example"].ToString() == "1.2.3.4", "redirect hostnames are case-insensitive");
 try { RedirectMap.Parse("bad"); Check(false, "bad redirect accepted"); } catch (FormatException) { checks++; }
 Check(RedirectModeSelection.Resolve(null, config) == RedirectModeSelection.Inject, "default redirect mode is inject");

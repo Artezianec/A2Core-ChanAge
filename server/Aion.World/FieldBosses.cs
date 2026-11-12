@@ -5,11 +5,11 @@ using System.Text.RegularExpressions;
 
 namespace Aion.World;
 
-// Open-world field bosses (docs/FIELD-BOSSES.md). Ported from ckrealm/A2Core 77ac9ed (FunFeatures.cs, AGPL-3.0) with retail-like
-// timers: Aion 2's field bosses come back hours after their kill (the Korean and global guides list 30 min to 11 h; Gartua and
-// Lagta 11 h, Dartan and Kashapa 6 h), where ckrealm used 60-90 min.
+// Open-world field bosses (docs/FIELD-BOSSES.md). Ported from ckrealm/A2Core 77ac9ed (FunFeatures.cs, AGPL-3.0).
 // Official field-boss videos (YouTube fLkKHYHv4IQ, s2w8M4Df2_c, 2026-11): personal bound chests per contributor, upper-center
 // "Defeated {name}." / "Reward collected.", no server-wide chat broadcast, and a map Field Boss tab with Spawned / Time Left.
+// Respawn ranges and stored timers: ported from KiskEmu (AGPL-3.0, commit d54d69472d): named 1.5-6 h, bosses 6-12 h, rolled
+// at the kill; game.field_bosses (migration 126) keeps a dead official boss dead across a restart.
 
 /// <summary>Who sees the optional kill/spawn broadcast (official default: off).</summary>
 public enum FieldBossBroadcastScope { Off, Zone, Server }
@@ -19,20 +19,23 @@ public sealed record FieldBossOptions
 {
     /// <summary>Off: every monster respawns after GameSession.RespawnMs, no notices, killer/party loot only.</summary>
     public bool Enabled { get; init; } = true;
-    /// <summary>Field boss respawn window (minutes after the kill); each kill picks a random time inside it. Retail-like 6 h.</summary>
-    public int BossRespawnMinMinutes { get; init; } = 360;
-    public int BossRespawnMaxMinutes { get; init; } = 360;
     /// <summary>
-    /// Fixed respawns (minutes) by a part of the spawn name, ahead of the window. Gartua and Lagta 11 h are the retail guides'
-    /// figures; Ragta (Lagta's Light-side twin) and the Island of Eternity boss (Gartua's Light-side twin) are INFERRED to match.
+    /// Field boss respawn window (minutes after the kill); each kill picks a random time inside it. CANDIDATE official
+    /// range from KiskEmu captures: 6-12 h (big bosses such as Gartua and Lagta were observed at least 10.8 h).
     /// </summary>
-    public Dictionary<string, int> RespawnMinutesByName { get; init; } = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["Gartua"] = 660, ["Lagta"] = 660, ["Ragta"] = 660, ["IslandOfEternity"] = 660,
-    };
-    /// <summary>Named elites (the other open-world HeroMonsters): their respawn window in minutes (OURS: no retail figure).</summary>
-    public int NamedRespawnMinMinutes { get; init; } = 30;
-    public int NamedRespawnMaxMinutes { get; init; } = 60;
+    public int BossRespawnMinMinutes { get; init; } = FieldBossTimers.BossMinMinutes;
+    public int BossRespawnMaxMinutes { get; init; } = FieldBossTimers.BossMaxMinutes;
+    /// <summary>
+    /// Fixed respawns (minutes) by a part of the spawn name, ahead of the window. Empty by default so the official 6-12 h
+    /// roll applies; set e.g. Gartua=660 to pin a boss to the retail guides' 11 h figure.
+    /// </summary>
+    public Dictionary<string, int> RespawnMinutesByName { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Named elites (the other open-world HeroMonsters, and official WorldMapFieldNamed rows of grade 1-5 below level 65):
+    /// CANDIDATE official range from KiskEmu captures, 1.5-6 h.
+    /// </summary>
+    public int NamedRespawnMinMinutes { get; init; } = FieldBossTimers.NamedMinMinutes;
+    public int NamedRespawnMaxMinutes { get; init; } = FieldBossTimers.NamedMaxMinutes;
     /// <summary>
     /// Legacy master switch for the kill/spawn broadcast. Default is off (official videos showed no server-wide broadcast).
     /// When this is true and <see cref="AnnouncementScope"/> is Off, the scope is Server (older configs that only set this).
@@ -82,13 +85,16 @@ public sealed record FieldBossOptions
         return this;
     }
 
-    public override string ToString() => Enabled
-        ? $"on (bosses {BossRespawnMinMinutes}-{BossRespawnMaxMinutes} min, "
-          + string.Join(", ", RespawnMinutesByName.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => $"{p.Key} {p.Value} min"))
+    public override string ToString()
+    {
+        if (!Enabled) return "off";
+        var names = string.Join(", ", RespawnMinutesByName.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => $"{p.Key} {p.Value} min"));
+        return $"on (bosses {BossRespawnMinMinutes}-{BossRespawnMaxMinutes} min"
+          + (names.Length == 0 ? "" : ", " + names)
           + $"; named {NamedRespawnMinMinutes}-{NamedRespawnMaxMinutes} min; broadcast {EffectiveScope().ToString().ToLowerInvariant()}"
           + (ChatBroadcast ? "+chat" : "")
-          + $"; participant notices {(ParticipantNotices ? "on" : "off")}; personal rewards {(SharedLoot ? "on" : "off")})"
-        : "off";
+          + $"; participant notices {(ParticipantNotices ? "on" : "off")}; personal rewards {(SharedLoot ? "on" : "off")})";
+    }
 }
 
 /// <summary>An open-world monster's place in the field boss rules.</summary>
@@ -97,7 +103,7 @@ public enum FieldRank { None, Named, Boss }
 /// <summary>A kill/spawn broadcast: English and Russian text, who should see it, and the map for a zone-only send.</summary>
 public sealed record FieldBossNotice(string English, string Russian, FieldBossBroadcastScope Scope = FieldBossBroadcastScope.Off, int MapId = 0);
 
-/// <summary>One field boss or named elite's live respawn clock (in memory; not persisted).</summary>
+/// <summary>One field boss or named elite's live respawn clock (official WorldMapFieldNamed timers are also stored in game.field_bosses).</summary>
 public sealed record FieldBossState(
     int MapId, int EntityKey, int NpcId, string SpawnName, int Level, FieldRank Rank,
     double X, double Y, double Z, bool Spawned, long RespawnAtMs);

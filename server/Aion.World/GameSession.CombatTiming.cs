@@ -303,7 +303,7 @@ partial class GameSession
     List<byte[]> PlayerKilledNpc(Target target, int skillId, int killerKey, long now)
     {
         var replies = new List<byte[]>();
-        respawnAt[target.Key] = now + KillRespawnMs(target);   // RespawnMs, or a field boss's hours (Aion:FieldBosses)
+        respawnAt[target.Key] = now + KillRespawnMs(target, now);   // RespawnMs, or a field boss's hours (Aion:FieldBosses)
         target.KilledAtMs = now;
         killedNpcs.Add(target.NpcId);
         replies.AddRange(AchieveKill(target.NpcId));

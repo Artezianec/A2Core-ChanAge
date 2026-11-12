@@ -1,8 +1,9 @@
 # Boss phases and dungeon waves
 
 Ported from [ckrealm/A2Core](https://github.com/ckrealm/A2Core) (branch `friends-server`, commits `c299686` and `c52fc1a`),
-licensed AGPL-3.0, and adapted to our map-event code and client data. Like the original, this has **not been checked
-against an official boss capture**: the boss scripts are our design on top of the client's own data.
+licensed AGPL-3.0, and adapted to our map-event code and client data. Five Expedition finals were later compared with
+official clear videos (`docs/BOSS-MECHANICS.md`); the rest is still our design on top of the client's own data, **not**
+checked against an official capture.
 
 "Client" below means the game's exported data (`map-events.json`, `world-npcs.json`, `skill-areas.json`, Skill.dat cast
 times). "OURS" means an invented value, kept in `tools/data/boss-phases.json` and marked there.
@@ -63,6 +64,10 @@ scripts' spawner checks and kill objectives never count them.
 | `WavePartSeconds` | `25` | How long a wave part lives before the next part comes anyway (1–600). |
 
 Environment form: `Aion__Bosses__DamageScale=0.8`. The startup log prints the values (`Bosses: …`).
+
+Five Expedition finals (Ultimate Berk, Divine Auldor, Kromede's Desire, Transcendent Bakarma, Ferocious Horn Nuakum)
+were later aligned with official videos and guides: see `docs/BOSS-MECHANICS.md` and `tools/data/boss-phase-overrides.json`.
+Those scripts no longer use invented adds or a repeating "longest-cast" slam. Every other boss still follows the table above.
 
 ## Not done
 

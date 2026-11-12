@@ -26,7 +26,10 @@ public sealed record BossTelegraph(
     [property: JsonPropertyName("warning")] string? Warning = null,
     [property: JsonPropertyName("warning_ru")] string? WarningRu = null,
     [property: JsonPropertyName("radius_from")] string? RadiusFrom = null,
-    [property: JsonPropertyName("wind_up_from")] string? WindUpFrom = null);
+    [property: JsonPropertyName("wind_up_from")] string? WindUpFrom = null,
+    [property: JsonPropertyName("once")] bool Once = false,
+    [property: JsonPropertyName("stagger_check")] bool StaggerCheck = false,
+    [property: JsonPropertyName("land")] bool Land = true);
 
 /// <summary>Adds summoned around the boss: copies of a monster of the same dungeon, sent at the boss's victim.</summary>
 public sealed record BossAdds(
@@ -59,13 +62,21 @@ public sealed record BossScript(
     [property: JsonPropertyName("dungeon")] string Dungeon,
     [property: JsonPropertyName("role")] string Role,
     [property: JsonPropertyName("telegraph")] BossTelegraph? Telegraph = null,
+    [property: JsonPropertyName("telegraphs")] BossTelegraph[]? Telegraphs = null,
     [property: JsonPropertyName("phases")] BossPhase[]? Phases = null,
-    [property: JsonPropertyName("frenzy")] BossScriptFrenzy? Frenzy = null)
+    [property: JsonPropertyName("frenzy")] BossScriptFrenzy? Frenzy = null,
+    [property: JsonPropertyName("display")] string? Display = null,
+    [property: JsonPropertyName("display_ru")] string? DisplayRu = null,
+    [property: JsonPropertyName("source")] string? Source = null)
 {
     public IReadOnlyList<BossPhase> Ordered { get; } = (Phases ?? []).OrderByDescending(p => p.At).ToList();
 
-    /// <summary>Every slam skill of the script (the pull's and the phases'): the boss does not also use them as ordinary specials.</summary>
-    public IReadOnlySet<int> SlamSkills { get; } = new[] { Telegraph }.Concat((Phases ?? []).Select(p => p.Telegraph))
+    /// <summary>The filler slam rotation (official overlays), or the single pull telegraph.</summary>
+    public IReadOnlyList<BossTelegraph> Rotation { get; } = Telegraphs is { Length: > 0 } list ? list
+        : Telegraph is { } one ? [one] : [];
+
+    /// <summary>Every slam skill of the script (the pull's, the rotation's and the phases'): the boss does not also use them as ordinary specials.</summary>
+    public IReadOnlySet<int> SlamSkills { get; } = new[] { Telegraph }.Concat(Telegraphs ?? []).Concat((Phases ?? []).Select(p => p.Telegraph))
         .Where(t => t is not null).Select(t => t!.Skill).ToHashSet();
 }
 
@@ -171,7 +182,11 @@ public sealed class BossFight(BossScript script, long startedMs)
     public double Damage { get; set; } = 1.0;
     public double Haste { get; set; } = 1.0;
     public bool Frenzied { get; set; }
-    public BossTelegraph? Telegraph { get; set; } = script.Telegraph;
+    public BossTelegraph? Telegraph { get; set; } = script.Rotation.FirstOrDefault() ?? script.Telegraph;
+    /// <summary>Index in <see cref="BossScript.Rotation"/> of the next filler slam.</summary>
+    public int RotationIndex { get; set; }
+    /// <summary>The filler telegraph to restore after a once-only phase slam.</summary>
+    public BossTelegraph? Filler { get; set; } = script.Rotation.FirstOrDefault() ?? script.Telegraph;
     public long NextSlamMs { get; set; }
     /// <summary>The slam being wound up: its data, when it lands, its action sequence, the area's centre and facing at the wind-up.</summary>
     public (BossTelegraph Slam, long DueMs, int Seq, Vector3d Centre, double Yaw)? Winding { get; set; }

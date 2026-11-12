@@ -53,14 +53,15 @@ public sealed class FieldBossTests : IDisposable
     }
 
     [Fact]
-    public void Respawns_take_retail_like_hours_with_per_boss_overrides()
+    public void Respawns_use_official_candidate_windows_and_name_overrides()
     {
         var rng = new Random(3);
-        Assert.Equal(6 * 3_600_000L, FieldBosses.RespawnMs(Npc("M_L1_FieldBoss_Kashapa_01_1"), FieldRank.Boss, rng));
-        Assert.Equal(11 * 3_600_000L, FieldBosses.RespawnMs(Npc("M_D1_FieldBoss_Lagta_02_1"), FieldRank.Boss, rng));
-        Assert.Equal(11 * 3_600_000L, FieldBosses.RespawnMs(Npc("M_D1_IoI_OdiumGartua_01_001"), FieldRank.Boss, rng));
         for (var i = 0; i < 20; i++)
-            Assert.InRange(FieldBosses.RespawnMs(Npc("M_L1_TF_Kalnif_Named_01_1", grade: 5), FieldRank.Named, rng), 30 * 60_000L, 60 * 60_000L);
+        {
+            Assert.InRange(FieldBosses.RespawnMs(Npc("M_L1_FieldBoss_Kashapa_01_1"), FieldRank.Boss, rng), 6 * 3_600_000L, 12 * 3_600_000L);
+            Assert.InRange(FieldBosses.RespawnMs(Npc("M_D1_FieldBoss_Lagta_02_1"), FieldRank.Boss, rng), 6 * 3_600_000L, 12 * 3_600_000L);
+            Assert.InRange(FieldBosses.RespawnMs(Npc("M_L1_TF_Kalnif_Named_01_1", grade: 5), FieldRank.Named, rng), 90 * 60_000L, 360 * 60_000L);
+        }
 
         FieldBosses.Configure(new FieldBossOptions { BossRespawnMinMinutes = 120, BossRespawnMaxMinutes = 180, RespawnMinutesByName = new() { ["Kashapa"] = 45 } });
         Assert.Equal(45 * 60_000L, FieldBosses.RespawnMs(Npc("M_L1_FieldBoss_Kashapa_01_1"), FieldRank.Boss, rng));
@@ -183,7 +184,7 @@ public sealed class FieldBossTests : IDisposable
     {
         var (_, boss, alice, bob, t) = await KillKashapaAsync();
         var due = alice.WorldPlayer!.Map!.RespawnAt[boss.Key];
-        Assert.InRange(due - t, 6 * 3_600_000L - 5_000, 6 * 3_600_000L + 5_000);
+        Assert.InRange(due - t, 6 * 3_600_000L, 12 * 3_600_000L);
 
         // Official default: no server-wide broadcast.
         Assert.Empty(FieldBosses.TakeDue());
@@ -247,7 +248,7 @@ public sealed class FieldBossTests : IDisposable
             && n.Scope == FieldBossBroadcastScope.Server && n.MapId == 1010);
         var back = Assert.Single(FieldBosses.Pending, p => p.Notice.English.StartsWith("The field boss Kashapa", StringComparison.Ordinal));
         Assert.Equal(FieldBossBroadcastScope.Server, back.Notice.Scope);
-        Assert.InRange(back.DueUtcMs - clock, 6 * 3_600_000L - 10_000, 6 * 3_600_000L + 10_000);
+        Assert.InRange(back.DueUtcMs - clock, 6 * 3_600_000L, 12 * 3_600_000L);
         _ = alice;
     }
 
@@ -263,7 +264,7 @@ public sealed class FieldBossTests : IDisposable
         var reader = new PacketReader(packet) { Offset = 2 };
         Assert.Equal(0, reader.I32());       // result
         Assert.Equal(1010, reader.I32());    // map
-        Assert.Equal(0u, reader.Varint());   // field-named list empty (WorldMapFieldNamed table not exported)
+        Assert.Equal(0u, reader.Varint());   // field-named list empty (_respawn_time units unconfirmed)
         var count = reader.Varint();
         Assert.True(count >= 1, $"expected at least Kashapa in the spawned-boss list, got {count}");
         var found = false;

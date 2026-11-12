@@ -77,6 +77,17 @@ public sealed partial class GameSession
         map.BroadcastAll([LootPackets.DropItems(drops)], worldPlayer);
     }
 
+    /// <summary>
+    /// The same players who received the 0x561e spawn (everyone on the map except the looter, who already
+    /// gets 0x561f in the loot reply) must see the bag disappear. Party-only RemoveSharedDrop only cleared
+    /// dictionaries, so nearby players kept a ghost bag.
+    /// </summary>
+    void BroadcastDropRemoved(IReadOnlyList<(int Key, long Uid, long CharDbId, bool Auto)> removed)
+    {
+        if (removed.Count == 0 || worldPlayer?.Map is not { } map) return;
+        map.BroadcastAll([LootPackets.DropsRemoved(removed)], worldPlayer);
+    }
+
     void RemoveSharedDrop(long uid)
     {
         if (Social is not { } social || worldPlayer is null || social.PartyOf(worldPlayer) is not { } party) return;

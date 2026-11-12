@@ -6,23 +6,26 @@ Skill.dat cast time, or OURS), and every on-screen text has a Russian twin ("war
 per-culture notice. The server prefers the client's skill shape over "radius" when skill-areas.json has one.
 
 The client has no boss AI tables: its MapEvent scripts spawn, talk, open doors and start waves, and NpcData lists each
-NPC's skills (Skill.dat range, cooldown, cast, damage). The official bosses' phases are run by server code we have never
-seen, so everything this file decides is ours, built by role and mode from what the data does say:
+NPC's skills (Skill.dat range, cooldown, cast, damage). Five Expedition finals (Ultimate Berk, Divine Auldor, Kromede's Desire, Transcendent Bakarma,
+Ferocious Horn Nuakum) are then overlaid from tools/data/boss-phase-overrides.json: official HP
+notices, real area-skill rotations, and stagger-check ultimates (docs/BOSS-MECHANICS.md). Every other
+script is still ours, built by role and mode from what the data does say:
 
   * which bosses: the Season 1 Expeditions (Krao Cave, Urugugu Canyon, Fire Temple, Draupnir Cave, Vakron Sky Island,
     Ferocious Horn Den: Easy, Normal and Hard), the Transcendence dungeons (Deus Research Base, Shattered Arkanis) and the
     raid Abyssal Forge: Ludra (ReforgedAbyss_Normal). A "final" boss is the dungeon's reward-cube boss
     (map-events.json dungeons[].cube_boss); a "mid" boss is another HeroMonster with at least MID_MIN_SKILLS skills;
-  * the slam (a telegraphed area attack): the boss's own longest-cast damaging skill (KraoCave_Boss_1's 8 s 1800140),
-    winding up for its own cast time; a boss whose skills all cast fast gets its basic attack with a 3 s wind-up and
-    3x damage. Every player within the radius when it lands is hit; walking out is the counter;
-  * the adds: the most common mobile monster of the same dungeon map;
-  * the frenzy: Expedition hard modes only, 4 minutes into the fight (global's hard-mode rule since Oct 21, 2026);
+  * the slam (a telegraphed area attack), unless an official override lists a rotation: the boss's own longest-cast
+    damaging skill, winding up for its own cast time; a boss whose skills all cast fast gets its basic attack with a
+    3 s wind-up and 3x damage. Every player within the radius when it lands is hit; walking out is the counter;
+  * the adds: the most common mobile monster of the same dungeon map (not used on the five overlaid finals);
+  * the frenzy: Expedition hard modes, 4 minutes into the fight (global's hard-mode rule since Oct 21, 2026);
+    the five overlaid Normal-mode finals also frenzy at 5 minutes (guides), Easy has none;
   * the raid's waves are the client's own (spawn entries "{wave}_{n}"). Fierce Horn Den's totem wave names no spawns,
     so WAVES makes one: copies of the den's Lycan come around the totem while it lives.
 
 Rebuild with `python tools/boss_phases.py`; `--check` fails when tools/data/boss-phases.json is stale.
-Change the rules here (ROLES, MODE, NAMES), not the JSON.
+Change the generic rules here (MODE, NAMES) or tools/data/boss-phase-overrides.json, then rebuild.
 """
 import json
 import re
@@ -35,6 +38,7 @@ MAP_EVENTS = ROOT / 'tools/data/map-events.json'
 WORLD_NPCS = ROOT / 'tools/data/world-npcs.json'
 SKILL_AREAS = ROOT / 'tools/data/skill-areas.json'
 OUT = ROOT / 'tools/data/boss-phases.json'
+OVERRIDE = ROOT / 'tools/data/boss-phase-overrides.json'
 
 EXPEDITIONS = {
     'KraoCave': 'Krao Cave', 'Urugugu_Canyon': 'Urugugu Canyon', 'Fire_Temple': 'Fire Temple', 'Draupnir': 'Draupnir Cave',
@@ -104,7 +108,7 @@ def annotate(data, areas, npc_skills):
                 cast = (npc_skills.get(str(node['skill'])) or {}).get('cast', 0)
                 node['wind_up_from'] = 'client cast' if cast and cast == node['wind_up_ms'] else 'OURS'
             for key in ('warning', 'notice'):
-                if isinstance(node.get(key), str):
+                if isinstance(node.get(key), str) and not node.get(key + '_ru'):
                     node[key + '_ru'] = russian(node[key])
             for value in list(node.values()):
                 walk(value)
@@ -274,14 +278,90 @@ def build(events, world):
             elif family and len(t['skills']) >= MID_MIN_SKILLS:
                 bosses[str(s[1])] = mid_script(s[0], name, who, t, npc_skills)
     return {
-        'source': 'OURS: tools/boss_phases.py (ported from ckrealm/A2Core, AGPL-3.0; the rules are in its docstring). Bosses, '
-                  "skills, cast times and adds are the client's own (map-events.json, world-npcs.json); a slam's area is the "
+        'source': 'OURS: tools/boss_phases.py (ported from ckrealm/A2Core, AGPL-3.0; the rules are in its docstring), with '
+                  'official overlays from tools/data/boss-phase-overrides.json for five Expedition finals (docs/BOSS-MECHANICS.md). '
+                  "Bosses, skills, cast times and adds are the client's own (map-events.json, world-npcs.json); a slam's area is the "
                   "client's skill-areas.json shape when it has one (radius_from: skill-areas), else the invented radius "
-                  "(radius_from: OURS). Phase thresholds, intervals, multipliers and the hand-made waves are invented (OURS), "
-                  "except the hard modes' 4-minute frenzy (global's rule). Ludra's waves are the client's own spawn entries.",
+                  "(radius_from: OURS). Generic phase thresholds, intervals, multipliers and the hand-made waves are invented (OURS), "
+                  "except the hard modes' 4-minute frenzy (global's rule) and the overlaid Normal 5-minute frenzy (guides). "
+                  "Ludra's waves are the client's own spawn entries.",
         'bosses': dict(sorted(bosses.items(), key=lambda kv: int(kv[0]))),
         'waves': waves(events, world),
     }
+
+
+
+def iter_slams(script):
+    """Every telegraph on a script: the pull slam, a rotation, and each phase slam."""
+    if script.get('telegraph'):
+        yield script['telegraph']
+    for slam in script.get('telegraphs') or []:
+        yield slam
+    for phase in script.get('phases') or []:
+        if phase.get('telegraph'):
+            yield phase['telegraph']
+
+
+def apply_overrides(data, world):
+    """Replace the five Expedition finals with the official scripts in boss-phase-overrides.json."""
+    if not OVERRIDE.exists():
+        return data
+    raw = json.loads(OVERRIDE.read_text(encoding='utf-8'))
+    by_name = {}
+    for family, spec in raw.get('families', {}).items():
+        for name in spec.get('npc_names', []):
+            by_name[name] = spec
+    templates = world['templates']
+    for npc, script in data['bosses'].items():
+        spec = by_name.get(script['name'])
+        if not spec:
+            continue
+        mode = script['dungeon'].rsplit('_', 1)[-1]
+        if mode not in MODE:
+            mode = 'Normal'
+        skills = set((templates.get(npc) or {}).get('skills') or [])
+        remap = {int(src): int(dst) for src, dst in ((spec.get('skill_remap') or {}).get(mode) or {}).items()}
+        npc_skills = world['npc_skills']
+
+        def adapt(slam):
+            item = {k: v for k, v in slam.items() if k != 'note'}
+            item['skill'] = remap.get(item['skill'], item['skill'])
+            if skills and item['skill'] not in skills:
+                raise ValueError(f"{npc}: overlay skill {item['skill']} is not one of its skills")
+            sk = npc_skills.get(str(item['skill'])) or {}
+            if sk.get('cast'):
+                item['wind_up_ms'] = sk['cast']
+            if 'land' not in item:
+                item['land'] = True
+            return item
+
+        overlay = {
+            'name': script['name'],
+            'dungeon': script['dungeon'],
+            'role': script['role'],
+            'display': spec.get('display'),
+            'display_ru': spec.get('display_ru'),
+            'source': 'official-overlay',
+        }
+        telegraphs = [adapt(slam) for slam in spec.get('telegraphs') or []]
+        if telegraphs:
+            overlay['telegraphs'] = telegraphs
+            overlay['telegraph'] = dict(telegraphs[0])
+        phases = []
+        for phase in spec.get('phases') or []:
+            item = {k: v for k, v in phase.items() if k != 'note'}
+            if item.get('telegraph'):
+                item['telegraph'] = adapt(item['telegraph'])
+            phases.append(item)
+        if phases:
+            overlay['phases'] = phases
+        frenzy = (spec.get('frenzy') or {}).get(mode)
+        if frenzy:
+            overlay['frenzy'] = dict(frenzy)
+        data['bosses'][npc] = overlay
+    if raw.get('source'):
+        data['source'] = raw['source'] + ' Generic scripts and waves still come from tools/boss_phases.py.'
+    return data
 
 
 def validate(data, world):
@@ -293,7 +373,7 @@ def validate(data, world):
         if t is None:
             problems.append(f'{npc}: not an NpcData id')
             continue
-        slams = [script.get('telegraph')] + [p.get('telegraph') for p in script.get('phases', [])]
+        slams = list(iter_slams(script))
         for slam in filter(None, slams):
             if slam['skill'] not in t['skills']:
                 problems.append(f"{npc}: slam skill {slam['skill']} is not one of its skills")
@@ -317,7 +397,7 @@ def text(data):
 
 def main(argv):
     events, world = load()
-    data = annotate(build(events, world), client_areas(), world['npc_skills'])
+    data = annotate(apply_overrides(build(events, world), world), client_areas(), world['npc_skills'])
     problems = validate(data, world)
     if problems:
         print('\n'.join(problems))

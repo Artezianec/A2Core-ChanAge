@@ -5,8 +5,9 @@ namespace Aion.World;
 // Open-world field bosses (docs/FIELD-BOSSES.md; ported from ckrealm/A2Core 77ac9ed GameSession.Fun.cs, AGPL-3.0).
 // Official videos (2026-11): every contributor gets a personal bag reward from the client participant table (the bound
 // chest already in loot.json); each sees "Defeated {name}." then "Reward collected." (Notice_NT 0x8d2f); the optional
-// server/zone broadcast is off by default. The map Field Boss tab is 0x3A0C/0x3A0D (usmap); we answer it, but
-// WorldMapFieldNamedTableItem is not exported, so the timer list stays empty (see docs/FIELD-BOSSES.md).
+// server/zone broadcast is off by default. The map Field Boss tab is 0x3A0C/0x3A0D (usmap); we answer it. The official
+// WorldMapFieldNamed `_data_id`s are now in tools/data/field-bosses.json (KiskEmu, AGPL-3.0), but `_field_named_info_list`
+// stays empty: `_respawn_time` units were not confirmed for this packet (see docs/FIELD-BOSSES.md).
 public sealed partial class GameSession
 {
     public const ushort WorldMapContentsInfoRq = 0x3A0C, WorldMapContentsInfoRs = 0x3A0D;
@@ -14,9 +15,16 @@ public sealed partial class GameSession
     /// <summary>The field rank of a target on this session's map (tests and diagnostics).</summary>
     public FieldRank FieldRankOf(Target target) => FieldBosses.Rank(target, instanceKey != 0 || RunsMapEvents);
 
-    /// <summary>A killed monster's respawn delay: its field-boss time (Aion:FieldBosses) or <see cref="RespawnMs"/>.</summary>
-    long KillRespawnMs(Target target) =>
-        FieldBosses.Options.Enabled && FieldRankOf(target) is not FieldRank.None and var rank ? FieldBosses.RespawnMs(target, rank, rng) : RespawnMs;
+    /// <summary>
+    /// A killed monster's respawn delay: an official WorldMapFieldNamed timer (stored) when this is that spawn, else
+    /// its field-boss window (Aion:FieldBosses), else <see cref="RespawnMs"/>.
+    /// </summary>
+    long KillRespawnMs(Target target, long now)
+    {
+        if (!FieldBosses.Options.Enabled) return RespawnMs;
+        if (worldPlayer?.Map?.RecordFieldBossKill(target, now) is { } until) return until - now;
+        return FieldRankOf(target) is not FieldRank.None and var rank ? FieldBosses.RespawnMs(target, rank, rng) : RespawnMs;
+    }
 
     /// <summary>True when this kill should skip the usual ground loot and give every contributor a personal bag reward instead.</summary>
     bool FieldBossPersonalRewards(Target target) =>
@@ -116,9 +124,11 @@ public sealed partial class GameSession
     /// <summary>
     /// 0x3A0C WorldMapContentsInfo_RQ {i32 map id}: usmap 0x3A0D (_result i32, _map_id i32, field-named list,
     /// boss list, rift list, env list). The Field Boss tab timers live in WorldMapFieldNamedInfo (_data_id,
-    /// _pos, _is_spawned, _respawn_time), but WorldMapFieldNamedTableItem is not in our client-data export, so
-    /// that list is empty (GAP). Spawned bosses are listed as WorldMapBossInfo (_uid, _monster_id, _pos) with no timer
-    /// (that struct has none). Rifts and env objects are empty here.
+    /// _pos, _is_spawned, _respawn_time). The official `_data_id`s are in tools/data/field-bosses.json (KiskEmu extract
+    /// of WorldMapFieldNamed), but `_respawn_time` units for this packet are unobserved (KiskEmu decoded announced
+    /// times from 0x9101 captures to the millisecond but did not send the table: an optional byte is unexplained).
+    /// The named/timer list stays empty (GAP). Spawned bosses are listed as WorldMapBossInfo (_uid, _monster_id, _pos)
+    /// with no timer (that struct has none). Rifts and env objects are empty here.
     /// </summary>
     internal List<byte[]> WorldMapContentsInfo(byte[] plain)
     {

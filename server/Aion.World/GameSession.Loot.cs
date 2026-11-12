@@ -83,7 +83,9 @@ public sealed partial class GameSession
             RemoveSharedDrop(d.Uid);
         }
         replies.AddRange(taken.Select(d => LootPackets.LootReply(0, d.Uid, auto)));
-        replies.Add(LootPackets.DropsRemoved(taken.Select(d => (d.Key, d.Uid, (long)(selected?.WireId ?? playerKey), auto)).ToList()));
+        var removed = taken.Select(d => (d.Key, d.Uid, (long)(selected?.WireId ?? playerKey), auto)).ToList();
+        replies.Add(LootPackets.DropsRemoved(removed));
+        BroadcastDropRemoved(removed);
         var inventory = await InventoryChangesAsync(ct, IncreaseDropItemGet, 0);
         var autoUse = await AutoUseAcquiredItemsAsync(taken.Select(d => d.ItemId), now, ct);
         // Official solo pickup order after 0x5621: 0x561f, 0x561b, then 0x5616 when auto-use applies.
@@ -99,6 +101,8 @@ public sealed partial class GameSession
         var gone = drops.Values.Where(d => now >= d.ExpiresAt).ToList();
         if (gone.Count == 0) return [];
         foreach (var d in gone) drops.Remove(d.Uid);
-        return [LootPackets.DropsRemoved(gone.Select(d => (d.Key, d.Uid, 0L, false)).ToList())];
+        var expired = gone.Select(d => (d.Key, d.Uid, 0L, false)).ToList();
+        BroadcastDropRemoved(expired);
+        return [LootPackets.DropsRemoved(expired)];
     }
 }

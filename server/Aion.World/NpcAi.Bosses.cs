@@ -79,8 +79,10 @@ public sealed partial class NpcAi
             fight.Haste = Math.Min(fight.Haste, phase.Haste * (fight.Frenzied ? fight.Script.Frenzy?.Haste ?? 1 : 1));
             if (phase.Telegraph is { } slam)
             {
+                if (fight.Winding is not null) BreakSlam(brain, now);
+                fight.Filler ??= fight.Telegraph;
                 fight.Telegraph = slam;
-                fight.NextSlamMs = Math.Min(fight.NextSlamMs, now + slam.EveryMs / 2);
+                fight.NextSlamMs = slam.Once ? now : Math.Min(fight.NextSlamMs, now + slam.EveryMs / 2);
             }
             if (phase.Notice is { Length: > 0 } notice) replies.Add(GameSession.Notice(notice, phase.NoticeRu, 22, "FFB040"));
             if (phase.Adds is { Count: > 0 } adds) summonRequests.Add(new SummonRequest(target, fight, adds, Victim(brain)));
@@ -98,6 +100,7 @@ public sealed partial class NpcAi
             if (now < winding.DueMs) return (replies, true);
             fight.Winding = null;
             replies.AddRange(SlamLands(target, brain, winding.Slam, winding.Seq, winding.Centre, winding.Yaw, now));
+            FinishSlam(fight, winding.Slam, now);
             brain.NextAttackMs = Math.Max(brain.NextAttackMs, now + SlamRecoverMs);
             return (replies, false);
         }
@@ -152,7 +155,7 @@ public sealed partial class NpcAi
         brain.Volley.Add(new SummonShot(now + MonsterEndAfterLastHitMs, ShotKind.End, slam.Skill, seq, Victim(brain), 0));
         if (brain.Fight is { } fight) fight.Slams++;
         SlamsLanded++;
-        if (currentHitPlayer is not { } hitPlayer) return replies;
+        if (!slam.Land || currentHitPlayer is not { } hitPlayer) return replies;
         var max = SkillAreas.For(slam.Skill) is { IsArea: true } area ? area.Max : int.MaxValue;
         foreach (var (key, _) in currentPlayers.Where(p => InSlam(target, slam, centre, yaw, p.Position))
                      .OrderBy(p => p.Position.DistanceSquared(centre)).ThenBy(p => p.Key).Take(max).ToList())
@@ -167,12 +170,36 @@ public sealed partial class NpcAi
         return replies;
     }
 
-    /// <summary>A hold or stun breaks the slam's wind-up; the boss tries again <see cref="SlamRetryMs"/> later.</summary>
+    /// <summary>
+    /// After a slam lands or is broken: a once-only (stagger-check) slam is not repeated, and the filler rotation
+    /// resumes; otherwise the rotation advances to the next filler.
+    /// </summary>
+    static void FinishSlam(BossFight fight, BossTelegraph slam, long now)
+    {
+        if (slam.Once || slam.StaggerCheck)
+        {
+            var filler = fight.Filler ?? fight.Script.Rotation.ElementAtOrDefault(fight.RotationIndex);
+            fight.Telegraph = filler;
+            fight.NextSlamMs = now + (filler?.EveryMs ?? SlamRetryMs);
+            return;
+        }
+        if (fight.Script.Rotation.Count > 1)
+        {
+            fight.RotationIndex = (fight.RotationIndex + 1) % fight.Script.Rotation.Count;
+            var next = fight.Script.Rotation[fight.RotationIndex];
+            fight.Filler = next;
+            fight.Telegraph = next;
+            fight.NextSlamMs = now + next.EveryMs;
+        }
+    }
+
+    /// <summary>A hold or stun (including a stagger-gauge break) breaks the slam's wind-up. A once-only or stagger-check slam is not retried; otherwise the boss tries again <see cref="SlamRetryMs"/> later.</summary>
     static void BreakSlam(Brain brain, long now)
     {
-        if (brain.Fight is not { Winding: not null } fight) return;
+        if (brain.Fight is not { Winding: { } winding } fight) return;
         fight.Winding = null;
-        fight.NextSlamMs = now + SlamRetryMs;
+        if (winding.Slam.Once || winding.Slam.StaggerCheck) FinishSlam(fight, winding.Slam, now);
+        else fight.NextSlamMs = now + SlamRetryMs;
     }
 
     /// <summary>A boss's fight ends (a wipe sent it home, or it died): its living adds vanish (0x3642 flag 7) and the phases start over.</summary>
