@@ -87,7 +87,7 @@ public sealed partial class GameSession
                 // Quest objectives keep their NPCs streamed until done (kill credit, talk, layer entry on big maps).
                 if (QuestForcesNpcStream(t)) continue;
                 seenNpcs.Remove(t.Key);
-                replies.Add(GamePackets.Death(t.Key, 1));
+                replies.Add(GamePackets.Death(t.Key, GamePackets.DespawnOutOfView));
             }
             else if (!seen && !t.CorpseRemoved && QuestForcesNpcStream(t))
             {
@@ -110,7 +110,7 @@ public sealed partial class GameSession
             var dy = t.Position.Y - at.Y;
             if (dx * dx + dy * dy > NpcViewRange * NpcViewRange) continue;
             seenNpcs.Add(t.Key);
-            replies.AddRange(StaggerGaugeCombat.NpcAppearPackets(Grounded(t).Appearance(), t));
+            replies.AddRange(StaggerGaugeCombat.NpcAppearPackets(SessionAppear(Grounded(t)), t));
         }
         return replies;
     }

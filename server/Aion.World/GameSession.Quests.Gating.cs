@@ -115,7 +115,11 @@ public sealed partial class GameSession
         if (!needsClear || layer.Boss.Length == 0) return [];
         var bossIds = layer.Boss.ToHashSet();
         var replies = new List<byte[]>();
-        foreach (var t in targets.Values.Where(t => bossIds.Contains(t.NpcId) && t.Dead))
+        // A boss the layer's map event starts later stays down for its StartSpawner (ported from KiskEmu 80a8e9b): HQ1101070's
+        // DrakanElite_01 is in Multi_Cliff_Drakan_Module_2, started after the fourth cliff kill. Up from the entry, it could be
+        // killed first and end the layer.
+        var host = CopyOwner ?? this;
+        foreach (var t in targets.Values.Where(t => bossIds.Contains(t.NpcId) && t.Dead && !host.dormantSpawners.Contains(t.Name)))
         {
             t.Hp = t.HpMax;
             t.CorpseRemoved = false;
@@ -129,7 +133,7 @@ public sealed partial class GameSession
 
     NpcAppearance QuestGatedAppear(Target t)
     {
-        var appear = t.Appearance();
+        var appear = SessionAppear(t);
         if (questLog?.PendingKillNpcIds().Contains(t.NpcId) == true)
         {
             var ab = new AbnormalWire(1, QuestUntargetableAbnormal, -1, Target.PermanentExpiry, CasterKey: t.Key, RangeBase: t.Position);

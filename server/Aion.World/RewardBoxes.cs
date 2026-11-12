@@ -115,7 +115,7 @@ public sealed class RewardBoxes
     [
         "RewardBox", "GetVehicle", "GetVehicleSoul", "GetVehicleSoulCrystal", "Fix_VehicleCreatureLevel", "Skill",
         "Telpo_Home", "GetKina", "GetNonBindingKina", "GetTitle", "GetSkin", "GetSkinSet", "GetSocialAction",
-        "GetDaevanionPoint", "GetGodstone", "GetQuest", "GetWing", "AscensionGrade",
+        "GetDaevanionPoint", "GetGodstone", "GetStigmaShard", "GetQuest", "GetWing", "AscensionGrade",
     ];
 
     /// <summary>Whether the server has an item-use handler for this Item.dat UseEffect (boxes.json handled_use_effects).</summary>

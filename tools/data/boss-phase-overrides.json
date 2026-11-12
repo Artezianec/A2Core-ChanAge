@@ -1,0 +1,446 @@
+{
+  "source": "Official alignment for five Expedition finals (docs/BOSS-MECHANICS.md). Skills, casts and area shapes are the client's own. Phase timing and named mechanics come from official MapEvent HpRemaining orbs (Easy 70/30) plus 2025-2026 clear videos and guides (YouTube ids in that doc). Invented generic adds, 40%/20% fury/enrage and 'longest-cast as a repeating slam' are removed for these bosses. Frenzy at 5:00 on Normal (guides / aion2data; damage x2) and 4:00 on Hard (existing global hard-mode rule). Easy has no frenzy. Unique mechanics the engine cannot yet run (pillar cover, fire-wall gaps, soak split, jump-rope rings, clone intercept, orb redirect) are notices only.",
+  "families": {
+    "berk": {
+      "npc_names": [
+        "KraoCave_Boss_1"
+      ],
+      "display": "Ultimate Berk",
+      "display_ru": "Берк",
+      "telegraphs": [
+        {
+          "skill": 1800060,
+          "every_ms": 20000,
+          "wind_up_ms": 2000,
+          "radius": 5600,
+          "damage": 1.0,
+          "warning": "Ultimate Berk draws a cross: move out of the beams!",
+          "warning_ru": "Берк чертит крест: выйдите из лучей!"
+        },
+        {
+          "skill": 1800030,
+          "every_ms": 15000,
+          "wind_up_ms": 2000,
+          "radius": 3700,
+          "damage": 1.0,
+          "warning": "Ultimate Berk slashes a line: get behind him or out of the strip!",
+          "warning_ru": "Берк бьёт полосой: зайдите за спину или отойдите в сторону!"
+        },
+        {
+          "skill": 1800040,
+          "every_ms": 15000,
+          "wind_up_ms": 2500,
+          "radius": 2000,
+          "damage": 1.0,
+          "warning": "Ultimate Berk slams the ground: walk out of the circle!",
+          "warning_ru": "Берк бьёт по земле: выйдите из круга!"
+        }
+      ],
+      "phases": [
+        {
+          "at": 75,
+          "name": "wave_of_fury",
+          "notice": "Wave of Fury — hide behind a stone pillar!",
+          "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!",
+          "note": "Skill 1800050 (6 s, 100k, circle 4500) is the closest client match. Official counter is cover behind a summoned pillar; we do not have pillar collision, so this is a notice only. Guides: ~75% and ~25% (some say 35%)."
+        },
+        {
+          "at": 50,
+          "name": "extinction",
+          "telegraph": {
+            "skill": 1800140,
+            "every_ms": 999999,
+            "wind_up_ms": 8000,
+            "radius": 9000,
+            "damage": 1.0,
+            "once": true,
+            "stagger_check": true,
+            "warning": "Extinction for Eternity — break the stagger gauge!",
+            "warning_ru": "Вымирание навеки — сбейте шкалу стаггера!"
+          },
+          "notice": "Extinction for Eternity — break the stagger gauge before the cast ends!",
+          "notice_ru": "Вымирание навеки — сбейте шкалу стаггера, пока длится каст!"
+        },
+        {
+          "at": 25,
+          "name": "wave_of_fury",
+          "notice": "Wave of Fury — hide behind a stone pillar!",
+          "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!"
+        }
+      ],
+      "frenzy": {
+        "Normal": {
+          "after_ms": 300000,
+          "damage": 2.0,
+          "haste": 0.5,
+          "notice": "Ultimate Berk goes into a frenzy!",
+          "notice_ru": "Берк впадает в неистовство!"
+        },
+        "Hard": {
+          "after_ms": 240000,
+          "damage": 2.0,
+          "haste": 0.5,
+          "notice": "Ultimate Berk goes into a frenzy!",
+          "notice_ru": "Берк впадает в неистовство!"
+        }
+      }
+    },
+    "auldor": {
+      "npc_names": [
+        "UruCan_Stage03_Boss_1"
+      ],
+      "display": "Divine Auldor",
+      "display_ru": "Аулдор",
+      "telegraphs": [
+        {
+          "skill": 1600970,
+          "every_ms": 40000,
+          "wind_up_ms": 1330,
+          "radius": 2500,
+          "damage": 1.0,
+          "warning": "Divine Auldor charges a lane: step off the strip!",
+          "warning_ru": "Аулдор несётся полосой: отойдите в сторону!"
+        },
+        {
+          "skill": 1600960,
+          "every_ms": 20000,
+          "wind_up_ms": 830,
+          "radius": 800,
+          "damage": 1.0,
+          "warning": "Divine Auldor slams down: walk out of the circle!",
+          "warning_ru": "Аулдор бьёт сверху: выйдите из круга!"
+        },
+        {
+          "skill": 1600930,
+          "every_ms": 16000,
+          "wind_up_ms": 1000,
+          "radius": 700,
+          "damage": 1.0,
+          "warning": "Divine Auldor sweeps the front: get behind him!",
+          "warning_ru": "Аулдор бьёт перед собой: зайдите за спину!"
+        }
+      ],
+      "phases": [
+        {
+          "at": 75,
+          "name": "tempest_soak",
+          "telegraph": {
+            "skill": 1601030,
+            "every_ms": 999999,
+            "wind_up_ms": 9570,
+            "radius": 500,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Tempest Strike — stack on the marked player!",
+            "warning_ru": "Удар бури — встаньте вместе на отмеченного игрока!",
+            "land": false
+          },
+          "notice": "Tempest Strike — stack on the marked player to split the hit!",
+          "notice_ru": "Удар бури — встаньте вместе на отмеченного игрока, чтобы разделить удар!",
+          "note": "Skill 1601030 is a 9.57 s client cast (guides: ~10 s). Official damage is split by the number of players in a marked circle; the engine cannot mark a player or split the hit yet. Skill.dat lists 0 damage, so the landed hit is not a true wipe."
+        },
+        {
+          "at": 30,
+          "name": "tempest_soak",
+          "telegraph": {
+            "skill": 1601030,
+            "every_ms": 999999,
+            "wind_up_ms": 9570,
+            "radius": 500,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Tempest Strike — stack on the marked player! Stay near the centre.",
+            "warning_ru": "Удар бури — встаньте вместе на отмеченного. Держитесь ближе к центру.",
+            "land": false
+          },
+          "notice": "Tempest Strike — stack on the marked player! Below 30% the outer arena is dangerous.",
+          "notice_ru": "Удар бури — встаньте вместе на отмеченного. Ниже 30% край арены опасен."
+        }
+      ],
+      "frenzy": {
+        "Normal": {
+          "after_ms": 300000,
+          "damage": 2.0,
+          "haste": 0.5,
+          "notice": "Divine Auldor goes into a frenzy!",
+          "notice_ru": "Аулдор впадает в неистовство!"
+        },
+        "Hard": {
+          "after_ms": 240000,
+          "damage": 2.0,
+          "haste": 0.5,
+          "notice": "Divine Auldor goes into a frenzy!",
+          "notice_ru": "Аулдор впадает в неистовство!"
+        }
+      },
+      "skill_remap": {
+        "Easy": {
+          "1601030": 1601035
+        }
+      }
+    },
+    "kromede": {
+      "npc_names": [
+        "Fire_Temple_Single_Boss_1"
+      ],
+      "display": "Kromede's Desire",
+      "display_ru": "Желание Кромеды",
+      "telegraphs": [
+        {
+          "skill": 1801080,
+          "every_ms": 25000,
+          "wind_up_ms": 2000,
+          "radius": 1100,
+          "damage": 1.0,
+          "warning": "Kromede's Desire slashes the front: get behind her!",
+          "warning_ru": "Желание Кромеды рубит перед собой: зайдите за спину!"
+        },
+        {
+          "skill": 1801050,
+          "every_ms": 15000,
+          "wind_up_ms": 1000,
+          "radius": 1500,
+          "damage": 1.0,
+          "warning": "Kromede's Desire stomps a line: step off the strip!",
+          "warning_ru": "Желание Кромеды бьёт полосой: отойдите в сторону!"
+        },
+        {
+          "skill": 1801060,
+          "every_ms": 20000,
+          "wind_up_ms": 1800,
+          "radius": 1100,
+          "damage": 1.0,
+          "warning": "Kromede's Desire sweeps a wide arc: get behind her!",
+          "warning_ru": "Желание Кромеды бьёт широкой дугой: зайдите за спину!"
+        }
+      ],
+      "phases": [
+        {
+          "at": 75,
+          "name": "fire_walls",
+          "telegraph": {
+            "skill": 1801185,
+            "every_ms": 999999,
+            "wind_up_ms": 16500,
+            "radius": 0,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Find the gap!",
+            "warning_ru": "Ищите проход!",
+            "land": false
+          },
+          "notice": "I will crush you! Find the gap in the fire walls!",
+          "notice_ru": "Я вас раздавлю! Ищите проход в стенах огня!",
+          "note": "Skill 1801185 is the 16.5 s client cast (aion2data: Find the gap). Official walls have gaps; the engine has no moving-wall collision, and Skill.dat lists 0 damage."
+        },
+        {
+          "at": 50,
+          "name": "clones",
+          "notice": "Kromede's Desire splits — dodge the clone line, then get behind your clone!",
+          "notice_ru": "Желание Кромеды разделяется — уйдите с линии клона, затем зайдите ему за спину!"
+        },
+        {
+          "at": 25,
+          "name": "fire_walls",
+          "telegraph": {
+            "skill": 1801185,
+            "every_ms": 999999,
+            "wind_up_ms": 16500,
+            "radius": 0,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Find the gap!",
+            "warning_ru": "Ищите проход!",
+            "land": false
+          },
+          "notice": "Find the gap! Clones also fire lines across the arena.",
+          "notice_ru": "Ищите проход! Клоны тоже бьют линиями по арене."
+        }
+      ],
+      "frenzy": {
+        "Normal": {
+          "after_ms": 300000,
+          "damage": 2.0,
+          "haste": 0.5,
+          "notice": "Let desire consume you!",
+          "notice_ru": "Пусть желание поглотит вас!"
+        },
+        "Hard": {
+          "after_ms": 240000,
+          "damage": 2.0,
+          "haste": 0.5,
+          "notice": "Let desire consume you!",
+          "notice_ru": "Пусть желание поглотит вас!"
+        }
+      },
+      "skill_remap": {
+        "Hard": {
+          "1801185": 1801191
+        }
+      }
+    },
+    "bakarma": {
+      "npc_names": [
+        "Draupnir_Abyss_Boss_Bakarma"
+      ],
+      "display": "Transcendent Bakarma",
+      "display_ru": "Бакарма",
+      "telegraphs": [
+        {
+          "skill": 1800560,
+          "every_ms": 14000,
+          "wind_up_ms": 1500,
+          "radius": 4000,
+          "damage": 1.0,
+          "warning": "Transcendent Bakarma sweeps the front: get behind him!",
+          "warning_ru": "Бакарма бьёт перед собой: зайдите за спину!"
+        },
+        {
+          "skill": 1800570,
+          "every_ms": 16000,
+          "wind_up_ms": 1900,
+          "radius": 4000,
+          "damage": 1.0,
+          "warning": "Transcendent Bakarma slams a lane: step off the strip!",
+          "warning_ru": "Бакарма бьёт полосой: отойдите в сторону!"
+        },
+        {
+          "skill": 1800540,
+          "every_ms": 11000,
+          "wind_up_ms": 900,
+          "radius": 400,
+          "damage": 1.0,
+          "warning": "Transcendent Bakarma drops a water bomb: walk out of the circle!",
+          "warning_ru": "Бакарма бросает водную бомбу: выйдите из круга!"
+        }
+      ],
+      "phases": [
+        {
+          "at": 70,
+          "name": "wave_of_death",
+          "telegraph": {
+            "skill": 1800655,
+            "every_ms": 999999,
+            "wind_up_ms": 18000,
+            "radius": 6500,
+            "damage": 1.0,
+            "once": true,
+            "stagger_check": true,
+            "warning": "Wave of Death — jump the rings and break the stagger gauge!",
+            "warning_ru": "Волна смерти — перепрыгивайте кольца и сбейте шкалу стаггера!"
+          },
+          "notice": "Wretched worm, begone! Jump the waves and break the stagger gauge!",
+          "notice_ru": "Жалкий червь, прочь! Перепрыгивайте волны и сбейте шкалу стаггера!",
+          "note": "Skill 1800655 is an 18 s client cast (guides: 16-18 s stagger check at ~70% and ~30%). Official wipe damage is not in Skill.dat (0-0); failing the check currently lands the skill's area for at most the engine minimum. Jump-rope rings and the inner safe ring need engine work."
+        },
+        {
+          "at": 30,
+          "name": "wave_of_death",
+          "telegraph": {
+            "skill": 1800655,
+            "every_ms": 999999,
+            "wind_up_ms": 18000,
+            "radius": 6500,
+            "damage": 1.0,
+            "once": true,
+            "stagger_check": true,
+            "warning": "Wave of Death — route around whirlpools, jump the rings, break the gauge!",
+            "warning_ru": "Волна смерти — обходите воронки, перепрыгивайте кольца, сбейте шкалу!"
+          },
+          "notice": "Wave of Death — route around the whirlpools, jump the rings, break the gauge!",
+          "notice_ru": "Волна смерти — обходите воронки, перепрыгивайте кольца и сбейте шкалу!"
+        }
+      ],
+      "frenzy": {
+        "Normal": {
+          "after_ms": 300000,
+          "damage": 2.0,
+          "haste": 0.5,
+          "notice": "Transcendent Bakarma goes into a frenzy!",
+          "notice_ru": "Бакарма впадает в неистовство!"
+        },
+        "Hard": {
+          "after_ms": 240000,
+          "damage": 2.0,
+          "haste": 0.5,
+          "notice": "Transcendent Bakarma goes into a frenzy!",
+          "notice_ru": "Бакарма впадает в неистовство!"
+        }
+      }
+    },
+    "nuakum": {
+      "npc_names": [
+        "M_PD_FierceHornCave_Ferk_01_V01",
+        "M_PD_FierceHornCave_Easy_Ferk_01_V01"
+      ],
+      "display": "Ferocious Horn Nuakum",
+      "display_ru": "Нуакум",
+      "telegraphs": [
+        {
+          "skill": 1802090,
+          "every_ms": 25000,
+          "wind_up_ms": 1300,
+          "radius": 900,
+          "damage": 1.0,
+          "warning": "Ferocious Horn Nuakum claws a wide arc: get behind him!",
+          "warning_ru": "Нуакум бьёт широкой дугой: зайдите за спину!"
+        },
+        {
+          "skill": 1802060,
+          "every_ms": 42000,
+          "wind_up_ms": 1000,
+          "radius": 3000,
+          "damage": 1.0,
+          "warning": "Ferocious Horn Nuakum slams a lane: step off the strip!",
+          "warning_ru": "Нуакум бьёт полосой: отойдите в сторону!"
+        },
+        {
+          "skill": 1802100,
+          "every_ms": 10000,
+          "wind_up_ms": 850,
+          "radius": 750,
+          "damage": 1.0,
+          "warning": "Ferocious Horn Nuakum slams the ground: walk out of the circle!",
+          "warning_ru": "Нуакум бьёт по земле: выйдите из круга!"
+        }
+      ],
+      "phases": [
+        {
+          "at": 75,
+          "name": "hunt",
+          "notice": "The hunt — an unmarked player blocks the clone; then stack or spread with the circle!",
+          "notice_ru": "Охота — не отмеченный игрок перехватывает клона; затем соберитесь или разойдитесь по кругу!"
+        },
+        {
+          "at": 55,
+          "name": "hunt",
+          "notice": "The hunt again — rotate blockers; read the circle (in = stack, out = spread)!",
+          "notice_ru": "Охота снова — меняйте тех, кто перехватывает; читайте круг (внутрь — вместе, наружу — врозь)!"
+        },
+        {
+          "at": 30,
+          "name": "blue_light",
+          "notice": "Blue Light of Destruction — stand so his throw hits the central orb (three hits)!",
+          "notice_ru": "Синий свет разрушения — встаньте так, чтобы бросок попал в сферу в центре (три попадания)!",
+          "note": "No 34 s cast is in this boss's Skill.dat list (longest damaging cast is 1.3 s). The orb redirect needs engine work and a live capture of the skill id."
+        }
+      ],
+      "frenzy": {
+        "Normal": {
+          "after_ms": 300000,
+          "damage": 2.0,
+          "haste": 0.5,
+          "notice": "Ferocious Horn Nuakum goes into a frenzy!",
+          "notice_ru": "Нуакум впадает в неистовство!"
+        },
+        "Hard": {
+          "after_ms": 240000,
+          "damage": 2.0,
+          "haste": 0.5,
+          "notice": "Ferocious Horn Nuakum goes into a frenzy!",
+          "notice_ru": "Нуакум впадает в неистовство!"
+        }
+      }
+    }
+  }
+}

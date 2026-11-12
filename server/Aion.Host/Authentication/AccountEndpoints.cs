@@ -1,5 +1,6 @@
 using Aion.Application.Authentication;
 using Aion.Application.Characters;
+using Aion.Core.Security;
 using Aion.Infrastructure.Postgres;
 
 namespace Aion.Host.Authentication;
@@ -41,7 +42,7 @@ public static class AccountEndpoints
             if (actor is null) return Results.Unauthorized();
             try
             {
-                if (!(await game.AdminProfileAsync(actor, ct)).Roles.Contains("admin")) return Results.StatusCode(403);
+                if (!StaffAccess.Can((await game.AdminProfileAsync(actor, ct)).Roles, StaffPermission.ManageAccounts)) return Results.StatusCode(403);
             }
             catch (Aion.Application.Gameplay.GameplayException) { return Results.StatusCode(403); }
             if (!PostgresAccountAuthentication.ValidUsername(input.Username) || !PostgresAccountAuthentication.ValidPassword(input.Password))
@@ -54,14 +55,15 @@ public static class AccountEndpoints
         app.MapPost("/api/accounts/login", async (Credentials input, IAccountAuthentication auth, ITotpAuthentication totp, CancellationToken ct) =>
         {
             if (input.Username is null || input.Password is null) return Results.Unauthorized();
-            // "Keep me signed in" (the staff dashboard): a 30-day session instead of the standard 8 hours.
+            // "Keep me signed in": a 30-day session instead of the standard 8 hours (kept through the TOTP step).
             var session = input.Remember == true
                 ? await auth.SignInAsync(input.Username, input.Password, TimeSpan.FromDays(30), ct)
                 : await auth.SignInAsync(input.Username, input.Password, ct);
             if (session is null) return Results.Unauthorized();
             if (!await totp.IsEnabledAsync(session.AccountId, ct)) return Results.Ok(session);
             await auth.SignOutAsync(session.Token, ct);
-            var challenge = await totp.BeginLoginAsync(session.AccountId, ct);
+            TimeSpan? lifetime = input.Remember == true ? TimeSpan.FromDays(30) : null;
+            var challenge = await totp.BeginLoginAsync(session.AccountId, lifetime, ct);
             return challenge is null ? Results.Unauthorized() : Results.Ok(new
             {
                 requiresTotp = true,

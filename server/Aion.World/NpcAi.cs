@@ -101,6 +101,9 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         public int VictimKey { get; set; }
         /// <summary>Hate by attacker key (damage dealt, at least 1 per hit; OURS): the top one is chased.</summary>
         public Dictionary<int, long> Hate { get; } = [];
+        /// <summary>Players who healed someone already on this NPC's hate table (field-boss personal rewards).</summary>
+        public HashSet<int> Healers { get; } = [];
+        internal void ClearThreat() { Hate.Clear(); Healers.Clear(); }
         /// <summary>The player considered this tick (nearest, or the victim) for a new chase.</summary>
         internal int CandidateKey { get; set; }
         /// <summary>Patrol: the waypoint walked to and the direction along the route (+1 / -1 on TwoWay routes).</summary>
@@ -117,6 +120,10 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         public bool VictimIsNpc { get; set; }
         /// <summary>Sent into the fight by a map event (SetAggroNpc): fights wherever it is, then stands there.</summary>
         public bool Directed { get; set; }
+        /// <summary>An NPC a map event set this one on (SetAggroNpc) while it walked its scripted route: fought once the route ends.</summary>
+        public int AfterWalkPreyKey { get; set; }
+        /// <summary>A scripted boss's running fight (tools/data/boss-phases.json): phases, slam, frenzy, adds; null otherwise.</summary>
+        public BossFight? Fight { get; set; }
     }
 
     /// <summary>Scripted walks that reached their route's end since the last take: (NPC key, route name).</summary>
@@ -158,6 +165,7 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         if (route.Points.Length == 0 || target.Dead) return [];
         brain.Mode = Mode.Scripted;
         brain.Directed = false;
+        brain.AfterWalkPreyKey = 0;
         brain.Script = route;
         brain.RouteIndex = 0;
         brain.RouteStep = 1;
@@ -203,7 +211,7 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
     {
         var brain = BrainOf(target);
         var replies = brain.Moving ? Stop(target, brain, brain.Heading, now) : [];
-        brain.Hate.Clear();
+        brain.ClearThreat();
         brain.Engaged = false;
         brain.CandidateKey = 0;
         brain.VictimKey = 0;
@@ -270,6 +278,14 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         var brain = BrainOf(target);
         if (target.Dead || victim.Dead || target.RunSpeed == 0 && target.WalkSpeed == 0) return [];
         brain.Hate[victim.Key] = brain.Hate.GetValueOrDefault(victim.Key) + 1;
+        // The scripts pair a walk with a fight for the same NPC (HQ004 step 5: NpcMoveToWayPoint Nania Waypoints_4, then SetAggroNpc
+        // on DracoWar_06; step 14: Step2_4, then MixSpawn2). Chasing at once dropped the walk: Nania never reached the route's end
+        // the next steps start from (playtest 2026-11-09). She finishes the walk and fights at its end.
+        if (brain.Mode == Mode.Scripted && brain.Script is not null)
+        {
+            brain.AfterWalkPreyKey = victim.Key;
+            return [];
+        }
         brain.CandidateKey = victim.Key;
         brain.VictimIsNpc = true;
         brain.Directed = true;
@@ -337,6 +353,11 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
                     brain.Script = null;
                     brain.WanderAtMs = long.MaxValue;
                     arrivals.Add((target.Key, route.Name));
+                    var preyKey = brain.AfterWalkPreyKey;
+                    brain.AfterWalkPreyKey = 0;
+                    if (preyKey != 0 && current?.GetValueOrDefault(preyKey) is { Dead: false, CorpseRemoved: false } prey)
+                        // A fresh engage sends its own stop (StartChase); one already in combat needs it here.
+                        return [.. SetBoost(target, brain, 0), .. brain.Engaged ? Stop(target, brain, brain.Heading, now) : [], .. ForceAggroNpc(target, prey, now)];
                     return [.. SetBoost(target, brain, 0), .. Stop(target, brain, brain.Heading, now)];
                 }
                 brain.RouteIndex++;
@@ -480,9 +501,10 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         brain.Pending = null;
         brain.Volley.Clear();
         brain.Cooldowns.Clear();
-        if (!brain.Engaged) return [];
+        var adds = EndFight(brain);   // a killed boss's adds go with it
+        if (!brain.Engaged) return adds;
         brain.Engaged = false;
-        return [GamePackets.CombatState(target.Key, false)];
+        return [GamePackets.CombatState(target.Key, false), .. adds];
     }
 
     static List<byte[]> StartChase(Target target, Brain brain, long now)
@@ -641,8 +663,9 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         ResetGroggy(target);
         brain.Mode = Mode.Idle;
         brain.VictimKey = 0;
-        brain.Hate.Clear();
+        brain.ClearThreat();
         brain.WanderAtMs = WanderDelay(now);
+        replies.AddRange(EndFight(brain));   // a wipe: the boss is back home, its adds go and its phases start over
         return replies;
     }
 
@@ -667,6 +690,7 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         {
             if (target.Silenced) break;
             if (data.NpcSkill(id) is not { } skill || basic is { } b && b.Id == id) continue;
+            if (IsScriptedSlam(brain, id)) continue;   // a scripted boss's slam comes telegraphed (NpcAi.Bosses)
             // A special first becomes ready one cooldown into the fight; the basic attack opens.
             if (!brain.Cooldowns.TryGetValue(id, out var readyAt))
             {
@@ -690,7 +714,7 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         brain.ActionSeq = brain.ActionSeq % 255 + 1;
         var lands = now + skill.Skill.Cast + HitDelayMs;
         brain.Pending = new PendingHit(skill.Id, skill.Skill, brain.ActionSeq, lands);
-        brain.Cooldowns[skill.Id] = now + Math.Max(skill.Skill.Cooldown, skill.Skill.Cast + HitDelayMs);
+        brain.Cooldowns[skill.Id] = now + Math.Max(Hasted(brain, skill.Skill.Cooldown), skill.Skill.Cast + HitDelayMs);
         brain.NextAttackMs = lands;
         var yaw = target.NoRotation ? brain.Heading : facing;
         replies.Add(GamePackets.SkillStart(skill.Id, brain.ActionSeq, yaw, CastLocation(target, brain, skill.Id, yaw),
@@ -715,6 +739,7 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         var factor = (low + rng.NextDouble() * (high - low)) / 10000.0;
         var raw = Combat.NpcFixingDamage(attacker.Level, attacker.SubType, attacker.Grade) * factor;
         raw *= Combat.LevelDiffDamageScale(attacker.Level, victimLevel);
+        raw *= BossDamageFactor(attacker);   // a scripted boss's phases and frenzy (OURS)
         return Math.Max(1, (int)Math.Round(raw));
     }
 
@@ -757,10 +782,11 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         {
             if (brain.Mode != Mode.Dead)
             {
-                brain.Mode = Mode.Dead; brain.Moving = false; brain.Engaged = false; brain.Pending = null; brain.VictimKey = 0; brain.Hate.Clear();
+                brain.Mode = Mode.Dead; brain.Moving = false; brain.Engaged = false; brain.Pending = null; brain.VictimKey = 0; brain.ClearThreat();
                 target.Position = brain.Home;   // the respawn (0x3641) uses the spawn point
                 target.Direction = brain.HomeHeading;
                 brain.Heading = brain.HomeHeading;
+                return EndFight(brain);   // a killed boss's adds go with it
             }
             return [];
         }
@@ -775,6 +801,7 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         {
             brain.Pending = null;
             brain.Volley.Clear();
+            BreakSlam(brain, now);   // a hold or stun breaks a slam's wind-up (an interrupt does not)
             return brain.Moving ? Stop(target, brain, brain.Heading, now) : replies;
         }
         if (DialogPaused.Contains(target.Key))
@@ -795,6 +822,10 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
             return engaged;
         }
         if (brain.Mode == Mode.Follow) return FollowStep(target, brain, player, now);
+        // A scripted boss: its phases, frenzy and slams; while a slam winds up it stands and does nothing else.
+        var (bossReplies, winding) = BossTick(target, brain, now);
+        replies.AddRange(bossReplies);
+        if (winding) return replies;
         replies.AddRange(Resolve(target, brain, player, now, hitPlayer));
         if (target.WalkSpeed == 0 && target.RunSpeed == 0) return replies;
         // Official: of 42 friendly NPCs in the recording only one moved, a patrol walking its MapData waypoint set;

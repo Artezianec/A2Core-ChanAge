@@ -70,15 +70,72 @@ public sealed class GmCommands(WorldPresence presence, BuilderCommands builder) 
 {
     public bool Owns(string content) => content.TrimStart().StartsWith('/');
 
+    static bool IsStigmaCommand(string text)
+    {
+        var trimmed = text.TrimStart();
+        if (!trimmed.StartsWith('/')) return false;
+        var word = trimmed.TrimStart('/').TrimStart();
+        return word.StartsWith("stigma", StringComparison.OrdinalIgnoreCase)
+            && (word.Length == 6 || (word.Length >= 7 && (word.StartsWith("stigmas", StringComparison.OrdinalIgnoreCase) ? word.Length == 7 || char.IsWhiteSpace(word[7]) : char.IsWhiteSpace(word[6]))));
+    }
+
+    static string? StigmaCommandArgument(string text)
+    {
+        var word = text.TrimStart().TrimStart('/').TrimStart();
+        if (word.StartsWith("stigmas", StringComparison.OrdinalIgnoreCase)) word = word[7..].TrimStart();
+        else if (word.StartsWith("stigma", StringComparison.OrdinalIgnoreCase)) word = word[6..].TrimStart();
+        else return null;
+        return word.Length == 0 ? null : word;
+    }
+
     /// <summary>
     /// "//report &lt;text&gt;" for every player (not a builder command): a ticket for staff with the sender's account and
     /// character; the reply to show. Null: reports are not available on this host.
     /// </summary>
     public Func<ChatIdentity, string, string, CancellationToken, Task<string>>? Report { get; init; }
 
+    /// <summary>Playerbots (docs/PLAYERBOTS.md) for "//bot"; null when Aion:Bots:Enabled is off.</summary>
+    public PlayerBots? Bots { get; init; }
+
+    static bool IsBotCommand(string line) =>
+        line.StartsWith("bot", StringComparison.OrdinalIgnoreCase) && (line.Length == 3 || char.IsWhiteSpace(line[3]));
+
     public async Task<string> HandleAsync(ChatIdentity sender, string userName, string content, CancellationToken ct)
     {
         var text = content.Trim();
+        // "/stigma" (or "//stigma") for every player: Stigma Shards, slots and stigmas (docs/STIGMAS.md).
+        // Staff may also "//stigma grant <count>" to add bonus shards (shop / item income).
+        if (IsStigmaCommand(text))
+        {
+            if ((presence.Find(userName) ?? presence.Find(Aion.Core.Characters.CharacterNames.Stored(userName))) is not { } reader)
+                return "Enter the world first.";
+            try
+            {
+                var argument = StigmaCommandArgument(text);
+                if (argument is not null)
+                {
+                    if (!await builder.AllowedAsync(reader.Session, ct))
+                        return "Staff only: //stigma grant <count> adds bonus Stigma Shards. /stigma shows your shards and slots.";
+                    var parts = argument.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    if (parts.Length is < 2 or > 3
+                        || !parts[0].Equals("grant", StringComparison.OrdinalIgnoreCase)
+                        || !int.TryParse(parts[1], out var grant)
+                        || grant <= 0
+                        || (parts.Length == 3 && !parts[2].Equals("shards", StringComparison.OrdinalIgnoreCase) && !parts[2].Equals("shard", StringComparison.OrdinalIgnoreCase)))
+                        return "Usage: //stigma grant <count>";
+                    return await reader.Session.InvokeAsync(async _ =>
+                    {
+                        var granted = await reader.Session.GrantStigmaBonusAsync(grant, ct);
+                        return (granted.Message, granted.Packets);
+                    }).WaitAsync(TimeSpan.FromSeconds(10), ct);
+                }
+                return await reader.Session.InvokeAsync(_ => (reader.Session.StigmaSummary(), new List<byte[]>())).WaitAsync(TimeSpan.FromSeconds(10), ct);
+            }
+            catch (Exception error) when (error is TimeoutException or TaskCanceledException)
+            {
+                return "The game connection did not respond.";
+            }
+        }
         if (!text.StartsWith("//", StringComparison.Ordinal)) return "Unknown command. Use //help.";
         var line = text[2..].Trim();
         if (line.StartsWith("report", StringComparison.OrdinalIgnoreCase) && (line.Length == 6 || char.IsWhiteSpace(line[6])))
@@ -101,10 +158,19 @@ public sealed class GmCommands(WorldPresence presence, BuilderCommands builder) 
                     ? "GM panel: press F10 (client dev helper; Ctrl+~ dev test UI). It needs the lobby admin flag: re-login after a staff change. "
                       + "Builder commands (in chat: //<command>; console: s <command>): " + string.Join(", ", BuilderCommands.Supported)
                     : "GM permission required.";
+            // "//bot ...": staff only unless Aion:Bots:PlayersMayUse; runs on the summoner's loop (it reads the lobby).
+            if (IsBotCommand(line))
+            {
+                if (Bots is null) return "Playerbots are off on this server.";
+                if (!Bots.Options.PlayersMayUse && !await builder.AllowedAsync(actor.Session, ct)) return "Playerbots are for staff on this server.";
+                var rest = line[3..].Trim();
+                return await actor.Session.InvokeAsync(async now => (await Bots.CommandAsync(actor.Session, rest, now, ct), new List<byte[]>()))
+                    .WaitAsync(TimeSpan.FromSeconds(30), ct);
+            }
             if (line.Length == 0 || line.Equals("help", StringComparison.OrdinalIgnoreCase))
                 return await builder.AllowedAsync(actor.Session, ct)
                     ? "Builder commands (in chat: //<command>; console: s <command>): " + string.Join(", ", BuilderCommands.Supported)
-                    : "Commands: //report <text> sends a report to the staff.";
+                    : "Commands: //report <text> sends a report to the staff. /stigma shows your Stigma Shards and slots. Staff: //stigma grant <count>.";
             return await actor.Session.InvokeAsync(async now =>
             {
                 var outcome = await builder.RunAsync(actor.Session, line, now, ct);

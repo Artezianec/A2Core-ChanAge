@@ -16,6 +16,11 @@ Opcode names in `research/local/tooling/opcodes.json` and several packet layouts
 (https://github.com/nuriland/a2kit, commit fb693ba), MIT License, Copyright (c) 2026 nuri. NOIA2, Aether-Aion2-DPS-meter-Global
 and AIon2-Dps-Meter (GPL-3.0) were used only to compare packet layouts; no code was copied from them.
 
+The dungeon boss phases and waves (`tools/boss_phases.py`, `server/Aion.World/BossPhases.cs`, `NpcAi.Bosses.cs`,
+`GameSession.Bosses.cs`) and the field bosses (`FieldBosses.cs`, `GameSession.FieldBosses.cs`, `FieldBossNoticeService.cs`)
+are adapted from ckrealm/A2Core (https://github.com/ckrealm/A2Core, branch friends-server, commits c299686, c52fc1a and
+77ac9ed), AGPL-3.0.
+
 A2Core contains no game client and no client archive key. Players use their own copy of the game, obtained through
 their own Steam account.
 

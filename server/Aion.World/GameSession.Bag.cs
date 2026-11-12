@@ -30,7 +30,7 @@ public sealed partial class GameSession
     public const int BagSlotsPerRow = 9, BaseBagSlotCount = 27;
     /// <summary>Personal warehouse (kStorage) before extensions: 25 slots = 5×5 (datamine).</summary>
     public const int StorageSlotsPerLine = 5, BaseStorageSlotCount = 25;
-    static readonly long[] BagGoldExtendCosts = [5_000, 10_000, 20_000, 30_000, 50_000, 75_000, 100_000, 150_000, 200_000, 300_000];
+    static readonly long[] BagGoldExtendCosts = [500, 1_000, 2_000, 3_000, 5_000, 7_500, 10_000, 15_000, 20_000, 30_000];
     static readonly long[] StorageGoldExtendCosts =
     [
         1_000, 1_000, 1_500, 2_000, 2_500, 3_500, 5_000, 6_500, 9_000, 15_000, 20_000, 25_000, 35_000, 45_000, 60_000,
@@ -54,7 +54,23 @@ public sealed partial class GameSession
     async Task LoadQuickSlotsAsync(INativeCharacterStore store, Guid character, CancellationToken ct)
     {
         quickSlots.Clear();
-        foreach (var slot in await store.QuickSlotsAsync(character, ct)) quickSlots[slot.Slot] = slot;
+        var repairs = new List<QuickSlotRecord>();
+        var saved = await store.QuickSlotsAsync(character, ct);
+        var barSkills = saved.Where(s => s.Type == 0 && s.SkillId > 0).Select(s => s.SkillId)
+            .Concat(Profile()?.DefaultBar().Select(d => d.SkillId) ?? []).Where(id => id > 0)
+            .SelectMany(AllowedContextSkillIds).ToHashSet();
+        foreach (var slot in saved)
+        {
+            if (slot.Type == 0 && slot.SkillId != 0 && !ContextStackValid(slot.SkillId, ContextSkillsForSlot(slot), barSkills))
+            {
+                var fixedSlot = slot with { ContextSkills = data.DefaultContextSkills(slot.SkillId).ToArray() };
+                quickSlots[slot.Slot] = fixedSlot;
+                repairs.Add(fixedSlot);
+            }
+            else quickSlots[slot.Slot] = slot;
+        }
+        foreach (var slot in repairs)
+            await store.SaveQuickSlotAsync(character, slot.Slot, slot, ct);
     }
 
     /// <summary>At login after <see cref="learned"/> is built: drop duplicate skill ids across the persisted bar.</summary>
@@ -204,17 +220,21 @@ public sealed partial class GameSession
         containerSlotExtends = ContainerSlotExtendView.From(await store.ContainerSlotExtendsAsync(character, ct));
         var maxExt = container == InventoryItem.Bag ? MaxBagGoldExtensions : MaxStorageGoldExtensions;
         var currentExt = container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage;
-        if (costIdx != currentExt || costIdx >= maxExt)
+        if (currentExt >= maxExt)
         {
-            LogContainerSlotExtend(container, costIdx, 4, currentExt, costIdx >= maxExt ? "max_reached" : $"cost_idx_mismatch expected={currentExt}");
+            LogContainerSlotExtend(container, costIdx, 4, currentExt, "max_reached");
             return [Rs(4, containerSlotExtends), .. InventoryDepotSyncPackets(), .. await InventoryChangesAsync(ct, 0, 0)];
         }
+        // The live client keeps sending costIdx=0 (the price row it shows) after an extension, so its index is advisory:
+        // the server always charges the next tier (= current extension count) and accepts the request.
+        var tier = currentExt;
+        var reason = costIdx == tier ? "ok" : $"ok client_cost_idx={costIdx} tier={tier}";
         var outcome = ("none", ContainerSlotExtendCounts.Zero);
         await Stored(async () =>
         {
             outcome = container == InventoryItem.Bag
-                ? await store.ExtendInventoryByGoldAsync(character, costIdx, ct)
-                : await store.ExtendStorageByGoldAsync(character, costIdx, ct);
+                ? await store.ExtendInventoryByGoldAsync(character, tier, ct)
+                : await store.ExtendStorageByGoldAsync(character, tier, ct);
             return outcome.Item1 == "ok" ? [[]] : [];
         });
         if (outcome.Item1 != "ok")
@@ -227,7 +247,7 @@ public sealed partial class GameSession
         }
         containerSlotExtends = ContainerSlotExtendView.From(outcome.Item2);
         var newExt = container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage;
-        LogContainerSlotExtend(container, costIdx, 0, newExt, "ok");
+        LogContainerSlotExtend(container, costIdx, 0, newExt, reason);
         return
         [
             Rs(0, containerSlotExtends),
@@ -260,7 +280,12 @@ public sealed partial class GameSession
         if (Store is not { } store || CharacterId is not { } character || type is < 0 or > 4) return [Reply(1)];
         if (type == 1 && uid != 0 && (!storedItems.TryGetValue(uid, out var itemRow) || itemRow.Location != "bag" || itemRow.TemplateId != itemId))
             return [Reply(1)];
-        if (type == 0 && skillId != 0 && !learned.Contains(skillId)) return [Reply(1)];
+        // A stigma needs to be learned and a free stigma slot (docs/STIGMAS.md; stigmas on only).
+        if (StigmaSlotCheck(number, type, skillId) is { } stigmaResult)
+        {
+            if (stigmaResult != 0) return [Reply(stigmaResult)];
+        }
+        else if (type == 0 && skillId != 0 && !learned.Contains(skillId)) return [Reply(1)];
         context ??= type == 0 && skillId != 0 ? data.DefaultContextSkills(skillId).ToArray() : null;
         var slot = new QuickSlotRecord(number, type, uid, itemId, skillId, context, autoUse);
         var saved = await Stored(async () => await store.SaveQuickSlotAsync(character, number, slot, ct) ? [[]] : []);

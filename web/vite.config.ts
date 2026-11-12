@@ -13,7 +13,14 @@ export default defineConfig({
     outDir: resolve(__dirname, '../server/Aion.Host/wwwroot'),
     emptyOutDir: false,
     assetsDir: 'assets',
-    rollupOptions: { input: { index: resolve(__dirname, 'index.html'), admin: resolve(__dirname, 'admin.html') } },
+    rollupOptions: {
+      input: {
+        index: resolve(__dirname, 'index.html'),
+        account: resolve(__dirname, 'account.html'),
+        admin: resolve(__dirname, 'admin.html'),
+      },
+    },
   },
   server: { proxy: { '/api': host, '/wardrobe': host, '/wardrobe-viewer.js': host } },
+  preview: { proxy: { '/api': host, '/wardrobe': host, '/wardrobe-viewer.js': host } },
 });

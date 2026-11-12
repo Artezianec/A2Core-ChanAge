@@ -169,6 +169,17 @@ observed to be kept). The address pairing above covers the case where it does no
 Players also need hosts-file lines pointing the six NC hostnames at this server's address
 (`research/client-installer.md`); the installer/launcher sets those up.
 
+## Search engines
+
+The landing and account pages ship in `server/Aion.Host/wwwroot` after `web/npm run build`,
+including `robots.txt`, `sitemap.xml`, and crawlable HTML fallbacks in `index.html`.
+
+When a TLS proxy or nginx terminates HTTPS in front of the account site, proxy
+`/robots.txt`, `/sitemap.xml`, and other static paths to the host (for example
+`127.0.0.1:8780`) instead of serving separate copies, so deploy updates apply.
+Keep `X-Robots-Tag: noindex` only on private paths such as `/preview/` and the staff
+dashboard; do not send it for `/`, `/account/`, or the sitemap.
+
 ## Not covered yet
 
 - The player installer/launcher (research/client-installer.md).

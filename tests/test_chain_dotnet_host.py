@@ -25,6 +25,20 @@ class DotnetHostEnvironmentTests(unittest.TestCase):
                 run_game_chain.main(['--login'])
             login.assert_not_called()
 
+    def test_start_elevated_host_creates_directory_before_config(self):
+        with tempfile.TemporaryDirectory() as temp:
+            directory = Path(temp) / 'fresh' / 'ncguard-elevated'
+            self.assertFalse(directory.exists())
+            with mock.patch.object(elevated_dotnet_host.subprocess, 'run',
+                                   return_value=mock.Mock(returncode=0)):
+                elevated_dotnet_host.start_elevated_host(
+                    Path('host.dll'), {'Aion__LocalPort': '8781'}, directory)
+            config = directory / 'dotnet-start.json'
+            self.assertTrue(directory.is_dir())
+            self.assertTrue(config.is_file())
+            self.assertEqual(json.loads(config.read_text())['environment'],
+                             {'Aion__LocalPort': '8781'})
+
     def test_elevated_server_configuration_and_cancel_cleanup(self):
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp)

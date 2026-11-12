@@ -21,6 +21,7 @@ Design and evidence: `research/client-installer.md`.
 - `supported-build.json`: every file of the supported Steam depot manifest (path, size, hashes).
   Embedded in the launcher; regenerate with the BuildTool (do not hand-edit).
 - `launcher.json`: the server (account URL, IPv4 address, bootstrap port, private saved-folder suffix).
+  `accountUrl` must be `https://` except on loopback (`http://127.0.0.1`, `http://localhost`, or `http://[::1]`).
   Embedded; a `launcher.json` next to the exe overrides it.
 - `AionLauncher/icon.ico` (exe, window, taskbar, shortcuts) and `AionLauncher/emblem.png` (the rail): the "AH"
   emblem artwork (user-supplied PNG, 1254 px), cropped to the central 77 % and resized with Pillow;

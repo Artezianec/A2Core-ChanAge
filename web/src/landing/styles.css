@@ -1,0 +1,6 @@
+@import "@fontsource/noto-sans/400.css";
+@import "@fontsource/noto-sans/500.css";
+@import "@fontsource/noto-sans/600.css";
+@import "../ui/ui.css";
+@import "../theme/aion-theme.css";
+@import "./landing.css";

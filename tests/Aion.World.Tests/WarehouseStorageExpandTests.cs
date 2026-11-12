@@ -34,8 +34,8 @@ public sealed class WarehouseStorageExpandTests
         Assert.Equal(9_000, store.Items.Where(i => i.TemplateId == GameSession.KinaItemId).Sum(i => i.Quantity));
 
         var depot = replies.Last(p => GameSessionTestHelpers.Op(p) == 0x5611);
-        var tail = depot.Length - 24;
-        Assert.Equal(1, BitConverter.ToInt32(depot, tail + 8));
+        var tail = depot.Length - 6;
+        Assert.Equal(1, depot[tail + 2]);
     }
 
     [Fact]
@@ -64,12 +64,12 @@ public sealed class WarehouseStorageExpandTests
 
         var session2 = await GameSessionTestHelpers.EnterWorldAsync(store, Now + 30);
         var depot = (await session2.HandleAsync(new PacketWriter().U16(0x5610).ToArray(), Now + 31)).Last(p => GameSessionTestHelpers.Op(p) == 0x5611);
-        var tail = depot.Length - 24;
-        Assert.Equal(1, BitConverter.ToInt32(depot, tail + 8));
+        var tail = depot.Length - 6;
+        Assert.Equal(1, depot[tail + 2]);
     }
 
     [Fact]
-    public async Task Stale_storage_costIdx_resyncs_depot_tail()
+    public async Task Stale_storage_costIdx_is_accepted_and_charges_next_tier()
     {
         var store = new FakeCharacterStore();
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now + 50);
@@ -77,10 +77,12 @@ public sealed class WarehouseStorageExpandTests
         store.ContainerExtends[character] = new ContainerSlotExtendCounts(0, 0, 1, 0, 0, 0);
         store.Items.Add(FakeCharacterStore.BagItem(GameSession.KinaItemId, 10_000, 9105));
 
-        var reject = await session.HandleAsync(ExtendRq(GameSession.ItemContainerSlotExtend8dRq, InventoryItem.Storage, 0), Now + 51);
-        Assert.Equal(4, BitConverter.ToInt32(reject.First(p => GameSessionTestHelpers.Op(p) == GameSession.ItemContainerSlotExtend8dRs), 2));
-        var tail = reject.First(p => GameSessionTestHelpers.Op(p) == 0x5611).Length - 24;
-        Assert.Equal(1, BitConverter.ToInt32(reject.First(p => GameSessionTestHelpers.Op(p) == 0x5611), tail + 8));
+        var replies = await session.HandleAsync(ExtendRq(GameSession.ItemContainerSlotExtend8dRq, InventoryItem.Storage, 0), Now + 51);
+        Assert.Equal(0, BitConverter.ToInt32(replies.First(p => GameSessionTestHelpers.Op(p) == GameSession.ItemContainerSlotExtend8dRs), 2));
+        Assert.Equal(2, store.ContainerExtends[character].Storage);
+        Assert.Equal(9_000, store.Items.Where(i => i.TemplateId == GameSession.KinaItemId).Sum(i => i.Quantity));
+        var depot = replies.Last(p => GameSessionTestHelpers.Op(p) == 0x5611);
+        Assert.Equal(2, depot[^4]);
     }
 
     [Fact]

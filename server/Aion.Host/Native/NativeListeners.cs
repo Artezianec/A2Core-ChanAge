@@ -25,6 +25,11 @@ public sealed record NativeOptions
     /// </summary>
     public string Logins { get; init; } = "accounts";
     public int WorldId { get; init; } = DevelopmentDefaults.WorldId;
+    /// <summary>
+    /// Multi-world is on (Aion:Worlds:Enabled, or this host runs in world role): the login port lists the registry's
+    /// worlds and game sessions use WorldId as their wire server id. Off (default): one world, as before.
+    /// </summary>
+    public bool MultiWorld { get; init; }
     /// <summary>Development only: seed the '$' placeholder so the client skips character creation.</summary>
     public bool IntroCharacter { get; init; }
     public int CharacterLevel { get; init; } = 1;
@@ -206,8 +211,15 @@ public sealed class NativeLoginListener(NativeOptions options, IServiceProvider 
 
     protected override async Task RunAsync(NetworkStream stream, Rc4 cipher, FrameBuffer buffer, IPAddress? clientAddress, CancellationToken ct)
     {
+        // Multi-world: the registered worlds that are up now (null without a registry: the single world on GamePort).
+        var directory = services.GetService<Aion.Host.Worlds.LoginWorldList>() is { } worldList ? await worldList.DirectoryAsync(ct) : null;
+        var handoff = services.GetService<IClientHandoff>();
         var session = new LoginSession(new LoginSessionOptions
         {
+            Directory = directory,
+            Route = handoff is null || directory is null ? null : (wire, grant, world, race, token) =>
+                long.TryParse(wire, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var wireId)
+                    ? handoff.RouteLoginAsync(grant.ToString("D"), wireId, world, race, token) : Task.FromResult(false),
             RedirectHost = Options.Network.PublicAddress,
             RedirectPort = Options.GamePort ?? 13328,
             Characters = Options.Development && Options.IntroCharacter
@@ -229,6 +241,7 @@ public sealed class NativeLoginListener(NativeOptions options, IServiceProvider 
                 if (step.Close is { } reason)
                 {
                     Logger.LogInformation("Native login closed: {Reason}", reason);
+                    if (reason is "unknown_world" or "route_failed") Logger.LogWarning("Native login could not route a world pick: {Reason}", reason);
                     return;
                 }
             }
@@ -253,9 +266,11 @@ public sealed class NativeLoginListener(NativeOptions options, IServiceProvider 
             Logger.LogInformation("Native login refused: {Reason}", blocked);
             return null;
         }
-        // The login port's character list (0x390b) shows a per-server character count.
-        var owned = (await characters.ListAsync(new VerifiedAccount(grant.AccountId), ct)).Where(c => c.WorldId == grant.WorldId)
-            .Select(c => (c.Name, c.Level, c.Race, (ulong)Math.Max(0, c.LastPlayedUnixMs))).ToList();
+        // The login port's character list (0x390b) shows a per-server character count: each character on its own world
+        // (the login session leaves out worlds that are not listed now).
+        // Single world (multi-world off): only this world's characters, as before.
+        var owned = (await characters.ListAsync(new VerifiedAccount(grant.AccountId), ct)).Where(c => Options.MultiWorld || c.WorldId == grant.WorldId)
+            .Select(c => (c.Name, c.Level, c.Race, (ulong)Math.Max(0, c.LastPlayedUnixMs), c.WorldId)).ToList();
         return new LoginGrant(grant.WireAccountId.ToString(System.Globalization.CultureInfo.InvariantCulture), grantId, owned);
     }
 }
@@ -283,7 +298,8 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         var gameData = services.GetRequiredService<GameData>();
         var session = new GameSession(gameData, new GameSessionOptions
         {
-            CharacterLevel = Options.CharacterLevel, IntroCharacter = intro, WorldId = Options.WorldId, LevelCap = gameData.MaxLevel,
+            CharacterLevel = Options.CharacterLevel, IntroCharacter = intro, WorldId = Options.WorldId,
+            WireServerId = Options.MultiWorld ? Options.WorldId : null, LevelCap = gameData.MaxLevel,
             StaffRole = services.GetService<GmPolicy>()?.StaffRole,
             Builder = services.GetService<BuilderCommands>(), Terrain = services.GetService<TerrainStore>(), Nav = services.GetService<NavMeshStore>(),
             World = services.GetService<SharedWorld>(), DevelopmentMap = Options.Development ? Options.DevelopmentStartMap : null,
@@ -381,8 +397,10 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
                             session.Store = await AuthenticateAsync(plain, ct);
                             if (session.Store is { } opened && turn is not null) session.Store = TurnStore.Wrap(opened, turn);
                             if (session.Store is null) { Logger.LogInformation("Native game closed: rejected"); return; }
-                            if (services.GetService<IPlatformSecondaryAuth>() is { } platformAuth)
-                                await platformAuth.RememberClientAsync(clientAddress, session.Store.AccountId, ct);
+                            // Keep the address on the platform account lookup (auth.platform_client_context lasts 15 minutes)
+                            // for the whole session: later balances calls (the client's Quna counter) still name this account.
+                            if (clientAddress is not null && services.GetService<IPlatformSecondaryAuth>() is { } platformAuth)
+                                _ = KeepClientAddressAsync(platformAuth, clientAddress, session.Store.AccountId, ct);
                             authenticated = true;
                         }
                         else if (!authenticated && header != 0x3602) { Logger.LogInformation("Native game closed: required"); return; }
@@ -509,9 +527,37 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
                     Logger.LogWarning("Native game persistence errors: {Errors}", string.Join(",", session.PersistenceErrors));
             }
             catch (Exception error) { Logger.LogWarning(error, "Native game disconnect: the save failed"); }
+            // The player's bots (docs/PLAYERBOTS.md) leave and save first: they use this player's store.
+            if (services.GetService<PlayerBots>() is { } bots)
+            {
+                try { await bots.OwnerLeftAsync(session, CancellationToken.None); }
+                catch (Exception error) { Logger.LogWarning(error, "Native game disconnect: the bots' leaving failed"); }
+            }
             if (session.Store is { } store) await store.DisposeAsync();
             Logger.LogInformation("Native game connection ended");
         }
+    }
+
+    /// <summary>
+    /// Keeps the client address on the platform account lookup while the session is open: now, then every 5 minutes
+    /// (the lookup lasts 15), so later platform API calls (the Quna counter's balances answer after a credit) still
+    /// name this account. Ends when the connection stops. Single-host: IPlatformSecondaryAuth is on this process
+    /// (KiskEmu uses the realm link when a remote world has no platform auth of its own).
+    /// </summary>
+    async Task KeepClientAddressAsync(IPlatformSecondaryAuth platform, IPAddress address, Guid accountId, CancellationToken ct)
+    {
+        try
+        {
+            while (true)
+            {
+                try { await platform.RememberClientAsync(address, accountId, ct); }
+                catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested)
+                { Logger.LogWarning("Did not keep the client address: {Error}", error.Message); }
+                await Task.Delay(TimeSpan.FromMinutes(5), ct);
+            }
+        }
+        catch (Exception) when (ct.IsCancellationRequested) { }
+        catch (ObjectDisposedException) { }
     }
 
     async Task<INativeCharacterStore?> AuthenticateAsync(byte[] plain, CancellationToken ct)
@@ -524,6 +570,9 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         var (wireAccount, grant) = identity.Session();
         var opened = await sessions.OpenAsync(identity.AuthnToken, wireAccount, grant, Options.WorldId, ct);
         if (opened is null) return null;
+        // The login port (maybe another process) recorded the picked row's race for this world's lobby.
+        if (opened.Race is { } race && services.GetService<WorldChoices>() is { } choices)
+            choices.Pick(wireAccount.ToString(System.Globalization.CultureInfo.InvariantCulture), race);
         var who = await sessions.ValidateAsync(opened.Token, ct);
         if (who is null) return null;
         if (services.GetService<Aion.Host.Authentication.ServerControl>() is { } control && await control.LoginBlockedAsync(who.Account.AccountId, ct) is { } blocked)
@@ -533,6 +582,6 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         }
         return new ServiceNativeCharacterStore(opened.Token, who, sessions, services.GetRequiredService<IWireCharacterRepository>(),
             services.GetRequiredService<IGameplayStore>(), services.GetRequiredService<CharacterPersistenceService>(),
-            services.GetRequiredService<IAccountQunaBalance>());
+            services.GetService<IQunaWallet>());
     }
 }

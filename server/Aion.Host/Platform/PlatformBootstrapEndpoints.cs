@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using Aion.Host.NcGuard;
+using Microsoft.AspNetCore.Connections.Features;
 using System.Globalization;
 using System.Net;
 using System.Security.Cryptography;
@@ -39,6 +41,13 @@ public sealed record PlatformOptions
     /// and privacy URLs, ...). Configuration: Aion:Platform:CustomData:&lt;Key&gt;=&lt;value&gt;.
     /// </summary>
     public Dictionary<string, string>? CustomData { get; init; }
+    /// <summary>
+    /// When set (typically "api.g.nc.com" with the NCGuard TLS sink), the code-less policy's
+    /// api_gate / login_web / login_api are https://{ConfigApiHost}/... so a Steam-patched client
+    /// that ignores ConfigurationServerUrl stays on the MITM'd HTTPS hosts instead of plain HTTP.
+    /// Launch-code policies (/c/&lt;code&gt;) keep the bootstrap http://address:port form.
+    /// </summary>
+    public string? ConfigApiHost { get; init; }
 }
 
 /// <summary>The responses, validated once at startup like the Python fixture checks.</summary>
@@ -111,7 +120,7 @@ public sealed class PlatformResponses
             if (keyResponse is null || aesKey is null) throw new InvalidDataException("A plaintext policy needs app-key.json and local-test-key.json");
             template = JsonNode.Parse(File.ReadAllText(plainPath))?.AsObject() ?? throw new InvalidDataException("Policy must be a JSON object");
             // Point the client at this host's own address and ports.
-            PointAtHost(template, network.PublicAddress, platformPort, loginPort, chatPort, null, options.CustomData);
+            PointAtHost(template, network.PublicAddress, platformPort, loginPort, chatPort, null, options.CustomData, options.ConfigApiHost);
             policy = PythonJson("value", Convert.ToBase64String(Encrypt(aesKey, Encoding.UTF8.GetBytes(template.ToJsonString(Plain)))));
         }
         else if ((options.PolicyFile ?? Fixture("app-policy.json")) is { } policyPath)
@@ -124,7 +133,7 @@ public sealed class PlatformResponses
             if (aesKey is not null && Decrypt(aesKey, Convert.FromBase64String(cipher)) is { } decrypted)
             {
                 template = decrypted;
-                if (PointAtHost(template, network.PublicAddress, platformPort, loginPort, chatPort, null, options.CustomData))
+                if (PointAtHost(template, network.PublicAddress, platformPort, loginPort, chatPort, null, options.CustomData, options.ConfigApiHost))
                     policy = PythonJson("value", Convert.ToBase64String(Encrypt(aesKey, Encoding.UTF8.GetBytes(template.ToJsonString(Plain)))));
             }
             else if (!network.LoopbackOnly)
@@ -217,7 +226,7 @@ public sealed class PlatformResponses
     /// Returns whether anything changed.
     /// </summary>
     public static bool PointAtHost(JsonObject policy, string address, int platformPort, int? loginPort, int? chatPort, string? code,
-        IReadOnlyDictionary<string, string>? customData = null)
+        IReadOnlyDictionary<string, string>? customData = null, string? tlsHost = null)
     {
         var changed = false;
         void Set(JsonObject node, string key, string value)
@@ -228,7 +237,14 @@ public sealed class PlatformResponses
         }
         foreach (var key in new[] { "api_gate", "login_web", "login_api" })
             if (policy[key]?.GetValueKind() == JsonValueKind.String && Uri.TryCreate(policy[key]!.GetValue<string>(), UriKind.Absolute, out var uri))
-                Set(policy, key, $"http://{address}:{platformPort}{(code is null ? "" : "/c/" + code)}{uri.AbsolutePath.TrimEnd('/')}");
+            {
+                // Code-less + ConfigApiHost: keep the patched client on HTTPS SNI hosts we MITM.
+                // With a launch code, keep the bootstrap http://address:port/c/<code> form.
+                var target = tlsHost is not null && code is null
+                    ? $"https://{tlsHost}{uri.AbsolutePath.TrimEnd('/')}"
+                    : $"http://{address}:{platformPort}{(code is null ? "" : "/c/" + code)}{uri.AbsolutePath.TrimEnd('/')}";
+                Set(policy, key, target);
+            }
         var custom = policy["custom_data"] as JsonObject;
         if (custom is null && customData is { Count: > 0 })
         {
@@ -369,6 +385,24 @@ public static partial class PlatformBootstrapEndpoints
     static readonly byte[] NotReady = """{"local_probe":true,"ready":false}"""u8.ToArray();
     static readonly string[] Known = ["/MobileAppConfigSdk/app/key", "/MobileAppConfigSdk/app/policy", "/local-api-gate", "/local-login-web", "/local-login-api"];
 
+    /// <summary>
+    /// Official NcPlatform config/login hostnames. A Steam-patched client ignores the GamePlatform.ini
+    /// ConfigurationServerUrl override and reaches these directly over verified TLS; the TLS sink mints a
+    /// certificate for them, and a request with one of these as its SNI on the NCGuard port is served by
+    /// this same platform bootstrap handler (app/key, app/policy and the api_gate/login routes), so no
+    /// /c/&lt;code&gt; is needed in the URL. The served policy re-addresses api_gate/login to the bootstrap
+    /// port, and the later authn_token binds the launch by the client's address (LaunchPairing).
+    /// </summary>
+    public static readonly string[] ConfigHosts = ["mobileappconfig.g.nc.com", "mobileappconfig-ncus.g.nc.com", "api.g.nc.com", "nccr-api.global.nc.com"];
+
+    /// <summary>A TLS request on the NCGuard port whose SNI is an official config/login host.</summary>
+    public static bool IsConfigHostRequest(HttpContext context, int? ncGuardPort)
+    {
+        if (ncGuardPort is not { } port || context.Connection.LocalPort != port) return false;
+        var sni = context.Features.Get<ITlsHandshakeFeature>()?.HostName;
+        return sni is not null && ConfigHosts.Contains(sni, StringComparer.OrdinalIgnoreCase);
+    }
+
     // Session lookup by a stored ID (a UUID, or the session this server issued) or with none: a fresh
     // saved folder (the launcher's Saved_A2CorePrivate) asks GET .../sessions/v1.0/ (observed 2026-10-15).
     // The answer is the same placeholder session; identity comes from the launch code at authn_token.
@@ -380,7 +414,7 @@ public static partial class PlatformBootstrapEndpoints
     private static partial Regex CodePrefix();
 
     /// <summary>Answers every request on the bootstrap port in its own branch (no static files or other routes there).</summary>
-    public static void UsePlatformBootstrap(this WebApplication app, int port, PlatformResponses responses, string? requestLog, NetworkOptions network, string accountPageBase)
+    public static void UsePlatformBootstrap(this WebApplication app, int port, PlatformResponses responses, string? requestLog, NetworkOptions network, string accountPageBase, int? ncGuardPort = null)
     {
         var accountBase = accountPageBase.TrimEnd('/');
         var platformLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aion.Platform");
@@ -403,10 +437,11 @@ public static partial class PlatformBootstrapEndpoints
             }), now)).Ticket.Value;
         }
         var pairing = app.Services.GetService<LaunchPairing>();
+        var ncGuardSink = app.Services.GetService<NcGuardSink>();
         var platformAuth = app.Services.GetService<IPlatformSecondaryAuth>();
         var qunaBalance = app.Services.GetService<ShopQunaBalanceService>();
         var logLock = new object();
-        app.MapWhen(context => context.Connection.LocalPort == port, branch => branch.Run(async context =>
+        app.MapWhen(context => context.Connection.LocalPort == port || IsConfigHostRequest(context, ncGuardPort), branch => branch.Run(async context =>
         {
             var request = context.Request;
             var path = request.Path.Value ?? "/";
@@ -418,6 +453,38 @@ public static partial class PlatformBootstrapEndpoints
                 path = prefixed.Groups[2].Success ? prefixed.Groups[2].Value : "/";
             }
             var method = request.Method;
+            // The CA's CRL over plain HTTP: strict verifiers fetch it while validating the config-host
+            // leaf, so the list must not require TLS (which would need the very certificate being checked).
+            if (method == "GET" && path == "/pki/ca-root.crl" && ncGuardSink?.CrlDer is { } crlBytes)
+            {
+                context.Response.StatusCode = 200;
+                context.Response.ContentType = "application/pkix-crl";
+                context.Response.ContentLength = crlBytes.Length;
+                await context.Response.Body.WriteAsync(crlBytes);
+                return;
+            }
+            // NC Crash Reporter (nccr-api.global.nc.com): the client fetches /cr/<ver>/<app>/properties
+            // and posts /cr/<ver>/run-info at boot and blocks on the connection. The official server
+            // answers an empty 200 (capture 2026-10-30); match it so a private server needs no upstream.
+            if (path.StartsWith("/cr/", StringComparison.Ordinal)
+                && (method == "GET" || method == "POST" || method == "HEAD"))
+            {
+                // Official nccr-api (capture 2026-11-11): properties is a small JSON object; run-info is {"result":"success"}.
+                // An empty body kept the client alive but some builds wait on a parseable payload.
+                byte[] body;
+                if (path.Contains("/run-info", StringComparison.Ordinal))
+                    body = """{"result":"success"}"""u8.ToArray();
+                else if (path.Contains("/properties", StringComparison.Ordinal))
+                    body = """{"samplingRate":100,"handledExceptionSamplingRate":100,"isLive":true,"skipBadEmulators":true,"enableNetLog":false,"netLogSamplingRate":0,"disableNccr":false}"""u8.ToArray();
+                else
+                    body = "{}"u8.ToArray();
+                context.Response.StatusCode = 200;
+                context.Response.ContentType = "application/json; charset=utf-8";
+                context.Response.Headers.Connection = "close";
+                context.Response.ContentLength = method == "HEAD" ? 0 : body.Length;
+                if (method != "HEAD") await context.Response.Body.WriteAsync(body);
+                return;
+            }
             (int Status, byte[] Body) reply = (503, NotReady);
             if (PlatformSynapseResponses.TryReply(method, path, out var synapseBody)) reply = (200, synapseBody);
             static string? BearerAuth(HttpRequest request)
@@ -442,8 +509,8 @@ public static partial class PlatformBootstrapEndpoints
                 context.Response.Headers.Connection = "close";
                 return;
             }
-            if (method == "GET" && path == Known[0] && responses.Key is { } key) reply = (200, key);
-            else if (method == "GET" && path == Known[1] && responses.PolicyFor(code) is { } policy) reply = (200, policy);
+            if ((method == "GET" || method == "HEAD") && path == Known[0] && responses.Key is { } key) reply = (200, key);
+            else if ((method == "GET" || method == "HEAD") && path == Known[1] && responses.PolicyFor(code) is { } policy) reply = (200, policy);
             else if (method == "POST" && path == "/MobileAppConfigSdk/app/policy/maintenance" && responses.Maintenance is { } maintenance) reply = (200, maintenance);
             else if (method == "POST" && path == "/local-api-gate/sessions/v1.0/authn_token")
             {

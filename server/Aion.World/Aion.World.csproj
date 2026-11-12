@@ -10,6 +10,7 @@
     <InternalsVisibleTo Include="Aion.World.Tests" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../Aion.Application/Aion.Application.csproj" />
     <ProjectReference Include="../Aion.Protocol/Aion.Protocol.csproj" />
   </ItemGroup>
   <ItemGroup>
@@ -35,6 +36,7 @@
     <EmbeddedResource Include="../../tools/data/boxes.json" LogicalName="boxes.json" />
     <EmbeddedResource Include="../../tools/data/levels.json" LogicalName="levels.json" />
     <EmbeddedResource Include="../../tools/data/resurrect.json" LogicalName="resurrect.json" />
+    <EmbeddedResource Include="../../tools/data/field-bosses.json" LogicalName="field-bosses.json" />
     <EmbeddedResource Include="../../tools/data/loot.json" LogicalName="loot.json" />
     <EmbeddedResource Include="../../tools/data/shops.json" LogicalName="shops.json" />
     <EmbeddedResource Include="../../tools/data/platform_goods.json" LogicalName="platform_goods.json" />
@@ -60,6 +62,8 @@
     <EmbeddedResource Include="../../tools/data/world-objects.json" LogicalName="world-objects.json" />
     <EmbeddedResource Include="../../tools/data/monolith-table.json" LogicalName="monolith-table.json" />
     <EmbeddedResource Include="../../tools/data/map-events.json" LogicalName="map-events.json" />
+    <!-- OURS (ported from ckrealm/A2Core): boss phases, slams and hand-made waves, tools/boss_phases.py. -->
+    <EmbeddedResource Include="../../tools/data/boss-phases.json" LogicalName="boss-phases.json" />
     <EmbeddedResource Include="../../tools/data/expedition.json" LogicalName="expedition.json" />
     <EmbeddedResource Include="../../tools/data/resets.json" LogicalName="resets.json" />
     <EmbeddedResource Include="../../tools/data/titles.json" LogicalName="titles.json" />
@@ -70,5 +74,7 @@
     <EmbeddedResource Include="../../tools/data/skill-effect-conditions.json" LogicalName="skill-effect-conditions.json" />
     <EmbeddedResource Include="../../tools/data/abnormal-stack-rules.json" LogicalName="abnormal-stack-rules.json" />
     <EmbeddedResource Include="../../tools/data/recovery-orbs.json" LogicalName="recovery-orbs.json" />
+    <EmbeddedResource Include="../../tools/data/stigmas.json" LogicalName="stigmas.json" />
+    <EmbeddedResource Include="../../tools/data/bot-rotations.json" LogicalName="bot-rotations.json" />
   </ItemGroup>
 </Project>

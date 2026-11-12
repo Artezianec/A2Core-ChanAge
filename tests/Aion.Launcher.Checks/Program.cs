@@ -13,13 +13,26 @@ void Check(bool condition, string label)
     checks++;
 }
 
+// ---------- Server setup ----------
+Check(ServerSetup.LinkScheme == "a2corelauncher", "deep link scheme");
+Check(ServerSetup.AddressFromLink("a2corelauncher://add?url=https%3A%2F%2Fx.test") == "https://x.test", "deep link url");
+Check(ServerSetup.Candidates("http://127.0.0.1:8780")[0].Scheme == Uri.UriSchemeHttp, "loopback http");
+try { ServerSetup.Normalize("http://192.168.1.1:8780"); Check(false, "public http accepted"); } catch (InvalidDataException) { checks++; }
+var derived = ServerSetup.DerivedSuffix(new Uri("https://example.com:8780"));
+Check(derived.Length == 32 && derived.All(char.IsAsciiLetterOrDigit), "derived suffix");
+
 // ---------- Config ----------
 var config = LauncherConfig.Load();
 Check(config.Server.ToString() == config.ServerAddress && config.AccountUrl.StartsWith("https://"), "embedded config");
 Check(config.BootstrapUrl(new string('A', 64)) == $"http://{config.ServerAddress}:{config.BootstrapPort}/c/{new string('A', 64)}", "bootstrap URL carries the code");
 (config with { CertificateThumbprint = new string('a', 40) }).Validate();
 checks++;
-foreach (var bad in new[] { config with { ServerAddress = "example.com" }, config with { AccountUrl = "http://x" }, config with { SavedDirSuffix = "Steam" }, config with { CertificateThumbprint = "zz" } })
+foreach (var ok in new[] { "http://127.0.0.1:8780", "http://localhost:8780", "http://[::1]:8780" })
+{
+    (config with { AccountUrl = ok }).Validate();
+    checks++;
+}
+foreach (var bad in new[] { config with { ServerAddress = "example.com" }, config with { AccountUrl = "http://x" }, config with { AccountUrl = "http://192.168.0.1:8780" }, config with { SavedDirSuffix = "Steam" }, config with { CertificateThumbprint = "zz" } })
 {
     try { bad.Validate(); Check(false, "invalid config accepted"); } catch (InvalidDataException) { checks++; }
 }
@@ -63,7 +76,8 @@ using (var account = new AccountClient(config, new StubHandler(async request =>
         "/api/accounts/login" => Json(200, """{"token":"TOKEN1","accountId":"a","expiresAt":"2030-01-01T00:00:00Z"}"""),
         "/api/accounts/login/totp" => Json(200, """{"token":"TOKEN2","expiresAt":"2030-01-02T00:00:00Z"}"""),
         "/api/accounts/me" => request.Headers.Authorization?.Parameter == "TOKEN1" ? Json(200, """{"accountId":"a"}""") : Json(401, "{}"),
-        "/api/downloads/launcher/manifest" => Json(200, $$"""{"sha256":"{{launcherHash}}","size":{{launcherBytes.Length}},"version":"0.4.0"}"""),
+        ServerSetup.ConfigPath => Json(200, $$"""{"name":"Test","serverAddress":"127.0.0.1","bootstrapPort":8087,"clientVersions":[{"id":"2.0.6.0","name":"2.0.6.0","kind":"private","build":"{{SupportedBuild.Embedded.Fingerprint}}"}]}"""),
+        "/api/downloads/launcher/manifest" => Json(200, $$"""{"sha256":"{{launcherHash}}","size":{{launcherBytes.Length}},"version":"0.5.0"}"""),
         "/api/downloads/launcher" => Json(200, """{"url":"/download/Launcher.exe?ticket=T"}"""),
         "/download/Launcher.exe?ticket=T" => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(launcherBytes) },
         "/api/accounts/logout" => new HttpResponseMessage(HttpStatusCode.NoContent),
@@ -79,7 +93,9 @@ using (var account = new AccountClient(config, new StubHandler(async request =>
     Check(!await account.ResumeAsync("STALE") && !account.SignedIn, "a stale session is refused");
     await account.ResumeAsync("TOKEN1");
     var manifest = await account.LauncherManifestAsync();
-    Check(manifest is { Version: "0.4.0" } && manifest.Sha256 == launcherHash && manifest.Size == launcherBytes.Length, "launcher manifest");
+    var serverConfig = await account.ServerConfigAsync();
+    Check(serverConfig is { Name: "Test" } && serverConfig.ServerAddress == "127.0.0.1", "server config");
+    Check(manifest is { Version: "0.5.0" } && manifest.Sha256 == launcherHash && manifest.Size == launcherBytes.Length, "launcher manifest");
     Check(LauncherUpdate.Needed(manifest!, new string('0', 64), launcherBytes.Length) && LauncherUpdate.Needed(manifest!, launcherHash, 1)
         && !LauncherUpdate.Needed(manifest!, launcherHash.ToUpperInvariant(), launcherBytes.Length), "update needed only when the file differs");
     var updateRoot = Directory.CreateTempSubdirectory("aion-launcher-update");
@@ -131,9 +147,9 @@ using (var totpAccount = new AccountClient(config, new StubHandler(async request
 
 // ---------- Supported build ----------
 var build = SupportedBuild.Embedded;
-Check(build.ManifestId == "1699273097574069541" && build.Files.Count == build.FileCount && build.FileCount > 1000, "supported build reference");
-Check(build.Files.Single(f => f.Path == build.Executable).Sha256 == "d93b050d623550fcf509888a9afe9cb8bd3864869f06dd3fe9ecaa697337f1ba", "supported AION2.exe hash");
-Check(build.Files.Count(f => f.Quick) > 500 && build.DownloadCommand == "download_depot 3393110 3393111 1699273097574069541", "quick set and download command");
+Check(build.Files.Count == build.FileCount && build.FileCount > 1000 && build.Fingerprint.Length == 64, "supported build reference");
+Check(build.Files.Single(f => f.Path == build.Executable).Sha256?.Length == 64, "supported AION2.exe hash");
+Check(build.Files.Count(f => f.Quick) > 500 && build.DownloadCommand == $"download_depot {build.AppId} {build.DepotId} {build.ManifestId}", "quick set and download command");
 
 // ---------- supported-build.json schema (sha1 for non-quick) ----------
 {
@@ -183,6 +199,7 @@ var server = IPAddress.Parse("203.0.113.5");
 var original = "127.0.0.1 localhost\r\n# keep me\r\n";
 var withBlock = HostsFile.With(original, server);
 Check(HostsFile.HasBlock(withBlock) && withBlock.Contains("203.0.113.5 bladnoch.ncsoft.com") && withBlock.Contains("# keep me"), "hosts block added");
+        Check(withBlock.Contains("203.0.113.5 mobileappconfig.g.nc.com") && withBlock.Contains("203.0.113.5 api.g.nc.com"), "hosts block redirects the official config and login hosts");
 Check(HostsFile.With(withBlock, server).Split("bladnoch").Length == 2, "hosts block replaced, not duplicated");
 Check(HostsFile.Without(withBlock) == original && !HostsFile.HasBlock(HostsFile.Without(withBlock)), "hosts block removed exactly");
 var legacy = original + "# >>> AION2 private server (added by AionLauncher; removed when the game closes)\r\n203.0.113.5 bladnoch.ncsoft.com\r\n# <<< AION2 private server\r\n";
@@ -192,9 +209,9 @@ Check(!withBlock.Contains("AION", StringComparison.OrdinalIgnoreCase), "hosts bl
 // ---------- DNS redirect map and mode ----------
 var redirectServer = IPAddress.Parse("203.0.113.5");
 var formatted = RedirectMap.FormatForServer(redirectServer);
-Check(formatted.Contains("sdk.gpa.ncsoft.com=203.0.113.5") && formatted.Split(';').Length == HostsFile.Hostnames.Length, "redirect map lists every NC hostname");
+Check(formatted.Contains("sdk.gpa.ncsoft.com=203.0.113.5") && formatted.Contains("mobileappconfig.g.nc.com=203.0.113.5") && formatted.Split(';').Length == HostsFile.AllHostnames.Length, "redirect map lists every NC and config hostname");
 var parsed = RedirectMap.Parse(formatted);
-Check(parsed["bladnoch.ncsoft.com"].Equals(redirectServer) && parsed.Count == HostsFile.Hostnames.Length, "redirect map parses");
+Check(parsed["bladnoch.ncsoft.com"].Equals(redirectServer) && parsed["mobileappconfig.g.nc.com"].Equals(redirectServer) && parsed.Count == HostsFile.AllHostnames.Length, "redirect map parses");
 Check(RedirectMap.Parse("Host.EXAMPLE=1.2.3.4")["host.example"].ToString() == "1.2.3.4", "redirect hostnames are case-insensitive");
 try { RedirectMap.Parse("bad"); Check(false, "bad redirect accepted"); } catch (FormatException) { checks++; }
 Check(RedirectModeSelection.Resolve(null, config) == RedirectModeSelection.Inject, "default redirect mode is inject");

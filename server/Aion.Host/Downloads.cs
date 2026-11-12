@@ -1,24 +1,24 @@
 using System.Collections.Concurrent;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using Aion.Application.Authentication;
 
 namespace Aion.Host;
 
 /// <summary>
-/// Player downloads (the launcher) for signed-in accounts only. A browser download cannot send the
-/// page's bearer token, so the page asks POST /api/downloads/launcher for a link with a random
-/// ticket, valid five minutes (several requests, for resumed downloads), then follows it.
-/// The launcher updates itself the same way: GET /api/downloads/launcher/manifest (no sign-in: a
-/// hash and size are not secret) tells it what the server's file is, and a launcher that differs
-/// downloads it through a ticket link.
+/// Player downloads (the launcher) for signed-in accounts only. Self-update stays exe-only; the account page can request a ZIP
+/// (exe + launcher.json) via POST /api/downloads/launcher?package=zip.
 /// </summary>
 public sealed class Downloads(string folder, TimeProvider clock)
 {
-    /// <summary>The file in the downloads folder, and the name the browser saves it as (the route is /download/launcher).</summary>
     public const string LauncherFile = "A2Core Launcher.exe";
     const string Route = "/download/launcher";
-    /// <summary>Optional text file next to the exe with its version, shown by the launcher before it updates.</summary>
+    const string ZipRoute = "/download/launcher.zip";
+    public const string ZipEntryName = "A2Core Launcher.exe";
     public const string VersionFile = LauncherFile + ".version";
+    public const string VersionSuffix = ".version";
+    sealed record ZipCache(long Length, DateTime Written, string Json, byte[] Zip);
+    ZipCache? zipped;
     static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(5);
     readonly ConcurrentDictionary<string, DateTimeOffset> tickets = new();
     (long Length, DateTime Written, string Sha256)? hashed;
@@ -36,7 +36,6 @@ public sealed class Downloads(string folder, TimeProvider clock)
 
     bool Valid(string? ticket) => ticket is { Length: 64 } && tickets.TryGetValue(ticket, out var until) && until > clock.GetUtcNow();
 
-    /// <summary>The launcher file's hash (computed once per file version), size and version text; null without a launcher.</summary>
     async Task<object?> ManifestAsync(CancellationToken ct)
     {
         var info = new FileInfo(Path.Combine(folder, LauncherFile));
@@ -54,15 +53,34 @@ public sealed class Downloads(string folder, TimeProvider clock)
         return new { sha256, size = info.Length, version = version.Length > 0 ? version : null };
     }
 
-    public void Map(WebApplication app)
+    byte[] Zip(string path, byte[] launcherJson)
     {
-        app.MapPost("/api/downloads/launcher", async (HttpContext context, IAccountAuthentication auth, CancellationToken ct) =>
+        var info = new FileInfo(path);
+        var json = Convert.ToBase64String(launcherJson);
+        if (zipped is { } cached && cached.Length == info.Length && cached.Written == info.LastWriteTimeUtc && cached.Json == json) return cached.Zip;
+        using var buffer = new MemoryStream();
+        using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            archive.CreateEntryFromFile(path, ZipEntryName, CompressionLevel.NoCompression);
+            var entry = archive.CreateEntry("launcher.json", CompressionLevel.Optimal);
+            using var stream = entry.Open();
+            stream.Write(launcherJson);
+        }
+        var zip = buffer.ToArray();
+        zipped = new ZipCache(info.Length, info.LastWriteTimeUtc, json, zip);
+        return zip;
+    }
+
+    public void Map(WebApplication app, Func<Microsoft.AspNetCore.Http.HttpRequest, byte[]>? launcherJson = null)
+    {
+        app.MapPost("/api/downloads/launcher", async (HttpContext context, IAccountAuthentication auth, string? package, CancellationToken ct) =>
         {
             var header = context.Request.Headers.Authorization.ToString();
             if (await auth.AuthenticateAsync(header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ? header[7..] : "", ct) is null)
                 return Results.Unauthorized();
             if (!LauncherAvailable) return Results.NotFound();
-            return Results.Ok(new { url = $"{Route}?ticket={Issue()}" });
+            var zip = package == "zip" && launcherJson is not null;
+            return Results.Ok(new { url = $"{(zip ? ZipRoute : Route)}?ticket={Issue()}" });
         }).RequireRateLimiting("account-entry");
         app.MapGet("/api/downloads/launcher/manifest", async (CancellationToken ct) =>
             await ManifestAsync(ct) is { } manifest ? Results.Ok(manifest) : Results.NotFound());
@@ -70,5 +88,10 @@ public sealed class Downloads(string folder, TimeProvider clock)
             Valid(ticket) && LauncherAvailable
                 ? Results.File(Path.Combine(folder, LauncherFile), "application/octet-stream", LauncherFile, enableRangeProcessing: true)
                 : Results.NotFound());
+        if (launcherJson is not null)
+            app.MapGet(ZipRoute, (Microsoft.AspNetCore.Http.HttpRequest request, string? ticket) =>
+                Valid(ticket) && LauncherAvailable
+                    ? Results.File(Zip(Path.Combine(folder, LauncherFile), launcherJson(request)), "application/zip", "A2Core Launcher.zip", enableRangeProcessing: true)
+                    : Results.NotFound());
     }
 }

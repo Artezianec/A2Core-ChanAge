@@ -44,6 +44,23 @@ public sealed class LootTables
     public List<(int ItemId, long Count)> Roll(int npcId, int race, Random rng) =>
         RollTables(file.Npcs.GetValueOrDefault(npcId.ToString(System.Globalization.CultureInfo.InvariantCulture)), race, rng);
 
+    /// <summary>
+    /// What one other fighter of a field boss gets (Aion:FieldBosses:SharedLoot): the client's "*_participant_all" reward tables
+    /// of the NPC (90 field bosses and named elites have one), else every table of it as a kill.
+    /// </summary>
+    public List<(int ItemId, long Count)> RollParticipant(int npcId, int race, Random rng)
+    {
+        var tables = file.Npcs.GetValueOrDefault(npcId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        var participant = tables?.Where(t => t.EndsWith(ParticipantSuffix, StringComparison.Ordinal)).ToArray();
+        return RollTables(participant is { Length: > 0 } ? participant : tables, race, rng);
+    }
+
+    /// <summary>Whether the NPC has a client participant reward table (its everyone-who-fought loot).</summary>
+    public bool HasParticipantLoot(int npcId) =>
+        file.Npcs.GetValueOrDefault(npcId.ToString(System.Globalization.CultureInfo.InvariantCulture))?.Any(t => t.EndsWith(ParticipantSuffix, StringComparison.Ordinal)) == true;
+
+    const string ParticipantSuffix = "_participant_all";
+
     /// <summary>Items granted when an env object interaction completes (reward_manual_* tables).</summary>
     public List<(int ItemId, long Count)> RollEnv(int envId, int race, Random rng) =>
         RollEnvTables(ResolveEnvLootTableNames(envId, null, null), race, rng);

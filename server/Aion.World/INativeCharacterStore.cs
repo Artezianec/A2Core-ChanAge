@@ -84,6 +84,13 @@ public interface INativeCharacterStore : IAsyncDisposable
         Task.FromResult<IReadOnlyList<(int, int, string, int)>>([]);
     Task<bool> ShopBuyAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
         IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, CancellationToken ct) => Task.FromResult(false);
+    /// <summary>A shop purchase with its ledger lines (game.shop_orders, written in the purchase's transaction).</summary>
+    Task<bool> ShopBuyAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
+        IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, IReadOnlyList<ShopOrderLine> orders, CancellationToken ct,
+        Aion.Application.Gameplay.QunaRequest? qunaSpend = null) =>
+        qunaSpend is null ? ShopBuyAsync(character, costs, goods, limits, ct) : Task.FromResult(false);
+    Task<StoredMembership?> MembershipAsync(CancellationToken ct) => Task.FromResult<StoredMembership?>(null);
+    Task<bool> SaveMembershipAsync(StoredMembership membership, CancellationToken ct) => Task.FromResult(false);
     Task<IReadOnlyList<(int Target, int RecipeId, string Period, int Count)>> ConversionCountsAsync(Guid character, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<(int, int, string, int)>>([]);
     Task<bool> ConversionAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
@@ -196,8 +203,14 @@ public interface INativeCharacterStore : IAsyncDisposable
         Task.FromResult(("none", ContainerSlotExtendCounts.Zero));
     Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendStorageByGoldAsync(Guid character, int costIdx, CancellationToken ct) =>
         Task.FromResult(("none", ContainerSlotExtendCounts.Zero));
-    /// <summary>Sum of Quna item stacks for the whole account (platform GameCash wallet).</summary>
-    Task<long> AccountQunaBalanceAsync(CancellationToken ct) => Task.FromResult(0L);
+    /// <summary>The account's Quna wallet in the realm (server/DATABASES.md); null without one (Quna then cannot be spent).</summary>
+    Aion.Application.Gameplay.IQunaWallet? QunaWallet => null;
+    /// <summary>
+    /// Moves a Quna item stack in this character's bag into the account wallet: credited ("stack:&lt;instance&gt;", reason
+    /// grant) and deleted in one transaction. Null when this store cannot (the stack then stays an item).
+    /// </summary>
+    Task<Aion.Application.Gameplay.QunaResult?> AbsorbQunaStackAsync(Guid character, Guid instance, CancellationToken ct) =>
+        Task.FromResult<Aion.Application.Gameplay.QunaResult?>(null);
     /// <summary>Equips a stored item in an equipment slot (null: back to the bag); false when the rules refuse it.</summary>
     Task<bool> MoveItemAsync(Guid character, Guid item, long revision, int? equipmentSlot, CancellationToken ct);
     Task<IReadOnlyList<SocialRelation>> SocialAsync(Guid character, CancellationToken ct);
@@ -222,6 +235,16 @@ public interface INativeCharacterStore : IAsyncDisposable
     /// <summary>The stored skills with their levels (skill levels bought with skill points).</summary>
     Task<IReadOnlyList<SkillState>> SkillsAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<SkillState>>([]);
     Task<bool> SetSkillLevelAsync(Guid character, int skillId, int level, int purchased, CancellationToken ct) => Task.FromResult(false);
+    /// <summary>Learned stigmas with their stigma levels (docs/STIGMAS.md).</summary>
+    Task<IReadOnlyList<StigmaState>> StigmasAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<StigmaState>>([]);
+    /// <summary>A stigma's level; 0 forgets it.</summary>
+    Task<bool> SetStigmaAsync(Guid character, int skillId, int level, CancellationToken ct) => Task.FromResult(false);
+    /// <summary>Bonus Stigma Shard points (items, shops, staff grants); 0 when none.</summary>
+    Task<int> StigmaBonusShardsAsync(Guid character, CancellationToken ct) => Task.FromResult(0);
+    /// <summary>Adds bonus shards (amount &gt; 0) and returns the new total, or null when the write fails.</summary>
+    Task<int?> AddStigmaBonusShardsAsync(Guid character, int amount, CancellationToken ct) => Task.FromResult<int?>(null);
+    /// <summary>Forgets the listed stigmas and deducts Kinah in one step (0 Kinah = no charge). False leaves both unchanged.</summary>
+    Task<bool> SpendKinahAndForgetStigmasAsync(Guid character, long kinah, IReadOnlyList<int> skillIds, CancellationToken ct) => Task.FromResult(false);
     /// <summary>Titles, skins and masteries (read at character selection).</summary>
     Task<CharacterExtras> ExtrasAsync(Guid character, CancellationToken ct) => Task.FromResult(CharacterExtras.None);
     Task<bool> GrantTitleAsync(Guid character, int titleId, CancellationToken ct) => Task.FromResult(false);

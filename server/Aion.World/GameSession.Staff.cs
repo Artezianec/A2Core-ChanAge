@@ -20,12 +20,19 @@ public sealed partial class GameSession
     /// FColor::FromHex (RRGGBB; empty = default), one text per culture [ko, de, en, es, fr, ja, pt, ru, zh-CN, zh-TW]
     /// (ELanguageCode - 1), then the fallback culture index (2 = en-US). An identical text within 10 s is dropped.
     /// </summary>
-    public static byte[] Notice(string text, int size = 20, string color = "FFFFFF")
+    public static byte[] Notice(string text, int size = 20, string color = "FFFFFF") => Notice(text, null, size, color);
+
+    /// <summary>
+    /// The same notice with a Russian text for the ru culture (index 7 of the culture list): a Russian client shows
+    /// <paramref name="russian"/>, every other culture the English <paramref name="text"/>. Null or empty: English everywhere.
+    /// </summary>
+    public static byte[] Notice(string text, string? russian, int size = 20, string color = "FFFFFF")
     {
-        const int Cultures = 10, EnUs = 2;
+        const int Cultures = 10, EnUs = 2, Ru = 7;
         var clipped = Clip(text, 255);
+        var clippedRu = string.IsNullOrEmpty(russian) ? clipped : Clip(russian, 255);
         var writer = PacketWriter.Opcode(NoticeNt).U16(Math.Clamp(size, 0, 200)).String(color).Varint(Cultures);
-        for (var i = 0; i < Cultures; i++) writer.String(clipped);
+        for (var i = 0; i < Cultures; i++) writer.String(i == Ru ? clippedRu : clipped);
         return writer.I32(EnUs).ToArray();
     }
 

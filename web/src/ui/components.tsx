@@ -136,6 +136,7 @@ const ICONS: Record<string, string> = {
   broadcast: 'M3 8v4l9 4V4zM12 7.5a3 3 0 0 1 0 5M15 5a6.5 6.5 0 0 1 0 10M5 12.5 6 17h2l-1-4',
   activity: 'M2 10h3l2-6 4 12 2-6h5',
   server: 'M3 3h14v5H3zM3 12h14v5H3zM6 5.5h.01M6 14.5h.01M10 5.5h4M10 14.5h4',
+  globe: 'M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM2 10h16M10 2c2.2 2.2 3.2 5 3.2 8s-1 5.8-3.2 8c-2.2-2.2-3.2-5-3.2-8s1-5.8 3.2-8z',
   message: 'M3 4h14v10H8l-4 3v-3H3z',
   heart: 'M10 17s-7-4.4-7-9a3.8 3.8 0 0 1 7-2 3.8 3.8 0 0 1 7 2c0 4.6-7 9-7 9z',
   pin: 'M10 18s6-5.3 6-10a6 6 0 0 0-12 0c0 4.7 6 10 6 10zM10 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
@@ -151,6 +152,8 @@ const ICONS: Record<string, string> = {
   shield: 'M10 2l6 2.5V9c0 4-2.7 7-6 9-3.3-2-6-5-6-9V4.5zM7.5 10l2 2 3.5-4',
   gift: 'M3 8h14v3H3zM4 11h12v6H4zM10 8v9M10 8S8.5 3 6.5 4 7 8 10 8zM10 8s1.5-5 3.5-4S13 8 10 8z',
   coins: 'M10 7c3.3 0 6-1.1 6-2.5S13.3 2 10 2 4 3.1 4 4.5 6.7 7 10 7zM4 4.5v4C4 9.9 6.7 11 10 11s6-1.1 6-2.5v-4M4 8.5v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-4M4 12.5v3C4 16.9 6.7 18 10 18s6-1.1 6-2.5v-3',
+  edit: 'M4 14.5 13.5 5l2 2L6 16.5H4zM12.5 6l2 2',
+  trash: 'M5 6h10M8 6V4h4v2M7 6l.6 10h4.8L13 6',
 };
 
 export function Icon({ name, size = 18 }: { name: keyof typeof ICONS | string; size?: number }) {

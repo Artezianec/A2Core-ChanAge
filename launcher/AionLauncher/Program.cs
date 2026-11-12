@@ -12,8 +12,9 @@ static class Program
         // After a self-update: the previous exe (still closing) and any unfinished download.
         if (Environment.ProcessPath is { } exe) _ = LauncherUpdate.RemoveLeftoversAsync(exe);
         ApplicationConfiguration.Initialize();
-        LauncherConfig config;
-        try { config = LauncherConfig.Load(Path.Combine(AppContext.BaseDirectory, "launcher.json")); }
+        var sidecar = Path.Combine(AppContext.BaseDirectory, "launcher.json");
+        LauncherConfig? defaultServer = null;
+        try { defaultServer = LauncherConfig.LoadDefault(sidecar) ?? LauncherConfig.Load(); }
         catch (Exception error) when (error is InvalidDataException or System.Text.Json.JsonException)
         {
             LauncherLoc.Apply(null);
@@ -22,8 +23,14 @@ static class Program
         }
         var settings = LauncherSettings.Load();
         LauncherLoc.Apply(settings.UiLanguage);
-        // "--uninstall" is what the Apps & features entry runs.
-        Application.Run(new MainForm(new Workflow(config, settings), uninstall: args is ["--uninstall"]));
+        if (settings.Migrate(defaultServer, SupportedBuild.Embedded.Fingerprint))
+        {
+            try { settings.Save(); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+        }
+        if (Install.Running) Install.RegisterLinks();
+        var link = args.FirstOrDefault(a => a.StartsWith(ServerSetup.LinkScheme + ":", StringComparison.OrdinalIgnoreCase));
+        Application.Run(new MainForm(settings, uninstall: args is ["--uninstall"], link));
         return 0;
     }
 }

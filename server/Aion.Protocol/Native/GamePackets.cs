@@ -795,7 +795,8 @@ public static class GamePackets
         foreach (var item in items) WriteItem(w, item);
         Span<int> counts = stackalloc int[6];
         if (slotExtendCounts.Length >= 6) slotExtendCounts[..6].CopyTo(counts);
-        foreach (var n in counts) w.I32(n);
+        // usmap ItemDepotList_RS: six u8 counts (official samples end in 6 zero bytes); i32 here left the client at 0 extensions.
+        foreach (var n in counts) w.U8((byte)Math.Clamp(n, 0, 255));
         return w.ToArray();
     }
 
@@ -1425,16 +1426,18 @@ public static class GamePackets
 
     public static byte[] NpcHp(int key, long hp) => PacketWriter.Opcode(0x8d00).Varint(key).U8(2).U8(1).U8(0).I64(hp).ToArray();
 
+    public const int DespawnDeadOnLoad = 1, DespawnCorpse = 3, DespawnOutOfView = 7;
+
     /// <summary>
-    /// 0x8d04 CharDie_NT (usmap DevPacketData_GameServer_CharDie_NT): victim, skill u32, killer key, PC server id u16,
-    /// PC nick and guild strings, guild emblem u32, NPC caster data id u32, NPC die act u32, reason u32, EPCDieType u8.
-    /// NPC kills use dieType 0; a player killed in PvE uses dieType 2 (DiePvE) with server id 0, die act 0, reason 1,
-    /// and the killer NPC's data id (varint) when the killer is an NPC.
+    /// 0x8d04 CharDie_NT (OBSERVED, AVION2 captures: 1,501 records): victim varint, skill u32, killer varint, killer server
+    /// u16, killer name, killer legion, emblem u16, killer NPC code varint (when an NPC killed), die act u32, reason u8
+    /// (1 a hit, 3 damage over time, 0 no cause), die type u8 (2: the victim is a player, or the kill went to a group).
+    /// An NPC killer has server 0, no name, and its NPC code filled in.
     /// </summary>
     public static byte[] Kill(int victimKey, int skillId, int killerKey, int serverId, string killerName, byte dieType = 0, int npcCasterDataId = 0,
-        uint npcDieActId = 0, uint reason = 0) =>
-        PacketWriter.Opcode(0x8d04).Varint(victimKey).U32((uint)skillId).Varint(killerKey).U16(serverId).String(killerName).String("")
-            .U32(0).Varint(npcCasterDataId).U32(npcDieActId).U32(reason).U8(dieType).ToArray();
+        uint npcDieActId = 0, byte reason = 1, string killerGuild = "", int killerEmblem = 0) =>
+        PacketWriter.Opcode(0x8d04).Varint(victimKey).U32((uint)skillId).Varint(killerKey).U16(serverId).String(killerName).String(killerGuild)
+            .U16(killerEmblem).Varint(npcCasterDataId).U32(npcDieActId).U8(reason).U8(dieType).ToArray();
 
     /// <summary>0x8d21: key | 00 | 1 in combat / 0 out.</summary>
     public static byte[] CombatState(int key, bool inCombat) => PacketWriter.Opcode(0x8d21).Varint(key).U8(0).U8(inCombat ? 1 : 0).ToArray();

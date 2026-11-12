@@ -22,6 +22,11 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddServerFileLog(builder.Configuration);
+// Multi-world: a host in world role (Aion:Role=world) runs one world's game port only: no login port, account site,
+// platform bootstrap, NCGuard or chat port. The primary host starts managed ones (Aion.Host.Worlds.WorldSupervisor);
+// remote ones run on other machines against the same database.
+var worldProcess = Aion.Host.Worlds.WorldProcessOptions.From(builder.Configuration);
+if (worldProcess is not null) builder.Services.AddSingleton(worldProcess);
 var debugOptions = builder.Configuration.GetSection(AionConfiguration.Debug).Get<DebugOptions>() ?? new DebugOptions();
 if (debugOptions.Enabled)
 {
@@ -43,7 +48,18 @@ builder.Services.AddSingleton<IItemStatRoller>(sp => new ItemStatRollerService(s
 if (builder.Configuration["Aion:Debug:ShopFile"] is { Length: > 0 } shopDebug)
     Aion.World.GameSession.ConfigureShopDebug(shopDebug);
 var shopPremium = Aion.World.ShopOptions.Parse(builder.Configuration["Aion:Shop:PremiumMode"]);
-Aion.World.GameSession.ConfigureShopOptions(new Aion.World.ShopOptions { PremiumMode = shopPremium });
+Aion.World.GameSession.ConfigureShopOptions(new Aion.World.ShopOptions
+{
+    PremiumMode = shopPremium,
+    PassUnlockPrice = Math.Clamp(builder.Configuration.GetValue("Aion:Shop:PassUnlockPrice", Aion.World.GameSession.PaidPassUnlockQunaCost), 0, 1_000_000),
+});
+// Dungeon waves and boss phases (docs/BOSSES.md): Aion:Bosses (Phases, Frenzy, FrenzySeconds, DamageScale, Waves, WavePartSeconds).
+Aion.World.GameSession.ConfigureBosses(builder.Configuration.GetSection("Aion:Bosses").Get<Aion.World.BossOptions>() ?? Aion.World.BossOptions.Default);
+// Open-world field bosses (docs/FIELD-BOSSES.md): Aion:FieldBosses (Enabled, Boss/Named respawn windows, RespawnMinutesByName,
+// Announcements, SharedLoot). Official CANDIDATE ranges by default (named 1.5-6 h, bosses 6-12 h).
+Aion.World.FieldBosses.Configure(builder.Configuration.GetSection("Aion:FieldBosses").Get<Aion.World.FieldBossOptions>() ?? Aion.World.FieldBossOptions.Default);
+// Aion:Stigmas (docs/STIGMAS.md): off by default; Enabled, Slots, ShardRate, MaxLevel, ResetKinah, RequireSlot, ShardUpdateSendsSpent.
+Aion.World.GameSession.ConfigureStigmas(builder.Configuration.GetSection("Aion:Stigmas").Get<Aion.World.StigmaOptions>() ?? Aion.World.StigmaOptions.Default);
 Aion.World.GameSession.ConfigureMembership(builder.Configuration.GetValue("Aion:World:MembershipByDefault", true));
 var connectionString = builder.Configuration.GetConnectionString("Aion");
 var authConnectionString = builder.Configuration.GetConnectionString("Auth");
@@ -58,11 +74,23 @@ if (!string.IsNullOrWhiteSpace(connectionString))
     builder.Services.AddSingleton<CharacterPersistenceService>();
     builder.Services.AddSingleton<IGameplayStore>(sp => new PostgresGameplayStore(
         sp.GetRequiredService<NpgsqlDataSource>(), sp.GetRequiredService<ProgressionOptions>(), sp.GetService<IItemStatRoller>()));
-    builder.Services.AddSingleton<IAccountQunaBalance, PostgresAccountQunaBalance>();
     builder.Services.AddSingleton<IGameTicketRedeemer, PostgresGameTicketRedeemer>();
+    // The account Quna wallets (migration 111, docs/QUNA_WALLET.md); every change is pushed to the account's sessions.
+    builder.Services.AddSingleton<PostgresQunaWallet>();
+    builder.Services.AddSingleton<IQunaWallet>(provider =>
+        provider.GetService<Aion.World.WorldPresence>() is { } presence
+            ? new PushingQunaWallet(provider.GetRequiredService<PostgresQunaWallet>(), presence, provider.GetRequiredService<ILogger<PushingQunaWallet>>())
+            : provider.GetRequiredService<PostgresQunaWallet>());
+    builder.Services.AddSingleton<IWorldRegistry, PostgresWorldRegistry>();
+    // Custom NPCs (migration 122, docs/CUSTOM_NPCS.md): edited on the dashboard, placed by every world on this database.
+    builder.Services.AddSingleton<PostgresCustomNpcs>();
+    builder.Services.AddSingleton<ICustomNpcAdmin>(provider => provider.GetRequiredService<PostgresCustomNpcs>());
+    builder.Services.AddSingleton<ICustomNpcCatalog>(provider => provider.GetRequiredService<PostgresCustomNpcs>());
+    // Field boss respawn timers (migration 126, docs/FIELD-BOSSES.md): kept across a restart, scoped to this host's world.
+    builder.Services.AddSingleton<IFieldBossStore>(provider => new PostgresFieldBosses(
+        provider.GetRequiredService<NpgsqlDataSource>(),
+        provider.GetService<NativeOptions>()?.WorldId ?? Aion.World.DevelopmentDefaults.WorldId));
 }
-else
-    builder.Services.AddSingleton<IAccountQunaBalance, NullAccountQunaBalance>();
 var accountsReady = !string.IsNullOrWhiteSpace(connectionString) && !string.IsNullOrWhiteSpace(authConnectionString);
 if (accountsReady)
 {
@@ -81,14 +109,16 @@ if (accountsReady)
     builder.Services.AddSingleton<ITotpAuthentication>(provider => provider.GetRequiredService<PostgresAccountAuthentication>());
     builder.Services.AddSingleton<IPlatformSecondaryAuth>(provider => provider.GetRequiredService<PostgresAccountAuthentication>());
     builder.Services.AddSingleton<IWorldSessions>(provider => provider.GetRequiredService<PostgresAccountAuthentication>());
-    builder.Services.AddHostedService<AuthenticationCleanup>();
+    builder.Services.AddSingleton<IStaffSessions>(provider => provider.GetRequiredService<PostgresAccountAuthentication>());
+    builder.Services.AddSingleton<IAccountDirectory>(provider => provider.GetRequiredService<PostgresAccountAuthentication>());
+    if (worldProcess is null) builder.Services.AddHostedService<AuthenticationCleanup>();
     // Staff tools: maintenance, sanctions, chat log, tickets, events, population, economy (migration 028).
     builder.Services.AddSingleton<IStaffTools, PostgresStaffTools>();
     builder.Services.AddSingleton<Aion.Host.Authentication.ServerControl>();
     builder.Services.AddHostedService(provider => provider.GetRequiredService<Aion.Host.Authentication.ServerControl>());
 }
 // Optional Lime chat API for the dev client (policy ChatServerURL), on its own loopback port.
-var chatPort = builder.Configuration.GetValue<int?>("Aion:ChatPort");
+var chatPort = worldProcess is null ? builder.Configuration.GetValue<int?>("Aion:ChatPort") : null;
 builder.Services.AddSingleton(TimeProvider.System);
 // --- Chat identity (server/CHAT.md) ---
 // Development logins accept the character the client names (explicit switch only). Otherwise
@@ -120,7 +150,15 @@ var native = (builder.Configuration.GetSection(AionConfiguration.Native).Get<Nat
 {
     Network = network,
     MapEventAskNpcProximityFallback = askNpcFallback,
+    // Multi-world is opt-in (docs/MULTI_WORLD.md): Aion:Worlds:Enabled on the login host; a world-role process always.
+    MultiWorld = worldProcess is not null || builder.Configuration.GetValue<bool>("Aion:Worlds:Enabled"),
 };
+if (worldProcess is not null)
+{
+    if (native.GamePort is null || native.Development || !accountsReady)
+        throw new InvalidOperationException("World role needs Aion:Native:GamePort, account logins and the Aion and Auth connection strings.");
+    native = native with { LoginPort = null };
+}
 if (native.LoginPort is not null || native.GamePort is not null)
 {
     if (!native.Development && !accountsReady)
@@ -145,6 +183,14 @@ if (native.LoginPort is not null || native.GamePort is not null)
     builder.Services.AddSingleton<Aion.Host.Authentication.ScheduledRestart>();
     // Multiplayer: one shared world (maps, NPCs, players) for every game connection on this host.
     builder.Services.AddSingleton(provider => new Aion.World.SharedWorld(provider.GetRequiredService<Aion.World.GameData>()));
+    // Playerbots (docs/PLAYERBOTS.md): off unless Aion:Bots:Enabled, and only with a game port.
+    var botOptions = (builder.Configuration.GetSection("Aion:Bots").Get<Aion.World.BotOptions>() ?? new Aion.World.BotOptions()).Validated();
+    if (botOptions.Enabled && native.GamePort is not null)
+    {
+        builder.Services.AddSingleton(provider => new Aion.World.PlayerBots(provider.GetRequiredService<Aion.World.GameData>(), botOptions,
+            provider.GetRequiredService<Aion.World.SharedWorld>(), presence: provider.GetRequiredService<Aion.World.WorldPresence>()));
+        builder.Services.AddHostedService<PlayerBotsService>();
+    }
     // The race of the world each account picks on the login port, for the game port's lobby.
     builder.Services.AddSingleton<Aion.World.WorldChoices>();
     builder.Services.AddSingleton(provider =>
@@ -157,6 +203,7 @@ if (native.LoginPort is not null || native.GamePort is not null)
     builder.Services.AddSingleton<IChatCommandHandler>(provider =>
         new Aion.World.GmCommands(provider.GetRequiredService<Aion.World.WorldPresence>(), provider.GetRequiredService<Aion.World.BuilderCommands>())
         {
+            Bots = provider.GetService<Aion.World.PlayerBots>(),
             // "//report <text>" opens a ticket for the staff dashboard (accounts only).
             Report = provider.GetService<IStaffTools>() is { } staffTools ? async (sender, name, text, ct) =>
             {
@@ -206,17 +253,27 @@ if (native.LoginPort is not null || native.GamePort is not null)
         };
     });
     if (native.LoginPort is not null) builder.Services.AddHostedService<NativeLoginListener>();
+    // Multi-world (primary host, Aion:Worlds:Enabled): the world registry's list for the login port and the managed child worlds.
+    if (native.MultiWorld && native.LoginPort is not null && !native.Development && worldProcess is null && !string.IsNullOrWhiteSpace(connectionString))
+    {
+        builder.Services.AddSingleton<Aion.Host.Worlds.WorldSupervisor>();
+        builder.Services.AddHostedService(provider => provider.GetRequiredService<Aion.Host.Worlds.WorldSupervisor>());
+        builder.Services.AddSingleton(provider => new Aion.Host.Worlds.LoginWorldList(provider.GetRequiredService<IWorldRegistry>(), native,
+            provider.GetService<Aion.Host.Worlds.WorldSupervisor>(), provider.GetRequiredService<ILogger<Aion.Host.Worlds.LoginWorldList>>()));
+    }
     if (native.GamePort is not null) builder.Services.AddHostedService<NativeGameListener>();
     if (native.GamePort is not null)
     {
         builder.Services.AddSingleton<WorldLoadReporter>();
         builder.Services.AddHostedService(provider => provider.GetRequiredService<WorldLoadReporter>());
+        builder.Services.AddHostedService<FieldBossNoticeService>();
     }
     // Dashboard grants reach players in the world at once (needs the game database).
     if (native.GamePort is not null && !string.IsNullOrWhiteSpace(connectionString))
     {
         builder.Services.AddHostedService<InventoryNotifications>();
-        builder.Services.AddHostedService<PostExpirySweep>();
+        // Database-wide sweep: the primary host runs it, not every world process.
+        if (worldProcess is null) builder.Services.AddHostedService<PostExpirySweep>();
     }
 }
 builder.Services.AddRateLimiter(options =>
@@ -243,11 +300,18 @@ builder.Services.AddRateLimiter(options =>
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 // Optional platform bootstrap for the dev client (GamePlatform.ini ConfigurationServerUrl).
-var platform = builder.Configuration.GetSection(AionConfiguration.Platform).Get<PlatformOptions>() ?? new PlatformOptions();
+var platform = worldProcess is null ? builder.Configuration.GetSection(AionConfiguration.Platform).Get<PlatformOptions>() ?? new PlatformOptions() : new PlatformOptions();
+var ncGuard = (worldProcess is null ? builder.Configuration.GetSection(AionConfiguration.NcGuard).Get<NcGuardOptions>() ?? new NcGuardOptions() : new NcGuardOptions())
+    with { BindAddress = network.BindAddress };
+// A Steam-patched client ignores ConfigurationServerUrl and talks to api.g.nc.com over HTTPS; when we
+// MITM that host, the code-less policy must re-address api_gate/login onto it (not plain HTTP :8087).
+if (ncGuard.Port is not null && platform.ConfigApiHost is null)
+    platform = platform with { ConfigApiHost = "api.g.nc.com" };
 var platformResponses = platform.Port is not { } bootstrapPort ? null : PlatformResponses.Load(platform, network, bootstrapPort, native.LoginPort, chatPort);
 // Launchers that sign in on this host and start clients without a launch code in the bootstrap URL.
 if (platform.Port is not null && accountsReady) builder.Services.AddSingleton<LaunchPairing>();
-var ncGuard = (builder.Configuration.GetSection(AionConfiguration.NcGuard).Get<NcGuardOptions>() ?? new NcGuardOptions()) with { BindAddress = network.BindAddress };
+if (platform.Port is { } crlBootstrapPort && ncGuard.CrlDistributionUrl is null)
+    ncGuard = ncGuard with { CrlDistributionUrl = $"http://{network.PublicAddress}:{crlBootstrapPort}/pki/ca-root.crl" };
 if (ncGuard.Port is not null)
 {
     builder.Services.AddSingleton(ncGuard);
@@ -259,6 +323,8 @@ if (ncGuard.Port is not null)
 // (Aion:Https PEM certificate) unless a TLS proxy in front of it is declared (Aion:Https:Proxy).
 var port = builder.Configuration.GetValue<int?>("Aion:LocalPort") ?? 8780;
 var https = builder.Configuration.GetSection(AionConfiguration.Https).Get<HttpsOptions>() ?? new HttpsOptions();
+// A world process's HTTP port is loopback only (status and stop for the primary host), without TLS.
+if (worldProcess is not null) https = new HttpsOptions { Proxy = true };
 if (!network.LoopbackOnly && https.CertificateFile is null && !https.Proxy)
     throw new InvalidOperationException("A public host needs Aion:Https:CertificateFile and KeyFile for the account port (or Aion:Https:Proxy=true behind a TLS proxy).");
 var accountCertificate = https.CertificateFile is { } certificateFile
@@ -291,6 +357,23 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 builder.Services.AddSingleton<WardrobeAccess>();
 var app = builder.Build();
+app.Logger.LogInformation("Bosses: {Bosses}; field bosses: {FieldBosses}", Aion.World.GameSession.BossRules, Aion.World.FieldBosses.Options);
+if (app.Services.GetService<Aion.World.SharedWorld>() is { } sharedWorld)
+{
+    Aion.World.CustomNpcWorld.Configure(app.Services.GetService<ICustomNpcCatalog>(), sharedWorld,
+        builder.Configuration.GetValue<bool?>("Aion:CustomNpcs:AssumePatchedClients") ?? false,
+        message => app.Logger.LogInformation("{Message}", message));
+    Aion.World.FieldBossWorld.Configure(app.Services.GetService<IFieldBossStore>(), sharedWorld,
+        message => app.Logger.LogInformation("{Message}", message));
+}
+if (worldProcess is not null)
+{
+    app.Logger.LogInformation("World process for world {World} ({Name}) on game port {Port}", native.WorldId, worldProcess.Name, native.GamePort);
+    Aion.Host.Worlds.WorldEndpoints.MapWorldProcessEndpoints(app, worldProcess, native.WorldId);
+    app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }));
+    app.Run();
+    return;
+}
 if (debugOptions.Enabled && app.Services.GetService<PlaytestDebugSink>() is { } playtestDebug)
 {
     PlaytestDebug.Sink = playtestDebug;
@@ -319,9 +402,16 @@ app.UseExceptionHandler(handler => handler.Run(async context =>
 if (ncGuard.Port is { } ncGuardPort)
 {
     var sink = app.Services.GetRequiredService<NcGuardSink>();
+    // Config/login SNI hosts (mobileappconfig.g.nc.com, ...) on the TLS port are served by the platform
+    // bootstrap handler below (same app/key, app/policy, api_gate and login routes as the bootstrap port),
+    // not the fixture sink: a Steam-patched client reaches them directly and would otherwise get a 404.
+    // Only divert when the bootstrap handler is actually wired (platform.Port set).
+    var platformBootstrapOn = platform.Port is not null;
     app.Use(async (context, next) =>
     {
-        if (context.Connection.LocalPort == ncGuardPort) await sink.HandleAsync(context);
+        if (context.Connection.LocalPort == ncGuardPort
+            && !(platformBootstrapOn && PlatformBootstrapEndpoints.IsConfigHostRequest(context, ncGuardPort)))
+            await sink.HandleAsync(context);
         else await next();
     });
 }
@@ -339,9 +429,10 @@ if (platform.Port is { } platformPort)
     var accountPageBase = accountTls
         ? $"https://{network.PublicAddress}" + (https.Proxy ? "" : $":{port}")
         : $"http://{network.PublicAddress}:{port}";
-    app.UsePlatformBootstrap(platformPort, platformResponses!, platform.RequestLog, network, accountPageBase);
+    app.UsePlatformBootstrap(platformPort, platformResponses!, platform.RequestLog, network, accountPageBase, ncGuard.Port);
 }
 app.UseRateLimiter();
+if (accountsReady) app.UseStaffSessions();
 if (debugOptions.Enabled) app.UsePlaytestHttpLogging();
 app.UseWebSockets();
 app.MapSynapseStub();
@@ -389,18 +480,26 @@ if (!string.IsNullOrWhiteSpace(wardrobePath) && Directory.Exists(wardrobePath) &
 // Player downloads (the launcher, launcher/AionLauncher) from Aion:Web:Downloads, for signed-in accounts.
 var downloads = accountsReady && builder.Configuration["Aion:Web:Downloads"] is { Length: > 0 } downloadPath && Directory.Exists(downloadPath)
     ? new Downloads(Path.GetFullPath(downloadPath), TimeProvider.System) : null;
-downloads?.Map(app);
+static string SiteName(IConfiguration configuration) =>
+    configuration["Aion:Web:SiteName"]?.Trim() is { Length: > 0 } name ? name[..Math.Min(name.Length, 40)] : "A2Core";
+var launcherEndpoints = accountsReady && platform.Port is not null ? LauncherEndpoints.Embedded() : null;
+downloads?.Map(app, launcherEndpoints is null ? null
+    : request => LauncherEndpoints.LauncherJson(request, app.Configuration, SiteName(app.Configuration), network.PublicAddress, platform.Port!.Value));
+launcherEndpoints?.Map(app, () => SiteName(app.Configuration), network.PublicAddress, platform.Port!.Value);
 var registrationOpen = builder.Configuration.GetValue<bool?>("Aion:Accounts:Registration") ?? true;
 app.MapGet("/api/status", () => Results.Ok(new { accountsConfigured = accountsReady, registrationOpen = accountsReady && registrationOpen,
     launcherAvailable = downloads?.LauncherAvailable ?? false, gameReady = false }));
 if (accountsReady)
 {
     app.MapAccountEndpoints(registrationOpen);
+    app.MapStaffSessionEndpoints();
     app.MapTotpEndpoints();
     app.MapGameplayEndpoints();
+    Aion.Host.Authentication.StaffAccountEndpoints.MapStaffAccountEndpoints(app);
     Aion.Host.Authentication.StaffEndpoints.MapStaffEndpoints(app);
     Aion.Host.Authentication.StaffToolsEndpoints.MapStaffToolsEndpoints(app);
     Aion.Host.Authentication.StaffToolsEndpoints.MapTicketEndpoints(app);
+    Aion.Host.Worlds.WorldEndpoints.MapWorldEndpoints(app);
     var bridgeSecret = builder.Configuration["Aion:BridgeSecret"];
     if (bridgeSecret is { Length: >= 64 })
     {

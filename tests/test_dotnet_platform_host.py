@@ -233,3 +233,96 @@ class RealFixtureParityTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+@unittest.skipUnless(HOST_DLL.exists() and shutil.which('dotnet'), 'Aion.Host is not built')
+class ConfigHostTlsRoutingTests(unittest.TestCase):
+    """A Steam-patched client reaches mobileappconfig.g.nc.com:443 directly (no /c/<code>). The TLS
+    sink's config SNI hosts must be served by the platform bootstrap handler: app/key and a code-less,
+    re-addressed app/policy, while a non-config SNI still falls to the fixture sink."""
+
+    def setUp(self):
+        import ssl
+        self.ssl = ssl
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name)
+        fixtures = self.root / 'fixtures'
+        fixtures.mkdir()
+        self.key_value = base64.b64encode(os.urandom(256)).decode()
+        (fixtures / 'app-key.json').write_text(json.dumps({'value': self.key_value}))
+        (fixtures / 'local-test-key.json').write_text(json.dumps({'key': AES_KEY, 'status': 'test'}))
+        (fixtures / 'app-maintenance.json').write_text(json.dumps({'value': base64.b64encode(bytes(16)).decode()}))
+        (fixtures / 'policy.json').write_text(json.dumps({'api_gate': 'http://127.0.0.1:8087/local-api-gate',
+            'custom_data': {'LoginServerIP': '127.0.0.1:1', 'ChatServerURL': 'http://127.0.0.1:2'}}))
+        (self.root / 'ncg-fixture.json').write_text(json.dumps({'rules': []}))
+        self.platform_port = free_port()
+        self.ncguard_port = free_port()
+        self.stop_file = self.root / 'stop'
+        # No native/DB services here: this exercises the config-host TLS routing only, so the policy
+        # is re-addressed (api_gate) without LoginServerIP/ChatServerURL (those need the login/chat ports).
+        env = dict(os.environ, Aion__LocalPort=str(free_port()), Aion__Platform__Port=str(self.platform_port),
+                   Aion__Platform__FixtureDirectory=str(fixtures),
+                   Aion__Platform__PolicyPlaintextFile=str(fixtures / 'policy.json'),
+                   Aion__NcGuard__Port=str(self.ncguard_port), Aion__NcGuard__FixtureFile=str(self.root / 'ncg-fixture.json'),
+                   Aion__NcGuard__DataDirectory=str(self.root), Aion__NcGuard__Capture='false',
+                   Aion__NcGuard__DurationSeconds='120', Aion__NcGuard__StopFile=str(self.stop_file))
+        env.pop('ConnectionStrings__Aion', None)
+        env.pop('ConnectionStrings__Auth', None)
+        self.env = env
+        self.log = (self.root / 'host.log').open('w')
+        self.process = subprocess.Popen(['dotnet', str(HOST_DLL)], cwd=HOST_DLL.parent, env=env,
+                                        stdout=self.log, stderr=subprocess.STDOUT)
+        self.addCleanup(self.stop)
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if self.process.poll() is not None:
+                self.fail((self.root / 'host.log').read_text())
+            try:
+                socket.create_connection(('127.0.0.1', self.ncguard_port), timeout=0.5).close()
+                self.run = next(self.root.glob('tls-mitm-dotnet-*'))
+                self.context = ssl.create_default_context(cafile=str(self.run / 'ca.pem'))
+                return
+            except (OSError, StopIteration):
+                time.sleep(0.2)
+        self.fail('host did not open the NCGuard TLS port')
+
+    def stop(self):
+        self.stop_file.touch()
+        try:
+            self.process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            self.process.kill()
+            self.process.wait()
+        self.log.close()
+
+    def tls_request(self, sni, method, path):
+        with socket.create_connection(('127.0.0.1', self.ncguard_port), 5) as raw:
+            with self.context.wrap_socket(raw, server_hostname=sni) as tls:
+                head = (f'{method} {path} HTTP/1.1\r\nHost: {sni}\r\n'
+                        f'Content-Length: 0\r\nConnection: close\r\n\r\n').encode()
+                tls.sendall(head)
+                response = http.client.HTTPResponse(tls)
+                response.begin()
+                return response.status, response.read()
+
+    def test_config_sni_served_by_platform_without_code(self):
+        # app/key: 200 with the fixture's own bytes, straight off mobileappconfig.g.nc.com:443.
+        for sni in ('mobileappconfig.g.nc.com', 'mobileappconfig-ncus.g.nc.com'):
+            self.assertEqual(self.tls_request(sni, 'GET', '/MobileAppConfigSdk/app/key'),
+                             (200, json.dumps({'value': self.key_value}).encode()), sni)
+        # app/policy: 200, and a code-less policy re-addressed to this host's bootstrap port.
+        status, body = self.tls_request('mobileappconfig.g.nc.com', 'GET', '/MobileAppConfigSdk/app/policy')
+        self.assertEqual(status, 200)
+        key = AES_KEY.encode()
+        policy = json.loads(cbc_decrypt(key, key, base64.b64decode(json.loads(body)['value'])))
+        # With NcGuard on, the code-less policy re-addresses onto the HTTPS config host (api.g.nc.com).
+        self.assertEqual(policy['api_gate'], 'https://api.g.nc.com/local-api-gate')
+        self.assertNotIn('/c/', policy['api_gate'])
+
+    def test_non_config_sni_still_hits_the_sink(self):
+        # bladnoch is an NCGuard host, not a config host: its /MobileAppConfigSdk path is not a
+        # platform route, so the fixture sink answers (404), proving only config SNIs are diverted.
+        status, body = self.tls_request('bladnoch.ncsoft.com', 'GET', '/MobileAppConfigSdk/app/key')
+        self.assertEqual(status, 404)
+        self.assertNotIn(b'value', body)

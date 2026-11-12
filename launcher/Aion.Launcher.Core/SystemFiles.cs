@@ -57,6 +57,20 @@ public static class HostsFile
         "bladnoch.ncsoft.com", "lagavulin.ncsoft.com", "atp-json.ncsoft.com",
         "sdk.gpa.ncsoft.com", "stun.gpa.ncsoft.com", "nccr-api.global.nc.com",
     ];
+
+    /// <summary>
+    /// The official NcPlatform settings/config and login hosts the Steam-patched client contacts
+    /// directly over verified TLS (it no longer honours only the GamePlatform.ini ConfigurationServerUrl
+    /// override). Pointing them at the private server keeps a patched client from silently reaching
+    /// the official service (fail-closed) and lets the private host answer the settings request.
+    /// </summary>
+    public static readonly string[] ConfigHostnames =
+    [
+        "mobileappconfig.g.nc.com", "mobileappconfig-ncus.g.nc.com", "api.g.nc.com",
+    ];
+
+    /// <summary>Every hostname the launcher redirects to the private server during Play.</summary>
+    public static readonly string[] AllHostnames = [.. Hostnames, .. ConfigHostnames];
     const string Begin = "# >>> private server (added by the launcher; removed when the game closes)";
     const string End = "# <<< private server";
     // Markers written by launchers before 0.2; still recognised so their leftovers are removed.
@@ -85,7 +99,7 @@ public static class HostsFile
     public static string With(string text, IPAddress server)
     {
         var block = new StringBuilder().Append(Begin).Append("\r\n");
-        foreach (var host in Hostnames) block.Append(server).Append(' ').Append(host).Append("\r\n");
+        foreach (var host in AllHostnames) block.Append(server).Append(' ').Append(host).Append("\r\n");
         block.Append(End).Append("\r\n");
         return Without(text) + block;
     }

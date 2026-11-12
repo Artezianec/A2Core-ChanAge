@@ -20,6 +20,7 @@ static class Install
     public const string Name = "A2Core Launcher";
     public const string FileName = Name + ".exe";
     const string UninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\A2CoreLauncher";
+    const string LinkKey = @"Software\Classes\" + Aion.Launcher.ServerSetup.LinkScheme;
 
     public static string Folder { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", Name);
     public static string ExePath => Path.Combine(Folder, FileName);
@@ -56,7 +57,24 @@ static class Install
         key.SetValue("NoModify", 1, RegistryValueKind.DWord);
         key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
         key.SetValue("EstimatedSize", (int)(new FileInfo(ExePath).Length / 1024), RegistryValueKind.DWord);
+        RegisterLinks();
         return ExePath;
+    }
+
+    /// <summary>a2corelauncher:// links open the installed exe (per-user, removed on uninstall).</summary>
+    public static void RegisterLinks()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.CreateSubKey(LinkKey);
+            key.SetValue("", "URL:" + Name);
+            key.SetValue("URL Protocol", "");
+            using var icon = key.CreateSubKey("DefaultIcon");
+            icon.SetValue("", $"\"{ExePath}\",0");
+            using var command = key.CreateSubKey(@"shell\open\command");
+            command.SetValue("", $"\"{ExePath}\" \"%1\"");
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.SecurityException) { }
     }
 
     public static string Version => Application.ProductVersion.Split('+')[0];
@@ -70,6 +88,7 @@ static class Install
         foreach (var shortcut in new[] { DesktopShortcut, StartMenuShortcut })
             if (File.Exists(shortcut)) File.Delete(shortcut);
         Registry.CurrentUser.DeleteSubKeyTree(UninstallKey, throwOnMissingSubKey: false);
+        Registry.CurrentUser.DeleteSubKeyTree(LinkKey, throwOnMissingSubKey: false);
         if (!Directory.Exists(Folder)) return;
         if (Running)
             Process.Start(new ProcessStartInfo("cmd.exe", $"/c ping -n 4 127.0.0.1 >nul & rmdir /s /q \"{Folder}\"")

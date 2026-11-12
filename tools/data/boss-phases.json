@@ -1,0 +1,3160 @@
+{
+  "source": "Official alignment for five Expedition finals (docs/BOSS-MECHANICS.md). Skills, casts and area shapes are the client's own. Phase timing and named mechanics come from official MapEvent HpRemaining orbs (Easy 70/30) plus 2025-2026 clear videos and guides (YouTube ids in that doc). Invented generic adds, 40%/20% fury/enrage and 'longest-cast as a repeating slam' are removed for these bosses. Frenzy at 5:00 on Normal (guides / aion2data; damage x2) and 4:00 on Hard (existing global hard-mode rule). Easy has no frenzy. Unique mechanics the engine cannot yet run (pillar cover, fire-wall gaps, soak split, jump-rope rings, clone intercept, orb redirect) are notices only. Generic scripts and waves still come from tools/boss_phases.py.",
+  "bosses": {
+    "2300104": {
+      "name": "KraoCave_monster_Named_1",
+      "dungeon": "KraoCave_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1218520,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The Krao Cave boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс Krao Cave собирает силу: отойдите подальше!"
+      }
+    },
+    "2300108": {
+      "name": "KraoCave_monster_Named_2",
+      "dungeon": "KraoCave_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1218590,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.79,
+        "warning": "The Krao Cave boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Krao Cave собирает силу: отойдите подальше!"
+      }
+    },
+    "2300171": {
+      "name": "KraoCave_Boss_1",
+      "dungeon": "KraoCave_Normal",
+      "role": "final",
+      "display": "Ultimate Berk",
+      "display_ru": "Берк",
+      "source": "official-overlay",
+      "telegraphs": [
+        {
+          "skill": 1800060,
+          "every_ms": 20000,
+          "wind_up_ms": 2000,
+          "radius": 5600,
+          "damage": 1.0,
+          "warning": "Ultimate Berk draws a cross: move out of the beams!",
+          "warning_ru": "Берк чертит крест: выйдите из лучей!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1800030,
+          "every_ms": 15000,
+          "wind_up_ms": 2000,
+          "radius": 3700,
+          "damage": 1.0,
+          "warning": "Ultimate Berk slashes a line: get behind him or out of the strip!",
+          "warning_ru": "Берк бьёт полосой: зайдите за спину или отойдите в сторону!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1800040,
+          "every_ms": 15000,
+          "wind_up_ms": 2500,
+          "radius": 2000,
+          "damage": 1.0,
+          "warning": "Ultimate Berk slams the ground: walk out of the circle!",
+          "warning_ru": "Берк бьёт по земле: выйдите из круга!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        }
+      ],
+      "telegraph": {
+        "skill": 1800060,
+        "every_ms": 20000,
+        "wind_up_ms": 2000,
+        "radius": 5600,
+        "damage": 1.0,
+        "warning": "Ultimate Berk draws a cross: move out of the beams!",
+        "warning_ru": "Берк чертит крест: выйдите из лучей!",
+        "land": true,
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast"
+      },
+      "phases": [
+        {
+          "at": 75,
+          "name": "wave_of_fury",
+          "notice": "Wave of Fury — hide behind a stone pillar!",
+          "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!"
+        },
+        {
+          "at": 50,
+          "name": "extinction",
+          "telegraph": {
+            "skill": 1800140,
+            "every_ms": 999999,
+            "wind_up_ms": 8000,
+            "radius": 9000,
+            "damage": 1.0,
+            "once": true,
+            "stagger_check": true,
+            "warning": "Extinction for Eternity — break the stagger gauge!",
+            "warning_ru": "Вымирание навеки — сбейте шкалу стаггера!",
+            "land": true,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Extinction for Eternity — break the stagger gauge before the cast ends!",
+          "notice_ru": "Вымирание навеки — сбейте шкалу стаггера, пока длится каст!"
+        },
+        {
+          "at": 25,
+          "name": "wave_of_fury",
+          "notice": "Wave of Fury — hide behind a stone pillar!",
+          "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!"
+        }
+      ],
+      "frenzy": {
+        "after_ms": 300000,
+        "damage": 2.0,
+        "haste": 0.5,
+        "notice": "Ultimate Berk goes into a frenzy!",
+        "notice_ru": "Берк впадает в неистовство!"
+      }
+    },
+    "2300206": {
+      "name": "UruCan_Stage01_SubBoss_2",
+      "dungeon": "Urugugu_Canyon_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1504420,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.0,
+        "warning": "The Urugugu Canyon boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Urugugu Canyon собирает силу: отойдите подальше!"
+      }
+    },
+    "2300207": {
+      "name": "UruCan_Stage01_SubBoss_1",
+      "dungeon": "Urugugu_Canyon_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1605110,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.0,
+        "warning": "The Urugugu Canyon boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Urugugu Canyon собирает силу: отойдите подальше!"
+      }
+    },
+    "2300218": {
+      "name": "UruCan_Stage03_Boss_1",
+      "dungeon": "Urugugu_Canyon_Normal",
+      "role": "final",
+      "display": "Divine Auldor",
+      "display_ru": "Аулдор",
+      "source": "official-overlay",
+      "telegraphs": [
+        {
+          "skill": 1600970,
+          "every_ms": 40000,
+          "wind_up_ms": 1330,
+          "radius": 2500,
+          "damage": 1.0,
+          "warning": "Divine Auldor charges a lane: step off the strip!",
+          "warning_ru": "Аулдор несётся полосой: отойдите в сторону!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1600960,
+          "every_ms": 20000,
+          "wind_up_ms": 830,
+          "radius": 800,
+          "damage": 1.0,
+          "warning": "Divine Auldor slams down: walk out of the circle!",
+          "warning_ru": "Аулдор бьёт сверху: выйдите из круга!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1600930,
+          "every_ms": 16000,
+          "wind_up_ms": 1000,
+          "radius": 700,
+          "damage": 1.0,
+          "warning": "Divine Auldor sweeps the front: get behind him!",
+          "warning_ru": "Аулдор бьёт перед собой: зайдите за спину!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        }
+      ],
+      "telegraph": {
+        "skill": 1600970,
+        "every_ms": 40000,
+        "wind_up_ms": 1330,
+        "radius": 2500,
+        "damage": 1.0,
+        "warning": "Divine Auldor charges a lane: step off the strip!",
+        "warning_ru": "Аулдор несётся полосой: отойдите в сторону!",
+        "land": true,
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast"
+      },
+      "phases": [
+        {
+          "at": 75,
+          "name": "tempest_soak",
+          "telegraph": {
+            "skill": 1601030,
+            "every_ms": 999999,
+            "wind_up_ms": 9570,
+            "radius": 500,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Tempest Strike — stack on the marked player!",
+            "warning_ru": "Удар бури — встаньте вместе на отмеченного игрока!",
+            "land": false,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Tempest Strike — stack on the marked player to split the hit!",
+          "notice_ru": "Удар бури — встаньте вместе на отмеченного игрока, чтобы разделить удар!"
+        },
+        {
+          "at": 30,
+          "name": "tempest_soak",
+          "telegraph": {
+            "skill": 1601030,
+            "every_ms": 999999,
+            "wind_up_ms": 9570,
+            "radius": 500,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Tempest Strike — stack on the marked player! Stay near the centre.",
+            "warning_ru": "Удар бури — встаньте вместе на отмеченного. Держитесь ближе к центру.",
+            "land": false,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Tempest Strike — stack on the marked player! Below 30% the outer arena is dangerous.",
+          "notice_ru": "Удар бури — встаньте вместе на отмеченного. Ниже 30% край арены опасен."
+        }
+      ],
+      "frenzy": {
+        "after_ms": 300000,
+        "damage": 2.0,
+        "haste": 0.5,
+        "notice": "Divine Auldor goes into a frenzy!",
+        "notice_ru": "Аулдор впадает в неистовство!"
+      }
+    },
+    "2300310": {
+      "name": "Fire_Temple_Single_5",
+      "dungeon": "Fire_Temple_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1227130,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The Fire Temple boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс Fire Temple собирает силу: отойдите подальше!"
+      }
+    },
+    "2300311": {
+      "name": "Fire_Temple_Single_MidBoss_1",
+      "dungeon": "Fire_Temple_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1600850,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 1.19,
+        "warning": "The Fire Temple boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Fire Temple собирает силу: отойдите подальше!"
+      }
+    },
+    "2300312": {
+      "name": "Fire_Temple_Single_MidBoss_2",
+      "dungeon": "Fire_Temple_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1600680,
+        "every_ms": 30000,
+        "wind_up_ms": 1630,
+        "radius": 450,
+        "damage": 1.19,
+        "warning": "The Fire Temple boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Fire Temple собирает силу: отойдите подальше!"
+      }
+    },
+    "2300371": {
+      "name": "Fire_Temple_Single_Boss_1",
+      "dungeon": "Fire_Temple_Normal",
+      "role": "final",
+      "display": "Kromede's Desire",
+      "display_ru": "Желание Кромеды",
+      "source": "official-overlay",
+      "telegraphs": [
+        {
+          "skill": 1801080,
+          "every_ms": 25000,
+          "wind_up_ms": 2000,
+          "radius": 1100,
+          "damage": 1.0,
+          "warning": "Kromede's Desire slashes the front: get behind her!",
+          "warning_ru": "Желание Кромеды рубит перед собой: зайдите за спину!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1801050,
+          "every_ms": 15000,
+          "wind_up_ms": 1000,
+          "radius": 1500,
+          "damage": 1.0,
+          "warning": "Kromede's Desire stomps a line: step off the strip!",
+          "warning_ru": "Желание Кромеды бьёт полосой: отойдите в сторону!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1801060,
+          "every_ms": 20000,
+          "wind_up_ms": 1800,
+          "radius": 1100,
+          "damage": 1.0,
+          "warning": "Kromede's Desire sweeps a wide arc: get behind her!",
+          "warning_ru": "Желание Кромеды бьёт широкой дугой: зайдите за спину!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        }
+      ],
+      "telegraph": {
+        "skill": 1801080,
+        "every_ms": 25000,
+        "wind_up_ms": 2000,
+        "radius": 1100,
+        "damage": 1.0,
+        "warning": "Kromede's Desire slashes the front: get behind her!",
+        "warning_ru": "Желание Кромеды рубит перед собой: зайдите за спину!",
+        "land": true,
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast"
+      },
+      "phases": [
+        {
+          "at": 75,
+          "name": "fire_walls",
+          "telegraph": {
+            "skill": 1801185,
+            "every_ms": 999999,
+            "wind_up_ms": 16500,
+            "radius": 0,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Find the gap!",
+            "warning_ru": "Ищите проход!",
+            "land": false,
+            "radius_from": "OURS",
+            "wind_up_from": "client cast"
+          },
+          "notice": "I will crush you! Find the gap in the fire walls!",
+          "notice_ru": "Я вас раздавлю! Ищите проход в стенах огня!"
+        },
+        {
+          "at": 50,
+          "name": "clones",
+          "notice": "Kromede's Desire splits — dodge the clone line, then get behind your clone!",
+          "notice_ru": "Желание Кромеды разделяется — уйдите с линии клона, затем зайдите ему за спину!"
+        },
+        {
+          "at": 25,
+          "name": "fire_walls",
+          "telegraph": {
+            "skill": 1801185,
+            "every_ms": 999999,
+            "wind_up_ms": 16500,
+            "radius": 0,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Find the gap!",
+            "warning_ru": "Ищите проход!",
+            "land": false,
+            "radius_from": "OURS",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Find the gap! Clones also fire lines across the arena.",
+          "notice_ru": "Ищите проход! Клоны тоже бьют линиями по арене."
+        }
+      ],
+      "frenzy": {
+        "after_ms": 300000,
+        "damage": 2.0,
+        "haste": 0.5,
+        "notice": "Let desire consume you!",
+        "notice_ru": "Пусть желание поглотит вас!"
+      }
+    },
+    "2300401": {
+      "name": "Draupnir_Abyss_single_NagaElite_01_Lakshmi",
+      "dungeon": "Draupnir_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1605930,
+        "every_ms": 30000,
+        "wind_up_ms": 1600,
+        "radius": 450,
+        "damage": 1.77,
+        "warning": "Lakshmi gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Lakshmi собирает силу: отойдите подальше!"
+      }
+    },
+    "2300403": {
+      "name": "Draupnir_Abyss_single_NagaElite_02_Saraswati",
+      "dungeon": "Draupnir_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1218640,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "Saraswati gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Saraswati собирает силу: отойдите подальше!"
+      }
+    },
+    "2300471": {
+      "name": "Draupnir_Abyss_Boss_Bakarma",
+      "dungeon": "Draupnir_Normal",
+      "role": "final",
+      "display": "Transcendent Bakarma",
+      "display_ru": "Бакарма",
+      "source": "official-overlay",
+      "telegraphs": [
+        {
+          "skill": 1800560,
+          "every_ms": 14000,
+          "wind_up_ms": 1500,
+          "radius": 4000,
+          "damage": 1.0,
+          "warning": "Transcendent Bakarma sweeps the front: get behind him!",
+          "warning_ru": "Бакарма бьёт перед собой: зайдите за спину!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1800570,
+          "every_ms": 16000,
+          "wind_up_ms": 1900,
+          "radius": 4000,
+          "damage": 1.0,
+          "warning": "Transcendent Bakarma slams a lane: step off the strip!",
+          "warning_ru": "Бакарма бьёт полосой: отойдите в сторону!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1800540,
+          "every_ms": 11000,
+          "wind_up_ms": 900,
+          "radius": 400,
+          "damage": 1.0,
+          "warning": "Transcendent Bakarma drops a water bomb: walk out of the circle!",
+          "warning_ru": "Бакарма бросает водную бомбу: выйдите из круга!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        }
+      ],
+      "telegraph": {
+        "skill": 1800560,
+        "every_ms": 14000,
+        "wind_up_ms": 1500,
+        "radius": 4000,
+        "damage": 1.0,
+        "warning": "Transcendent Bakarma sweeps the front: get behind him!",
+        "warning_ru": "Бакарма бьёт перед собой: зайдите за спину!",
+        "land": true,
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast"
+      },
+      "phases": [
+        {
+          "at": 70,
+          "name": "wave_of_death",
+          "telegraph": {
+            "skill": 1800655,
+            "every_ms": 999999,
+            "wind_up_ms": 18000,
+            "radius": 6500,
+            "damage": 1.0,
+            "once": true,
+            "stagger_check": true,
+            "warning": "Wave of Death — jump the rings and break the stagger gauge!",
+            "warning_ru": "Волна смерти — перепрыгивайте кольца и сбейте шкалу стаггера!",
+            "land": true,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Wretched worm, begone! Jump the waves and break the stagger gauge!",
+          "notice_ru": "Жалкий червь, прочь! Перепрыгивайте волны и сбейте шкалу стаггера!"
+        },
+        {
+          "at": 30,
+          "name": "wave_of_death",
+          "telegraph": {
+            "skill": 1800655,
+            "every_ms": 999999,
+            "wind_up_ms": 18000,
+            "radius": 6500,
+            "damage": 1.0,
+            "once": true,
+            "stagger_check": true,
+            "warning": "Wave of Death — route around whirlpools, jump the rings, break the gauge!",
+            "warning_ru": "Волна смерти — обходите воронки, перепрыгивайте кольца, сбейте шкалу!",
+            "land": true,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Wave of Death — route around the whirlpools, jump the rings, break the gauge!",
+          "notice_ru": "Волна смерти — обходите воронки, перепрыгивайте кольца и сбейте шкалу!"
+        }
+      ],
+      "frenzy": {
+        "after_ms": 300000,
+        "damage": 2.0,
+        "haste": 0.5,
+        "notice": "Transcendent Bakarma goes into a frenzy!",
+        "notice_ru": "Бакарма впадает в неистовство!"
+      }
+    },
+    "2300810": {
+      "name": "BakronIsland_Single_MidBoss_1",
+      "dungeon": "BakronIsland_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1604440,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+      }
+    },
+    "2300811": {
+      "name": "BakronIsland_Single_MidBoss_2",
+      "dungeon": "BakronIsland_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1604790,
+        "every_ms": 30000,
+        "wind_up_ms": 2050,
+        "radius": 450,
+        "damage": 2.5,
+        "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+      }
+    },
+    "2300812": {
+      "name": "BakronIsland_Single_Boss_1",
+      "dungeon": "BakronIsland_Normal",
+      "role": "final",
+      "telegraph": {
+        "skill": 1604410,
+        "every_ms": 24000,
+        "wind_up_ms": 2000,
+        "radius": 600,
+        "damage": 2.71,
+        "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+      },
+      "phases": [
+        {
+          "at": 70,
+          "name": "call",
+          "adds": {
+            "npc": 2300802,
+            "count": 3,
+            "radius": 500
+          },
+          "notice": "The Vakron Sky Island boss calls for help!",
+          "notice_ru": "Босс Vakron Sky Island зовёт на помощь!"
+        },
+        {
+          "at": 40,
+          "name": "fury",
+          "damage": 1.15,
+          "telegraph": {
+            "skill": 1604410,
+            "every_ms": 18000,
+            "wind_up_ms": 2000,
+            "radius": 600,
+            "damage": 2.71,
+            "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast",
+            "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+          },
+          "notice": "The Vakron Sky Island boss grows furious.",
+          "notice_ru": "Босс Vakron Sky Island приходит в ярость."
+        },
+        {
+          "at": 20,
+          "name": "enrage",
+          "damage": 1.3,
+          "haste": 0.8,
+          "notice": "The Vakron Sky Island boss is enraged!",
+          "notice_ru": "Босс Vakron Sky Island в бешенстве!"
+        }
+      ]
+    },
+    "2300908": {
+      "name": "M_PD_FierceHornCave_KalnifElite_01_V02_001",
+      "dungeon": "HornCave_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606870,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "the Kalnif chieftain gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Вождь Kalnif собирает силу: отойдите подальше!"
+      }
+    },
+    "2300909": {
+      "name": "M_PD_FierceHornCave_Lycan_04_V01_001",
+      "dungeon": "HornCave_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606960,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "the Lycan alpha gathers power: get out of reach!",
+        "radius_from": "OURS",
+        "wind_up_from": "OURS",
+        "warning_ru": "Вожак Lycan собирает силу: отойдите подальше!"
+      }
+    },
+    "2300910": {
+      "name": "M_PD_FierceHornCave_Ferk_01_V01",
+      "dungeon": "HornCave_Normal",
+      "role": "final",
+      "display": "Ferocious Horn Nuakum",
+      "display_ru": "Нуакум",
+      "source": "official-overlay",
+      "telegraphs": [
+        {
+          "skill": 1802090,
+          "every_ms": 25000,
+          "wind_up_ms": 1300,
+          "radius": 900,
+          "damage": 1.0,
+          "warning": "Ferocious Horn Nuakum claws a wide arc: get behind him!",
+          "warning_ru": "Нуакум бьёт широкой дугой: зайдите за спину!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1802060,
+          "every_ms": 42000,
+          "wind_up_ms": 1000,
+          "radius": 3000,
+          "damage": 1.0,
+          "warning": "Ferocious Horn Nuakum slams a lane: step off the strip!",
+          "warning_ru": "Нуакум бьёт полосой: отойдите в сторону!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1802100,
+          "every_ms": 10000,
+          "wind_up_ms": 850,
+          "radius": 750,
+          "damage": 1.0,
+          "warning": "Ferocious Horn Nuakum slams the ground: walk out of the circle!",
+          "warning_ru": "Нуакум бьёт по земле: выйдите из круга!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        }
+      ],
+      "telegraph": {
+        "skill": 1802090,
+        "every_ms": 25000,
+        "wind_up_ms": 1300,
+        "radius": 900,
+        "damage": 1.0,
+        "warning": "Ferocious Horn Nuakum claws a wide arc: get behind him!",
+        "warning_ru": "Нуакум бьёт широкой дугой: зайдите за спину!",
+        "land": true,
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast"
+      },
+      "phases": [
+        {
+          "at": 75,
+          "name": "hunt",
+          "notice": "The hunt — an unmarked player blocks the clone; then stack or spread with the circle!",
+          "notice_ru": "Охота — не отмеченный игрок перехватывает клона; затем соберитесь или разойдитесь по кругу!"
+        },
+        {
+          "at": 55,
+          "name": "hunt",
+          "notice": "The hunt again — rotate blockers; read the circle (in = stack, out = spread)!",
+          "notice_ru": "Охота снова — меняйте тех, кто перехватывает; читайте круг (внутрь — вместе, наружу — врозь)!"
+        },
+        {
+          "at": 30,
+          "name": "blue_light",
+          "notice": "Blue Light of Destruction — stand so his throw hits the central orb (three hits)!",
+          "notice_ru": "Синий свет разрушения — встаньте так, чтобы бросок попал в сферу в центре (три попадания)!"
+        }
+      ],
+      "frenzy": {
+        "after_ms": 300000,
+        "damage": 2.0,
+        "haste": 0.5,
+        "notice": "Ferocious Horn Nuakum goes into a frenzy!",
+        "notice_ru": "Нуакум впадает в неистовство!"
+      }
+    },
+    "2301006": {
+      "name": "M_PD_ReforgedAbyss_Lagta_01_001",
+      "dungeon": "ReforgedAbyss_Normal",
+      "role": "raid",
+      "telegraph": {
+        "skill": 1802810,
+        "every_ms": 22000,
+        "wind_up_ms": 3000,
+        "radius": 700,
+        "damage": 1.19,
+        "warning": "Lagta gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Lagta собирает силу: отойдите подальше!"
+      },
+      "phases": [
+        {
+          "at": 60,
+          "name": "call",
+          "adds": {
+            "npc": 2301019,
+            "count": 3,
+            "radius": 600
+          },
+          "notice": "Lagta calls for help!",
+          "notice_ru": "Lagta зовёт на помощь!"
+        },
+        {
+          "at": 30,
+          "name": "enrage",
+          "damage": 1.25,
+          "haste": 0.85,
+          "notice": "Lagta is enraged!",
+          "notice_ru": "Lagta в бешенстве!"
+        }
+      ]
+    },
+    "2301007": {
+      "name": "M_PD_ReforgedAbyss_Kashapa_01_001",
+      "dungeon": "ReforgedAbyss_Normal",
+      "role": "raid",
+      "telegraph": {
+        "skill": 1801820,
+        "every_ms": 22000,
+        "wind_up_ms": 2000,
+        "radius": 700,
+        "damage": 1.19,
+        "warning": "Kashapa gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Kashapa собирает силу: отойдите подальше!"
+      },
+      "phases": [
+        {
+          "at": 60,
+          "name": "call",
+          "adds": {
+            "npc": 2301019,
+            "count": 3,
+            "radius": 600
+          },
+          "notice": "Kashapa calls for help!",
+          "notice_ru": "Kashapa зовёт на помощь!"
+        },
+        {
+          "at": 30,
+          "name": "enrage",
+          "damage": 1.25,
+          "haste": 0.85,
+          "notice": "Kashapa is enraged!",
+          "notice_ru": "Kashapa в бешенстве!"
+        }
+      ]
+    },
+    "2301014": {
+      "name": "M_PD_ReforgedAbyss_Durbati_01_V01_001",
+      "dungeon": "ReforgedAbyss_Normal",
+      "role": "raid_final",
+      "telegraph": {
+        "skill": 1803000,
+        "every_ms": 20000,
+        "wind_up_ms": 3000,
+        "radius": 900,
+        "damage": 3.0,
+        "warning": "Durbati gathers power: get out of reach!",
+        "radius_from": "OURS",
+        "wind_up_from": "OURS",
+        "warning_ru": "Durbati собирает силу: отойдите подальше!"
+      },
+      "phases": [
+        {
+          "at": 75,
+          "name": "call",
+          "adds": {
+            "npc": 2301019,
+            "count": 4,
+            "radius": 700
+          },
+          "notice": "Durbati calls the forge guards!",
+          "notice_ru": "Durbati зовёт стражу кузни!"
+        },
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.15,
+          "adds": {
+            "npc": 2301019,
+            "count": 4,
+            "radius": 700
+          },
+          "telegraph": {
+            "skill": 1803000,
+            "every_ms": 15000,
+            "wind_up_ms": 3000,
+            "radius": 900,
+            "damage": 3.0,
+            "warning": "Durbati gathers power: get out of reach!",
+            "radius_from": "OURS",
+            "wind_up_from": "OURS",
+            "warning_ru": "Durbati собирает силу: отойдите подальше!"
+          },
+          "notice": "Durbati grows furious.",
+          "notice_ru": "Durbati приходит в ярость."
+        },
+        {
+          "at": 25,
+          "name": "enrage",
+          "damage": 1.35,
+          "haste": 0.8,
+          "notice": "Durbati is enraged!",
+          "notice_ru": "Durbati в бешенстве!"
+        }
+      ]
+    },
+    "2310104": {
+      "name": "KraoCave_monster_Named_1",
+      "dungeon": "KraoCave_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1218520,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The Krao Cave boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс Krao Cave собирает силу: отойдите подальше!"
+      }
+    },
+    "2310108": {
+      "name": "KraoCave_monster_Named_2",
+      "dungeon": "KraoCave_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1218590,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.79,
+        "warning": "The Krao Cave boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Krao Cave собирает силу: отойдите подальше!"
+      }
+    },
+    "2310171": {
+      "name": "KraoCave_Boss_1",
+      "dungeon": "KraoCave_Easy",
+      "role": "final",
+      "display": "Ultimate Berk",
+      "display_ru": "Берк",
+      "source": "official-overlay",
+      "telegraphs": [
+        {
+          "skill": 1800060,
+          "every_ms": 20000,
+          "wind_up_ms": 2000,
+          "radius": 5600,
+          "damage": 1.0,
+          "warning": "Ultimate Berk draws a cross: move out of the beams!",
+          "warning_ru": "Берк чертит крест: выйдите из лучей!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1800030,
+          "every_ms": 15000,
+          "wind_up_ms": 2000,
+          "radius": 3700,
+          "damage": 1.0,
+          "warning": "Ultimate Berk slashes a line: get behind him or out of the strip!",
+          "warning_ru": "Берк бьёт полосой: зайдите за спину или отойдите в сторону!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1800040,
+          "every_ms": 15000,
+          "wind_up_ms": 2500,
+          "radius": 2000,
+          "damage": 1.0,
+          "warning": "Ultimate Berk slams the ground: walk out of the circle!",
+          "warning_ru": "Берк бьёт по земле: выйдите из круга!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        }
+      ],
+      "telegraph": {
+        "skill": 1800060,
+        "every_ms": 20000,
+        "wind_up_ms": 2000,
+        "radius": 5600,
+        "damage": 1.0,
+        "warning": "Ultimate Berk draws a cross: move out of the beams!",
+        "warning_ru": "Берк чертит крест: выйдите из лучей!",
+        "land": true,
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast"
+      },
+      "phases": [
+        {
+          "at": 75,
+          "name": "wave_of_fury",
+          "notice": "Wave of Fury — hide behind a stone pillar!",
+          "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!"
+        },
+        {
+          "at": 50,
+          "name": "extinction",
+          "telegraph": {
+            "skill": 1800140,
+            "every_ms": 999999,
+            "wind_up_ms": 8000,
+            "radius": 9000,
+            "damage": 1.0,
+            "once": true,
+            "stagger_check": true,
+            "warning": "Extinction for Eternity — break the stagger gauge!",
+            "warning_ru": "Вымирание навеки — сбейте шкалу стаггера!",
+            "land": true,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Extinction for Eternity — break the stagger gauge before the cast ends!",
+          "notice_ru": "Вымирание навеки — сбейте шкалу стаггера, пока длится каст!"
+        },
+        {
+          "at": 25,
+          "name": "wave_of_fury",
+          "notice": "Wave of Fury — hide behind a stone pillar!",
+          "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!"
+        }
+      ]
+    },
+    "2310206": {
+      "name": "UruCan_Stage01_SubBoss_2",
+      "dungeon": "Urugugu_Canyon_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1504420,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.0,
+        "warning": "The Urugugu Canyon boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Urugugu Canyon собирает силу: отойдите подальше!"
+      }
+    },
+    "2310207": {
+      "name": "UruCan_Stage01_SubBoss_1",
+      "dungeon": "Urugugu_Canyon_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1605110,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.0,
+        "warning": "The Urugugu Canyon boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Urugugu Canyon собирает силу: отойдите подальше!"
+      }
+    },
+    "2310218": {
+      "name": "UruCan_Stage03_Boss_1",
+      "dungeon": "Urugugu_Canyon_Easy",
+      "role": "final",
+      "display": "Divine Auldor",
+      "display_ru": "Аулдор",
+      "source": "official-overlay",
+      "telegraphs": [
+        {
+          "skill": 1600970,
+          "every_ms": 40000,
+          "wind_up_ms": 1330,
+          "radius": 2500,
+          "damage": 1.0,
+          "warning": "Divine Auldor charges a lane: step off the strip!",
+          "warning_ru": "Аулдор несётся полосой: отойдите в сторону!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1600960,
+          "every_ms": 20000,
+          "wind_up_ms": 830,
+          "radius": 800,
+          "damage": 1.0,
+          "warning": "Divine Auldor slams down: walk out of the circle!",
+          "warning_ru": "Аулдор бьёт сверху: выйдите из круга!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1600930,
+          "every_ms": 16000,
+          "wind_up_ms": 1000,
+          "radius": 700,
+          "damage": 1.0,
+          "warning": "Divine Auldor sweeps the front: get behind him!",
+          "warning_ru": "Аулдор бьёт перед собой: зайдите за спину!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        }
+      ],
+      "telegraph": {
+        "skill": 1600970,
+        "every_ms": 40000,
+        "wind_up_ms": 1330,
+        "radius": 2500,
+        "damage": 1.0,
+        "warning": "Divine Auldor charges a lane: step off the strip!",
+        "warning_ru": "Аулдор несётся полосой: отойдите в сторону!",
+        "land": true,
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast"
+      },
+      "phases": [
+        {
+          "at": 75,
+          "name": "tempest_soak",
+          "telegraph": {
+            "skill": 1601035,
+            "every_ms": 999999,
+            "wind_up_ms": 9570,
+            "radius": 500,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Tempest Strike — stack on the marked player!",
+            "warning_ru": "Удар бури — встаньте вместе на отмеченного игрока!",
+            "land": false,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Tempest Strike — stack on the marked player to split the hit!",
+          "notice_ru": "Удар бури — встаньте вместе на отмеченного игрока, чтобы разделить удар!"
+        },
+        {
+          "at": 30,
+          "name": "tempest_soak",
+          "telegraph": {
+            "skill": 1601035,
+            "every_ms": 999999,
+            "wind_up_ms": 9570,
+            "radius": 500,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Tempest Strike — stack on the marked player! Stay near the centre.",
+            "warning_ru": "Удар бури — встаньте вместе на отмеченного. Держитесь ближе к центру.",
+            "land": false,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Tempest Strike — stack on the marked player! Below 30% the outer arena is dangerous.",
+          "notice_ru": "Удар бури — встаньте вместе на отмеченного. Ниже 30% край арены опасен."
+        }
+      ]
+    },
+    "2310310": {
+      "name": "M_PD_Fire_Temple_Rotan_001_Easy",
+      "dungeon": "Fire_Temple_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1227130,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "Rotan gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Rotan собирает силу: отойдите подальше!"
+      }
+    },
+    "2310311": {
+      "name": "Fire_Temple_Single_MidBoss_1",
+      "dungeon": "Fire_Temple_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1600850,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 1.19,
+        "warning": "The Fire Temple boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Fire Temple собирает силу: отойдите подальше!"
+      }
+    },
+    "2310312": {
+      "name": "Fire_Temple_Single_MidBoss_2",
+      "dungeon": "Fire_Temple_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1600680,
+        "every_ms": 30000,
+        "wind_up_ms": 1630,
+        "radius": 450,
+        "damage": 1.19,
+        "warning": "The Fire Temple boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Fire Temple собирает силу: отойдите подальше!"
+      }
+    },
+    "2310371": {
+      "name": "Fire_Temple_Single_Boss_1",
+      "dungeon": "Fire_Temple_Easy",
+      "role": "final",
+      "display": "Kromede's Desire",
+      "display_ru": "Желание Кромеды",
+      "source": "official-overlay",
+      "telegraphs": [
+        {
+          "skill": 1801080,
+          "every_ms": 25000,
+          "wind_up_ms": 2000,
+          "radius": 1100,
+          "damage": 1.0,
+          "warning": "Kromede's Desire slashes the front: get behind her!",
+          "warning_ru": "Желание Кромеды рубит перед собой: зайдите за спину!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1801050,
+          "every_ms": 15000,
+          "wind_up_ms": 1000,
+          "radius": 1500,
+          "damage": 1.0,
+          "warning": "Kromede's Desire stomps a line: step off the strip!",
+          "warning_ru": "Желание Кромеды бьёт полосой: отойдите в сторону!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1801060,
+          "every_ms": 20000,
+          "wind_up_ms": 1800,
+          "radius": 1100,
+          "damage": 1.0,
+          "warning": "Kromede's Desire sweeps a wide arc: get behind her!",
+          "warning_ru": "Желание Кромеды бьёт широкой дугой: зайдите за спину!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        }
+      ],
+      "telegraph": {
+        "skill": 1801080,
+        "every_ms": 25000,
+        "wind_up_ms": 2000,
+        "radius": 1100,
+        "damage": 1.0,
+        "warning": "Kromede's Desire slashes the front: get behind her!",
+        "warning_ru": "Желание Кромеды рубит перед собой: зайдите за спину!",
+        "land": true,
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast"
+      },
+      "phases": [
+        {
+          "at": 75,
+          "name": "fire_walls",
+          "telegraph": {
+            "skill": 1801185,
+            "every_ms": 999999,
+            "wind_up_ms": 16500,
+            "radius": 0,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Find the gap!",
+            "warning_ru": "Ищите проход!",
+            "land": false,
+            "radius_from": "OURS",
+            "wind_up_from": "client cast"
+          },
+          "notice": "I will crush you! Find the gap in the fire walls!",
+          "notice_ru": "Я вас раздавлю! Ищите проход в стенах огня!"
+        },
+        {
+          "at": 50,
+          "name": "clones",
+          "notice": "Kromede's Desire splits — dodge the clone line, then get behind your clone!",
+          "notice_ru": "Желание Кромеды разделяется — уйдите с линии клона, затем зайдите ему за спину!"
+        },
+        {
+          "at": 25,
+          "name": "fire_walls",
+          "telegraph": {
+            "skill": 1801185,
+            "every_ms": 999999,
+            "wind_up_ms": 16500,
+            "radius": 0,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Find the gap!",
+            "warning_ru": "Ищите проход!",
+            "land": false,
+            "radius_from": "OURS",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Find the gap! Clones also fire lines across the arena.",
+          "notice_ru": "Ищите проход! Клоны тоже бьют линиями по арене."
+        }
+      ]
+    },
+    "2310401": {
+      "name": "Draupnir_Abyss_single_NagaElite_01_Lakshmi",
+      "dungeon": "Draupnir_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1605930,
+        "every_ms": 30000,
+        "wind_up_ms": 1600,
+        "radius": 450,
+        "damage": 1.77,
+        "warning": "Lakshmi gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Lakshmi собирает силу: отойдите подальше!"
+      }
+    },
+    "2310403": {
+      "name": "Draupnir_Abyss_single_NagaElite_02_Saraswati",
+      "dungeon": "Draupnir_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1218640,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "Saraswati gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Saraswati собирает силу: отойдите подальше!"
+      }
+    },
+    "2310471": {
+      "name": "Draupnir_Abyss_Boss_Bakarma",
+      "dungeon": "Draupnir_Easy",
+      "role": "final",
+      "display": "Transcendent Bakarma",
+      "display_ru": "Бакарма",
+      "source": "official-overlay",
+      "telegraphs": [
+        {
+          "skill": 1800560,
+          "every_ms": 14000,
+          "wind_up_ms": 1500,
+          "radius": 4000,
+          "damage": 1.0,
+          "warning": "Transcendent Bakarma sweeps the front: get behind him!",
+          "warning_ru": "Бакарма бьёт перед собой: зайдите за спину!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1800570,
+          "every_ms": 16000,
+          "wind_up_ms": 1900,
+          "radius": 4000,
+          "damage": 1.0,
+          "warning": "Transcendent Bakarma slams a lane: step off the strip!",
+          "warning_ru": "Бакарма бьёт полосой: отойдите в сторону!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1800540,
+          "every_ms": 11000,
+          "wind_up_ms": 900,
+          "radius": 400,
+          "damage": 1.0,
+          "warning": "Transcendent Bakarma drops a water bomb: walk out of the circle!",
+          "warning_ru": "Бакарма бросает водную бомбу: выйдите из круга!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        }
+      ],
+      "telegraph": {
+        "skill": 1800560,
+        "every_ms": 14000,
+        "wind_up_ms": 1500,
+        "radius": 4000,
+        "damage": 1.0,
+        "warning": "Transcendent Bakarma sweeps the front: get behind him!",
+        "warning_ru": "Бакарма бьёт перед собой: зайдите за спину!",
+        "land": true,
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast"
+      },
+      "phases": [
+        {
+          "at": 70,
+          "name": "wave_of_death",
+          "telegraph": {
+            "skill": 1800655,
+            "every_ms": 999999,
+            "wind_up_ms": 18000,
+            "radius": 6500,
+            "damage": 1.0,
+            "once": true,
+            "stagger_check": true,
+            "warning": "Wave of Death — jump the rings and break the stagger gauge!",
+            "warning_ru": "Волна смерти — перепрыгивайте кольца и сбейте шкалу стаггера!",
+            "land": true,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Wretched worm, begone! Jump the waves and break the stagger gauge!",
+          "notice_ru": "Жалкий червь, прочь! Перепрыгивайте волны и сбейте шкалу стаггера!"
+        },
+        {
+          "at": 30,
+          "name": "wave_of_death",
+          "telegraph": {
+            "skill": 1800655,
+            "every_ms": 999999,
+            "wind_up_ms": 18000,
+            "radius": 6500,
+            "damage": 1.0,
+            "once": true,
+            "stagger_check": true,
+            "warning": "Wave of Death — route around whirlpools, jump the rings, break the gauge!",
+            "warning_ru": "Волна смерти — обходите воронки, перепрыгивайте кольца, сбейте шкалу!",
+            "land": true,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Wave of Death — route around the whirlpools, jump the rings, break the gauge!",
+          "notice_ru": "Волна смерти — обходите воронки, перепрыгивайте кольца и сбейте шкалу!"
+        }
+      ]
+    },
+    "2310810": {
+      "name": "BakronIsland_Single_MidBoss_1",
+      "dungeon": "BakronIsland_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1604440,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+      }
+    },
+    "2310811": {
+      "name": "BakronIsland_Single_MidBoss_2",
+      "dungeon": "BakronIsland_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1604790,
+        "every_ms": 30000,
+        "wind_up_ms": 2050,
+        "radius": 450,
+        "damage": 2.5,
+        "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+      }
+    },
+    "2310812": {
+      "name": "BakronIsland_Single_Boss_1",
+      "dungeon": "BakronIsland_Easy",
+      "role": "final",
+      "telegraph": {
+        "skill": 1604410,
+        "every_ms": 30000,
+        "wind_up_ms": 2000,
+        "radius": 500,
+        "damage": 2.71,
+        "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+      },
+      "phases": [
+        {
+          "at": 70,
+          "name": "call",
+          "adds": {
+            "npc": 2310802,
+            "count": 2,
+            "radius": 500
+          },
+          "notice": "The Vakron Sky Island boss calls for help!",
+          "notice_ru": "Босс Vakron Sky Island зовёт на помощь!"
+        },
+        {
+          "at": 40,
+          "name": "fury",
+          "damage": 1.15,
+          "telegraph": {
+            "skill": 1604410,
+            "every_ms": 22500,
+            "wind_up_ms": 2000,
+            "radius": 500,
+            "damage": 2.71,
+            "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast",
+            "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+          },
+          "notice": "The Vakron Sky Island boss grows furious.",
+          "notice_ru": "Босс Vakron Sky Island приходит в ярость."
+        }
+      ]
+    },
+    "2310908": {
+      "name": "M_PD_FierceHornCave_Easy_KalnifElite_01_V02_001",
+      "dungeon": "HornCave_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606870,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "the Kalnif chieftain gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Вождь Kalnif собирает силу: отойдите подальше!"
+      }
+    },
+    "2310909": {
+      "name": "M_PD_FierceHornCave_Easy_Lycan_04_V01_001",
+      "dungeon": "HornCave_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606960,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "the Lycan alpha gathers power: get out of reach!",
+        "radius_from": "OURS",
+        "wind_up_from": "OURS",
+        "warning_ru": "Вожак Lycan собирает силу: отойдите подальше!"
+      }
+    },
+    "2310910": {
+      "name": "M_PD_FierceHornCave_Easy_Ferk_01_V01",
+      "dungeon": "HornCave_Easy",
+      "role": "final",
+      "display": "Ferocious Horn Nuakum",
+      "display_ru": "Нуакум",
+      "source": "official-overlay",
+      "telegraphs": [
+        {
+          "skill": 1802090,
+          "every_ms": 25000,
+          "wind_up_ms": 1300,
+          "radius": 900,
+          "damage": 1.0,
+          "warning": "Ferocious Horn Nuakum claws a wide arc: get behind him!",
+          "warning_ru": "Нуакум бьёт широкой дугой: зайдите за спину!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1802060,
+          "every_ms": 42000,
+          "wind_up_ms": 1000,
+          "radius": 3000,
+          "damage": 1.0,
+          "warning": "Ferocious Horn Nuakum slams a lane: step off the strip!",
+          "warning_ru": "Нуакум бьёт полосой: отойдите в сторону!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1802100,
+          "every_ms": 10000,
+          "wind_up_ms": 850,
+          "radius": 750,
+          "damage": 1.0,
+          "warning": "Ferocious Horn Nuakum slams the ground: walk out of the circle!",
+          "warning_ru": "Нуакум бьёт по земле: выйдите из круга!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        }
+      ],
+      "telegraph": {
+        "skill": 1802090,
+        "every_ms": 25000,
+        "wind_up_ms": 1300,
+        "radius": 900,
+        "damage": 1.0,
+        "warning": "Ferocious Horn Nuakum claws a wide arc: get behind him!",
+        "warning_ru": "Нуакум бьёт широкой дугой: зайдите за спину!",
+        "land": true,
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast"
+      },
+      "phases": [
+        {
+          "at": 75,
+          "name": "hunt",
+          "notice": "The hunt — an unmarked player blocks the clone; then stack or spread with the circle!",
+          "notice_ru": "Охота — не отмеченный игрок перехватывает клона; затем соберитесь или разойдитесь по кругу!"
+        },
+        {
+          "at": 55,
+          "name": "hunt",
+          "notice": "The hunt again — rotate blockers; read the circle (in = stack, out = spread)!",
+          "notice_ru": "Охота снова — меняйте тех, кто перехватывает; читайте круг (внутрь — вместе, наружу — врозь)!"
+        },
+        {
+          "at": 30,
+          "name": "blue_light",
+          "notice": "Blue Light of Destruction — stand so his throw hits the central orb (three hits)!",
+          "notice_ru": "Синий свет разрушения — встаньте так, чтобы бросок попал в сферу в центре (три попадания)!"
+        }
+      ]
+    },
+    "2320104": {
+      "name": "KraoCave_monster_Named_1",
+      "dungeon": "KraoCave_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1218520,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The Krao Cave boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс Krao Cave собирает силу: отойдите подальше!"
+      }
+    },
+    "2320108": {
+      "name": "KraoCave_monster_Named_2",
+      "dungeon": "KraoCave_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1218590,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.79,
+        "warning": "The Krao Cave boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Krao Cave собирает силу: отойдите подальше!"
+      }
+    },
+    "2320171": {
+      "name": "KraoCave_Boss_1",
+      "dungeon": "KraoCave_Hard",
+      "role": "final",
+      "display": "Ultimate Berk",
+      "display_ru": "Берк",
+      "source": "official-overlay",
+      "telegraphs": [
+        {
+          "skill": 1800060,
+          "every_ms": 20000,
+          "wind_up_ms": 2000,
+          "radius": 5600,
+          "damage": 1.0,
+          "warning": "Ultimate Berk draws a cross: move out of the beams!",
+          "warning_ru": "Берк чертит крест: выйдите из лучей!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1800030,
+          "every_ms": 15000,
+          "wind_up_ms": 2000,
+          "radius": 3700,
+          "damage": 1.0,
+          "warning": "Ultimate Berk slashes a line: get behind him or out of the strip!",
+          "warning_ru": "Берк бьёт полосой: зайдите за спину или отойдите в сторону!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1800040,
+          "every_ms": 15000,
+          "wind_up_ms": 2500,
+          "radius": 2000,
+          "damage": 1.0,
+          "warning": "Ultimate Berk slams the ground: walk out of the circle!",
+          "warning_ru": "Берк бьёт по земле: выйдите из круга!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        }
+      ],
+      "telegraph": {
+        "skill": 1800060,
+        "every_ms": 20000,
+        "wind_up_ms": 2000,
+        "radius": 5600,
+        "damage": 1.0,
+        "warning": "Ultimate Berk draws a cross: move out of the beams!",
+        "warning_ru": "Берк чертит крест: выйдите из лучей!",
+        "land": true,
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast"
+      },
+      "phases": [
+        {
+          "at": 75,
+          "name": "wave_of_fury",
+          "notice": "Wave of Fury — hide behind a stone pillar!",
+          "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!"
+        },
+        {
+          "at": 50,
+          "name": "extinction",
+          "telegraph": {
+            "skill": 1800140,
+            "every_ms": 999999,
+            "wind_up_ms": 8000,
+            "radius": 9000,
+            "damage": 1.0,
+            "once": true,
+            "stagger_check": true,
+            "warning": "Extinction for Eternity — break the stagger gauge!",
+            "warning_ru": "Вымирание навеки — сбейте шкалу стаггера!",
+            "land": true,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Extinction for Eternity — break the stagger gauge before the cast ends!",
+          "notice_ru": "Вымирание навеки — сбейте шкалу стаггера, пока длится каст!"
+        },
+        {
+          "at": 25,
+          "name": "wave_of_fury",
+          "notice": "Wave of Fury — hide behind a stone pillar!",
+          "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!"
+        }
+      ],
+      "frenzy": {
+        "after_ms": 240000,
+        "damage": 2.0,
+        "haste": 0.5,
+        "notice": "Ultimate Berk goes into a frenzy!",
+        "notice_ru": "Берк впадает в неистовство!"
+      }
+    },
+    "2320206": {
+      "name": "UruCan_Stage01_SubBoss_2",
+      "dungeon": "Urugugu_Canyon_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1504420,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.0,
+        "warning": "The Urugugu Canyon boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Urugugu Canyon собирает силу: отойдите подальше!"
+      }
+    },
+    "2320207": {
+      "name": "UruCan_Stage01_SubBoss_1",
+      "dungeon": "Urugugu_Canyon_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1605110,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.0,
+        "warning": "The Urugugu Canyon boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Urugugu Canyon собирает силу: отойдите подальше!"
+      }
+    },
+    "2320218": {
+      "name": "UruCan_Stage03_Boss_1",
+      "dungeon": "Urugugu_Canyon_Hard",
+      "role": "final",
+      "display": "Divine Auldor",
+      "display_ru": "Аулдор",
+      "source": "official-overlay",
+      "telegraphs": [
+        {
+          "skill": 1600970,
+          "every_ms": 40000,
+          "wind_up_ms": 1330,
+          "radius": 2500,
+          "damage": 1.0,
+          "warning": "Divine Auldor charges a lane: step off the strip!",
+          "warning_ru": "Аулдор несётся полосой: отойдите в сторону!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1600960,
+          "every_ms": 20000,
+          "wind_up_ms": 830,
+          "radius": 800,
+          "damage": 1.0,
+          "warning": "Divine Auldor slams down: walk out of the circle!",
+          "warning_ru": "Аулдор бьёт сверху: выйдите из круга!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1600930,
+          "every_ms": 16000,
+          "wind_up_ms": 1000,
+          "radius": 700,
+          "damage": 1.0,
+          "warning": "Divine Auldor sweeps the front: get behind him!",
+          "warning_ru": "Аулдор бьёт перед собой: зайдите за спину!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        }
+      ],
+      "telegraph": {
+        "skill": 1600970,
+        "every_ms": 40000,
+        "wind_up_ms": 1330,
+        "radius": 2500,
+        "damage": 1.0,
+        "warning": "Divine Auldor charges a lane: step off the strip!",
+        "warning_ru": "Аулдор несётся полосой: отойдите в сторону!",
+        "land": true,
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast"
+      },
+      "phases": [
+        {
+          "at": 75,
+          "name": "tempest_soak",
+          "telegraph": {
+            "skill": 1601030,
+            "every_ms": 999999,
+            "wind_up_ms": 9570,
+            "radius": 500,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Tempest Strike — stack on the marked player!",
+            "warning_ru": "Удар бури — встаньте вместе на отмеченного игрока!",
+            "land": false,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Tempest Strike — stack on the marked player to split the hit!",
+          "notice_ru": "Удар бури — встаньте вместе на отмеченного игрока, чтобы разделить удар!"
+        },
+        {
+          "at": 30,
+          "name": "tempest_soak",
+          "telegraph": {
+            "skill": 1601030,
+            "every_ms": 999999,
+            "wind_up_ms": 9570,
+            "radius": 500,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Tempest Strike — stack on the marked player! Stay near the centre.",
+            "warning_ru": "Удар бури — встаньте вместе на отмеченного. Держитесь ближе к центру.",
+            "land": false,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Tempest Strike — stack on the marked player! Below 30% the outer arena is dangerous.",
+          "notice_ru": "Удар бури — встаньте вместе на отмеченного. Ниже 30% край арены опасен."
+        }
+      ],
+      "frenzy": {
+        "after_ms": 240000,
+        "damage": 2.0,
+        "haste": 0.5,
+        "notice": "Divine Auldor goes into a frenzy!",
+        "notice_ru": "Аулдор впадает в неистовство!"
+      }
+    },
+    "2320310": {
+      "name": "Fire_Temple_Single_5",
+      "dungeon": "Fire_Temple_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1227130,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The Fire Temple boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс Fire Temple собирает силу: отойдите подальше!"
+      }
+    },
+    "2320311": {
+      "name": "Fire_Temple_Single_MidBoss_1",
+      "dungeon": "Fire_Temple_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1600850,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 1.19,
+        "warning": "The Fire Temple boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Fire Temple собирает силу: отойдите подальше!"
+      }
+    },
+    "2320312": {
+      "name": "Fire_Temple_Single_MidBoss_2",
+      "dungeon": "Fire_Temple_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1600680,
+        "every_ms": 30000,
+        "wind_up_ms": 1630,
+        "radius": 450,
+        "damage": 1.19,
+        "warning": "The Fire Temple boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Fire Temple собирает силу: отойдите подальше!"
+      }
+    },
+    "2320371": {
+      "name": "Fire_Temple_Single_Boss_1",
+      "dungeon": "Fire_Temple_Hard",
+      "role": "final",
+      "display": "Kromede's Desire",
+      "display_ru": "Желание Кромеды",
+      "source": "official-overlay",
+      "telegraphs": [
+        {
+          "skill": 1801080,
+          "every_ms": 25000,
+          "wind_up_ms": 2000,
+          "radius": 1100,
+          "damage": 1.0,
+          "warning": "Kromede's Desire slashes the front: get behind her!",
+          "warning_ru": "Желание Кромеды рубит перед собой: зайдите за спину!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1801050,
+          "every_ms": 15000,
+          "wind_up_ms": 1000,
+          "radius": 1500,
+          "damage": 1.0,
+          "warning": "Kromede's Desire stomps a line: step off the strip!",
+          "warning_ru": "Желание Кромеды бьёт полосой: отойдите в сторону!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1801060,
+          "every_ms": 20000,
+          "wind_up_ms": 1800,
+          "radius": 1100,
+          "damage": 1.0,
+          "warning": "Kromede's Desire sweeps a wide arc: get behind her!",
+          "warning_ru": "Желание Кромеды бьёт широкой дугой: зайдите за спину!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        }
+      ],
+      "telegraph": {
+        "skill": 1801080,
+        "every_ms": 25000,
+        "wind_up_ms": 2000,
+        "radius": 1100,
+        "damage": 1.0,
+        "warning": "Kromede's Desire slashes the front: get behind her!",
+        "warning_ru": "Желание Кромеды рубит перед собой: зайдите за спину!",
+        "land": true,
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast"
+      },
+      "phases": [
+        {
+          "at": 75,
+          "name": "fire_walls",
+          "telegraph": {
+            "skill": 1801191,
+            "every_ms": 999999,
+            "wind_up_ms": 15100,
+            "radius": 0,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Find the gap!",
+            "warning_ru": "Ищите проход!",
+            "land": false,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "I will crush you! Find the gap in the fire walls!",
+          "notice_ru": "Я вас раздавлю! Ищите проход в стенах огня!"
+        },
+        {
+          "at": 50,
+          "name": "clones",
+          "notice": "Kromede's Desire splits — dodge the clone line, then get behind your clone!",
+          "notice_ru": "Желание Кромеды разделяется — уйдите с линии клона, затем зайдите ему за спину!"
+        },
+        {
+          "at": 25,
+          "name": "fire_walls",
+          "telegraph": {
+            "skill": 1801191,
+            "every_ms": 999999,
+            "wind_up_ms": 15100,
+            "radius": 0,
+            "damage": 1.0,
+            "once": true,
+            "warning": "Find the gap!",
+            "warning_ru": "Ищите проход!",
+            "land": false,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Find the gap! Clones also fire lines across the arena.",
+          "notice_ru": "Ищите проход! Клоны тоже бьют линиями по арене."
+        }
+      ],
+      "frenzy": {
+        "after_ms": 240000,
+        "damage": 2.0,
+        "haste": 0.5,
+        "notice": "Let desire consume you!",
+        "notice_ru": "Пусть желание поглотит вас!"
+      }
+    },
+    "2320401": {
+      "name": "Draupnir_Abyss_single_NagaElite_01_Lakshmi",
+      "dungeon": "Draupnir_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1605930,
+        "every_ms": 30000,
+        "wind_up_ms": 1600,
+        "radius": 450,
+        "damage": 1.77,
+        "warning": "Lakshmi gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Lakshmi собирает силу: отойдите подальше!"
+      }
+    },
+    "2320403": {
+      "name": "Draupnir_Abyss_single_NagaElite_02_Saraswati",
+      "dungeon": "Draupnir_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1218640,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "Saraswati gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Saraswati собирает силу: отойдите подальше!"
+      }
+    },
+    "2320471": {
+      "name": "Draupnir_Abyss_Boss_Bakarma",
+      "dungeon": "Draupnir_Hard",
+      "role": "final",
+      "display": "Transcendent Bakarma",
+      "display_ru": "Бакарма",
+      "source": "official-overlay",
+      "telegraphs": [
+        {
+          "skill": 1800560,
+          "every_ms": 14000,
+          "wind_up_ms": 1500,
+          "radius": 4000,
+          "damage": 1.0,
+          "warning": "Transcendent Bakarma sweeps the front: get behind him!",
+          "warning_ru": "Бакарма бьёт перед собой: зайдите за спину!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1800570,
+          "every_ms": 16000,
+          "wind_up_ms": 1900,
+          "radius": 4000,
+          "damage": 1.0,
+          "warning": "Transcendent Bakarma slams a lane: step off the strip!",
+          "warning_ru": "Бакарма бьёт полосой: отойдите в сторону!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1800540,
+          "every_ms": 11000,
+          "wind_up_ms": 900,
+          "radius": 400,
+          "damage": 1.0,
+          "warning": "Transcendent Bakarma drops a water bomb: walk out of the circle!",
+          "warning_ru": "Бакарма бросает водную бомбу: выйдите из круга!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        }
+      ],
+      "telegraph": {
+        "skill": 1800560,
+        "every_ms": 14000,
+        "wind_up_ms": 1500,
+        "radius": 4000,
+        "damage": 1.0,
+        "warning": "Transcendent Bakarma sweeps the front: get behind him!",
+        "warning_ru": "Бакарма бьёт перед собой: зайдите за спину!",
+        "land": true,
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast"
+      },
+      "phases": [
+        {
+          "at": 70,
+          "name": "wave_of_death",
+          "telegraph": {
+            "skill": 1800655,
+            "every_ms": 999999,
+            "wind_up_ms": 18000,
+            "radius": 6500,
+            "damage": 1.0,
+            "once": true,
+            "stagger_check": true,
+            "warning": "Wave of Death — jump the rings and break the stagger gauge!",
+            "warning_ru": "Волна смерти — перепрыгивайте кольца и сбейте шкалу стаггера!",
+            "land": true,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Wretched worm, begone! Jump the waves and break the stagger gauge!",
+          "notice_ru": "Жалкий червь, прочь! Перепрыгивайте волны и сбейте шкалу стаггера!"
+        },
+        {
+          "at": 30,
+          "name": "wave_of_death",
+          "telegraph": {
+            "skill": 1800655,
+            "every_ms": 999999,
+            "wind_up_ms": 18000,
+            "radius": 6500,
+            "damage": 1.0,
+            "once": true,
+            "stagger_check": true,
+            "warning": "Wave of Death — route around whirlpools, jump the rings, break the gauge!",
+            "warning_ru": "Волна смерти — обходите воронки, перепрыгивайте кольца, сбейте шкалу!",
+            "land": true,
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
+          "notice": "Wave of Death — route around the whirlpools, jump the rings, break the gauge!",
+          "notice_ru": "Волна смерти — обходите воронки, перепрыгивайте кольца и сбейте шкалу!"
+        }
+      ],
+      "frenzy": {
+        "after_ms": 240000,
+        "damage": 2.0,
+        "haste": 0.5,
+        "notice": "Transcendent Bakarma goes into a frenzy!",
+        "notice_ru": "Бакарма впадает в неистовство!"
+      }
+    },
+    "2320601": {
+      "name": "DeusCenter_Single_Boss_1",
+      "dungeon": "DeusCenter_G_01",
+      "role": "final",
+      "telegraph": {
+        "skill": 1801510,
+        "every_ms": 24000,
+        "wind_up_ms": 5000,
+        "radius": 600,
+        "damage": 1.87,
+        "warning": "The Deus Research Base boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+      },
+      "phases": [
+        {
+          "at": 70,
+          "name": "call",
+          "adds": {
+            "npc": 2320607,
+            "count": 3,
+            "radius": 500
+          },
+          "notice": "The Deus Research Base boss calls for help!",
+          "notice_ru": "Босс Deus Research Base зовёт на помощь!"
+        },
+        {
+          "at": 40,
+          "name": "fury",
+          "damage": 1.15,
+          "telegraph": {
+            "skill": 1801510,
+            "every_ms": 18000,
+            "wind_up_ms": 5000,
+            "radius": 600,
+            "damage": 1.87,
+            "warning": "The Deus Research Base boss gathers power: get out of reach!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast",
+            "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+          },
+          "notice": "The Deus Research Base boss grows furious.",
+          "notice_ru": "Босс Deus Research Base приходит в ярость."
+        },
+        {
+          "at": 20,
+          "name": "enrage",
+          "damage": 1.3,
+          "haste": 0.8,
+          "notice": "The Deus Research Base boss is enraged!",
+          "notice_ru": "Босс Deus Research Base в бешенстве!"
+        }
+      ]
+    },
+    "2320810": {
+      "name": "BakronIsland_Single_MidBoss_1",
+      "dungeon": "BakronIsland_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1604440,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+      }
+    },
+    "2320811": {
+      "name": "BakronIsland_Single_MidBoss_2",
+      "dungeon": "BakronIsland_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1604790,
+        "every_ms": 30000,
+        "wind_up_ms": 2050,
+        "radius": 450,
+        "damage": 2.5,
+        "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+      }
+    },
+    "2320812": {
+      "name": "BakronIsland_Single_Boss_1",
+      "dungeon": "BakronIsland_Hard",
+      "role": "final",
+      "telegraph": {
+        "skill": 1604410,
+        "every_ms": 18000,
+        "wind_up_ms": 2000,
+        "radius": 600,
+        "damage": 2.71,
+        "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+      },
+      "phases": [
+        {
+          "at": 70,
+          "name": "call",
+          "adds": {
+            "npc": 2320802,
+            "count": 4,
+            "radius": 500
+          },
+          "notice": "The Vakron Sky Island boss calls for help!",
+          "notice_ru": "Босс Vakron Sky Island зовёт на помощь!"
+        },
+        {
+          "at": 40,
+          "name": "fury",
+          "damage": 1.15,
+          "telegraph": {
+            "skill": 1604410,
+            "every_ms": 13500,
+            "wind_up_ms": 2000,
+            "radius": 600,
+            "damage": 2.71,
+            "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast",
+            "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+          },
+          "adds": {
+            "npc": 2320802,
+            "count": 2,
+            "radius": 500
+          },
+          "notice": "The Vakron Sky Island boss grows furious.",
+          "notice_ru": "Босс Vakron Sky Island приходит в ярость."
+        },
+        {
+          "at": 20,
+          "name": "enrage",
+          "damage": 1.3,
+          "haste": 0.8,
+          "notice": "The Vakron Sky Island boss is enraged!",
+          "notice_ru": "Босс Vakron Sky Island в бешенстве!"
+        }
+      ],
+      "frenzy": {
+        "after_ms": 240000,
+        "damage": 3.0,
+        "haste": 0.5,
+        "notice": "The Vakron Sky Island boss goes into a frenzy!",
+        "notice_ru": "Босс Vakron Sky Island впадает в неистовство!"
+      }
+    },
+    "2320908": {
+      "name": "M_PD_FierceHornCave_KalnifElite_01_V02_001",
+      "dungeon": "HornCave_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606870,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "the Kalnif chieftain gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Вождь Kalnif собирает силу: отойдите подальше!"
+      }
+    },
+    "2320909": {
+      "name": "M_PD_FierceHornCave_Lycan_04_V01_001",
+      "dungeon": "HornCave_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606960,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "the Lycan alpha gathers power: get out of reach!",
+        "radius_from": "OURS",
+        "wind_up_from": "OURS",
+        "warning_ru": "Вожак Lycan собирает силу: отойдите подальше!"
+      }
+    },
+    "2320910": {
+      "name": "M_PD_FierceHornCave_Ferk_01_V01",
+      "dungeon": "HornCave_Hard",
+      "role": "final",
+      "display": "Ferocious Horn Nuakum",
+      "display_ru": "Нуакум",
+      "source": "official-overlay",
+      "telegraphs": [
+        {
+          "skill": 1802090,
+          "every_ms": 25000,
+          "wind_up_ms": 1300,
+          "radius": 900,
+          "damage": 1.0,
+          "warning": "Ferocious Horn Nuakum claws a wide arc: get behind him!",
+          "warning_ru": "Нуакум бьёт широкой дугой: зайдите за спину!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1802060,
+          "every_ms": 42000,
+          "wind_up_ms": 1000,
+          "radius": 3000,
+          "damage": 1.0,
+          "warning": "Ferocious Horn Nuakum slams a lane: step off the strip!",
+          "warning_ru": "Нуакум бьёт полосой: отойдите в сторону!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        },
+        {
+          "skill": 1802100,
+          "every_ms": 10000,
+          "wind_up_ms": 850,
+          "radius": 750,
+          "damage": 1.0,
+          "warning": "Ferocious Horn Nuakum slams the ground: walk out of the circle!",
+          "warning_ru": "Нуакум бьёт по земле: выйдите из круга!",
+          "land": true,
+          "radius_from": "skill-areas",
+          "wind_up_from": "client cast"
+        }
+      ],
+      "telegraph": {
+        "skill": 1802090,
+        "every_ms": 25000,
+        "wind_up_ms": 1300,
+        "radius": 900,
+        "damage": 1.0,
+        "warning": "Ferocious Horn Nuakum claws a wide arc: get behind him!",
+        "warning_ru": "Нуакум бьёт широкой дугой: зайдите за спину!",
+        "land": true,
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast"
+      },
+      "phases": [
+        {
+          "at": 75,
+          "name": "hunt",
+          "notice": "The hunt — an unmarked player blocks the clone; then stack or spread with the circle!",
+          "notice_ru": "Охота — не отмеченный игрок перехватывает клона; затем соберитесь или разойдитесь по кругу!"
+        },
+        {
+          "at": 55,
+          "name": "hunt",
+          "notice": "The hunt again — rotate blockers; read the circle (in = stack, out = spread)!",
+          "notice_ru": "Охота снова — меняйте тех, кто перехватывает; читайте круг (внутрь — вместе, наружу — врозь)!"
+        },
+        {
+          "at": 30,
+          "name": "blue_light",
+          "notice": "Blue Light of Destruction — stand so his throw hits the central orb (three hits)!",
+          "notice_ru": "Синий свет разрушения — встаньте так, чтобы бросок попал в сферу в центре (три попадания)!"
+        }
+      ],
+      "frenzy": {
+        "after_ms": 240000,
+        "damage": 2.0,
+        "haste": 0.5,
+        "notice": "Ferocious Horn Nuakum goes into a frenzy!",
+        "notice_ru": "Нуакум впадает в неистовство!"
+      }
+    },
+    "2330709": {
+      "name": "Arkanis_G_01_Boss",
+      "dungeon": "Arkanis_G_01",
+      "role": "final",
+      "telegraph": {
+        "skill": 1801640,
+        "every_ms": 24000,
+        "wind_up_ms": 1700,
+        "radius": 600,
+        "damage": 1.17,
+        "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+      },
+      "phases": [
+        {
+          "at": 70,
+          "name": "call",
+          "adds": {
+            "npc": 2330701,
+            "count": 3,
+            "radius": 500
+          },
+          "notice": "The Shattered Arkanis boss calls for help!",
+          "notice_ru": "Босс Shattered Arkanis зовёт на помощь!"
+        },
+        {
+          "at": 40,
+          "name": "fury",
+          "damage": 1.15,
+          "telegraph": {
+            "skill": 1801640,
+            "every_ms": 18000,
+            "wind_up_ms": 1700,
+            "radius": 600,
+            "damage": 1.17,
+            "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast",
+            "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+          },
+          "notice": "The Shattered Arkanis boss grows furious.",
+          "notice_ru": "Босс Shattered Arkanis приходит в ярость."
+        },
+        {
+          "at": 20,
+          "name": "enrage",
+          "damage": 1.3,
+          "haste": 0.8,
+          "notice": "The Shattered Arkanis boss is enraged!",
+          "notice_ru": "Босс Shattered Arkanis в бешенстве!"
+        }
+      ]
+    },
+    "2340601": {
+      "name": "DeusCenter_Single_Boss_1",
+      "dungeon": "DeusCenter_G_03",
+      "role": "final",
+      "telegraph": {
+        "skill": 1801510,
+        "every_ms": 24000,
+        "wind_up_ms": 5000,
+        "radius": 600,
+        "damage": 1.87,
+        "warning": "The Deus Research Base boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+      },
+      "phases": [
+        {
+          "at": 70,
+          "name": "call",
+          "adds": {
+            "npc": 2340607,
+            "count": 3,
+            "radius": 500
+          },
+          "notice": "The Deus Research Base boss calls for help!",
+          "notice_ru": "Босс Deus Research Base зовёт на помощь!"
+        },
+        {
+          "at": 40,
+          "name": "fury",
+          "damage": 1.15,
+          "telegraph": {
+            "skill": 1801510,
+            "every_ms": 18000,
+            "wind_up_ms": 5000,
+            "radius": 600,
+            "damage": 1.87,
+            "warning": "The Deus Research Base boss gathers power: get out of reach!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast",
+            "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+          },
+          "notice": "The Deus Research Base boss grows furious.",
+          "notice_ru": "Босс Deus Research Base приходит в ярость."
+        },
+        {
+          "at": 20,
+          "name": "enrage",
+          "damage": 1.3,
+          "haste": 0.8,
+          "notice": "The Deus Research Base boss is enraged!",
+          "notice_ru": "Босс Deus Research Base в бешенстве!"
+        }
+      ]
+    },
+    "2343601": {
+      "name": "DeusCenter_Single_Boss_1",
+      "dungeon": "DeusCenter_G_06",
+      "role": "final",
+      "telegraph": {
+        "skill": 1801510,
+        "every_ms": 24000,
+        "wind_up_ms": 5000,
+        "radius": 600,
+        "damage": 1.87,
+        "warning": "The Deus Research Base boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+      },
+      "phases": [
+        {
+          "at": 70,
+          "name": "call",
+          "adds": {
+            "npc": 2343607,
+            "count": 3,
+            "radius": 500
+          },
+          "notice": "The Deus Research Base boss calls for help!",
+          "notice_ru": "Босс Deus Research Base зовёт на помощь!"
+        },
+        {
+          "at": 40,
+          "name": "fury",
+          "damage": 1.15,
+          "telegraph": {
+            "skill": 1801510,
+            "every_ms": 18000,
+            "wind_up_ms": 5000,
+            "radius": 600,
+            "damage": 1.87,
+            "warning": "The Deus Research Base boss gathers power: get out of reach!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast",
+            "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+          },
+          "notice": "The Deus Research Base boss grows furious.",
+          "notice_ru": "Босс Deus Research Base приходит в ярость."
+        },
+        {
+          "at": 20,
+          "name": "enrage",
+          "damage": 1.3,
+          "haste": 0.8,
+          "notice": "The Deus Research Base boss is enraged!",
+          "notice_ru": "Босс Deus Research Base в бешенстве!"
+        }
+      ]
+    },
+    "2346601": {
+      "name": "DeusCenter_Single_Boss_1",
+      "dungeon": "DeusCenter_G_09",
+      "role": "final",
+      "telegraph": {
+        "skill": 1801510,
+        "every_ms": 24000,
+        "wind_up_ms": 5000,
+        "radius": 600,
+        "damage": 1.87,
+        "warning": "The Deus Research Base boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+      },
+      "phases": [
+        {
+          "at": 70,
+          "name": "call",
+          "adds": {
+            "npc": 2346607,
+            "count": 3,
+            "radius": 500
+          },
+          "notice": "The Deus Research Base boss calls for help!",
+          "notice_ru": "Босс Deus Research Base зовёт на помощь!"
+        },
+        {
+          "at": 40,
+          "name": "fury",
+          "damage": 1.15,
+          "telegraph": {
+            "skill": 1801510,
+            "every_ms": 18000,
+            "wind_up_ms": 5000,
+            "radius": 600,
+            "damage": 1.87,
+            "warning": "The Deus Research Base boss gathers power: get out of reach!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast",
+            "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+          },
+          "notice": "The Deus Research Base boss grows furious.",
+          "notice_ru": "Босс Deus Research Base приходит в ярость."
+        },
+        {
+          "at": 20,
+          "name": "enrage",
+          "damage": 1.3,
+          "haste": 0.8,
+          "notice": "The Deus Research Base boss is enraged!",
+          "notice_ru": "Босс Deus Research Base в бешенстве!"
+        }
+      ]
+    },
+    "2350709": {
+      "name": "Arkanis_G_03_Boss",
+      "dungeon": "Arkanis_G_03",
+      "role": "final",
+      "telegraph": {
+        "skill": 1801640,
+        "every_ms": 24000,
+        "wind_up_ms": 1700,
+        "radius": 600,
+        "damage": 1.17,
+        "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+      },
+      "phases": [
+        {
+          "at": 70,
+          "name": "call",
+          "adds": {
+            "npc": 2350701,
+            "count": 3,
+            "radius": 500
+          },
+          "notice": "The Shattered Arkanis boss calls for help!",
+          "notice_ru": "Босс Shattered Arkanis зовёт на помощь!"
+        },
+        {
+          "at": 40,
+          "name": "fury",
+          "damage": 1.15,
+          "telegraph": {
+            "skill": 1801640,
+            "every_ms": 18000,
+            "wind_up_ms": 1700,
+            "radius": 600,
+            "damage": 1.17,
+            "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast",
+            "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+          },
+          "notice": "The Shattered Arkanis boss grows furious.",
+          "notice_ru": "Босс Shattered Arkanis приходит в ярость."
+        },
+        {
+          "at": 20,
+          "name": "enrage",
+          "damage": 1.3,
+          "haste": 0.8,
+          "notice": "The Shattered Arkanis boss is enraged!",
+          "notice_ru": "Босс Shattered Arkanis в бешенстве!"
+        }
+      ]
+    },
+    "2353709": {
+      "name": "Arkanis_G_06_Boss",
+      "dungeon": "Arkanis_G_06",
+      "role": "final",
+      "telegraph": {
+        "skill": 1801640,
+        "every_ms": 24000,
+        "wind_up_ms": 1700,
+        "radius": 600,
+        "damage": 1.17,
+        "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+      },
+      "phases": [
+        {
+          "at": 70,
+          "name": "call",
+          "adds": {
+            "npc": 2353703,
+            "count": 3,
+            "radius": 500
+          },
+          "notice": "The Shattered Arkanis boss calls for help!",
+          "notice_ru": "Босс Shattered Arkanis зовёт на помощь!"
+        },
+        {
+          "at": 40,
+          "name": "fury",
+          "damage": 1.15,
+          "telegraph": {
+            "skill": 1801640,
+            "every_ms": 18000,
+            "wind_up_ms": 1700,
+            "radius": 600,
+            "damage": 1.17,
+            "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast",
+            "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+          },
+          "notice": "The Shattered Arkanis boss grows furious.",
+          "notice_ru": "Босс Shattered Arkanis приходит в ярость."
+        },
+        {
+          "at": 20,
+          "name": "enrage",
+          "damage": 1.3,
+          "haste": 0.8,
+          "notice": "The Shattered Arkanis boss is enraged!",
+          "notice_ru": "Босс Shattered Arkanis в бешенстве!"
+        }
+      ]
+    },
+    "2356709": {
+      "name": "Arkanis_G_09_Boss",
+      "dungeon": "Arkanis_G_09",
+      "role": "final",
+      "telegraph": {
+        "skill": 1801640,
+        "every_ms": 24000,
+        "wind_up_ms": 1700,
+        "radius": 600,
+        "damage": 1.17,
+        "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+      },
+      "phases": [
+        {
+          "at": 70,
+          "name": "call",
+          "adds": {
+            "npc": 2356703,
+            "count": 3,
+            "radius": 500
+          },
+          "notice": "The Shattered Arkanis boss calls for help!",
+          "notice_ru": "Босс Shattered Arkanis зовёт на помощь!"
+        },
+        {
+          "at": 40,
+          "name": "fury",
+          "damage": 1.15,
+          "telegraph": {
+            "skill": 1801640,
+            "every_ms": 18000,
+            "wind_up_ms": 1700,
+            "radius": 600,
+            "damage": 1.17,
+            "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast",
+            "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+          },
+          "notice": "The Shattered Arkanis boss grows furious.",
+          "notice_ru": "Босс Shattered Arkanis приходит в ярость."
+        },
+        {
+          "at": 20,
+          "name": "enrage",
+          "damage": 1.3,
+          "haste": 0.8,
+          "notice": "The Shattered Arkanis boss is enraged!",
+          "notice_ru": "Босс Shattered Arkanis в бешенстве!"
+        }
+      ]
+    }
+  },
+  "waves": {
+    "FierceHornCave_Easy_Wave_01": {
+      "map": 600091,
+      "around": "M_PD_FierceHornCave_LycanTotem_01_001",
+      "npc": 2310902,
+      "count": 3,
+      "every_ms": 15000,
+      "pulses": 6,
+      "radius": 600
+    },
+    "FierceHornCave_Hard_Wave_01": {
+      "map": 600093,
+      "around": "M_PD_FierceHornCave_LycanTotem_01_001",
+      "npc": 2320902,
+      "count": 3,
+      "every_ms": 15000,
+      "pulses": 6,
+      "radius": 600
+    },
+    "FierceHornCave_Wave_01": {
+      "map": 600092,
+      "around": "M_PD_FierceHornCave_LycanTotem_01_001",
+      "npc": 2300902,
+      "count": 3,
+      "every_ms": 15000,
+      "pulses": 6,
+      "radius": 600
+    }
+  }
+}

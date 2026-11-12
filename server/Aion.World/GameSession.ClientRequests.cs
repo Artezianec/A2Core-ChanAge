@@ -43,6 +43,9 @@ public sealed partial class GameSession
                 return [PacketWriter.Opcode(SkinDecoInstanceListRs).U16(0).ToArray()];
             case WorldMapAbyssRankerInfoRq when plain.Length == 2:
                 return WorldMapAbyssRankerInfo(plain);
+            // WorldMapContentsInfo_RQ {i32 map id}: Field Boss / Exploration tab. See GameSession.FieldBosses.
+            case WorldMapContentsInfoRq when plain.Length >= 6:
+                return WorldMapContentsInfo(plain);
             // RetrieveMyLatestSeasonRanking_RQ {contents type u8, class u8}: no ranking, the official empty reply.
             case MySeasonRankingRq when plain.Length >= 4:
             {
@@ -63,7 +66,7 @@ public sealed partial class GameSession
                 var replies = new List<byte[]> { PacketWriter.Opcode(LockOnTargetRs).U16(0).Varint(target).U16(0).ToArray() };
                 if (target > 0 && options.MapEventAskNpcProximityFallback)
                     replies.AddRange(TryMapEventAskNpcInteractFallback((int)target, now));
-                if (target > 0 && targets?.GetValueOrDefault((int)target) is { } talkNpc
+                if (target > 0 && targets?.GetValueOrDefault((int)target) is { Custom: null } talkNpc
                     && questLog?.OpenTalks(talkNpc.NpcId) is { Count: > 0 })
                     replies.AddRange(BeginNpcInteraction((int)target, now));
                 return replies;

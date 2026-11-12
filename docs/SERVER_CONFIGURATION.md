@@ -45,6 +45,8 @@ When both are set, account APIs, native **accounts** logins, staff tools, and ch
 | `Aion:Https:Proxy` | `false` | Account port listens on loopback only; trust `X-Forwarded-*` from local proxy |
 | `Aion:BridgeSecret` | — | ≥64 chars: internal handoff API (`/internal/*`) |
 | `Aion:Accounts:Registration` | `true` | Public sign-up on account page |
+| `Aion:Worlds:Enabled` | `false` | Multi-world (opt-in, [MULTI_WORLD.md](MULTI_WORLD.md)): the login port lists the world registry and starts managed world servers |
+| `Aion:CustomNpcs:AssumePatchedClients` | `false` | Custom NPCs ([CUSTOM_NPCS.md](CUSTOM_NPCS.md)): send custom template ids, which only a client that loaded the patch pak would know. Keep off: the official client does not load unsigned paks |
 
 ## `Aion:Web`
 
@@ -71,7 +73,7 @@ Map-event debug uses env `AION_MAP_EVENT_DEBUG` only (see `GameSession.MapEvents
 
 BM shop tabs load sale rows from `GET /local-api-gate/goods/v2.0/goods` (see `tools/data/platform_goods.json`). Game purchases still use NP shop `0x37cd` / coin shop `0x8c06` / NPC `0x8c00` as in `docs/parity/MERCHANT_INVENTORY.ru.md`.
 
-GM dev wallet: builder `GrantShopCurrency kina|quna [count]`. **Kinah** and **Quna** both appear as bag currency items on **0x5611** (`930100001`, `535300006`). Platform HTTP **`virtual_currency/v2.0/me/balances`** uses **`currency_group_id` 145** with **`currency_id` 109** (GameCash) and **158** with **110** (Mileage); the host mirrors bag/account totals there. The server does **not** send speculative **`RefreshCurrency_NT` (0x3bd1)** at world entry (no official capture of that packet on entry yet). Optional **0x3bd1** may still follow inventory spends. GNB Quna display wiring is documented in `tools/data/currency_hud.json` and remains TBD until a live capture with Quna owned.
+GM dev wallet: builder `GrantShopCurrency kina|quna [count]`. **Kinah** and **Quna** both appear as bag currency items on **0x5611** (`930100001`, `535300006`). Platform HTTP **`virtual_currency/v2.0/me/balances`** uses **`currency_group_id` 145** with **`currency_id` 109** (GameCash, shop checks) and **103** (GameCashPending, the top-left Quna counter), and **158** with **110** (Mileage); the host mirrors the account wallet there. The server does **not** send speculative **`RefreshCurrency_NT` (0x3bd1)** at world entry (no official capture of that packet on entry yet). Optional **0x3bd1** may still follow inventory spends. GNB Quna display wiring is documented in `tools/data/currency_hud.json`.
 
 ## Subscribe window (membership, Daeva Pass, Pass Shop)
 
@@ -149,6 +151,17 @@ Bootstrap HTTP for the dev client (`GamePlatform.ini` → `ConfigurationServerUr
 | Key | Default | Description |
 |-----|---------|-------------|
 | `MapEventAskNpcProximityFallback` | `true` | When true, open map-event **AskNpc** on **Companion** or aggressive combat NpcData can complete without client talk UI: ~5 m for 3 s, or **0x3830** lock-on. Normal quest NPCs still need **0xe240** / step talk. Set `false` to disable. Env: `Aion__World__MapEventAskNpcProximityFallback=false`. |
+
+## `Aion:Bosses`
+
+Dungeon boss phases (slams, adds, enrage, frenzy) and tracked `ClearWave` waves: `Phases`, `Frenzy`, `FrenzySeconds`,
+`DamageScale`, `Waves`, `WavePartSeconds`. See [BOSSES.md](BOSSES.md).
+
+## `Aion:FieldBosses`
+
+Open-world field boss respawns (retail-like hours), a personal participant-table chest for every contributor, optional
+kill/spawn broadcasts (`AnnouncementScope` Off/Zone/Server, default Off; `ChatBroadcast` default false; legacy
+`Announcements`), and participant centre notices. See [FIELD-BOSSES.md](FIELD-BOSSES.md).
 
 ## `Aion:Debug`
 

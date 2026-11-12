@@ -10,6 +10,8 @@ public sealed record ItemState(Guid InstanceId, string BuildId, int TemplateId, 
 /// <summary>A stored skill: <paramref name="Level"/> is the level the client shows; <paramref name="Purchased"/> is the level bought with
 /// skill points through SkillLevelUp (0 = none). Only the purchase counts as spent points, never the kit or auto-granted level.</summary>
 public sealed record SkillState(int SkillId, int Level, int? Slot, int Purchased = 0);
+/// <summary>A stigma skill bought with Stigma Shards and its stigma level (docs/STIGMAS.md).</summary>
+public sealed record StigmaState(int SkillId, int Level);
 // Legions: a member (grade EGuildMemberGrade 0 Master, 1 Officer, 2 Member) and a legion with its members.
 public sealed record GuildMember(Guid CharacterId, string Name, int Level, int Grade, string Comment, int CreationId, DateTimeOffset Joined,
     long Reputation = 0, long WeeklyReputation = 0, long DonationReputation = 0, long WeeklyDonationReputation = 0, int DonationsToday = 0);
@@ -163,6 +165,19 @@ public interface IGameplayStore
     Task<bool> SetSkinEquipsAsync(VerifiedAccount account, Guid character, IReadOnlyDictionary<int, int> equips, CancellationToken ct = default) => Task.FromResult(false);
     /// <summary>A learned skill's level (a skill level bought with skill points).</summary>
     Task<bool> SetSkillLevelAsync(VerifiedAccount account, Guid character, int skillId, int level, int purchased, CancellationToken ct = default) => Task.FromResult(false);
+    /// <summary>The character's learned stigmas (game.character_stigmas); null when not owned.</summary>
+    Task<IReadOnlyList<StigmaState>?> StigmasAsync(VerifiedAccount account, Guid character, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<StigmaState>?>([]);
+    /// <summary>A stigma's level (1..20); 0 forgets it (reset).</summary>
+    Task<bool> SetStigmaAsync(VerifiedAccount account, Guid character, int skillId, int level, CancellationToken ct = default) => Task.FromResult(false);
+    /// <summary>Bonus Stigma Shard points from items, shops and staff grants (game.character_stigma_bonus); 0 when none or not owned.</summary>
+    Task<int> StigmaBonusShardsAsync(VerifiedAccount account, Guid character, CancellationToken ct = default) => Task.FromResult(0);
+    /// <summary>Adds bonus shards (amount must be &gt; 0) and returns the new total, or null when not owned.</summary>
+    Task<int?> AddStigmaBonusShardsAsync(VerifiedAccount account, Guid character, int amount, CancellationToken ct = default) => Task.FromResult<int?>(null);
+    /// <summary>
+    /// Forgets the listed stigmas and, when <paramref name="kinah"/> is greater than 0, deducts that many Kinah in the same
+    /// transaction. False when the character is not owned, Kinah is short, or the write fails; stigmas and Kinah stay unchanged.
+    /// </summary>
+    Task<bool> SpendKinahAndForgetStigmasAsync(VerifiedAccount account, Guid character, long kinah, IReadOnlyList<int> skillIds, CancellationToken ct = default) => Task.FromResult(false);
     /// <summary>A mastery's level and exp.</summary>
     Task<bool> SaveMasteryAsync(VerifiedAccount account, Guid character, string kind, int category, int level, long exp, CancellationToken ct = default) => Task.FromResult(false);
     // Friends, requests and blocks of an owned character; null when not owned.
@@ -189,7 +204,10 @@ public interface IGameplayStore
     /// limited goods' count raised within its limit (target 1 character, 2 account, 3 the character's world/server; period key).
     /// </summary>
     Task<bool> ShopBuyAsync(VerifiedAccount account, Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs,
-        IReadOnlyList<(int TemplateId, long Count)> goods, IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, CancellationToken ct = default);
+        IReadOnlyList<(int TemplateId, long Count)> goods, IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits,
+        IReadOnlyList<ShopOrderLine>? orders = null, CancellationToken ct = default, QunaRequest? qunaSpend = null);
+    Task<StoredMembership?> MembershipAsync(VerifiedAccount account, CancellationToken ct = default);
+    Task SaveMembershipAsync(VerifiedAccount account, StoredMembership membership, CancellationToken ct = default);
     Task<IReadOnlyList<(int Target, int RecipeId, string Period, int Count)>> ConversionCountsAsync(VerifiedAccount account, Guid character, int worldId, CancellationToken ct = default);
     Task<bool> ConversionAsync(VerifiedAccount account, Guid character, int worldId, IReadOnlyList<(Guid Item, long Revision, int Count)> costs,
         IReadOnlyList<(int TemplateId, long Count)> goods, IReadOnlyList<(int Target, int RecipeId, string Period, int Count, int Limit)> limits, CancellationToken ct = default);

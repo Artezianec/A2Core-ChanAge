@@ -1,3 +1,4 @@
+using Aion.Application.Authentication;
 using Aion.Infrastructure.Postgres;
 using Npgsql;
 
@@ -67,7 +68,17 @@ await Denied(appSource, "SELECT token_hash FROM auth.sessions", "game role canno
 await using var authSource = NpgsqlDataSource.Create(authConnection);
 await Denied(authSource, "UPDATE auth.accounts SET disabled_at=NULL WHERE false", "auth role cannot unban");
 await Denied(authSource, "DELETE FROM auth.account_roles WHERE false", "auth role cannot change GM roles");
-await Denied(authSource, "SELECT * FROM game.characters", "auth role cannot read gameplay");
+// Staff Accounts page (IAccountDirectory, migration 121): aion_auth may SELECT game.characters, and no other game table.
+var listed = Guid.NewGuid();
+await Execute($"INSERT INTO game.characters(character_id,account_id,world_id,name,creation_id,race,gender,level) VALUES('{listed}','{session.AccountId}',1204,'AliceHero',1,1,1,12)");
+var detail = await auth.DetailAsync(session.AccountId, default);
+Check(detail is { Characters.Count: 1 } && detail.Characters[0].Name == "AliceHero" && detail.Characters[0].Level == 12, "account detail lists characters");
+Check((await auth.SearchAsync("alicehero", AccountFilter.All, 0, 10, default)).Accounts.Any(a => a.AccountId == session.AccountId), "account search by character name");
+await Denied(authSource, "SELECT * FROM game.item_instances WHERE false", "auth role cannot read inventories");
+await Denied(authSource, "SELECT * FROM game.quna_wallets WHERE false", "auth role cannot read quna wallets");
+await Denied(authSource, "SELECT * FROM game.worlds WHERE false", "auth role cannot read worlds");
+await Denied(authSource, "UPDATE game.characters SET level=level WHERE false", "auth role cannot write characters");
+await Denied(authSource, "DELETE FROM game.characters WHERE false", "auth role cannot delete characters");
 var persistent = await auth.SignInAsync("race", password, default) ?? throw new Exception("Session missing");
 var launch = await auth.AuthorizeLaunchAsync(persistent.Token, 1204, default) ?? throw new Exception("Launch missing");
 Check(await auth.AuthorizeLaunchAsync(persistent.Token, 1205, default) is null, "launch world restriction");

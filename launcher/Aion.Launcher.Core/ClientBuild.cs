@@ -42,6 +42,21 @@ public sealed record SupportedBuild(
         return SupportedBuildJson.Read(stream);
     }
 
+    /// <summary>Downloaded build reference, trusted only when its fingerprint matches <paramref name="expectedFingerprint"/>.</summary>
+    public static SupportedBuild Parse(byte[] json, string expectedFingerprint)
+    {
+        var build = SupportedBuildJson.Read(Encoding.UTF8.GetString(json));
+        if (build.Files is not { Count: > 0 } || string.IsNullOrEmpty(build.Executable))
+            throw new InvalidDataException("The build reference lists no files.");
+        var computed = SupportedBuildJson.ComputeFingerprint(build.Files);
+        if (!computed.Equals(build.Fingerprint, StringComparison.OrdinalIgnoreCase)
+            || !computed.Equals(expectedFingerprint, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("The server's build reference does not match its fingerprint.");
+        if (build.Files.Any(f => Path.IsPathRooted(f.Path) || f.Path.Split('/', '\\').Contains("..")))
+            throw new InvalidDataException("The build reference names a file outside the game folder.");
+        return build;
+    }
+
     /// <summary>Steam console command that downloads exactly this build with the player's own Steam account.</summary>
     public string DownloadCommand => $"download_depot {AppId} {DepotId} {ManifestId}";
 }

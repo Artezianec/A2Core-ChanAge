@@ -14,7 +14,8 @@ public sealed record ClientVersion(
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("kind")] string Kind,
     [property: JsonPropertyName("clientPath")] string? ClientPath = null,
-    [property: JsonPropertyName("launchArgs")] string[]? LaunchArgs = null)
+    [property: JsonPropertyName("launchArgs")] string[]? LaunchArgs = null,
+    [property: JsonPropertyName("build"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Build = null)
 {
     public const string PrivateKind = "private", SteamKind = "steam";
     public const string DefaultId = "2.0.6.0", SteamLatestId = "steam-latest";
@@ -33,11 +34,13 @@ public static class ClientVersions
     public static IReadOnlyList<ClientVersion> All(LauncherConfig config) =>
         config.ClientVersions is { Length: > 0 } list ? list : ClientVersion.Defaults;
 
-    /// <summary>The selected version ("selectedClientVersion"), else the first (2.0.6.0).</summary>
-    public static ClientVersion Selected(LauncherConfig config)
+    /// <summary>Kept per-server choice, else config selection, else the first (2.0.6.0).</summary>
+    public static ClientVersion Selected(LauncherConfig config, string? chosen = null)
     {
         var all = All(config);
-        return all.FirstOrDefault(v => v.Id.Equals(config.SelectedClientVersion, StringComparison.OrdinalIgnoreCase)) ?? all[0];
+        return all.FirstOrDefault(v => v.Id.Equals(chosen, StringComparison.OrdinalIgnoreCase))
+            ?? all.FirstOrDefault(v => v.Id.Equals(config.SelectedClientVersion, StringComparison.OrdinalIgnoreCase))
+            ?? all[0];
     }
 
     /// <summary>

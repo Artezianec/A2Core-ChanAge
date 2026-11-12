@@ -1,4 +1,5 @@
 using System.Net;
+using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -25,6 +26,9 @@ public sealed record NcGuardOptions
     public bool Capture { get; init; } = true;
     /// <summary>Listen address (Aion:Network:BindAddress; loopback by default).</summary>
     public string BindAddress { get; init; } = "127.0.0.1";
+    /// <summary>HTTP URL where this server publishes its CA CRL; set, the minted leaves carry a CRL
+    /// distribution point so strict verifiers (schannel/WinHTTP) can check revocation and accept the chain.</summary>
+    public string? CrlDistributionUrl { get; init; }
 }
 
 /// <summary>Fixture server: no upstream traffic and no trust-store installation (clients accept its own certificates).</summary>
@@ -39,6 +43,9 @@ public sealed class NcGuardSink : BackgroundService
     private readonly List<Rule> rules = [];
     private readonly SemaphoreSlim captureLock = new(1);
     private readonly X509Certificate2 authority;
+    private readonly byte[]? crlDer;
+    /// <summary>The DER-encoded CA CRL (empty revocation list), served over HTTP at CrlDistributionUrl. Null when no CRL URL is configured.</summary>
+    public byte[]? CrlDer => crlDer;
     private readonly byte[] hostsBlock;
     private string? hostsPath;
     private int records;
@@ -50,7 +57,10 @@ public sealed class NcGuardSink : BackgroundService
         this.logger = logger;
         this.options = options = options.Hosts.Length == 0 ? options with { Hosts =
             ["bladnoch.ncsoft.com", "lagavulin.ncsoft.com", "atp-json.ncsoft.com",
-             "sdk.gpa.ncsoft.com", "stun.gpa.ncsoft.com", "nccr-api.global.nc.com"] } : options;
+             "sdk.gpa.ncsoft.com", "stun.gpa.ncsoft.com", "nccr-api.global.nc.com",
+             // Official NcPlatform settings/config and login hosts: a Steam-patched client reaches
+             // these directly (verified TLS), so the sink mints a certificate and accepts the SNI.
+             "mobileappconfig.g.nc.com", "mobileappconfig-ncus.g.nc.com", "api.g.nc.com"] } : options;
         this.lifetime = lifetime;
         if (options.Port is not (>= 1 and <= 65535) || options.BodyCap is < 0 or > 16777216 ||
             options.DurationSeconds is < 1 or > 86400)
@@ -77,14 +87,26 @@ public sealed class NcGuardSink : BackgroundService
                         Encoding.UTF8.GetBytes(Value("body") ?? "")));
             }
         }
-        RunDirectory = Path.Combine(Path.GetFullPath(options.DataDirectory), $"tls-mitm-dotnet-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}");
+        var dataDir = Path.GetFullPath(options.DataDirectory);
+        Directory.CreateDirectory(dataDir);
+        RunDirectory = Path.Combine(dataDir, $"tls-mitm-dotnet-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}");
         Directory.CreateDirectory(RunDirectory);
-        using var key = RSA.Create(2048);
-        var request = new CertificateRequest("CN=AionResearch loopback CA", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        request.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
-        request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyCertSign, true));
-        authority = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddDays(2));
+        // Stable CA so the client machine trusts it once (install ca-root.pem into the
+        // trusted roots on the client). Reused across restarts; regenerated only if
+        // missing or expired. This file is the MITM root and must stay on the LAN.
+        authority = LoadOrCreateAuthority(Path.Combine(dataDir, "ca-root.pfx"));
+        File.WriteAllText(Path.Combine(dataDir, "ca-root.pem"), authority.ExportCertificatePem());
         File.WriteAllText(Path.Combine(RunDirectory, "ca.pem"), authority.ExportCertificatePem());
+        // A CRL lets strict verifiers check revocation; without it schannel hard-fails the TLS handshake
+        // (CRYPT_E_NO_REVOCATION_CHECK) before sending any request. The list is empty (nothing revoked).
+        X509Extension? crlDistributionPoint = null;
+        if (options.CrlDistributionUrl is { } crlUrl)
+        {
+            crlDer = new CertificateRevocationListBuilder().Build(authority, BigInteger.One,
+                DateTimeOffset.UtcNow.AddDays(7), HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1, DateTimeOffset.UtcNow.AddMinutes(-5));
+            File.WriteAllBytes(Path.Combine(dataDir, "ca-root.crl"), crlDer);
+            crlDistributionPoint = CertificateRevocationListBuilder.BuildCrlDistributionPointExtension([crlUrl]);
+        }
         foreach (var host in options.Hosts.Append("localhost").Distinct(StringComparer.OrdinalIgnoreCase))
         {
             using var leafKey = RSA.Create(2048);
@@ -94,6 +116,8 @@ public sealed class NcGuardSink : BackgroundService
             leaf.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
             leaf.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, true));
             leaf.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(new OidCollection { new("1.3.6.1.5.5.7.3.1") }, false));
+            leaf.CertificateExtensions.Add(X509AuthorityKeyIdentifierExtension.CreateFromCertificate(authority, true, false));
+            if (crlDistributionPoint is not null) leaf.CertificateExtensions.Add(crlDistributionPoint);
             using var signed = leaf.Create(authority, DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddDays(1), RandomNumberGenerator.GetBytes(16));
             using var withKey = signed.CopyWithPrivateKey(leafKey);
             // Schannel cannot use ephemeral private keys. Default temporary user-key
@@ -106,6 +130,36 @@ public sealed class NcGuardSink : BackgroundService
         hostsBlock = Encoding.UTF8.GetBytes("\n" + string.Join("\n", options.Hosts.Distinct(StringComparer.OrdinalIgnoreCase)
             .Select(h => $"127.0.0.1 {h} # aion-ncguard-{marker}")) + "\n");
         State("prepared");
+    }
+
+    private static X509Certificate2 LoadOrCreateAuthority(string pfxPath)
+    {
+        if (File.Exists(pfxPath))
+        {
+            try
+            {
+                var existing = X509CertificateLoader.LoadPkcs12(File.ReadAllBytes(pfxPath), null,
+                    OperatingSystem.IsWindows() ? X509KeyStorageFlags.UserKeySet : X509KeyStorageFlags.EphemeralKeySet);
+                var usage = existing.Extensions.OfType<X509KeyUsageExtension>().FirstOrDefault();
+                if (existing.HasPrivateKey && existing.NotAfter > DateTime.UtcNow.AddDays(1)
+                    && usage is not null && usage.KeyUsages.HasFlag(X509KeyUsageFlags.CrlSign))
+                    return existing;
+                existing.Dispose();
+            }
+            catch (CryptographicException) { /* regenerate on unreadable CA */ }
+        }
+        using var key = RSA.Create(2048);
+        var request = new CertificateRequest("CN=AionResearch loopback CA", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        request.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
+        request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign, true));
+        request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
+        using var created = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddYears(5));
+        var pfx = created.Export(X509ContentType.Pfx);
+        var tmp = pfxPath + ".tmp";
+        File.WriteAllBytes(tmp, pfx);
+        File.Move(tmp, pfxPath, true);
+        return X509CertificateLoader.LoadPkcs12(pfx, null,
+            OperatingSystem.IsWindows() ? X509KeyStorageFlags.UserKeySet : X509KeyStorageFlags.EphemeralKeySet);
     }
 
     public void Configure(KestrelServerOptions server) => server.Listen(IPAddress.Parse(options.BindAddress), options.Port!.Value, listener =>

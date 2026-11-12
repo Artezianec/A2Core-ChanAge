@@ -1536,6 +1536,11 @@
       "SoulCrystalAll",
       "1"
     ],
+    "531900010": [
+      "GetStigmaShard",
+      1,
+      "1"
+    ],
     "531900019": [
       "Fix_VehicleCreatureLevel",
       0,
@@ -83150,6 +83155,7 @@
     "GetSkin",
     "GetSkinSet",
     "GetSocialAction",
+    "GetStigmaShard",
     "GetTitle",
     "GetVehicle",
     "GetVehicleSoul",

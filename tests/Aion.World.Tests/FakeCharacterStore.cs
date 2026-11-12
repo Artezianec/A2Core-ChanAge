@@ -25,6 +25,8 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     public List<(string Code, long Exp, int ItemCount)> Rewards { get; } = [];
     public List<SkillState> Skills { get; } = [];
     public List<(int Target, int GoodsId, string Period, int Count)> Purchases { get; } = [];
+    public List<ShopOrderLine> ShopOrders { get; } = [];
+    public StoredMembership? Membership { get; set; }
     public List<(int Target, int RecipeId, string Period, int Count)> ConversionCounts { get; } = [];
     public List<AchievementRecord> Achievements { get; } = [];
     public (int Level, long Exp) Progress { get; set; } = (1, 0);
@@ -38,7 +40,7 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     public Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendInventoryByGoldAsync(Guid character, int costIdx, CancellationToken ct)
     {
         const int maxGoldExt = 10;
-        long[] costs = [5_000, 10_000, 20_000, 30_000, 50_000, 75_000, 100_000, 150_000, 200_000, 300_000];
+        long[] costs = [500, 1_000, 2_000, 3_000, 5_000, 7_500, 10_000, 15_000, 20_000, 30_000];
         if (costIdx is < 0 or >= maxGoldExt) return Task.FromResult(("count", ContainerExtends.GetValueOrDefault(character, ContainerSlotExtendCounts.Zero)));
         var cur = ContainerExtends.GetValueOrDefault(character, ContainerSlotExtendCounts.Zero);
         if (cur.InventoryByGold != costIdx || cur.InventoryByGold >= maxGoldExt) return Task.FromResult(("count", cur));
@@ -224,8 +226,28 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     public Task<IReadOnlyList<ItemState>> InventoryAsync(Guid character, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<ItemState>>(Items.ToList());
 
-    public Task<long> AccountQunaBalanceAsync(CancellationToken ct) =>
-        Task.FromResult(Items.Where(i => i.TemplateId == PlatformGoodsTables.Embedded.QunaItemId && i.Location is "bag" or "storage").Sum(i => i.Quantity));
+    /// <summary>The account's Quna wallet (the realm's); Quna items in <see cref="Items"/> are swept into it on the first load.</summary>
+    public MemoryQunaWallet Quna { get; } = new();
+    /// <summary>False: no wallet (Quna stays a bag item, as with development logins).</summary>
+    public bool UseQunaWallet { get; set; } = true;
+    /// <summary>Another wallet in place of <see cref="Quna"/> (the realm's over the realm link).</summary>
+    public IQunaWallet? WalletOverride { get; set; }
+    public IQunaWallet? QunaWallet => UseQunaWallet ? WalletOverride ?? Quna : null;
+    /// <summary>Every shop purchase transaction fails (a database error after the Quna was taken).</summary>
+    public bool FailShopBuy { get; set; }
+    public long QunaBalance => Quna.BalanceAsync(AccountId).Result.Balance;
+
+    /// <summary>A bag stack of the Quna item moves into the wallet (credited "stack:&lt;instance&gt;", then removed), as
+    /// game.quna_absorb_stack does in one transaction. Null where the wallet may not add Quna (a linked world).</summary>
+    public async Task<QunaResult?> AbsorbQunaStackAsync(Guid character, Guid instance, CancellationToken ct)
+    {
+        if (QunaWallet is not { AcceptsGrants: true } wallet) return null;
+        var row = Items.FirstOrDefault(i => i.InstanceId == instance && i.TemplateId == QunaWalletRules.ItemId && i.Location == "bag" && i.Quantity > 0);
+        if (row is null) return new QunaResult(false, (await wallet.BalanceAsync(AccountId, ct)).Balance, Error: QunaWalletRules.NotFound);
+        var result = await wallet.GrantAsync(new QunaRequest(AccountId, QunaWalletRules.StackId(instance), row.Quantity, QunaWalletRules.Grant, WorldId, character), ct);
+        if (result.Ok) Items.Remove(row);
+        return result;
+    }
 
     public Task<bool> MoveItemAsync(Guid character, Guid item, long revision, int? equipmentSlot, CancellationToken ct)
     {
@@ -553,8 +575,16 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     public Task<IReadOnlyList<QuickSlotRecord>> QuickSlotsAsync(Guid character, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<QuickSlotRecord>>(QuickSlots.Values.OrderBy(s => s.Slot).ToList());
 
+    /// <summary>The next N SaveQuickSlotAsync calls fail and leave the stored slot unchanged.</summary>
+    public int FailQuickSlotSaves { get; set; }
+
     public Task<bool> SaveQuickSlotAsync(Guid character, int number, QuickSlotRecord? slot, CancellationToken ct)
     {
+        if (FailQuickSlotSaves > 0)
+        {
+            FailQuickSlotSaves--;
+            return Task.FromResult(false);
+        }
         if (slot is null) QuickSlots.Remove(number);
         else QuickSlots[number] = slot;
         return Task.FromResult(true);
@@ -696,15 +726,28 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     }
 
     public Task<bool> ShopBuyAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
-        IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, CancellationToken ct)
+        IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, CancellationToken ct) =>
+        ShopBuyAsync(character, costs, goods, limits, [], ct);
+
+    public async Task<bool> ShopBuyAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
+        IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, IReadOnlyList<ShopOrderLine> orders, CancellationToken ct,
+        QunaRequest? qunaSpend = null)
     {
+        if (FailShopBuy) return false;
         foreach (var l in limits)
             if (Purchases.Where(p => p.GoodsId == l.GoodsId && p.Target == l.Target && p.Period == l.Period).Sum(p => p.Count) + l.Count > l.Limit)
-                return Task.FromResult(false);
+                return false;
         if (costs.Any(c => !Items.Any(i => i.InstanceId == c.Item && i.Revision == c.Revision && i.Quantity >= c.Count)))
-            return Task.FromResult(false);
+            return false;
+        if (qunaSpend is { } spend)
+        {
+            if (QunaWallet is not { } wallet) return false;
+            var spent = await wallet.SpendAsync(spend, ct);
+            if (!spent.Ok) return false;
+        }
         foreach (var (cost, revision, count) in costs) Consume(cost, revision, count);
         foreach (var l in limits) Purchases.Add((l.Target, l.GoodsId, l.Period, l.Count));
+        ShopOrders.AddRange(orders);
         var wire = Items.Count == 0 ? 5000 : Items.Max(i => i.WireId) + 1;
         foreach (var (template, quantity) in goods)
         {
@@ -714,6 +757,14 @@ public sealed class FakeCharacterStore : INativeCharacterStore
             else
                 Items.Add(BagItem(template, quantity, wire++));
         }
+        return true;
+    }
+
+    public Task<StoredMembership?> MembershipAsync(CancellationToken ct) => Task.FromResult(Membership);
+
+    public Task<bool> SaveMembershipAsync(StoredMembership membership, CancellationToken ct)
+    {
+        Membership = membership;
         return Task.FromResult(true);
     }
 
@@ -770,6 +821,21 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     {
         if (!Consume(item, revision, 1)) return Task.FromResult<int?>(null);
         return Task.FromResult<int?>(Crystals[crystalType] = Crystals.GetValueOrDefault(crystalType) + count);
+    }
+
+    public Task<RideRecord?> AddRideSoulsAsync(Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct)
+    {
+        if (rideId <= 0 || souls < 1 || !Consume(item, revision, 1)) return Task.FromResult<RideRecord?>(null);
+        var index = RideRows.FindIndex(r => r.RideId == rideId);
+        if (index < 0)
+        {
+            var created = new RideRecord(rideId, 1, souls, false);
+            RideRows.Add(created);
+            return Task.FromResult<RideRecord?>(created);
+        }
+        var updated = RideRows[index] with { SoulPoints = RideRows[index].SoulPoints + souls };
+        RideRows[index] = updated;
+        return Task.FromResult<RideRecord?>(updated);
     }
 
     public Task<bool> ConsumeAndGrantAsync(Guid character, Guid item, long revision, int count, IReadOnlyList<(int TemplateId, long Count)> rewards, CancellationToken ct)
@@ -847,16 +913,20 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     public Task ApplyWeeklyLegionResetsAsync(long weeklyBoundaryMs, CancellationToken ct) => Task.CompletedTask;
     public List<RewardLimitRecord> RewardLimits { get; } = [];
     public Task<IReadOnlyList<RewardLimitRecord>> RewardLimitsAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<RewardLimitRecord>>(RewardLimits.ToList());
+    public int RewardLimitSaves { get; private set; }
     public Task<bool> SaveRewardLimitsAsync(Guid character, IReadOnlyList<RewardLimitRecord> rows, CancellationToken ct)
     {
+        RewardLimitSaves++;
         RewardLimits.Clear();
         RewardLimits.AddRange(rows);
         return Task.FromResult(true);
     }
     public List<DungeonCooltimeRecord> DungeonCooltimes { get; } = [];
     public Task<IReadOnlyList<DungeonCooltimeRecord>> DungeonCooltimesAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<DungeonCooltimeRecord>>(DungeonCooltimes.ToList());
+    public int DungeonCooltimeSaves { get; private set; }
     public Task<bool> SaveDungeonCooltimesAsync(Guid character, IReadOnlyList<DungeonCooltimeRecord> rows, CancellationToken ct)
     {
+        DungeonCooltimeSaves++;
         DungeonCooltimes.Clear();
         DungeonCooltimes.AddRange(rows);
         return Task.FromResult(true);
@@ -1308,6 +1378,52 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         var index = Skills.FindIndex(s => s.SkillId == skillId);
         if (index >= 0) Skills[index] = Skills[index] with { Level = level, Purchased = purchased };
         else Skills.Add(new SkillState(skillId, level, null, purchased));
+        return Task.FromResult(true);
+    }
+
+    /// <summary>game.character_stigmas: stigma skill → stigma level.</summary>
+    public Dictionary<int, int> StigmaLevels { get; } = [];
+
+    public Task<IReadOnlyList<StigmaState>> StigmasAsync(Guid character, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<StigmaState>>(StigmaLevels.OrderBy(p => p.Key).Select(p => new StigmaState(p.Key, p.Value)).ToList());
+
+    /// <summary>The next N SetStigmaAsync calls fail and leave the stored level unchanged.</summary>
+    public int FailStigmaSaves { get; set; }
+
+    public Task<bool> SetStigmaAsync(Guid character, int skillId, int level, CancellationToken ct)
+    {
+        if (FailStigmaSaves > 0)
+        {
+            FailStigmaSaves--;
+            return Task.FromResult(false);
+        }
+        if (level == 0) StigmaLevels.Remove(skillId);
+        else StigmaLevels[skillId] = level;
+        return Task.FromResult(true);
+    }
+
+    /// <summary>Bonus Stigma Shard points (game.character_stigma_bonus).</summary>
+    public int StigmaBonusShards { get; set; }
+
+    public Task<int> StigmaBonusShardsAsync(Guid character, CancellationToken ct) => Task.FromResult(StigmaBonusShards);
+
+    public Task<int?> AddStigmaBonusShardsAsync(Guid character, int amount, CancellationToken ct)
+    {
+        if (amount <= 0) return Task.FromResult<int?>(null);
+        StigmaBonusShards += amount;
+        return Task.FromResult<int?>(StigmaBonusShards);
+    }
+
+    public Task<bool> SpendKinahAndForgetStigmasAsync(Guid character, long kinah, IReadOnlyList<int> skillIds, CancellationToken ct)
+    {
+        if (FailStigmaSaves > 0)
+        {
+            FailStigmaSaves--;
+            return Task.FromResult(false);
+        }
+        if (kinah > 0 && !DeductKina(kinah)) return Task.FromResult(false);
+        foreach (var skillId in skillIds)
+            if (skillId > 0) StigmaLevels.Remove(skillId);
         return Task.FromResult(true);
     }
 

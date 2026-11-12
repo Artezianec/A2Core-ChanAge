@@ -335,7 +335,7 @@ public sealed partial class GameSession
 
     /// <summary>
     /// Map events pay ClearMapEvent on <see cref="IMapEventHost.DungeonClear"/> during the same request that finished the script
-    /// (step talk, cutscene report, movement into a trigger), not only on the next tick - live sends 0x8d10 in that batch.
+    /// (step talk, cutscene report, movement into a trigger), not only on the next tick  -  live sends 0x8d10 in that batch.
     /// </summary>
     async Task<List<byte[]>> WithMapEventClearsFlushedAsync(IEnumerable<byte[]> replies, CancellationToken ct)
     {
@@ -361,8 +361,20 @@ public sealed partial class GameSession
     /// talked NPC had no part in the next step (a quest's last talk, a talk before a layer move), the client closed the
     /// interaction at once (0xe242 within 15 ms, live 2026-10-30 HQ2101070 Garlond) and F on the last line did nothing.
     /// </summary>
-    Task<List<byte[]>> NpcInteractionAsync(int npcKey, long now, CancellationToken ct) =>
-        Task.FromResult(BeginNpcInteraction(npcKey, now));
+    async Task<List<byte[]>> NpcInteractionAsync(int npcKey, long now, CancellationToken ct)
+    {
+        // A custom NPC (staff dashboard: NPCs) talks its own dialog; the base template quests and map events stay out of it.
+        if (targets?.GetValueOrDefault(npcKey) is { Custom: { } custom } npc)
+        {
+            openNpcTalk = null;
+            openClearMapEventEntryKey = null;
+            if (Shops.IsMerchant(npc.NpcId)) return await CustomNpcMerchantTalkAsync(npc, custom, now, ct);
+            var replies = new List<byte[]> { GamePackets.StartNpcInteractionReply(npcKey, now + 300_000) };
+            replies.AddRange(CustomNpcTalkOpened(npc, custom));
+            return replies;
+        }
+        return BeginNpcInteraction(npcKey, now);
+    }
 
     /// <summary>0xe240 and field-quest lock-on (0x3830): open dialog (0xe241) and remember open AskNpc/CloseNpc steps for 0xe242.</summary>
     List<byte[]> BeginNpcInteraction(int npcKey, long now)
@@ -392,6 +404,7 @@ public sealed partial class GameSession
     async Task<List<byte[]>> NpcInteractionFinishedAsync(int npcKey, long now, CancellationToken ct)
     {
         if (targets?.GetValueOrDefault(npcKey) is not { } npc) return [];
+        if (npc.Custom is not null) return await CustomNpcTalkFinishedAsync(npcKey, now, ct);
         var replies = new List<byte[]>();
         if (openNpcTalk is { } open && open.NpcKey == npcKey && questLog is not null)
         {

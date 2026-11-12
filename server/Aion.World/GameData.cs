@@ -239,6 +239,17 @@ public sealed class GameData
 
     static readonly Lazy<ResurrectFile> resurrect = new(() => Load<ResurrectFile>("resurrect.json"));
 
+    sealed record FieldBossFile([property: JsonPropertyName("bosses")] int[][] Bosses);
+
+    static readonly Lazy<IReadOnlyList<(int Code, int MapId, int NpcId)>> fieldBosses = new(() =>
+        [.. Load<FieldBossFile>("field-bosses.json").Bosses.Where(b => b.Length >= 3).Select(b => (b[0], b[1], b[2]))]);
+
+    /// <summary>
+    /// The client's WorldMapFieldNamed field bosses the server spawns: code (_data_id), map, NpcData id
+    /// (tools/field_bosses.py; ported from KiskEmu, AGPL-3.0, commit d54d69472d).
+    /// </summary>
+    public IReadOnlyList<(int Code, int MapId, int NpcId)> FieldBosses => fieldBosses.Value;
+
     /// <summary>AFK auto-resurrection delay in seconds (Resurrect.dat / guidebooks: 900 s on global).</summary>
     public int AutoResurrectSec => Math.Max(1, resurrect.Value.AutoResurrectSec);
 
@@ -713,7 +724,12 @@ public sealed class GameData
     List<int> DirectChainNext(int skillId) =>
         Skill(skillId)?.ChainNext is { Length: > 0 } next ? [.. next] : [];
 
-    public SkillDefinition? Skill(int skillId) => classes.Skills.GetValueOrDefault(skillId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    /// <summary>A skill's definition: class-skills.json (Skill.dat), else a stigma's (tools/data/stigmas.json, docs/STIGMAS.md).</summary>
+    public SkillDefinition? Skill(int skillId) =>
+        classes.Skills.GetValueOrDefault(skillId.ToString(System.Globalization.CultureInfo.InvariantCulture)) ?? StigmaTable.Embedded.Skill(skillId);
+
+    /// <summary>Stigmas: slots, shards, costs and each class's stigma skills (tools/data/stigmas.json, docs/STIGMAS.md).</summary>
+    public StigmaTable Stigmas => StigmaTable.Embedded;
 
     /// <summary>Skill.dat NeedSkillUseRange (cm), from class-skills export or skill-cast-ranges.json overlay.</summary>
     public double SkillUseRangeCm(int skillId)

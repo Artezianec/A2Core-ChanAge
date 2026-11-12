@@ -16,13 +16,9 @@ public sealed partial class GameSession
     readonly Dictionary<long, GroundDrop> drops = [];
     int dropCounter;
     /// <summary>
-    /// Drop actor keys: one server-wide sequence in their own block. Drops are shown to the whole map, and trigger actors
-    /// (WorldObjects.FirstTriggerKey, up to 93 per map) and the boss challenge use 950,000+, so a per-session counter from
-    /// 950,000 gave two players' drops, or a drop and a live trigger actor, the same key on one client.
+    /// A drop's first field is its source, the entity it dropped from (u32, OBSERVED: one chest's nine drops share it). GroundDrop.Key holds that source.
     /// </summary>
-    public const int DropLifetimeMs = 60_000, FirstDropKey = 960_000, DropKeys = 30_000;
-    static int dropKeySequence;
-    static int NextDropKey() => FirstDropKey + (int)((uint)Interlocked.Increment(ref dropKeySequence) % DropKeys);
+    public const int DropLifetimeMs = 60_000;
     /// <summary>A drop is picked up within this distance (cm), with room for latency.</summary>
     public const double LootRange = 1500;
     const byte IncreaseDropItemGet = 5;   // EIncreaseReason kDropItemGet
@@ -87,7 +83,9 @@ public sealed partial class GameSession
             RemoveSharedDrop(d.Uid);
         }
         replies.AddRange(taken.Select(d => LootPackets.LootReply(0, d.Uid, auto)));
-        replies.Add(LootPackets.DropsRemoved(taken.Select(d => (d.Key, d.Uid, (long)(selected?.WireId ?? playerKey), auto)).ToList()));
+        var removed = taken.Select(d => (d.Key, d.Uid, (long)(selected?.WireId ?? playerKey), auto)).ToList();
+        replies.Add(LootPackets.DropsRemoved(removed));
+        BroadcastDropRemoved(removed);
         var inventory = await InventoryChangesAsync(ct, IncreaseDropItemGet, 0);
         var autoUse = await AutoUseAcquiredItemsAsync(taken.Select(d => d.ItemId), now, ct);
         // Official solo pickup order after 0x5621: 0x561f, 0x561b, then 0x5616 when auto-use applies.
@@ -103,6 +101,8 @@ public sealed partial class GameSession
         var gone = drops.Values.Where(d => now >= d.ExpiresAt).ToList();
         if (gone.Count == 0) return [];
         foreach (var d in gone) drops.Remove(d.Uid);
-        return [LootPackets.DropsRemoved(gone.Select(d => (d.Key, d.Uid, 0L, false)).ToList())];
+        var expired = gone.Select(d => (d.Key, d.Uid, 0L, false)).ToList();
+        BroadcastDropRemoved(expired);
+        return [LootPackets.DropsRemoved(expired)];
     }
 }

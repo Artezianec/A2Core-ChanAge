@@ -239,3 +239,59 @@ class DotnetNcGuardGpaBuiltinTests(unittest.TestCase):
                 self.assertIn('access_token', payload)
                 self.assertGreater(payload['expires_in'], 0)
 
+
+@unittest.skipUnless(HOST.exists() and shutil.which('dotnet'), 'Build Aion.Host first')
+class DotnetNcGuardStableCaTests(unittest.TestCase):
+    """The MITM root must be stable so a client machine trusts it once, not per restart."""
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        (self.root / 'fixture.json').write_text(json.dumps({'rules': []}))
+        self.host = 'bladnoch.ncsoft.com'
+
+    def _run_once(self):
+        port, http_port = free_port(), free_port()
+        stop_file = self.root / 'stop'
+        if stop_file.exists():
+            stop_file.unlink()
+        env = {k: v for k, v in os.environ.items() if not k.startswith(('Aion__', 'ConnectionStrings__'))}
+        env.update(Aion__LocalPort=str(http_port), Aion__NcGuard__Port=str(port),
+                   Aion__NcGuard__FixtureFile=str(self.root / 'fixture.json'),
+                   Aion__NcGuard__DataDirectory=str(self.root), Aion__NcGuard__StopFile=str(stop_file),
+                   Aion__NcGuard__DurationSeconds='60', Aion__NcGuard__Hosts__0=self.host,
+                   Aion__NcGuard__Capture='false')
+        log = (self.root / 'host.log').open('w')
+        process = subprocess.Popen(['dotnet', str(HOST)], cwd=HOST.parent, env=env,
+                                   stdout=log, stderr=subprocess.STDOUT)
+        try:
+            deadline = time.monotonic() + 25
+            while time.monotonic() < deadline:
+                if process.poll() is not None:
+                    self.fail((self.root / 'host.log').read_text())
+                try:
+                    socket.create_connection(('127.0.0.1', port), .3).close()
+                    break
+                except OSError:
+                    time.sleep(.1)
+            else:
+                self.fail('TLS listener did not open')
+            run = max(self.root.glob('tls-mitm-dotnet-*'), key=lambda p: p.stat().st_mtime)
+            return (self.root / 'ca-root.pem').read_text(), (run / 'ca.pem').read_text()
+        finally:
+            stop_file.touch()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill(); process.wait()
+            log.close()
+
+    def test_ca_root_is_persisted_and_reused_across_restarts(self):
+        self.assertFalse((self.root / 'ca-root.pfx').exists())
+        first_root, first_run = self._run_once()
+        self.assertTrue((self.root / 'ca-root.pfx').exists())
+        self.assertIn('BEGIN CERTIFICATE', first_root)
+        self.assertEqual(first_root.strip(), first_run.strip())  # run CA mirrors the stable root
+        second_root, second_run = self._run_once()
+        self.assertEqual(first_root, second_root)  # same CA across restarts: install once
+        self.assertEqual(second_root.strip(), second_run.strip())

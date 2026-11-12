@@ -210,7 +210,7 @@ public sealed partial class GameSession : IMapEventHost
             Note($"NpcConversation: {npc.Name} -> dungeon {entry.Dungeon}/map {entry.Teleport}: no move (instance {instanceKey}, dead {dead}, reloading {reloading})");
             return [];
         }
-        return [GamePackets.Death(npcKey, 1), .. moved];
+        return [GamePackets.Death(npcKey, GamePackets.DespawnOutOfView), .. moved];
     }
 
     /// <summary>0xe242 after a ClearMapEvent entry talk opened with 0xe240.</summary>
@@ -340,7 +340,10 @@ public sealed partial class GameSession : IMapEventHost
     Vector3d? QuestDungeonResume(int map, long now)
     {
         if (MapEventData.DungeonOfMap(map) is not { MaxMember: <= 1 } room || !MapEventData.Serves(map) || MapEventData.Volume(map) is not null) return null;
-        var wanted = MapEventData.EventsOn(map).Any(e => MapEventAutoStartHolds(e, now));
+        // Only an event its open quest step starts (an unconditioned or DungeonState-started event, as Dungeon_0005_Sub_MapEvent,
+        // would bring the player back forever once the quest is done).
+        var wanted = MapEventData.EventsOn(map).Any(e => e.Start is { Length: > 0 } start
+            && start.Any(g => g.Any(c => c.Type == "IncompleteQuestStep")) && MapEventAutoStartHolds(e, now));
         if (!wanted || !MeetsEntry(room, now, out _) || ArrivalPoint(room) is not { } arrival) return null;
         pendingArrivalCutscene = room.ArrivalCutscene is { Length: > 0 } cutscene ? (cutscene, false) : null;
         return arrival;
@@ -475,8 +478,11 @@ public sealed partial class GameSession : IMapEventHost
         pendingSpawns.Clear();
         pendingExit = keepExit;
         npcBuffs.Clear();
+        waveRuns.Clear();
+        waveParts.Clear();
         if (!RunsMapEvents || targets is null) return;
         dormantSpawners.UnionWith(MapEventData.Deferred(worldMap));
+        PrepareWaves();   // the named waves' spawn entries wait for their StartWave too
         foreach (var t in targets.Values)
         {
             if (t.Key == Combat.TrainingDummyKey) continue;
@@ -548,7 +554,9 @@ public sealed partial class GameSession : IMapEventHost
         if (mapEventRuns.Count == 0) return DrainMapEvents();
         mapEventNow = now;
         var alive = targets?.Values.Any(t => string.Equals(t.Name, target.Name, StringComparison.OrdinalIgnoreCase) && !t.Dead) == true;
-        foreach (var run in mapEventRuns.ToList()) run.Killed(target.NpcId, target.Name, target.Hostile, alive, now);
+        // Boss adds and hand-made wave monsters are ours: they never count toward the script's kill objectives.
+        if (!BossSummons.IsSummon(target.Key))
+            foreach (var run in mapEventRuns.ToList()) run.Killed(target.NpcId, target.Name, target.Hostile, alive, now);
         return DrainMapEvents();
     }
 
@@ -574,9 +582,15 @@ public sealed partial class GameSession : IMapEventHost
         return damage;
     }
 
-    void WireMapEventNpcCombatHooks(NpcAi ai, long now)
+    /// <summary>
+    /// <paramref name="sink"/>: collect the map-event packets there instead of returning them into the AI tick's output
+    /// (on a shared map that output is broadcast to every player, but the run is this player's own).
+    /// </summary>
+    void WireMapEventNpcCombatHooks(NpcAi ai, long now, List<byte[]>? sink = null)
     {
-        ai.OnNpcHpChanged = t => MapEventHp(t, now, playerCombat: false);
+        ai.OnNpcHpChanged = sink is null
+            ? t => MapEventHp(t, now, playerCombat: false)
+            : t => { sink.AddRange(MapEventHp(t, now, playerCombat: false)); return []; };
         ai.CapNpcDamage = CapMapEventNonPlayerDamage;
     }
 
@@ -704,6 +718,7 @@ public sealed partial class GameSession : IMapEventHost
         foreach (var (key, route) in ai.TakeArrivals())
             if (targets?.GetValueOrDefault(key) is { } npc)
                 foreach (var run in mapEventRuns.ToList()) run.NpcArrived(npc.Name, route, now);
+        WaveTick(now);
         foreach (var run in mapEventRuns.ToList()) run.Tick(now);
         MapEventAskNpcProximityFallback(now);
         if (mapEventRuns.Any(r => !r.Finished))
@@ -905,6 +920,7 @@ public sealed partial class GameSession : IMapEventHost
     void BringBack(Target t)
     {
         t.Hp = t.HpMax;
+        ApplyEncounterHp(t);
         t.CorpseRemoved = false;
         t.Held = false;
         t.Immune = false;
@@ -920,7 +936,7 @@ public sealed partial class GameSession : IMapEventHost
             brain.Directed = false;
             brain.FollowKey = 0;
             brain.ResumeFollowKey = 0;
-            brain.Hate.Clear();
+            brain.ClearThreat();
             brain.Engaged = false;
         }
         ShowSpawned(t);
@@ -929,7 +945,11 @@ public sealed partial class GameSession : IMapEventHost
 
     void MakeKillable(Target t)
     {
-        if (t.Hostile && !t.AppearNonAggressive) return;
+        if (t.Hostile && !t.AppearNonAggressive)
+        {
+            ApplyEncounterHp(t);
+            return;
+        }
         if (!t.Hostile)
         {
             t.Relationship = 11;
@@ -940,9 +960,21 @@ public sealed partial class GameSession : IMapEventHost
 
     /// <summary>A map-event NPC that was talked to (AskNpc prep sent a non-aggressive appear) and then turns Monster: the client keeps the
     /// appear-time peace state and will not select it (ranged "select a target"), so drop the talk flag and send a fresh appear.</summary>
+    /// <summary>
+    /// Official 999999 HP is for unkillable companions. Quest monsters that start as NPC_Companion
+    /// (HQ2102060 Insane Daeva) keep it until they turn Monster, then they take level-and-rank HP.
+    /// </summary>
+    void ApplyEncounterHp(Target t)
+    {
+        if (!Combat.TryApplyEncounterHp(t) || t.Dead) return;
+        mapEventOut.Add(GamePackets.NpcHp(t.Key, t.Hp));
+    }
+
     void ReappearIfTurnedHostile(Target t)
     {
-        if (!t.Hostile || t.Dead) return;
+        if (!t.Hostile) return;
+        ApplyEncounterHp(t);
+        if (t.Dead) return;
         var wasTalk = t.AppearNonAggressive;
         t.AppearNonAggressive = false;
         mapEventOut.Add(GamePackets.NpcAppear(SpawnAppearance(t)));
@@ -1003,6 +1035,7 @@ public sealed partial class GameSession : IMapEventHost
             if (!t.Dead && !t.CorpseRemoved) { already++; continue; }
             revived++;
             t.Hp = t.HpMax;
+            ApplyEncounterHp(t);
             t.CorpseRemoved = false;
             t.Held = false;
             t.Immune = false;
@@ -1200,7 +1233,11 @@ public sealed partial class GameSession : IMapEventHost
         if (MapEventTables.Relationship(relationship) is not { } value) { Note($"ChangeRelationshipEntity {spawner} {relationship}: unknown relationship"); return; }
         foreach (var t in SpawnerNpcs(spawner))
         {
-            if (t.Relationship == value) continue;
+            if (t.Relationship == value)
+            {
+                ApplyEncounterHp(t);
+                continue;
+            }
             t.Relationship = value;
             if (!t.Dead) mapEventOut.Add(GamePackets.RelationshipUpdate(t.Key, value));
             ReappearIfTurnedHostile(t);
