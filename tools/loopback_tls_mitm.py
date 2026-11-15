@@ -43,6 +43,11 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
 
+try:
+    from stop_file import clear_stale_stop_file, is_stop_requested
+except ImportError:
+    from tools.stop_file import clear_stale_stop_file, is_stop_requested
+
 ROOT = Path(__file__).resolve().parents[1]
 HOSTS_PATH = Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32/drivers/etc/hosts'
 
@@ -360,6 +365,8 @@ def main():
     args = parser.parse_args()
     if not 10 <= args.duration <= 3600:
         parser.error('--duration must be 10..3600 seconds')
+    started_at = time.time()
+    removed_stale = clear_stale_stop_file(args.stop_file, started_at=started_at)
     hosts = [h.strip().lower() for h in args.hosts.split(',') if h.strip()]
     run_dir = ROOT / 'research/local' / ('tls-mitm-' + datetime.now().strftime('%Y%m%d-%H%M%S-') + base64.urlsafe_b64encode(os.urandom(4)).decode().rstrip('='))
     run_dir.mkdir(parents=True)
@@ -422,9 +429,11 @@ def main():
             trusted = result == 'trusted'
             state['ca_trust'] = result
             log(f'CA trust attempt: {result}', logfd)
+        if removed_stale:
+            log(f'removed stale stop file {args.stop_file}', logfd)
         log(f'TLS sink listening on 127.0.0.1:{args.port}; run dir {run_dir.name}', logfd)
         deadline = time.monotonic() + args.duration
-        while time.monotonic() < deadline and not (args.stop_file and args.stop_file.exists()):
+        while time.monotonic() < deadline and not is_stop_requested(args.stop_file, started_at):
             try:
                 conn, addr = listener.accept()
             except socket.timeout:
@@ -441,7 +450,7 @@ def main():
                 except Exception:
                     pass
         state['status'] = 'finished'
-        log('stop requested; stopping' if args.stop_file and args.stop_file.exists()
+        log('stop requested; stopping' if is_stop_requested(args.stop_file, started_at)
             else 'duration reached; stopping', logfd)
     except KeyboardInterrupt:
         state['status'] = 'finished'

@@ -23,6 +23,7 @@ from run_game_chain import (  # noqa: E402
     KEY_FIXTURES,
     geolocation_response,
 )
+from stop_file import clear_stop_file  # noqa: E402
 
 RUNTIME = ROOT / '.start-all' / 'runtime'
 SESSION = ROOT / '.start-all' / 'session.json'
@@ -255,6 +256,7 @@ def native_host_env(runtime_dir: Path) -> dict[str, str]:
 def ncguard_host_env(runtime_dir: Path, fixture: Path) -> dict[str, str]:
     runtime_dir.mkdir(parents=True, exist_ok=True)
     stop_file = runtime_dir / 'ncguard-stop'
+    clear_stop_file(stop_file)
     return {
         'ASPNETCORE_ENVIRONMENT': 'Development',
         'Aion__LocalPort': '8782',
@@ -265,6 +267,26 @@ def ncguard_host_env(runtime_dir: Path, fixture: Path) -> dict[str, str]:
         'Aion__NcGuard__RewriteHosts': 'true',
         'Aion__NcGuard__StopFile': str(stop_file.resolve()),
     }
+
+
+def _port_is_open(port: int, host: str = '127.0.0.1') -> bool:
+    with socket.socket() as probe:
+        probe.settimeout(0.3)
+        try:
+            probe.connect((host, port))
+            return True
+        except OSError:
+            return False
+
+
+def wait_port_closed(port: int, timeout: float = 8.0) -> bool:
+    """Return True once nothing is listening on *port*, or False on timeout."""
+    deadline = time.monotonic() + timeout
+    while _port_is_open(port):
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.2)
+    return True
 
 
 def wait_ports(ports: list[int], timeout: float) -> int:
@@ -332,6 +354,7 @@ def launch_ncguard(runtime_dir: Path) -> int:
         return 1
     runtime_dir = runtime_dir.resolve()
     env = ncguard_host_env(runtime_dir, fixture)
+    clear_stop_file(Path(env['Aion__NcGuard__StopFile']))
     try:
         from elevated_dotnet_host import start_elevated_host
     except ImportError:
@@ -366,17 +389,25 @@ def load_session() -> dict:
     return json.loads(SESSION.read_text(encoding='utf-8'))
 
 
-def stop_listeners(session: dict) -> None:
+def stop_listeners(session: dict, *, stop_wait: float = 8.0) -> None:
     ports = [session.get('account_port'), session.get('native_http_port'),
              session.get('login_port'), session.get('game_port'),
              session.get('bootstrap_port'), session.get('chat_port')]
-    if session.get('ncguard_port'):
-        ports.append(session['ncguard_port'])
+    ncguard_port = session.get('ncguard_port')
+    if ncguard_port:
+        ports.append(ncguard_port)
     for port in {p for p in ports if isinstance(p, int)}:
         _kill_port_listeners(port)
+    # The elevated NCGuard host cannot be killed from a non-elevated shell.
+    # Touch the stop file it polls, wait for 443 to close, then remove the
+    # file so the next start-all is not shut down by the leftover.
     stop_file = RUNTIME / 'ncguard-stop'
     if stop_file.parent.exists():
         stop_file.touch(exist_ok=True)
+        port = ncguard_port if isinstance(ncguard_port, int) else 443
+        if not wait_port_closed(port, timeout=stop_wait):
+            _msg(f'[WARNING] Port {port} is still in use after the NCGuard stop signal.')
+        clear_stop_file(stop_file)
 
 
 def _kill_port_listeners(port: int) -> None:
