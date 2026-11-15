@@ -131,6 +131,8 @@ foreach (var (name, hex) in golden)
 }
 Check(built.Count == golden.Count, "every rebuilt case has a golden counterpart");
 Console.WriteLine($"{checks} parity cases match the Python builders.");
+Check(Convert.ToHexStringLower(GamePackets.WingAcquire(0x01020304, 30201900)) == "7356" + "04030201" + "2cd8cc01" + "00",
+      "WingAcquire_NT 0x5673: player key i32, wing i32, enchant u8 (upstream b5fae02)");
 {
     var cpAppear = GamePackets.MyCharAppear(new MyCharacterAppear { Name = "cp", CombatPower = 2882, CharLevel = 18 });
     Check(BinaryPrimitives.ReadInt64LittleEndian(cpAppear.AsSpan(^18)) == 2882
@@ -212,6 +214,20 @@ var inner = Lz4Block.Decode(envelope.AsSpan(6), BitConverter.ToInt32(envelope, 2
 Check(NativeFraming.Split(inner, out _).Single().AsSpan(0, 2).SequenceEqual(new byte[] { 0x15, 0x36 }), "0xffff envelope holds a framed 0x3615");
 var rc4a = new Rc4(key); var whole = new Rc4(key).Crypt(new byte[64]);
 Check(rc4a.Crypt(new byte[20]).Concat(rc4a.Crypt(new byte[44])).SequenceEqual(whole), "RC4 keystream continues across bodies");
+// 100 two-byte frames in one read: 64 this tick, 36 the next, all deciphered in order (live 2026-11-12 the extra ones were
+// dropped undeciphered and every later request read as a random opcode). Past the capacity frames drop, still deciphered.
+var sender = new Rc4(key);
+var sent = Enumerable.Range(0, 100).Select(n => new byte[] { (byte)n, 0x37 }).ToList();
+var backlog = new ClientFrameBacklog(new Rc4(key));
+backlog.Add(sent.Select(f => sender.Crypt(f)).ToList());
+var tick1 = backlog.Take(64); var tick2 = backlog.Take(64);
+Check(tick1.Count == 64 && tick2.Count == 36 && backlog.Count == 0
+      && tick1.Concat(tick2).Select((f, n) => f.SequenceEqual(sent[n])).All(x => x), "client frames past 64 wait a tick, deciphered in order");
+var small = new ClientFrameBacklog(new Rc4(key), capacity: 4); var smallSender = new Rc4(key);
+var smallDropped = small.Add(sent.Take(6).Select(f => smallSender.Crypt(f)).ToList());
+small.Take(4);
+small.Add([smallSender.Crypt(sent[6])]);
+Check(smallDropped == 2 && small.Take(4).Single().SequenceEqual(sent[6]), "frames past the backlog drop but keep the keystream in step");
 var greeting = Greeting(0x3610, modulus, 3);
 Check(NativeHandshake.ReadGreeting(greeting, NativeHandshake.GameGreeting) == rsa, "greeting DER public key");
 Rejects(() => NativeHandshake.ReadGreeting(greeting, NativeHandshake.LoginGreeting), "greeting tag must match the port");
@@ -585,10 +601,16 @@ var landAt = killAt + SkillTiming.HitLandMs(basicSkill, basicSkill.Damage.Length
 await game.HandleAsync(Cast(basic, Combat.TrainingDummyKey, pos), killAt);
 var kill = await game.TickAsync(landAt);
 Check(dummy.Dead && kill.Any(b => b.SequenceEqual(GamePackets.NpcHp(Combat.TrainingDummyKey, 0))), "HP 0 is the kill");
-Check(game.Level == 1 && game.Experience == 0 && !kill.Any(b => b[0] == 0x07 && b[1] == 0x8d),
-      "field kills grant no experience (official capture 20261030/31)");
-Check(game.KillExperience(1) == 0 && new GameSession(data, new GameSessionOptions { CharacterLevel = 30 }, new Random(1)).KillExperience(10) == 0,
-      "KillExperience is always zero");
+Check(game.Level == 1 && game.Experience == 0 && !kill.Any(b => Op(b) == 0x8d07), "a level-1 character gets no kill experience (none below level 10, as recorded)");
+// Kill experience (GameSession.Experience.cs): grade 3 pays 390.8 x 1.085^level, grades 1/2/4 5/13, 8/13, 18/13 of it, less by
+// the level gap from +6, nothing below own level 10 or inside an instance.
+Check(GameSession.KillReward(10, 10, 3, false) == 884 && GameSession.KillReward(36, 25, 3, false) == 300
+      && Near(GameSession.KillReward(30, 25, 3, false), 2998) && Near(GameSession.KillReward(30, 25, 2, false), 1845) && Near(GameSession.KillReward(39, 34, 4, false), 8650)
+      && GameSession.KillReward(9, 9, 3, false) == 0 && GameSession.KillReward(45, 40, 3, true) == 0 && GameSession.KillReward(10, 30, 3, false) == GameSession.KillReward(30, 30, 3, false),
+      "kill rewards: 300 for a level-25 grade 3 monster 11 levels below (OBSERVED 2026-11-05 190433), within 0.25 % of the fork's recorded level 25 grade 2/3 and level 34 grade 4 values, none below 10 or in an instance, full for stronger monsters");
+static bool Near(long value, long recorded) => Math.Abs(value - recorded) <= recorded * 0.0025;
+Check(GameSession.GapFactor(5) == 1 && GameSession.GapFactor(7) == 0.6 && GameSession.GapFactor(9) == 0.2 && GameSession.GapFactor(24) == 0.1 && GameSession.GapFactor(-6) == 1,
+      "the level gap: full to +5, 0.6/0.4/0.2 at +7/+8/+9, 0.1 from +10, full for stronger monsters");
 var respawn = await game.TickAsync(landAt + GameSession.RespawnMs + 50);
 Check(respawn.Any(b => b.SequenceEqual(GamePackets.Death(Combat.TrainingDummyKey))) && dummy.Hp == dummy.HpMax, "corpse respawns at full HP");
 Check((await game.HandleAsync([0x30, 0x36], Now)).Single().SequenceEqual(GamePackets.Logout()), "logout reply");
@@ -1668,6 +1690,19 @@ Check(staffSession.MapId == 600002 && staffSession.MapEventRuns.Any(r => r.Name 
       && kraoEntered.Any(b => Op(b) == 0x922e), "inside: the Easy script runs (0x922e), the cave's monsters appear");
 Check(kraoEntered.Any(b => Op(b) == GameSession.DungeonStateNt && b[6] == GameSession.DungeonStateProcess && BitConverter.ToInt64(b, 15) - BitConverter.ToInt64(b, 7) == 3_600_000),
       "the expedition's state says running with its 60-minute limit (0x6100)");
+Check(kraoEntered.Where(b => Op(b) == GameSession.DungeonStateNt).All(b => b.Length == 23),
+      "0x6100 is 23 bytes: dungeon, state, start, end (official recordings, no trailing byte)");
+{
+    // The clear of sealed dungeon 310027 (2026-11-06 234912 #44952-#45201): 0x6101 with its reward_light by item id, Complete (3)
+    // for the 10 s hold, End (4) from there for 600 s; 0x6109 carries the copy's deaths (090856 #104160 `05000000`).
+    var seal = MapEventTables.Embedded.Dungeon(310027)!;
+    var sealReward = seal.RewardLight!.Select(r => ((int)r[0], r[1])).ToList();
+    Check(Convert.ToHexStringLower(GameSession.DungeonCompleteResult(310027, true, sealReward)) == "0161000bbb040001076126b41f02000000000000006326b41f02000000000000009b38be1f0100000000000000977db32502000000000000006bcbb325020000000000000021337037983a00000000000037337037e204000000000000",
+          "0x6101 lists the clear reward by item id (byte-exact to 234912 #44952)");
+    Check(Convert.ToHexStringLower(GameSession.DungeonState(310027, GameSession.DungeonStateComplete, 0x1a1b2de8a3b, 0x1a1b2deb14b)) == "00610bbb0400033b8adeb2a10100004bb1deb2a1010000"
+          && 0x1a1b2deb14b - 0x1a1b2de8a3b == seal.Hold * 1000L, "Complete (3) runs the table's hold from the clear (byte-exact to #44953, 10 s)");
+    Check(Convert.ToHexStringLower(GameSession.DungeonLimitsAtEntry(5).First()) == "096105000000", "0x6109 carries the copy's deaths (090856 #104160)");
+}
 // A sealed dungeon (type Seal, solo): its field portal (EnvObjData usage EnterDungeon, value = dungeon id) enters its copy.
 var sealIndex = nodes.Select((o, i) => (o, i)).First(x => x.o.Portal is [var sid] && MapEventTables.Embedded.Dungeon(sid) is { Type: "Seal" }).i;
 var sealRoom = MapEventTables.Embedded.Dungeon(nodes[sealIndex].Portal![0])!;
@@ -1685,18 +1720,31 @@ staffSession.Teleport(1010, krao.At with { X = krao.At.X + 50 }, Now + 7240);
 await staffSession.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 7240);
 await staffSession.HandleAsync(new PacketWriter().U16(0x3636).Varint((uint)(WorldObjects.FirstKey + kraoIndex)).ToArray(), Now + 7245);
 await staffSession.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 7245);
+// A mid boss: 0x572e {npc id} and nothing paid yet (2026-11-05 204306 #11315); its table is paid at the cube.
+var kraoMid = staffSession.Targets.Values.First(t => t.NpcId == 2310104);
+staffSession.Teleport(600002, kraoMid.Position with { X = kraoMid.Position.X + 150 }, Now + 7246);
+await staffSession.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 7246);
+kraoMid.Hp = 1;
+var kinaBeforeMid = staffStore.Items.Where(i => i.TemplateId == 930100001).Sum(i => i.Quantity);
+staffSession.NoCool = true;   // two kills 13 ms apart in these checks' timeline
+var midFell = await CastLandAsync(staffSession, basic, kraoMid.Key, kraoMid.Position, Now + 7247);
+Check(kraoMid.Dead && midFell.Any(b => b.SequenceEqual(PacketWriter.Opcode(GameSession.MiddleBossKillNt).I32(2310104).ToArray()))
+      && staffStore.Items.Where(i => i.TemplateId == 930100001).Sum(i => i.Quantity) == kinaBeforeMid,
+      "a mid boss falls: 0x572e {2310104}, nothing paid yet");
 var kraoBoss = staffSession.Targets.Values.First(t => t.NpcId == 2310171);
 staffSession.Teleport(600002, kraoBoss.Position with { X = kraoBoss.Position.X + 150 }, Now + 7250);
 await staffSession.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 7250);
 kraoBoss.Hp = 1;
 var bossFell = await CastLandAsync(staffSession, basic, kraoBoss.Key, kraoBoss.Position, Now + 7260);
-Check(kraoBoss.Dead && bossFell.Any(b => Op(b) == GameSession.CubeRewardStartNt), "the final boss falls: the reward cube is armed (0x56cc)");
+staffSession.NoCool = false;
+Check(kraoBoss.Dead && bossFell.Any(b => b.SequenceEqual(PacketWriter.Opcode(GameSession.CubeRewardStartNt).Varint(1).I32(2310104).ToArray())),
+      "the final boss falls: the reward cube is armed, 0x5713 lists the killed mid boss (084658 #61800)");
 var itemsBefore = staffStore.Items.Count;
 var cubeReward = await staffSession.HandleAsync(new PacketWriter().U16(GameSession.CubeRewardRq).U8(1).ToArray(), Now + 7270);
 var cubeReply = cubeReward.First(b => Op(b) == GameSession.CubeRewardRs);
 var cubeKina = staffStore.Items.Where(i => i.TemplateId == 930100001).Sum(i => i.Quantity);
-Check(BitConverter.ToUInt16(cubeReply, 2) == 0 && cubeReply[5] == 3 && staffStore.Items.Any(i => i.TemplateId == 630840002 && i.Quantity == 4) && cubeKina >= 25000,
-      "the cube pays the boss's RewardCommon (4 refunds, 25000 kina, 1000 enchant coins) once (0x56ce)");
+Check(BitConverter.ToUInt16(cubeReply, 2) == 0 && cubeReply[5] == 3 && cubeKina - kinaBeforeMid >= 50000,
+      "the cube pays the final boss's and the killed mid boss's tables in one (0x5715; 084658 #62929: 25000 kina each)");
 await staffSession.HandleAsync(new PacketWriter().U16(GameSession.CubeRewardRq).U8(1).ToArray(), Now + 7280);
 Check(staffStore.Items.Where(i => i.TemplateId == 930100001).Sum(i => i.Quantity) == cubeKina, "asking again pays nothing more");
 staffSession.Copy!.DeadlineMs = Now + 7290;
@@ -1883,14 +1931,22 @@ Check((await staffSession.SetMasteryAsync("gather", 0, 5, default)) is [var gath
 // Titles: the entry list (official empty bytes), acquiring (0x567d, the owned stats), equipping by category (0x5680, the equip stats), the shown title (0x567b, 0x567c).
 Check(craftEntry.Any(b => b.SequenceEqual(Convert.FromHexString("79560000"))) && craftEntry.Any(b => b.SequenceEqual(Convert.FromHexString("5B8D000000010000"))),
       "world entry sends TitleList_NT 0x5679 and SkinInfo_NT 0x8d5b with the official empty layouts");
+Check(craftEntry.FindIndex(b => Op(b) == GameSession.BookmarkListNt) is >= 0 and var bookmarkAt && Convert.ToHexStringLower(craftEntry[bookmarkAt]) == "309300"
+      && Op(craftEntry[bookmarkAt + 1]) == GameSession.ContentsTicketsNt, "world entry: BookmarkedContentList 0x9330 (empty: 309300) right before the ticket list");
+var marked = await staffSession.HandleAsync(new PacketWriter().U16(GameSession.BookmarkRq).U8(4).I32(132).Bool(true).ToArray(), Now);
+Check(marked.Single().SequenceEqual(new PacketWriter().U16(GameSession.BookmarkRs).U16(0).U8(4).I32(132).Bool(true).I64(Now).ToArray())
+      && staffSession.Bookmarks.Single() == new GameSession.BookmarkEntry(4, 132, Now), "Bookmark_RQ quest 132: 0x932f {0, 04, 84000000, 01, time} (the fork's recorded form), kept");
+Check((await staffSession.HandleAsync(new PacketWriter().U16(GameSession.BookmarkRq).U8(4).I32(132).Bool(false).ToArray(), Now)).Single()[2] == 0
+      && staffSession.Bookmarks.Count == 0, "removing the bookmark");
 var titled = await staffSession.AcquireTitleAsync(11010002, default);
 Check(titled.Count > 0 && titled[0].SequenceEqual(Convert.FromHexString("7D56" + "D2FFA700")) && staffSession.OwnedTitles.Contains(11010002) && staffSession.TitleStat("Critical") == 5
       && staffStore.Titles.Contains(11010002), "AcquireTitle 11010002: TitleAcquire_NT 0x567d, owned (saved), its StatList (Critical 5) applies");
 Check((await staffSession.AcquireTitleAsync(11010002, default)).Count == 0 && (await staffSession.AcquireTitleAsync(21010001, default)).Count == 0,
       "a title twice, or one of the other race, is refused");
 var titleEquip = await staffSession.HandleAsync(new PacketWriter().U16(0x567f).U8(3).I32(11010002).ToArray(), Now);
-Check(titleEquip[0].SequenceEqual(Convert.FromHexString("8056" + "0000" + "03" + "D2FFA700")) && staffSession.TitleStat("HPMax") == 300 && staffStore.TitleEquips[3] == 11010002,
-      "TitleEquip_RQ in its category (Etc): 0x5680 result 0, its EquipStatList (HPMax 300) applies");
+Check(titleEquip[0].SequenceEqual(Convert.FromHexString("8156" + "03" + "D2FFA700")) && titleEquip[1].SequenceEqual(Convert.FromHexString("94E2" + "01" + "01" + "03" + "D2FFA700"))
+      && titleEquip[2].SequenceEqual(Convert.FromHexString("8056" + "0000" + "03" + "D2FFA700")) && staffSession.TitleStat("HPMax") == 300 && staffStore.TitleEquips[3] == 11010002,
+      "TitleEquip_RQ in its category (Etc): 0x5681, 0xe294 preset 1, then 0x5680 result 0 (official order 2026-11-06 183456 #1128-1131); HPMax 300 applies");
 Check((await staffSession.HandleAsync(new PacketWriter().U16(0x567f).U8(1).I32(11010002).ToArray(), Now))[0][2] == 1, "the wrong category is refused");
 var titleShown = await staffSession.HandleAsync(new PacketWriter().U16(0x567a).I32(11010002).ToArray(), Now);
 Check(titleShown.Count == 2 && titleShown[0].SequenceEqual(Convert.FromHexString("7B56" + "0000" + "D2FFA700")) && titleShown[1][0] == 0x7c && titleShown[1][1] == 0x56
@@ -2169,7 +2225,7 @@ Check(GameSession.AscensionQuests.Select(c => book.Find(c)!).ToList() is [var li
 jo.ExitSharedWorld();
 Check(layer.TakeWhile(b => Op(b) != 0x3623).Any(b => Op(b) == 0x3642 && b[^1] == 1) && !layer.Any(b => b.SequenceEqual(GamePackets.Death(guide.Key, 1))) && layerOps.IndexOf(0x3623) >= 0,
       "the layer shares Poeta's level: the base map's other NPCs are removed before the load reply (0x3642 flag 1, as observed; Robin not twice)");
-Check(layer.Any(b => Op(b) == GameSession.DungeonStateNt && BitConverter.ToInt32(b, 2) == 96 && b[6] == GameSession.DungeonStateProcess && b.Length == 24)
+Check(layer.Any(b => Op(b) == GameSession.DungeonStateNt && BitConverter.ToInt32(b, 2) == 96 && b[6] == GameSession.DungeonStateProcess && b.Length == 23)
       && layerOps.IndexOf(GameSession.DungeonStateNt) < layerOps.IndexOf(GameSession.DungeonDeathLimitNt)
       && layerOps.IndexOf(GameSession.DungeonDeathLimitNt) < layerOps.IndexOf(GameSession.DungeonClearKillNpcNt) && layerOps.IndexOf(GameSession.DungeonClearKillNpcNt) < layerOps.IndexOf(0x922e),
       "the layer's state: 0x6100 dungeon 96 running, 0x6109, 0x6108, then the event join (the observed order)");
@@ -3132,9 +3188,13 @@ sealed class FakeStore : INativeCharacterStore
         return Task.FromResult(true);
     }
     public Task<bool> SortBagAsync(Guid character, CancellationToken ct) => SortContainerAsync(character, "bag", ct);
-    public Task<bool> SortContainerAsync(Guid character, string location, CancellationToken ct)
+    public Task<bool> SortContainerAsync(Guid character, string location, CancellationToken ct, IReadOnlyCollection<int>? currencies = null)
     {
-        var bag = Items.Select((item, index) => (item, index)).Where(x => x.item.Location == location).OrderBy(x => x.item.TemplateId).ThenBy(x => x.item.WireId).ToList();
+        var skip = location == "bag" ? currencies ?? [] : [];
+        for (var i = 0; i < Items.Count; i++)
+            if (Items[i].Location == location && skip.Contains(Items[i].TemplateId) && Items[i].Slot is not null)
+                Items[i] = Items[i] with { Slot = null, Revision = Items[i].Revision + 1 };
+        var bag = Items.Select((item, index) => (item, index)).Where(x => x.item.Location == location && !skip.Contains(x.item.TemplateId)).OrderBy(x => x.item.TemplateId).ThenBy(x => x.item.WireId).ToList();
         for (var n = 0; n < bag.Count; n++) Items[bag[n].index] = bag[n].item with { Slot = n, Revision = bag[n].item.Revision + 1 };
         return Task.FromResult(true);
     }
@@ -3171,11 +3231,12 @@ sealed class FakeStore : INativeCharacterStore
         return Task.FromResult<RideRecord?>(RideRows[index]);
     }
     public Task<bool> ConsumeItemAsync(Guid character, Guid item, long revision, int count, CancellationToken ct) => Task.FromResult(Consume(item, revision, count));
-    public Task<bool> SoulBindItemAsync(Guid character, Guid item, byte count, CancellationToken ct)
+    public Task<bool> SoulBindItemAsync(Guid character, Guid item, byte count, CancellationToken ct, IReadOnlyList<(int Type, int Value)>? stats = null)
     {
         var index = Items.FindIndex(i => i.InstanceId == item);
         if (index < 0) return Task.FromResult(false);
-        Items[index] = Items[index] with { Upgrades = System.Text.Json.JsonDocument.Parse($"{{\"soul_bind\":{count}}}").RootElement, Revision = Items[index].Revision + 1 };
+        var soul = stats is null ? "" : ",\"soul_stats\":[" + string.Join(",", stats.Select(s => $"[{s.Type},{s.Value}]")) + "]";
+        Items[index] = Items[index] with { Upgrades = System.Text.Json.JsonDocument.Parse($"{{\"soul_bind\":{count}{soul}}}").RootElement, Revision = Items[index].Revision + 1 };
         return Task.FromResult(true);
     }
     public Task<bool> MoveItemAsync(Guid character, Guid item, long revision, int? equipmentSlot, CancellationToken ct)

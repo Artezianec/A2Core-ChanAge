@@ -47,7 +47,7 @@ public sealed partial class GameSession
         foreach (var item in inventory.Values.Where(i => i.Container == InventoryItem.Equipped))
         {
             if (data.Item(item.ItemId) is not { } info) continue;
-            if (storedItems.TryGetValue(item.Key, out var row) && !RolledStatsEmpty(row.RolledStats)) continue;
+            if (storedItems.TryGetValue(item.Key, out var row) && (!RolledStatsEmpty(row.RolledStats) || SoulStatsOf(row).Count > 0)) continue;
             foreach (var (name, min, max, _) in info.SubstatRolls())
             {
                 if (min != max || ItemStats.Canonical(name) != stat) continue;

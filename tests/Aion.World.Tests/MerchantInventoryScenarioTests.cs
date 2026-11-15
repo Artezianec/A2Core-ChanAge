@@ -73,6 +73,25 @@ public sealed class MerchantInventoryScenarioTests
     }
 
     [Fact]
+    public async Task Item_sort_leaves_currencies_without_a_bag_slot()
+    {
+        // Item.dat ItemType Currency (Kina 930100001, Quna 930100002): the client shows them in its currency bar.
+        var store = new FakeCharacterStore();
+        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now);
+        store.Items.Add(FakeCharacterStore.BagItem(930100002, 5, 42, slot: 7));
+        store.Items.Add(FakeCharacterStore.BagItem(530116001, 10, 40));
+        store.Items.Add(FakeCharacterStore.BagItem(LifePotion, 4, 41));
+        await session.InventoryChangesAsync(default);
+
+        var sort = await session.HandleAsync(new PacketWriter().U16(GameSession.ItemSortRq).I32(0).U8(1).ToArray(), Now);
+        Assert.Equal(0, sort[0][2]);
+        Assert.True(ItemCurrencies.Is(GameSession.KinaItemId) && ItemCurrencies.Is(930100002));
+        Assert.All(store.Items.Where(i => i.Location == "bag" && ItemCurrencies.Is(i.TemplateId)), i => Assert.Null(i.Slot));
+        var slots = store.Items.Where(i => i.Location == "bag" && !ItemCurrencies.Is(i.TemplateId)).OrderBy(i => i.Slot).Select(i => i.Slot).ToList();
+        Assert.Equal(Enumerable.Range(0, slots.Count).Select(n => (int?)n), slots);
+    }
+
+    [Fact]
     public async Task Item_sort_orders_storage_container()
     {
         var store = new FakeCharacterStore();

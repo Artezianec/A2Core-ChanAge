@@ -724,9 +724,43 @@ public sealed class GameData
     List<int> DirectChainNext(int skillId) =>
         Skill(skillId)?.ChainNext is { Length: > 0 } next ? [.. next] : [];
 
-    /// <summary>A skill's definition: class-skills.json (Skill.dat), else a stigma's (tools/data/stigmas.json, docs/STIGMAS.md).</summary>
+    /// <summary>A skill's definition: class-skills.json (Skill.dat), else a stigma's (tools/data/stigmas.json, docs/STIGMAS.md), else a
+    /// specialisation child's (<see cref="SpecializedChild"/>).</summary>
     public SkillDefinition? Skill(int skillId) =>
-        classes.Skills.GetValueOrDefault(skillId.ToString(System.Globalization.CultureInfo.InvariantCulture)) ?? StigmaTable.Embedded.Skill(skillId);
+        classes.Skills.GetValueOrDefault(skillId.ToString(System.Globalization.CultureInfo.InvariantCulture)) ?? StigmaTable.Embedded.Skill(skillId)
+        ?? SpecializedChild(skillId);
+
+    readonly System.Collections.Concurrent.ConcurrentDictionary<int, SkillDefinition?> specializedChildren = new();
+
+    /// <summary>
+    /// A specialisation child's cast data (ported from Addiboii/A2Core a1c5058, adapted): its own Skill.dat row in
+    /// specialized-skills.json (cost, damage, cooldown, casting time, range) with what that export does not carry taken from its
+    /// parent: the chain links (moved to the children of the same parts where SpecializedSkill.dat has them), the group cooldown
+    /// (the parent's, so a part change does not reset the cooldown; CANDIDATE), the context and the use / SkillCond conditions.
+    /// Null for anything else (and for the children class-skills.json already has).
+    /// </summary>
+    SkillDefinition? SpecializedChild(int skillId)
+    {
+        var table = SpecializedSkillTables.Embedded;
+        if (table.ParentOf(skillId) is not { } parentId) return null;
+        return specializedChildren.GetOrAdd(skillId, id =>
+        {
+            if (table.Skill(id) is not { } own || Skill(parentId) is not { } parent) return null;
+            var suffix = id - parentId;
+            int Moved(int step) => step > 0 && table.IsChild(step, step + suffix) ? step + suffix : step;
+            return own with
+            {
+                ChainPrev = Moved(parent.ChainPrev), ChainRate = parent.ChainRate, ChainWindowMs = parent.ChainWindowMs,
+                ChainDeactivate = parent.ChainDeactivate, ContextRegister = parent.ContextRegister,
+                GroupCooldownId = parent.GroupCooldownId > 0 ? parent.GroupCooldownId : parentId,
+                ChainNext = parent.ChainNext?.Select(Moved).ToArray(), SealStone = parent.SealStone, NeedsSpirit = parent.NeedsSpirit,
+                NeedsPeace = parent.NeedsPeace, NeedsResource = parent.NeedsResource, UseConditionSource = parent.UseConditionSource,
+                SkillCond = parent.SkillCond, SkillCondSource = parent.SkillCondSource, SkillCondGrant = parent.SkillCondGrant,
+                SkillCondGrantSource = parent.SkillCondGrantSource, StaggerGauge = parent.StaggerGauge, StaggerGaugeSource = parent.StaggerGaugeSource,
+                UseRangeCm = own.UseRangeCm > 0 ? own.UseRangeCm : parent.UseRangeCm,
+            };
+        });
+    }
 
     /// <summary>Stigmas: slots, shards, costs and each class's stigma skills (tools/data/stigmas.json, docs/STIGMAS.md).</summary>
     public StigmaTable Stigmas => StigmaTable.Embedded;
@@ -793,18 +827,6 @@ public sealed class GameData
         classes.SkillCustomizing?.GetValueOrDefault(skillId.ToString(System.Globalization.CultureInfo.InvariantCulture)) is { } rows
             ? rows.Select(r => (r[0], r[1], (byte)r[2])).ToList()
             : [];
-
-    /// <summary>The three 0x3900 option skill ids: chain branches first, then customizing skill ids.</summary>
-    public IReadOnlyList<int> SkillOptionIds(int skillId)
-    {
-        var options = new List<int>();
-        if (Skill(skillId)?.ChainNext is { Length: > 0 } branches)
-            options.AddRange(branches.Take(3));
-        foreach (var (_, sid, _) in DefaultSkillCustomizing(skillId))
-            if (sid != skillId && !options.Contains(sid)) options.Add(sid);
-        while (options.Count < 3) options.Add(0);
-        return options.Take(3).ToList();
-    }
 
     /// <summary>Level-one weapon of the class's weapon type for race 1 (Light) or 2 (Dark).</summary>
     public int? StarterWeapon(StarterProfile? profile) =>

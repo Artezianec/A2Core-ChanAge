@@ -22,8 +22,10 @@ public static class AbnormalSpecs
         "Dot_Dmg", "Dot_TargetHP", "Dot_TargetMaxHP", "Dot_NormalCalc",
     };
 
-    /// <summary>The rows of an abnormal: item abnormals first, then class-skill abnormals; null when neither table knows it.</summary>
-    public static AbnormalInfo? Info(int abnormalId) => RewardBoxes.Embedded.Abnormal(abnormalId) ?? SkillAreas.Abnormal(abnormalId);
+    /// <summary>The rows of an abnormal: item abnormals first, then class-skill abnormals, then the daily dungeons' buffs
+    /// (DungeonBuffAbnormals); null when no table knows it.</summary>
+    public static AbnormalInfo? Info(int abnormalId) =>
+        RewardBoxes.Embedded.Abnormal(abnormalId) ?? SkillAreas.Abnormal(abnormalId) ?? DungeonBuffAbnormals.Of(abnormalId);
 
     public static IEnumerable<string> Types(int abnormalId) => Info(abnormalId)?.Effects.Select(e => e.Type) ?? [];
 

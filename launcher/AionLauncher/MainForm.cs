@@ -715,17 +715,30 @@ sealed class MainForm : Form
         pageDownloadMessage = message;
         var resuming = settings.DownloadFolder is not null;
         Page(GameStep, resuming ? LauncherLoc.TitleContinueDownload : LauncherLoc.TitleDownloadGame,
-            LauncherLoc.IntroDownloadGame(Install.Name));
+            LauncherLoc.IntroDownloadGame(Install.Name, current.GameVersionText, current.Build.TotalBytes / 1e9));
         var folder = current.DownloadFolder();
+        var room = folder is not null && current.HasRoom(folder);
         var spaceRow = AddRequirement(null);
-        spaceRow.Set(folder is not null, folder is null
+        spaceRow.Set(room, folder is null
             ? LauncherLoc.SpaceRequirementFail(current.Build.TotalBytes / 1e9)
-            : LauncherLoc.SpaceRequirementOk(folder, current.StillNeeded(folder) / 1e9, Workflow.FreeBytes(folder) / 1e9));
+            : LauncherLoc.SpaceRequirementOk(folder, current.StillNeeded(folder) / 1e9, Workflow.FreeBytes(folder) / 1e9)
+              + (room ? "" : LauncherLoc.SpaceRequirementNoRoom));
         var start = AddButton(resuming ? LauncherLoc.ButtonContinueDownload : LauncherLoc.ButtonSignInSteamDownload, primary: true, null, wide: true);
-        start.Visible = folder is not null;
-        if (folder is null) AddButton(LauncherLoc.ButtonCheckAgain, primary: false, () => { ShowDownload(); return Task.CompletedTask; });
+        start.Visible = room;
+        if (!room) AddButton(LauncherLoc.ButtonCheckAgain, primary: false, () => { ShowDownload(); return Task.CompletedTask; });
+        // A started download stays where it is (its files are there); before that the player may pick the folder.
+        if (!resuming) AddLink(LauncherLoc.LinkChooseDownloadFolder, ChooseDownloadFolder);
         AddLabel(LauncherLoc.SteamQrHelp(Install.Name), muted: true);
         AddLink(LauncherLoc.LinkExistingFolder, ChooseExistingCopy);
+        // Steam moves past the server's build with every official patch; the server may also allow the Steam copy as-is.
+        if (current.SteamAlternative is { } steamVersion)
+        {
+            AddLabel(LauncherLoc.UseSteamCopyNote(steamVersion.Name), muted: true);
+            AddButton(LauncherLoc.ButtonUseSteamCopy(steamVersion.Name), primary: false, async () =>
+            {
+                if (await RunAsync(ct => current.ChooseVersionAsync(steamVersion, ct))) await NextAsync();
+            }, wide: true);
+        }
         if (message is not null) SetStatus(message, error: true);
         start.Click += async (_, _) => await DownloadAsync();
         // An interrupted download with a saved Steam sign-in continues by itself.
@@ -828,6 +841,19 @@ sealed class MainForm : Form
             for (var x = 0; x < matrix.Count; x++)
                 if (matrix[y][x]) g.FillRectangle(Brushes.Black, x * scale, y * scale, scale, scale);
         return bitmap;
+    }
+
+    Task ChooseDownloadFolder()
+    {
+        if (!TryWorkflow(out var current)) { ShowAddServer(); return Task.CompletedTask; }
+        using var dialog = new FolderBrowserDialog
+        {
+            Description = LauncherLoc.ChooseDownloadFolderDescription(current.Build.TotalBytes / 1e9),
+            UseDescriptionForTitle = true,
+        };
+        if (dialog.ShowDialog(this) == DialogResult.OK) current.ChooseDownloadFolder(dialog.SelectedPath);
+        ShowDownload();
+        return Task.CompletedTask;
     }
 
     async Task ChooseExistingCopy()

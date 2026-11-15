@@ -43,7 +43,14 @@ public sealed record LobbyCharacter
 
 /// <summary>The player's own spawn (0x3633) inputs.</summary>
 /// <summary>A quest on the wire (Common_Quest): EQuestStatus 2 Incomplete, 3 Complete, 4 Rewarded.</summary>
-public sealed record QuestWire(int QuestId, byte Status, int Step, int[] Goals, int Uid, int PublisherId = 0, int RollCount = 0);
+public sealed record QuestWire(int QuestId, byte Status, int Step, int[] Goals, int Uid, int PublisherId = 0, int RollCount = 0,
+    IReadOnlyList<QuestRandomReward>? Rewards = null);
+
+/// <summary>Common_RewardItemWithProb: an offered random reward item of a duty quest (the chance of 100,000,000).</summary>
+public readonly record struct QuestRandomReward(int Item, long Count, byte Enchant, long Prob);
+
+/// <summary>Common_DutyMissionQuest: a mission board entry (EQuestStatus 1 acquirable, 2 accepted, 4 rewarded).</summary>
+public sealed record DutyBoardWire(int Uid, int QuestId, int QuestUid, byte Status, IReadOnlyList<QuestRandomReward> Rewards, int PublisherId = 0);
 
 /// <summary>ECharPointType: the resources in 0x8d00 (OP oxygen, FP flight).</summary>
 public enum CharPoint : byte { Hp, Mp, Ap, Sp, Dp, Op, Fp, MaxHp, MaxMp, MaxAp, MaxSp, MaxDp, MaxOp, MaxFp }
@@ -68,7 +75,8 @@ public sealed record EquipDetail(
     int ItemLevel, byte EquipSlot, byte EnchantLevel = 0, long SoulBindOwner = 0, byte SoulBindCount = 0,
     byte SurpassEnchantLevel = 0, int EnchantBonusProb = 0, int SurpassEnchantBonusProb = 0, int[]? Godstones = null,
     IReadOnlyList<(int Wire, int Value)>? RolledStats = null,
-    byte SkinExtractionCount = 0)
+    byte SkinExtractionCount = 0, IReadOnlyList<(int Wire, int Value)>? SoulStats = null,
+    IReadOnlyList<(int Stone, int Stat, int Grade)>? MagicStones = null)
 {
     public static bool WireSameAs(EquipDetail? a, EquipDetail? b)
     {
@@ -89,7 +97,7 @@ public sealed record EquipDetail(
         if (rolledA.Count != rolledB.Count) return false;
         for (var i = 0; i < rolledA.Count; i++)
             if (rolledA[i].Wire != rolledB[i].Wire || rolledA[i].Value != rolledB[i].Value) return false;
-        return true;
+        return (a.SoulStats ?? []).SequenceEqual(b.SoulStats ?? []) && (a.MagicStones ?? []).SequenceEqual(b.MagicStones ?? []);
     }
 }
 
@@ -117,6 +125,11 @@ public sealed record MyCharacterAppear
     public int CombatLevel { get; init; } = 1;
     /// <summary>EAscensionGrade 1..6 (CANDIDATE: the CharDetail byte after reputation; 1 in the official starter).</summary>
     public int Ascension { get; init; } = 1;
+    /// <summary>Skill and stigma points spent, and those gained from items (Stigma Shards), in the CharDetail point lists.</summary>
+    public int SpentSkillPoints { get; init; }
+    public int SpentStigmaPoints { get; init; }
+    public int ItemSkillPoints { get; init; }
+    public int ItemStigmaPoints { get; init; }
     /// <summary>Equipped wing (Wing.dat id; 0 none). Flight and gliding need one: without it the client shows MSG_WING_EQUIP_NOTHING ("Flight available after Ascension").</summary>
     public int WingId { get; init; }
     /// <summary>Flight points (CharState fp / fp_max).</summary>
@@ -413,17 +426,21 @@ public static class GamePackets
     public static byte[] LoadComplete(int ticket, Vector3d position, int frame = 2, int charKey = 1) =>
         PacketWriter.Opcode(0x3623).U16(0).I32(ticket).Vec3(position).I32(frame).U16(charKey).ToArray();
 
-    static void WriteSpawnDetailTail(PacketWriter w, int ascension = 1)
+    static void WriteSpawnDetailTail(PacketWriter w, int ascension = 1, MyCharacterAppear? a = null)
     {
         // Observed starter layout (official offsets 66..183); semantics partly unknown.
         w.U8(1).I32(1).I64(0).U8(0).U8(0).U8(5);
         for (var category = 1; category <= 5; category++) w.U8(category).I32(1).I64(0);
         // Glide/sprint cooldowns, reputation, then the ascension grade (CANDIDATE).
         w.I32(0).I32(0).I64(0).U8(ascension);
-        for (var n = 0; n < 2; n++)
+        // Two CommonSkillPointInfo lists by ESkillPointType (1 Point, 2 Stigma, 3): the points spent, then the points
+        // gained from items (OBSERVED official 2026-11-12, a level-45 Chanter: spent 382 / 34, items 180 / 5; adapted from
+        // Doxylamin/KiskEmu 31e71b2). With zeros the client counted none spent and went negative on a purchase.
+        int[][] groups = [[a?.SpentSkillPoints ?? 0, a?.SpentStigmaPoints ?? 0, 0], [a?.ItemSkillPoints ?? 0, a?.ItemStigmaPoints ?? 0, 0]];
+        foreach (var group in groups)
         {
             w.U8(3);
-            for (var pointType = 1; pointType <= 3; pointType++) w.U8(pointType).U16(0);
+            for (var pointType = 1; pointType <= 3; pointType++) w.U8(pointType).U16(Math.Clamp(group[pointType - 1], 0, ushort.MaxValue));
         }
     }
 
@@ -442,7 +459,7 @@ public static class GamePackets
         var w = PacketWriter.Opcode(0x3633).Varint(a.Key).U32(0x2006u | (a.TeleportEffect != 0 ? 0x1000u : 0)).U8(0x37).String(a.Name).U16(a.ServerId)
             .I32(a.PcId).U8(a.Race).I32(a.CharLevel).I32(a.EquipItemLevel).I32(a.HighestTotalItemLevel).I32(a.LevelMax)
             .I64(a.Experience).I32(a.CombatLevel).I64(a.CombatExperience).U8(a.Gender);
-        WriteSpawnDetailTail(w, a.Ascension);
+        WriteSpawnDetailTail(w, a.Ascension, a);
         // CharState (client decoder 0x8498b80, the one 0x3645 uses): u16 presence mask; bit 9 adds
         // _relationship_entity (u8) and bit 12 _wing_id (i32) after fp_max. Without the relationship the client
         // drew ordinary monsters as non-hostile (green names; live 2026-10-16), the official server draws them
@@ -698,12 +715,18 @@ public static class GamePackets
     /// 0x5105 SkillPointUpdate_NT after SkillLevelUp (capture 20261101-234615): opcode + body `01 01 &lt;spent u8&gt; 00` —
     /// count 1, mask 0x01, cumulative skill points spent (not remaining), trailing 0x00. Values 2,3,4,5 over four spends.
     /// </summary>
+    /// The body is count u8, then CommonSkillPointInfo {type u8, point u16} (22 of 22 official packets parse this way; adapted from
+    /// Doxylamin/KiskEmu 5f125d9): the same bytes as before for spends under 256, no longer capped there.
     public static byte[] SkillPointUpdate(int cumulativeSpent) =>
-        PacketWriter.Opcode(0x5105).U8(1).U8(1).U8(checked((byte)Math.Clamp(cumulativeSpent, 0, 255))).U8(0).ToArray();
+        PacketWriter.Opcode(0x5105).U8(1).AppendSkillPointInfo(cumulativeSpent).ToArray();
 
-    /// <summary>CommonSkillPointInfo inside 0x3844 SkillLevelReset_RS._modify_points (type + varint point).</summary>
+    /// <summary>
+    /// One CommonSkillPointInfo {type u8, point u16} (0x5105 and 0x3844 SkillLevelReset_RS._modify_points). OBSERVED official reset
+    /// reply 0000 01 c0b51501 01 c0b51501 01 01 01 1500: 21 points refunded (adapted from Doxylamin/KiskEmu 5f125d9). We wrote a
+    /// presence mask and a varint here, which the client misread.
+    /// </summary>
     public static PacketWriter AppendSkillPointInfo(this PacketWriter w, int point, byte pointType = 1) =>
-        w.U8(1).U8(pointType).Varint(point);
+        w.U8(pointType).U16(Math.Clamp(point, 0, ushort.MaxValue));
 
     /// <summary>0x5100 skill list: count + ready entries (flag 1, i32 id, level, original level, additional level, cooltime zeros).</summary>
     public static byte[] SkillList(IReadOnlyList<(int SkillId, int Level)> skills, IReadOnlyDictionary<int, int>? originalLevels = null,
@@ -817,9 +840,16 @@ public static class GamePackets
         PacketWriter.Opcode(0x562c).U16(result).I64(uid).I64(costUid).I32(costId).ToArray();
     /// <summary>0x562e ItemSoulBindCancel_RS: result, item uid.</summary>
     public static byte[] SoulBindCancel(long uid, int result = 0) => PacketWriter.Opcode(0x562e).U16(result).I64(uid).ToArray();
-    /// <summary>0x5630 ItemSoulBindComplete_RS: result, item uid, bind count, no bound stats or skills.</summary>
-    public static byte[] SoulBindComplete(long uid, byte count = 1, int result = 0) =>
-        PacketWriter.Opcode(0x5630).U16(result).I64(uid).U8(count).Varint(0).Varint(0).ToArray();
+    /// <summary>
+    /// 0x5630 ItemSoulBindComplete_RS: result, item uid, bind count, the bound stats {u16 EStat, i32 value} and skills (none).
+    /// OBSERVED (community recordings 2026-11-04 and 11-06, build 26262663: 3 and 4 stats, every one without skills).
+    /// </summary>
+    public static byte[] SoulBindComplete(long uid, byte count = 1, int result = 0, IReadOnlyList<(int Type, int Value)>? stats = null)
+    {
+        var w = PacketWriter.Opcode(0x5630).U16(result).I64(uid).U8(count).Varint(stats?.Count ?? 0);
+        foreach (var (type, value) in stats ?? []) w.U16(type).I32(value);
+        return w.Varint(0).ToArray();
+    }
 
     /// <summary>0x561d ItemEquipLevelChange_NT: equipped item level total and the highest reached.</summary>
     public static byte[] ItemEquipLevelChange(int level, int highest) => PacketWriter.Opcode(0x561d).I32(level).I32(highest).ToArray();
@@ -837,22 +867,51 @@ public static class GamePackets
     {
         w.U8(item.Detail is null ? 0 : 1).I64(item.Key).I32(item.ItemId).I64(item.Count).U8(item.Container).I32(item.Slot)
             .Bool(item.Locked).String(item.Maker).I64(item.ExpireTime).Bool(item.ExpireFixed);
-        if (item.Detail is { } d)
-        {
-            w.U8(d.EnchantLevel).I32(0).I32(d.EnchantBonusProb).U8(d.SurpassEnchantLevel).I32(d.SurpassEnchantBonusProb).I32(d.ItemLevel).Bool(false).U8(d.EquipSlot)
-                // One magicstone slot (7 zero bytes observed; usmap id, stat, grade), then
-                // _soul_bind_char_dbid i64 and _soul_bind_count u8 (usmap order; CANDIDATE placement).
-                .Varint(1).Zeros(7).I64(d.SoulBindOwner).U8(d.SoulBindCount);
-            var gs = d.Godstones ?? [0, 0, 0];
-            w.Varint(3);
-            for (var i = 0; i < 3; i++) w.I32(i < gs.Length ? gs[i] : 0);
-            w.Varint(0);
-            var subs = d.RolledStats ?? [];
-            w.Varint(subs.Count);
-            foreach (var (wire, value) in subs) Stat(w, wire, value);
-            w.Varint(0).Varint(0).Varint(0).Varint(0).Varint(0).U8(d.SkinExtractionCount);
-        }
+        if (item.Detail is { } d) WriteEquipItemDetail(w, d);
         return w;
+    }
+
+    /// <summary>EquipItemDetail as Common_Item carries it (enchant, item level, equip slot, magicstones, soul bind, godstones, the tail).</summary>
+    public static PacketWriter WriteEquipItemDetail(PacketWriter w, EquipDetail d)
+    {
+        w.U8(d.EnchantLevel).I32(0).I32(d.EnchantBonusProb).U8(d.SurpassEnchantLevel).I32(d.SurpassEnchantBonusProb).I32(d.ItemLevel).Bool(false).U8(d.EquipSlot);
+        // The magicstone slots, then _soul_bind_char_dbid i64 and _soul_bind_count u8 (usmap order; CANDIDATE placement).
+        MagicStoneSlots(w, d.MagicStones).I64(d.SoulBindOwner).U8(d.SoulBindCount);
+        var gs = d.Godstones ?? [0, 0, 0];
+        w.Varint(3);
+        for (var i = 0; i < 3; i++) w.I32(i < gs.Length ? gs[i] : 0);
+        // A soul-bound item's stats replace the creation rolls (see DetailTail).
+        DetailTail(w, d.SoulStats is { Count: > 0 } ? d.SoulStats : d.RolledStats, d.SoulStats is { Count: > 0 }, d.SkinExtractionCount);
+        return w;
+    }
+
+    /// <summary>
+    /// The item detail after the godstones (usmap order): _arcana_main_stats (empty), _sub_stats, _add_sub_stats, the four skill
+    /// arrays (empty) and _skin_extraction_count. OBSERVED (adapted from Addiboii/A2Core 101b443): every 0x561b of a soul-bound item
+    /// in the community recordings of 2026-11-04 and 11-06 (7 of 7) carries the bound stats as _sub_stats and the same types at 0
+    /// as _add_sub_stats. Items without soul stats keep our creation rolls as _sub_stats and an empty _add_sub_stats.
+    /// </summary>
+    /// <summary>
+    /// The item detail's magicstone slots {stone id i32, EStat u16, grade u8}: the imprinted ones (OBSERVED in the 0x561b of
+    /// 2026-11-06 234912 i49416: count 02, then 01e9ab1f c700 02 | 01e9ab1f 3301 01; adapted from Addiboii/A2Core cfd5b67),
+    /// else one empty slot (7 zero bytes observed).
+    /// </summary>
+    public static PacketWriter MagicStoneSlots(PacketWriter w, IReadOnlyList<(int Stone, int Stat, int Grade)>? stones)
+    {
+        if (stones is not { Count: > 0 }) return w.Varint(1).Zeros(7);
+        w.Varint(stones.Count);
+        foreach (var (stone, stat, grade) in stones) w.I32(stone).U16(stat).U8((byte)grade);
+        return w;
+    }
+
+    public static PacketWriter DetailTail(PacketWriter w, IReadOnlyList<(int Wire, int Value)>? subStats, bool soulBound, byte skinExtraction = 0)
+    {
+        var stats = subStats ?? [];
+        w.Varint(0).Varint(stats.Count);
+        foreach (var (type, value) in stats) Stat(w, type, value);
+        w.Varint(soulBound ? stats.Count : 0);
+        if (soulBound) foreach (var (type, _) in stats) Stat(w, type, 0);
+        return w.Varint(0).Varint(0).Varint(0).Varint(0).U8(skinExtraction);
     }
 
     /// <summary>Candidate 0x5611 equipped inventory with one item (observed record widths).</summary>
@@ -1102,6 +1161,12 @@ public static class GamePackets
     /// <summary>0x5676 WingChange_NT: character key, packed is_wing_skin, wing id. CANDIDATE.</summary>
     public static byte[] WingChangeNotice(int key, int wingId, bool skin) => PacketWriter.Opcode(0x5676).Varint(key).Bool(skin).I32(wingId).ToArray();
 
+    /// <summary>
+    /// 0x5673 WingAcquire_NT: the player key i32, the wing, its enchant level. OBSERVED 2 of 2 upstream (Addiboii/A2Core b5fae02):
+    /// ascension (the default wing 30200600, right before the stats) and a wing item (512400013 -> GetWing 30201900, 49 ms after its 0x5619).
+    /// </summary>
+    public static byte[] WingAcquire(int key, int wingId, byte enchant = 0) => PacketWriter.Opcode(0x5673).I32(key).I32(wingId).U8(enchant).ToArray();
+
     /// <summary>Default wings (items 532400001/532400002 grant them on use): Light 30200600, Dark 40200601.</summary>
     public static int DefaultWing(int race) => race == 2 ? 40200601 : 30200600;
 
@@ -1117,7 +1182,39 @@ public static class GamePackets
     {
         w.I32(q.QuestId).U8(q.Status).Varint(q.Step);
         for (var i = 0; i < 6; i++) w.Varint(i < q.Goals.Length ? q.Goals[i] : 0);
-        return w.I32(q.Uid).Varint(q.RollCount).I32(q.PublisherId).Varint(0);
+        w.I32(q.Uid).Varint(q.RollCount).I32(q.PublisherId).Varint(q.Rewards?.Count ?? 0);
+        foreach (var r in q.Rewards ?? []) WriteRandomReward(w, r);
+        return w;
+    }
+
+    static void WriteRandomReward(PacketWriter w, QuestRandomReward r) => w.I32(r.Item).Varint(r.Count).U8(r.Enchant).I64(r.Prob);
+
+    // ---------- Duty missions (ported from zaraza87/A2Core dell-merge-2026-11) ----------
+    // usmap catalogue + 0x53c5 (as QuestList_NT 0x3944 -> 0x8d09): QuestRollDuty_RQ/RS 0x8d13/0x8d14,
+    // DutyMissionQuestJournalStatus_RQ/RS/NT 0x8d1a/0x8d1b/0x8d1c, RefreshDutyMissionQuestList_RQ/RS 0x8d1d/0x8d1e,
+    // DutyMissionQuestAccept_RQ/RS 0x8d1f/0x8d20.
+
+    /// <summary>0x8d14 QuestRollDuty_RS {u16 result, Common_Quest} (never recorded).</summary>
+    public static byte[] QuestRollDutyReply(int result, QuestWire q) => WriteQuest(PacketWriter.Opcode(0x8d14).U16(result), q).ToArray();
+
+    /// <summary>0x8d1b DutyMissionQuestJournalStatus_RS {u16 result} (OBSERVED {0} before the board).</summary>
+    public static byte[] DutyJournalReply(int result) => PacketWriter.Opcode(0x8d1b).U16(result).ToArray();
+
+    /// <summary>
+    /// 0x8d1c DutyMissionQuestJournalStatus_NT {refreshed i32, rewarded i32, missions {uid, quest id, quest uid, publisher i32,
+    /// status u8, offered rewards}, expire i64, deleted uids i32[], weekly expire i64} (OBSERVED world entry and board opening).
+    /// </summary>
+    public static byte[] DutyBoard(int refreshed, int rewarded, IReadOnlyList<DutyBoardWire> missions, long expire, IReadOnlyList<int> deleted, long weeklyExpire)
+    {
+        var w = PacketWriter.Opcode(0x8d1c).I32(refreshed).I32(rewarded).Varint(missions.Count);
+        foreach (var m in missions)
+        {
+            w.I32(m.Uid).I32(m.QuestId).I32(m.QuestUid).I32(m.PublisherId).U8(m.Status).Varint(m.Rewards.Count);
+            foreach (var r in m.Rewards) WriteRandomReward(w, r);
+        }
+        w.I64(expire).Varint(deleted.Count);
+        foreach (var uid in deleted) w.I32(uid);
+        return w.I64(weeklyExpire).ToArray();
     }
 
     /// <summary>0x8d09 QuestList_NT (world entry; the official new character got none).</summary>
@@ -1161,7 +1258,13 @@ public static class GamePackets
     public static byte[] QuestAcceptReply(int questId, int uid, int result = 0) => PacketWriter.Opcode(0x8d0b).U16(result).I32(questId).I32(uid).ToArray();
 
     /// <summary>0x8d0f QuestTakeReward_RS: result, uid, random reward indexes (none).</summary>
-    public static byte[] QuestTakeRewardReply(int uid, int result = 0) => PacketWriter.Opcode(0x8d0f).U16(result).I32(uid).Varint(0).ToArray();
+    public static byte[] QuestTakeRewardReply(int uid, int result = 0, IReadOnlyList<int>? randomPaid = null)
+    {
+        // The indexes of the offered random rewards paid (duty quests; none otherwise).
+        var w = PacketWriter.Opcode(0x8d0f).U16(result).I32(uid).Varint(randomPaid?.Count ?? 0);
+        foreach (var i in randomPaid ?? []) w.I32(i);
+        return w.ToArray();
+    }
 
     /// <summary>0x8d2c QuestStepNpcConversation_RS: kind (1 quest uid, 2 map event: CANDIDATE), result, id, NPC key, objective index.</summary>
     public static byte[] QuestStepTalkReply(byte kind, int id, int npcKey, int objIndex = 0, int result = 0) =>

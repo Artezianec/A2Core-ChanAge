@@ -27,7 +27,16 @@ sealed class Workflow(ServerEntry server, LauncherSettings settings)
     public string? InstallFolder => settings.Copies.TryGetValue(Build.Fingerprint, out var copy) ? copy.Folder : null;
     public IEnumerable<string> AllCopies => settings.Copies.Values.Select(c => c.Folder).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase);
 
-    public bool Installed => InstallFolder is { } folder && File.Exists(Path.Combine(folder, Build.Executable));
+    /// <summary>
+    /// The chosen client is there to start: the private copy of <see cref="Build"/>, or for the Steam version the
+    /// player's Steam copy (any build; it is never checked against the reference or copied).
+    /// </summary>
+    public bool Installed => Version.IsSteam
+        ? ClientVersions.SteamReady(Version, config, FindSteam(), Build.Executable)
+        : InstallFolder is { } folder && File.Exists(Path.Combine(folder, Build.Executable));
+
+    /// <summary>The server's Steam version, when it offers one and the player's Steam copy is there.</summary>
+    public ClientVersion? SteamAlternative => ClientVersions.SteamAlternative(config, FindSteam(), Build.Executable);
 
     public static SteamInstall? FindSteam()
     {
@@ -86,6 +95,23 @@ sealed class Workflow(ServerEntry server, LauncherSettings settings)
         ? "AION2"
         : "AION2-" + Build.Fingerprint[..12];
 
+    /// <summary>The game version the server runs, for the player, or null when the server names none.</summary>
+    public string? GameVersionText => string.IsNullOrWhiteSpace(Version.Name) ? null : Version.Name;
+
+    /// <summary>Whether <paramref name="folder"/>'s drive has room for what is still to download.</summary>
+    public bool HasRoom(string folder) => FreeBytes(folder) > StillNeeded(folder) + DownloadReserveBytes;
+
+    /// <summary>
+    /// The player picked where to download (before a download starts): a folder named for the copy is made inside it.
+    /// A started download stays where it is, its files are there.
+    /// </summary>
+    public void ChooseDownloadFolder(string parent)
+    {
+        settings.DownloadChoice = Path.Combine(Path.GetFullPath(parent), CopyName);
+        settings.DownloadChoiceBuild = Build.Fingerprint;
+        settings.Save();
+    }
+
     public static long FreeBytes(string folder) => new DriveInfo(Path.GetPathRoot(Path.GetFullPath(folder))!).AvailableFreeSpace;
 
     public async Task<ClientSource?> FindSourceAsync(SteamInstall steam)
@@ -110,9 +136,15 @@ sealed class Workflow(ServerEntry server, LauncherSettings settings)
             throw new LauncherException(LauncherLoc.ErrNotEnoughSpace(Path.GetPathRoot(Path.GetFullPath(folder))!, $"{needed / 1e9:0.#}", $"{StillNeeded(folder) / 1e9:0.#}"));
     }
 
+    /// <summary>
+    /// Where the download goes: the folder of an interrupted download, else the folder the player chose, else %LOCALAPPDATA%
+    /// on the system drive when it has room, else &lt;drive&gt;:\A2CorePrivate on the fixed drive with the most free space.
+    /// Null when no drive has room.
+    /// </summary>
     public string? DownloadFolder()
     {
         if (settings.DownloadFolder is { } previous && Build.Fingerprint.Equals(settings.DownloadBuild, StringComparison.OrdinalIgnoreCase)) return previous;
+        if (settings.DownloadChoice is { } chosen && Build.Fingerprint.Equals(settings.DownloadChoiceBuild, StringComparison.OrdinalIgnoreCase)) return chosen;
         var local = TargetFor(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
         if (FreeBytes(local) > StillNeeded(local) + DownloadReserveBytes) return local;
         var best = DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Fixed && d.IsReady)
@@ -212,6 +244,8 @@ sealed class Workflow(ServerEntry server, LauncherSettings settings)
         Copy.FirewallAddress = config.ServerAddress;
         settings.DownloadFolder = null;
         settings.DownloadBuild = null;
+        settings.DownloadChoice = null;
+        settings.DownloadChoiceBuild = null;
         settings.SetSteamSignIn(null);
         settings.Save();
     }
@@ -227,8 +261,12 @@ sealed class Workflow(ServerEntry server, LauncherSettings settings)
 
     public async Task<bool> RepairFirewallAsync()
     {
-        if (InstallFolder is null) return false;
-        if (!await Elevated.RunAsync("--setup-firewall", InstallFolder, config.ServerAddress)) return false;
+        // The Steam copy has no rules (they would block the official game too), and with it alone there is no private copy.
+        if (InstallFolder is not { } folder)
+            throw new LauncherException(Version.IsSteam
+                ? LauncherLoc.ErrNoPrivateCopyForFirewall
+                : LauncherLoc.ErrGameNotInstalled);
+        if (!await Elevated.RunAsync("--setup-firewall", folder, config.ServerAddress)) return false;
         Copy.FirewallAddress = config.ServerAddress;
         settings.Save();
         return true;
@@ -279,8 +317,17 @@ sealed class Workflow(ServerEntry server, LauncherSettings settings)
 
         status(LauncherLoc.StatusGettingLaunchCode);
         var launch = await Account.AuthorizeLaunchAsync(ct);
-        GamePlatformIni.Write(GamePlatformIni.PathFor(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), config.SavedDirSuffix),
-            config.BootstrapUrl(launch.Authorization));
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var bootstrapUrl = config.BootstrapUrl(launch.Authorization);
+        var suffixIni = GamePlatformIni.PathFor(localAppData, config.SavedDirSuffix);
+        GamePlatformIni.Write(suffixIni, bootstrapUrl);
+        if (config.WriteDefaultSavedIniEnabled)
+        {
+            var defaultIni = GamePlatformIni.DefaultPathFor(localAppData);
+            GamePlatformIni.Write(defaultIni, bootstrapUrl);
+            DnsInject.Log($"wrote GamePlatform.ini to {suffixIni} and default Saved {defaultIni}");
+        }
+        else DnsInject.Log($"wrote GamePlatform.ini to {suffixIni}");
 
         if (!version.IsSteam) ClientPatchSupport.DeployIfEnabled(folder, settings.AllowClientPatchPaks);
         else if (settings.AllowClientPatchPaks) status(LauncherLoc.StatusPatchNotOnSteam);
@@ -289,10 +336,13 @@ sealed class Workflow(ServerEntry server, LauncherSettings settings)
         var exe = Path.Combine(folder, executable.Replace('/', '\\'));
         var info = new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe)! };
         foreach (var argument in arguments) info.ArgumentList.Add(argument);
+        var expectedSuffix = "-saveddirsuffix=" + config.SavedDirSuffix;
+        var hasSavedDirSuffix = arguments.Any(a => a.Equals(expectedSuffix, StringComparison.OrdinalIgnoreCase));
+        DnsInject.Log($"game command line: \"{exe}\" {string.Join(" ", arguments)}; saveddirsuffix present={hasSavedDirSuffix} expected={expectedSuffix}");
 
         if (RedirectModeSelection.PreferInject(settings.RedirectMode, config))
         {
-            var dllPath = DnsInject.PrepareRedirectBundle(config.Server);
+            var dllPath = DnsInject.PrepareRedirectBundle(config.Server, config.RedirectConfigHostsEnabled);
             if (dllPath is not null)
             {
                 var process = DnsInject.TryStartWithInject(info, dllPath, out var injectError);
@@ -311,7 +361,8 @@ sealed class Workflow(ServerEntry server, LauncherSettings settings)
 
     async Task EnsureHostsSessionAsync(string folder, Action<string> status, CancellationToken ct)
     {
-        var helper = Elevated.Start("--hosts-session", folder, config.ServerAddress)
+        var helper = Elevated.Start("--hosts-session", folder, config.ServerAddress,
+            config.RedirectConfigHostsEnabled ? "config-hosts" : "noconfig-hosts")
             ?? throw new LauncherException(LauncherLoc.ErrHostsCancelled);
         helper.Dispose();
         for (var i = 0; i < 30 && !HostsFile.HasBlock(await File.ReadAllTextAsync(HostsFile.SystemPath, ct)); i++) await Task.Delay(500, ct);
@@ -321,8 +372,11 @@ sealed class Workflow(ServerEntry server, LauncherSettings settings)
 
     public async Task<BuildCheck> VerifyAllAsync(IProgress<(long, long)> progress, CancellationToken ct)
     {
-        var result = await ClientFiles.CheckAsync(InstallFolder!, Build, CheckLevel.Full, progress, ct);
-        if (result.Ok) { Copy.VerifiedStamp = QuickStamp(InstallFolder!); settings.Save(); }
+        // The Steam copy is newer than the reference by design; only a private copy is checked.
+        if (Version.IsSteam || InstallFolder is not { } folder)
+            return BuildCheck.Fail(Version.IsSteam ? LauncherLoc.SteamCopyNotChecked : LauncherLoc.ErrGameNotInstalled, 0);
+        var result = await ClientFiles.CheckAsync(folder, Build, CheckLevel.Full, progress, ct);
+        if (result.Ok) { Copy.VerifiedStamp = QuickStamp(folder); settings.Save(); }
         return result;
     }
 

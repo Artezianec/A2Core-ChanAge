@@ -423,13 +423,28 @@ app.Use(async (context, next) =>
     if (context.Request.Path.StartsWithSegments("/api") || context.Request.Path.StartsWithSegments("/internal")) context.Response.Headers.CacheControl = "no-store";
     await next();
 });
+// The chat port is plain HTTP on the public address and has no rate limiter: it answers the chat's own routes only, never
+// the account site, sign-in or staff API (those stay on the account port, behind TLS and the limiter). Adapted from Addiboii/A2Core 10f8635.
+if (chatPort is { } chatOnly && chatOnly != port && chatOnly != platform.Port)
+{
+    string[] chatRoutes = ["/gameLogin", "/gameClient", "/stomp", "/internal/online", "/internal/world", "/internal/announce"];
+    app.Use(async (context, next) =>
+    {
+        if (context.Connection.LocalPort == chatOnly && !chatRoutes.Any(r => context.Request.Path.StartsWithSegments(r)))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+        await next();
+    });
+}
 if (platform.Port is { } platformPort)
 {
     var accountTls = https.Proxy || https.CertificateFile is not null;
     var accountPageBase = accountTls
         ? $"https://{network.PublicAddress}" + (https.Proxy ? "" : $":{port}")
         : $"http://{network.PublicAddress}:{port}";
-    app.UsePlatformBootstrap(platformPort, platformResponses!, platform.RequestLog, network, accountPageBase, ncGuard.Port);
+    app.UsePlatformBootstrap(platformPort, platformResponses!, platform.RequestLog, network, accountPageBase, ncGuard.Port, platform.NccrMode);
 }
 app.UseRateLimiter();
 if (accountsReady) app.UseStaffSessions();

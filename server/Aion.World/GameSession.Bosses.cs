@@ -65,6 +65,7 @@ public sealed partial class GameSession
             waveParts[wave] = parts;
             dormantSpawners.UnionWith(parts);
         }
+        PrepareDailyWaves(names);   // GameSession.DailyDungeons.cs: the daily maps' WaveStepData waves
     }
 
     bool IMapEventHost.WaveKnown(string wave) => bossRules.Waves && (waveParts.ContainsKey(wave) || Bosses.Wave(worldMap, wave) is not null);

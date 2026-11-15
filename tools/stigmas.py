@@ -16,6 +16,11 @@ no damage rows: they cast, but do nothing until their effects are exported.
 
 CANDIDATE (params): shards per level, slot levels, the per-level power. See docs/STIGMAS.md.
 
+Level variants (generated.variants, stigma -> [[from level, variant skill]]): from stigma level 5 the client casts a variant,
+id + 10 at 5-9, + 20 at 10-14, + 30 at 15-19, + 40 at 20 (OBSERVED in the community recordings of 2026-11-05/06, ported from
+Addiboii/A2Core 771ed0d). The variants and their chain steps carry Skill.dat cast rows taken from that upstream stigmas.json
+(build 26262663); `build` keeps them, it only rewrites the 117 stigmas themselves.
+
     python tools/stigmas.py build --catalog research/local/game-catalog-v2/entries.jsonl
     python tools/stigmas.py check --catalog research/local/game-catalog-v2/entries.jsonl
 """
@@ -104,6 +109,10 @@ def build(catalog, data_path=DATA):
     for cls, by_id in sorted(found.items()):
         for skill_id, (entry, _) in sorted(by_id.items()):
             skills[str(skill_id)] = definition(entry, seed.get(str(skill_id)))
+    # The level variants and their chain steps (not stigma rows themselves) are kept as they are.
+    for skill_id, extra in seed.items():
+        if skill_id not in skills:
+            skills[skill_id] = extra
     current['generated']['classes'] = classes
     current['generated']['skills'] = skills
     Path(data_path).write_text(json.dumps(current, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')

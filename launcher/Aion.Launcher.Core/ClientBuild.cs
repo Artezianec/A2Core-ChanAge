@@ -170,8 +170,16 @@ public static class ClientFiles
             var info = new FileInfo(path);
             if (!info.Exists || info.Length != file.Size) { bad.Add(file.Path); done += file.Size; progress?.Report((done, total)); continue; }
             await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 20, FileOptions.SequentialScan | FileOptions.Asynchronous);
-            var hash = Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, ct));
-            if (hash != file.Sha256) bad.Add(file.Path);
+            if (!string.IsNullOrEmpty(file.Sha256))
+            {
+                var hash = Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, ct));
+                if (!hash.Equals(file.Sha256, StringComparison.OrdinalIgnoreCase)) bad.Add(file.Path);
+            }
+            else if (!string.IsNullOrEmpty(file.Sha1))
+            {
+                var hash = Convert.ToHexStringLower(await SHA1.HashDataAsync(stream, ct));
+                if (!hash.Equals(file.Sha1, StringComparison.OrdinalIgnoreCase)) bad.Add(file.Path);
+            }
             done += file.Size;
             progress?.Report((done, total));
         }

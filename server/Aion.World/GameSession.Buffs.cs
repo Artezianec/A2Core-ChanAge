@@ -24,6 +24,9 @@ public sealed partial class GameSession
         public bool Scripted { get; set; }
         /// <summary>A carry box's item (the BombBox's bomb): an EnvObj_Destroy object of its map takes it.</summary>
         public bool Carried { get; set; }
+        /// <summary>A season rank reward buff (GameSession.RankRewards.cs): its level, recomputed at entry, never saved.</summary>
+        public bool Rank { get; set; }
+        public int Level { get; set; } = 1;
         /// <summary>Casts of the AbnormalClear SkillStart skill so far.</summary>
         public int ChargesUsed { get; set; }
         /// <summary>A ChangeRelationshipEntity effect: the relationship the player shows while it lasts (PC_FriendlyToAll: monsters ignore them).</summary>
@@ -98,7 +101,7 @@ public sealed partial class GameSession
     AbnormalWire Wire(Buff b) => WireBuff(b, playerKey);
 
     static AbnormalWire WireBuff(Buff b, int casterKey, Vector3d? range = null) =>
-        new(b.Uid, b.AbnormalId, b.DurationMs, b.ExpireAt, CasterKey: casterKey, Level: 1, SkillId: b.SkillId == 0 ? null : b.SkillId, RangeBase: range ?? Vector3d.Zero);
+        new(b.Uid, b.AbnormalId, b.DurationMs, b.ExpireAt, CasterKey: casterKey, Level: (byte)Math.Clamp(b.Level, 1, 255), SkillId: b.SkillId == 0 ? null : b.SkillId, RangeBase: range ?? Vector3d.Zero);
 
     /// <summary>0x382a on the player with an arbitrary caster key (spirit owner buffs).</summary>
     Buff? AddBuffFromCaster(int abnormalId, int durationMs, int skillId, int casterKey, long now, List<byte[]> replies)
@@ -488,8 +491,11 @@ public sealed partial class GameSession
     sealed record SavedHeal(int EffectId, int IntervalMs, int PerTick, int Remaining, long NextAt);
     sealed record SavedDot(int EffectId, int IntervalMs, int PerTick, int Remaining, long NextAt);
     sealed record SavedCombat(int BarrierAmount, int ReflectPermille, bool Held, bool Silence, bool Rooted = false);
+    // SavedAt: when the row was written (0 in older saves). OBSERVED (community recordings 2026-11-04 to 06, ported from
+    // Addiboii/A2Core 525b531): a timed buff's time does not run while the character is logged out (234912 #56805: 22101051
+    // with 113585 ms of 300000 left after at least 14 minutes offline), so the load shifts its clocks by the time offline.
     sealed record SavedBuff(int Uid, int AbnormalId, int SkillId, long ExpireAt, bool Rebirth, bool Polymorph, bool Scripted, int? Relationship,
-        Dictionary<string, int> Stats, List<SavedHeal> Heals, SavedCombat? Combat, List<SavedDot> Dots);
+        Dictionary<string, int> Stats, List<SavedHeal> Heals, SavedCombat? Combat, List<SavedDot> Dots, long SavedAt = 0);
 
     /// <summary>Restores item buffs and cooldown groups after character select (official food/speed persist across relog).</summary>
     void LoadBuffSettings(IReadOnlyDictionary<string, JsonElement> settings, long now)
@@ -501,8 +507,16 @@ public sealed partial class GameSession
         {
             if (settings.TryGetValue(ActiveBuffsSetting, out var raw) && raw.Deserialize<SavedBuff[]>() is { } rows)
             {
-                foreach (var row in rows)
+                foreach (var saved in rows)
                 {
+                    // The time offline does not count (see SavedBuff): every clock of the row moves by it.
+                    var offline = saved.SavedAt > 0 && now > saved.SavedAt ? now - saved.SavedAt : 0;
+                    var row = offline == 0 || saved.ExpireAt == PassiveExpireTime ? saved : saved with
+                    {
+                        ExpireAt = saved.ExpireAt + offline,
+                        Heals = [.. saved.Heals.Select(h => h with { NextAt = h.NextAt + offline })],
+                        Dots = [.. (saved.Dots ?? []).Select(d => d with { NextAt = d.NextAt + offline })],
+                    };
                     if (row.ExpireAt <= now && row.ExpireAt != PassiveExpireTime) continue;
                     var info = AbnormalSpecs.Info(row.AbnormalId);
                     // A carried bomb stays with the map copy it was taken on: a relog drops it.
@@ -533,19 +547,36 @@ public sealed partial class GameSession
                     if (until > now) itemCooldowns[group] = until;
         }
         catch (JsonException) { buffs.Clear(); itemCooldowns.Clear(); }
+        try { pendingFlightGauge = settings.TryGetValue(FlightGaugeSetting, out var fp) && fp.TryGetInt32(out var value) ? value : null; }
+        catch (InvalidOperationException) { pendingFlightGauge = null; }
     }
 
-    SavedBuff[] SerializeBuffs() => buffs.Where(b => !IsSpiritSummonStateAbnormal(b.AbnormalId)).Select(b => new SavedBuff(b.Uid, b.AbnormalId, b.SkillId, b.ExpireAt, b.Rebirth, b.Polymorph, b.Scripted, b.Relationship,
+    /// <summary>
+    /// The flight gauge kept over a logout (OBSERVED: FP 549067 of 650567 at the re-entry, 234912 #56821; ported from
+    /// Addiboii/A2Core 525b531). Written with the buffs when the session leaves, restored at the first load after the selection.
+    /// </summary>
+    const string FlightGaugeSetting = "flight_gauge";
+    int? pendingFlightGauge;
+
+    async Task SaveLogoutStateAsync(long now, CancellationToken ct)
+    {
+        if (Store is null || CharacterId is null || resources is null) return;
+        // The buffs' rows carry the logout time even when nothing changed since the last write (see SavedBuff).
+        if (buffs.Count > 0) MarkBuffSettingsDirty();
+        if (resources.FpMax > 0) await SaveSettingAsync(FlightGaugeSetting, resources.Fp, ct);
+    }
+
+    SavedBuff[] SerializeBuffs(long now) => buffs.Where(b => !IsSpiritSummonStateAbnormal(b.AbnormalId) && !b.Rank).Select(b => new SavedBuff(b.Uid, b.AbnormalId, b.SkillId, b.ExpireAt, b.Rebirth, b.Polymorph, b.Scripted, b.Relationship,
         new Dictionary<string, int>(b.Stats), b.Heals.Select(h => new SavedHeal(h.EffectId, h.IntervalMs, h.PerTick, h.Remaining, h.NextAt)).ToList(),
         b.Combat is { } c ? new SavedCombat(c.BarrierAmount, c.ReflectPermille, c.Held, c.Silence, c.Rooted) : null,
-        b.Combat?.Dots.Select(d => new SavedDot(d.EffectId, d.IntervalMs, d.PerTick, d.Remaining, d.NextAt)).ToList() ?? [])).ToArray();
+        b.Combat?.Dots.Select(d => new SavedDot(d.EffectId, d.IntervalMs, d.PerTick, d.Remaining, d.NextAt)).ToList() ?? [], now)).ToArray();
 
     async Task FlushBuffSettingsAsync(long now, CancellationToken ct, bool force = false)
     {
         if (!buffSettingsDirty || Store is not { } store || CharacterId is not { } character || (!force && now < buffSettingsFlushAt)) return;
         buffSettingsFlushAt = now + 2000;
         buffSettingsDirty = false;
-        await SaveSettingAsync(ActiveBuffsSetting, SerializeBuffs(), ct);
+        await SaveSettingAsync(ActiveBuffsSetting, SerializeBuffs(now), ct);
         await SaveSettingAsync(ItemCooldownsSetting, itemCooldowns.Where(kv => kv.Value > now).ToDictionary(kv => kv.Key, kv => kv.Value), ct);
     }
 

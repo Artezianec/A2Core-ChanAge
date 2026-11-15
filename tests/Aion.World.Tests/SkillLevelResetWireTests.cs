@@ -26,6 +26,7 @@ public sealed class SkillLevelResetWireTests
         await session.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelUpRq).I32(RendingBlow).ToArray(), Now);
         await session.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelUpRq).I32(Cleave).ToArray(), Now);
         Assert.True(session.SkillPointsLeft < session.SkillPointsEarned);
+        var spentBefore = session.SkillPointsEarned - session.SkillPointsLeft;
 
         var reset = await session.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelResetRq).U8(1).I32(0).ToArray(), Now);
         Assert.Equal([0x3656, GameSession.SkillLevelResetRs, GameSession.SkillLevelUpdateNt, GameSession.SkillPointUpdateNt],
@@ -44,6 +45,11 @@ public sealed class SkillLevelResetWireTests
             _ = reader.I32();
             Assert.Equal(1, reader.U8()); // u8 kit level, not 4-byte i32
         }
+        // _modify_points: {type 1, refunded u16} (the official reply carries the refund, not the points left).
+        Assert.Equal(1, (int)reader.Varint());
+        Assert.Equal(1, reader.U8());
+        Assert.Equal(spentBefore, reader.U16());
+        Assert.True(reader.End);
 
         var update = reset.Single(p => GameSessionTestHelpers.Op(p) == GameSession.SkillLevelUpdateNt);
         Assert.Equal(2, SkillLevelUpdateCount(update));
@@ -52,5 +58,26 @@ public sealed class SkillLevelResetWireTests
         Assert.Equal(GamePackets.SkillPointUpdate(0), reset[^1]);
         Assert.Equal(session.SkillPointsEarned, session.SkillPointsLeft);
         Assert.Equal(0, GameSessionTestHelpers.SkillPoint5105Spent(reset[^1]));
+    }
+
+    /// <summary>
+    /// A stigma reset (type 2) with stigmas off leaves the skill-point levels (adapted from Doxylamin/KiskEmu 2fc9767): the official
+    /// shape with an empty list and a zero type-2 refund.
+    /// </summary>
+    [Fact]
+    public async Task Stigma_reset_with_stigmas_off_keeps_the_skill_point_levels()
+    {
+        var store = new FakeCharacterStore { Progress = (10, 0) };
+        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 10);
+        Assert.False(session.StigmasOn);
+        await session.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelUpRq).I32(RendingBlow).ToArray(), Now);
+        var left = session.SkillPointsLeft;
+        Assert.True(left < session.SkillPointsEarned);
+
+        var reset = await session.HandleAsync(new PacketWriter().U16(GameSession.SkillLevelResetRq).U8(2).I32(0).ToArray(), Now);
+
+        Assert.Equal(left, session.SkillPointsLeft);
+        Assert.DoesNotContain(reset, p => GameSessionTestHelpers.Op(p) == GameSession.SkillLevelUpdateNt);
+        Assert.Equal(Convert.FromHexString("4438" + "0000" + "02" + "00000000" + "00" + "01" + "02" + "0000"), Assert.Single(reset));
     }
 }

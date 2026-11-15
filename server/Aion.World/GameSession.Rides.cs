@@ -211,18 +211,20 @@ public sealed partial class GameSession
 
     /// <summary>
     /// A GetWing item [Wing.dat id] (Item.dat, e.g. 532400002 Wing_D_Default_01_b, AutoUseWhenAcquire): used up, the wing registered
-    /// and stored, the new WingList (0x5672). Without it the HQ2101050/HQ1101020 reward wing stayed in the bag unusable.
+    /// and stored, then WingAcquire_NT 0x5673 (OBSERVED upstream: 0x5619, then 0x5673; no new 0x5672 list). Without it the
+    /// HQ2101050/HQ1101020 reward wing stayed in the bag unusable. Refused (item kept) for a wing already registered or of the other race.
     /// </summary>
     async Task<List<byte[]>?> UseWingItemAsync(INativeCharacterStore store, Guid character, ItemState row, int wing, bool reply, CancellationToken ct)
     {
         if (registeredWings.Contains(wing)) return null;
+        if (WingTables.Embedded.Of(wing) is { } info && info.Race != (profileRace == 2 ? "Dark" : "Light")) return null;
         var used = await Stored(async () => await store.ConsumeItemAsync(character, row.InstanceId, row.Revision, 1, ct) ? [[]] : []);
         if (used.Count == 0) return null;
         await Stored(async () => await store.GrantWingAsync(character, wing, ct) ? [[]] : []);
         registeredWings.Add(wing);
         var replies = Used(row, reply);
+        replies.Add(GamePackets.WingAcquire(playerKey, wing));
         replies.AddRange(await InventoryChangesAsync(ct, 0, DecreaseItemUse));
-        replies.Add(GamePackets.WingList(OwnedWings()));
         replies.AddRange(RefreshStats());   // owned-wing stats
         return replies;
     }
@@ -331,6 +333,16 @@ public sealed partial class GameSession
         if (use is { Effect: "RewardBox" }) return await OpenBoxAsync(uid, 0, 1, now, ct);
         var questAcquire = await TryQuestAcquireFromItemAsync(store, character, row, use, now, reply, ct);
         if (questAcquire.Count > 0) return questAcquire;
+        // Duty scrolls (Item.dat UseEffect GetDutyQuest [group]): a duty quest of the group (GameSession.Duty.cs).
+        if (DutyData.ScrollGroup(row.TemplateId) is { } dutyGroup)
+        {
+            var dutyCooldown = Boxes.Cooldown(row.TemplateId);
+            if (dutyCooldown.Group != "None" && now < itemCooldowns.GetValueOrDefault(dutyCooldown.Group)) return Fail();
+            var given = await UseDutyScrollAsync(store, character, row, dutyGroup, uid, reply, ct);
+            if (given.Any(b => b.Length >= 2 && (b[0] | b[1] << 8) == 0x8d11) && dutyCooldown.Group != "None")
+                itemCooldowns[dutyCooldown.Group] = now + dutyCooldown.CooldownMs;
+            return given;
+        }
         if (use is null)
         {
             LogItemUseRefused(itemId, null, "missing_use_data");

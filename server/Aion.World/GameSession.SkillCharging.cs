@@ -103,6 +103,7 @@ partial class GameSession
             && resources.Mp >= cost.Mp && resources.Sp >= cost.Sp && resources.Hp > cost.Hp
             && (resources.ApMax <= 0 || resources.Ap >= cost.Ap)
             && (SkillFamilyLearned(skill) || normalDodge || chainSkill || CarriedSkill == skill)
+            && SpecializedCastAllowed(skill)   // a specialisation child only with its parts in effect (GameSession.Specialization.cs)
             && (weapons.Count == 0 || weapons.Contains(data.WeaponType(equippedWeapon) ?? ""))
             && (sprintDash || UseConditionMet(definition, now, request.TargetKey, skill))
             && CastTargetReachValid(definition, skill, request);

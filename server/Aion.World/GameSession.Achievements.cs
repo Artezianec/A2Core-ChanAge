@@ -549,7 +549,9 @@ public sealed partial class GameSession
     internal static byte[] SeasonSchedule(int race, long now)
     {
         var latest = LatestAttendanceSeasons(race, now);
-        var w = PacketWriter.Opcode(SeasonScheduleNt).Varint((uint)latest.Count);
+        // The live season's rows of the ranked contents (GameSession.Ranking.cs), for the types the attendance rows do not cover.
+        var ranked = RankedSeasonRows(now).Where(r => latest.All(l => l.Type != r.Type)).ToList();
+        var w = PacketWriter.Opcode(SeasonScheduleNt).Varint((uint)(latest.Count + ranked.Count));
         foreach (var (type, board) in latest)
         {
             var sameType = Achievements.Boards
@@ -562,6 +564,7 @@ public sealed partial class GameSession
                 .String(prev?.SeasonGroup ?? "").I32(prev?.SeasonNo ?? 0)
                 .String(next?.SeasonGroup ?? "").I32(next?.SeasonNo ?? 0);
         }
+        foreach (var r in ranked) w.U8(r.Type).String(r.Latest).I32(r.LatestNo).String(r.Prev).I32(r.PrevNo).String(r.Next).I32(r.NextNo);
         return w.ToArray();
     }
 

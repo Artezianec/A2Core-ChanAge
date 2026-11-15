@@ -43,21 +43,6 @@ public sealed partial class GameSession
         return rows;
     }
 
-    IReadOnlyDictionary<int, IReadOnlyList<int>> SkillOptionMap()
-    {
-        EnsureDefaultSkillCustomizing();
-        var map = new Dictionary<int, IReadOnlyList<int>>();
-        foreach (var skillId in learned.Where(id => id >= 11_000_000 && !IsDodgeId(id) && data.Skill(id)?.Type == "Active"))
-        {
-            var chosen = skillCustomizing.Where(r => r.SkillId == skillId || data.DefaultSkillCustomizing(skillId).Any(d => d.CondId == r.CondId))
-                .OrderBy(r => r.Priority).Select(r => r.SkillId).Distinct().Take(3).ToList();
-            if (chosen.Count == 0) chosen = data.SkillOptionIds(skillId).Where(id => id != 0).ToList();
-            while (chosen.Count < 3) chosen.Add(0);
-            map[skillId] = chosen.Take(3).ToList();
-        }
-        return map;
-    }
-
     async Task<List<byte[]>> UpdateSkillCustomizingAsync(byte[] plain, CancellationToken ct)
     {
         if (plain.Length < 4) return [];

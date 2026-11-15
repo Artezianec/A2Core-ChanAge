@@ -1,4 +1,4 @@
-using Aion.Protocol.Native;
+﻿using Aion.Protocol.Native;
 using Aion.World;
 using Xunit;
 
@@ -39,6 +39,21 @@ public sealed class ShopPacketTests
     }
 
     [Fact]
+    public async Task NP_shop_purchase_buys_quna_bm_goods_missing_from_shops_json()
+    {
+        const int QunaMotionGoods = 1242, QunaMotionItem = 534200008;
+        GameSession.ConfigureShopOptions(new ShopOptions { PremiumMode = ShopPremiumMode.Quna });
+        var store = new FakeCharacterStore(Guid.NewGuid());
+        store.Quna.Seed(store.AccountId, 100_000);
+        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now);
+        var buy = await session.HandleAsync(new PacketWriter().U16(GameSession.NPShopPurchaseRq).I32(QunaMotionGoods).I32(1).ToArray(), Now);
+        Assert.Equal(GameSession.NPShopPurchaseRs, GameSessionTestHelpers.Op(buy[0]));
+        Assert.Equal(0, BitConverter.ToUInt16(buy[0], 2));
+        Assert.Equal(99_700, (await store.Quna.BalanceAsync(store.AccountId)).Balance);
+        Assert.Contains(store.Items, i => i.TemplateId == QunaMotionItem && i.Location == "bag" && i.Quantity == 1);
+    }
+
+    [Fact]
     public async Task NP_shop_game_money_limit_lists_purchased_limited_goods()
     {
         var store = new FakeCharacterStore();
@@ -71,8 +86,8 @@ public sealed class ShopPacketTests
         var rs = await session.HandleAsync([0x60, 0xE2], Now);
         Assert.Equal(2, rs.Count);
         Assert.Equal((ushort)0xe262, GameSessionTestHelpers.Op(rs[0]));
-        Assert.Equal(new byte[] { 0, 0, 1 }, rs[0][2..5]);
-        Assert.Equal(Now, BitConverter.ToInt64(rs[0], 5));
+        Assert.Equal(GameSession.TrustLimitInfoNotice(Now), rs[0]);   // the recorded form (flags 07, four Kina limits, step 5)
+        Assert.Equal(Now, BitConverter.ToInt64(rs[0], rs[0].Length - 12));
         Assert.Equal((ushort)0xe261, GameSessionTestHelpers.Op(rs[1]));
         Assert.Equal(0, BitConverter.ToUInt16(rs[1], 2));
     }
@@ -106,5 +121,19 @@ public sealed class ShopPacketTests
             .I32(goodsId).I32(1).ToArray(), Now);
         Assert.Equal(0, BitConverter.ToUInt16(buy[0], 2));
         Assert.Contains(store.Items, i => i.TemplateId == template && i.Location == "storage");
+    }
+    [Fact]
+    public async Task NP_shop_purchase_buys_quna_official_catalog_goods_missing_from_platform_goods()
+    {
+        const int OfficialOnlyQunaGoods = 1252, OfficialOnlyQunaItem = 534200002;
+        GameSession.ConfigureShopOptions(new ShopOptions { PremiumMode = ShopPremiumMode.Quna });
+        var store = new FakeCharacterStore(Guid.NewGuid());
+        store.Quna.Seed(store.AccountId, 100_000);
+        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now);
+        var buy = await session.HandleAsync(new PacketWriter().U16(GameSession.NPShopPurchaseRq).I32(OfficialOnlyQunaGoods).I32(1).ToArray(), Now);
+        Assert.Equal(GameSession.NPShopPurchaseRs, GameSessionTestHelpers.Op(buy[0]));
+        Assert.Equal(0, BitConverter.ToUInt16(buy[0], 2));
+        Assert.Equal(99_700, (await store.Quna.BalanceAsync(store.AccountId)).Balance);
+        Assert.Contains(store.Items, i => i.TemplateId == OfficialOnlyQunaItem && i.Location == "bag" && i.Quantity == 1);
     }
 }

@@ -26,7 +26,10 @@ public sealed record WorldObject(
     [property: JsonPropertyName("hit_skills")] int[]? HitSkills = null,
     [property: JsonPropertyName("carry")] CarryBox? Carry = null,
     [property: JsonPropertyName("required_combat_power")] int RequiredCombatPower = 0,
-    [property: JsonPropertyName("monolith")] bool Monolith = false)
+    [property: JsonPropertyName("monolith")] bool Monolith = false,
+    [property: JsonPropertyName("pool")] int? Pool = null,
+    [property: JsonPropertyName("pool_slots")] int[]? PoolSlots = null,
+    [property: JsonPropertyName("rift")] string? Rift = null)
 {
     public Vector3d At => new(Position[0], Position[1], Position[2]);
 
@@ -140,6 +143,7 @@ public static class WorldObjects
                         objList.AddRange(overlayEntry.Objects);
                         trgList.AddRange(overlayEntry.Triggers);
                     }
+            WorldPools.Compose(mapId, objList);   // hidden cube pools and rift spawners (world-pools.json), appended after
             objects[mapId] = objList.ToArray();
             triggers[mapId] = trgList.ToArray();
         }

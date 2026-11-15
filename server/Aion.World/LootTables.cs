@@ -29,8 +29,21 @@ public sealed class LootTables
     {
         using var stream = typeof(LootTables).Assembly.GetManifestResourceStream("loot.json")
             ?? throw new InvalidOperationException("Missing embedded game data loot.json");
-        return new LootTables(JsonSerializer.Deserialize<LootFile>(stream) ?? throw new InvalidOperationException("Empty loot.json"));
+        var file = JsonSerializer.Deserialize<LootFile>(stream) ?? throw new InvalidOperationException("Empty loot.json");
+        // Reward tables kept outside loot.json: the hidden cubes' key rewards (world-pools.json "tables").
+        using var pools = typeof(LootTables).Assembly.GetManifestResourceStream("world-pools.json");
+        if (pools is not null && JsonSerializer.Deserialize<ExtraFile>(pools)?.Tables is { } extra)
+            foreach (var (name, table) in extra) file.Tables.TryAdd(name, table);
+        return new LootTables(file);
     });
+
+    sealed record ExtraFile([property: JsonPropertyName("tables")] Dictionary<string, Table>? Tables);
+
+    /// <summary>Whether a reward table is known (loot.json or world-pools.json).</summary>
+    public bool HasTable(string name) => file.Tables.ContainsKey(name);
+
+    /// <summary>The items the named reward tables give a character of a race (the hidden cubes).</summary>
+    public List<(int ItemId, long Count)> RollNamed(IReadOnlyList<string> tables, int race, Random rng) => RollTables(tables.ToArray(), race, rng);
 
     public static LootTables Embedded => embedded.Value;
 

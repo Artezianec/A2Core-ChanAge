@@ -67,7 +67,15 @@ public sealed class ItemStatTables
     {
         stat = Canonical(stat);
         var total = 0;
-        if (rolled.ValueKind == JsonValueKind.Object)
+        // Soul-bind stats (upgrades.soul_stats, [[EStat, value]]) are the item's sub stats once bound: they replace the creation rolls.
+        var soul = default(JsonElement);
+        var soulBound = upgrades.ValueKind == JsonValueKind.Object && upgrades.TryGetProperty("soul_stats", out soul) && soul.ValueKind == JsonValueKind.Array;
+        if (soulBound)
+            foreach (var pair in soul.EnumerateArray())
+                if (pair.ValueKind == JsonValueKind.Array && pair.GetArrayLength() == 2 && pair[0].TryGetInt32(out var wire) && pair[1].TryGetInt32(out var value)
+                    && (NameOfWire(wire) ?? SoulBindPools.NameOf(wire)) is { } name && Canonical(name) == stat)
+                    total += value;
+        if (!soulBound && rolled.ValueKind == JsonValueKind.Object)
         {
             foreach (var field in file.RolledFields ?? [])
                 if (rolled.TryGetProperty(field, out var node)) total += SumNode(node, stat);
@@ -77,9 +85,31 @@ public sealed class ItemStatTables
         {
             foreach (var field in file.RolledFields ?? [])
                 if (upgrades.TryGetProperty(field, out var node)) total += SumNode(node, stat);
-            if (upgrades.TryGetProperty("magicstones", out var stones)) total += SumNode(stones, stat);
+            if (upgrades.TryGetProperty("magicstones", out var stones)) total += SumMagicStones(stones, stat);
         }
         return total;
+    }
+
+    /// <summary>
+    /// upgrades.magicstones: imprinted slots [[stone, EStat, grade], ...] (GameSession.Imprint.cs) are worth their group's amount for
+    /// that grade (tools/data/manastones.json); any other shape is read as stat pairs, as before.
+    /// </summary>
+    int SumMagicStones(JsonElement stones, string stat)
+    {
+        if (stones.ValueKind != JsonValueKind.Array) return SumNode(stones, stat);
+        var total = 0;
+        var other = false;
+        foreach (var s in stones.EnumerateArray())
+        {
+            if (s.ValueKind == JsonValueKind.Array && s.GetArrayLength() == 3 && s[0].TryGetInt32(out var stone) && s[1].TryGetInt32(out var wire)
+                && s[2].TryGetInt32(out var grade))
+            {
+                if ((ManastoneTables.Embedded.StatName(wire) ?? NameOfWire(wire)) is { } name && Canonical(name) == stat)
+                    total += ManastoneTables.Embedded.Amount(stone, wire, grade);
+            }
+            else other = true;
+        }
+        return other ? total + SumNode(stones, stat) : total;
     }
 
     int SumFlatMap(JsonElement obj, string stat)

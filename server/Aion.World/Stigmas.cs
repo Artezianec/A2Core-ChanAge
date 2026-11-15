@@ -25,18 +25,39 @@ public sealed class StigmaTable
 
     sealed record Generated(
         [property: JsonPropertyName("classes")] Dictionary<string, int[]> Classes,
-        [property: JsonPropertyName("skills")] Dictionary<string, SkillDefinition>? Skills);
+        [property: JsonPropertyName("skills")] Dictionary<string, SkillDefinition>? Skills,
+        [property: JsonPropertyName("variants")] Dictionary<string, int[][]>? Variants = null);
 
     sealed record File([property: JsonPropertyName("params")] Params Params, [property: JsonPropertyName("generated")] Generated Generated);
 
     readonly File file;
     readonly Dictionary<int, string> owner;
+    readonly Dictionary<int, int> variantBase = [];
 
     StigmaTable(File file)
     {
         this.file = file;
         owner = file.Generated.Classes.SelectMany(c => c.Value.Select(id => (id, c.Key))).ToDictionary(p => p.id, p => p.Key);
+        foreach (var (stigma, steps) in file.Generated.Variants ?? [])
+            foreach (var step in steps)
+                if (step.Length >= 2) variantBase[step[1]] = int.Parse(stigma, CultureInfo.InvariantCulture);
     }
+
+    /// <summary>
+    /// The skill the client casts for a stigma at a stigma level: from level 5 a variant (id + 10 at 5-9, + 20 at 10-14, + 30 at
+    /// 15-19, + 40 at 20; OBSERVED in the community recordings of 2026-11-05/06, ported from Addiboii/A2Core 771ed0d), else 0
+    /// (the stigma itself).
+    /// </summary>
+    /// <summary>A stigma's variant steps: from which stigma level which skill is cast (its parts, SpecializedSkillParts.dat Slot_1..4).</summary>
+    public IReadOnlyList<(int From, int Skill)> VariantSteps(int stigma) =>
+        file.Generated.Variants?.GetValueOrDefault(stigma.ToString(CultureInfo.InvariantCulture)) is { } steps ? steps.Select(s => (s[0], s[1])).ToList() : [];
+
+    public int Variant(int stigma, int stigmaLevel) =>
+        file.Generated.Variants?.GetValueOrDefault(stigma.ToString(CultureInfo.InvariantCulture)) is { } steps
+            ? steps.Where(st => st.Length >= 2 && st[0] <= stigmaLevel).Select(st => st[1]).LastOrDefault() : 0;
+
+    /// <summary>The stigma a level variant belongs to, or null for any other skill.</summary>
+    public int? StigmaOfVariant(int skillId) => variantBase.TryGetValue(skillId, out var stigma) ? stigma : null;
 
     /// <summary>The level the stigma tab opens at (22: every Stigma row's NeedCharacterLevel).</summary>
     public int UnlockLevel => file.Params.UnlockLevel;
@@ -100,8 +121,8 @@ public sealed class StigmaTable
 /// <summary>
 /// Aion:Stigmas (docs/STIGMAS.md). Off by default: the stigma messages are CANDIDATE (no official stigma purchase has been
 /// captured), so a server turns them on to test. Enabled: a character from level 22 buys its class's stigma skills with Stigma
-/// Shards through the skill window's messages and casts them only from a stigma slot. A reset costs ResetKinah (default 100,000;
-/// 0 is free) and refunds the spent shards. Off: the stigma skills stay unlearnable, exactly as before.
+/// Shards through the skill window's messages and casts them only from a stigma slot. A reset costs ResetKinah (default 0: free,
+/// as the official resets) and refunds the spent shards. Off: the stigma skills stay unlearnable, exactly as before.
 /// </summary>
 public sealed record StigmaOptions
 {
@@ -116,8 +137,9 @@ public sealed record StigmaOptions
     /// Kinah charged for one stigma reset (one skill or all). Official KR launch dialog (oHzyEGdzZso, Nov 2025) showed 100,000
     /// and a full shard refund. A later KR/TW video (8HgwN6H758A, Sep 2026) claimed reset is free: set this to 0 for that. The
     /// same amount is charged for a single-skill reset and a reset-all (no separate official all-cost captured).
+    /// Default 0: six official resets in the community recordings of 2026-11-05/06 carried no cost message (Addiboii/A2Core 0d3d3a8).
     /// </summary>
-    public long ResetKinah { get; init; } = 100_000;
+    public long ResetKinah { get; init; } = 0;
     /// <summary>A stigma casts only while it is on a quick slot; turn off if the client turns out to register stigmas another way.</summary>
     public bool RequireSlot { get; init; } = true;
     /// <summary>

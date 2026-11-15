@@ -38,8 +38,9 @@ static class Elevated
             {
                 case "--setup-firewall" when args.Length == 3:
                     return SetupFirewall(args[1], IPAddress.Parse(args[2]));
-                case "--hosts-session" when args.Length == 3:
-                    return HostsSession(args[1], IPAddress.Parse(args[2]));
+                case "--hosts-session" when args.Length is 3 or 4:
+                    return HostsSession(args[1], IPAddress.Parse(args[2]),
+                        args.Length == 4 && args[3].Equals("config-hosts", StringComparison.OrdinalIgnoreCase));
                 case "--cleanup":
                     return Cleanup();
                 default:
@@ -70,10 +71,10 @@ static class Elevated
     /// The hosts lines for one play session: added now, removed when the private client's processes
     /// have all exited (or when none started within two minutes).
     /// </summary>
-    static int HostsSession(string installFolder, IPAddress server)
+    static int HostsSession(string installFolder, IPAddress server, bool redirectConfigHosts = false)
     {
         var hosts = HostsFile.SystemPath;
-        File.WriteAllText(hosts, HostsFile.With(File.ReadAllText(hosts), server));
+        File.WriteAllText(hosts, HostsFile.With(File.ReadAllText(hosts), server, redirectConfigHosts));
         FlushDns();
         try
         {

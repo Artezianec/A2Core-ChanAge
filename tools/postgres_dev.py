@@ -180,7 +180,7 @@ def migrate():
     sql(migration_script(sorted((ROOT / 'database/migrations').glob('*.sql'))))
 
 
-def import_catalog(directory):
+def import_catalog(directory, allow_shrink=False):
     directory = Path(directory)
     manifest = json.loads((directory / 'manifest.json').read_text(encoding='utf-8'))
     canonical = json.dumps(manifest, sort_keys=True, separators=(',', ':'))
@@ -200,6 +200,26 @@ def import_catalog(directory):
                 writer.writerow([json.dumps(document, ensure_ascii=False)])
         if counts != manifest['counts']:
             raise ValueError('Export counts differ from manifest')
+        previous_items = {int(x) for x in sql(
+            "SELECT COALESCE(string_agg(template_id::text, ','), '') FROM catalog.items "
+            "WHERE build_id=(SELECT build_id FROM catalog.builds ORDER BY imported_at DESC, build_id LIMIT 1);"
+        ).stdout.strip().split(',') if x}
+        previous_skills = {int(x) for x in sql(
+            "SELECT COALESCE(string_agg(template_id::text, ','), '') FROM catalog.skills "
+            "WHERE build_id=(SELECT build_id FROM catalog.builds ORDER BY imported_at DESC, build_id LIMIT 1);"
+        ).stdout.strip().split(',') if x}
+        incoming_ids = {'items': set(), 'skills': set()}
+        with (directory / 'entries.jsonl').open(encoding='utf-8') as source:
+            for line in source:
+                document = json.loads(line)
+                incoming_ids[document['kind']].add(int(document['id']))
+        shrink_items = sorted(previous_items - incoming_ids['items'])
+        shrink_skills = sorted(previous_skills - incoming_ids['skills'])
+        if (shrink_items or shrink_skills) and not allow_shrink:
+            raise ValueError(f'Catalogue snapshot shrinks the previous build (items={len(shrink_items)} skills={len(shrink_skills)}); pass allow_shrink=True to override')
+        print(f"catalogue import: items {len(previous_items)} -> {counts['items']} "
+              f"(+{len(incoming_ids['items']-previous_items)} -{len(shrink_items)}); "
+              f"skills {len(previous_skills)} -> {counts['skills']}")
         stream.write('\\.\n')
         for kind in ('items', 'skills'):
             # Immutable snapshots: the same build/ID may be reimported only unchanged.
@@ -249,6 +269,7 @@ def main():
         sub.add_parser(command)
     load = sub.add_parser('import-catalog')
     load.add_argument('--directory', type=Path, default=ROOT / 'research/local/game-catalog-v2')
+    load.add_argument('--allow-shrink', action='store_true')
     backup = sub.add_parser('backup')
     backup.add_argument('output', type=Path)
     verify = sub.add_parser('verify-backup')
@@ -270,7 +291,7 @@ def main():
     elif args.command == 'migrate':
         migrate()
     elif args.command == 'import-catalog':
-        print(json.dumps(import_catalog(args.directory), indent=2))
+        print(json.dumps(import_catalog(args.directory, allow_shrink=args.allow_shrink), indent=2))
     elif args.command == 'backup':
         if args.output.exists():
             raise ValueError('Backup destination already exists')

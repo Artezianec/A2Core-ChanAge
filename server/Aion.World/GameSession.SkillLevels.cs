@@ -64,7 +64,9 @@ public sealed partial class GameSession
     int BoughtSkillLevel(int skillId) => MasteryLevel(skillId);
 
     /// <summary>A skill's level for damage and the wire; a learned stigma's is its stigma level (docs/STIGMAS.md).</summary>
-    public int SkillLevel(int skillId) => StigmaLevelOf(skillId) ?? BoughtSkillLevel(skillId) + DaevanionSkillBonus(skillId);
+    public int SkillLevel(int skillId) => Specialized.ParentOf(skillId) is { } parent && !StigmaData.IsStigma(parent)
+        ? SkillLevel(ChainRoot(parent))   // a specialisation child is at its parent's level (GameSession.Specialization.cs)
+        : StigmaLevelOf(skillId) ?? BoughtSkillLevel(skillId) + DaevanionSkillBonus(skillId);
 
     /// <summary>The learned kit with persisted and in-session mastery on top of the level-based ones.</summary>
     List<(int SkillId, int Level)> WithLevels(IReadOnlyList<(int SkillId, int Level)> kit) =>
@@ -109,7 +111,7 @@ public sealed partial class GameSession
     {
         if (className is null || Profile() is not { } profile) return;
         var kit = data.SkillListForClient(className, level, profile);
-        RefreshWireClientSkillList(WithStigmas(data.WithChainVariantsOnHotbar(WithLevels(kit), profile, MasteryLevel)));
+        RefreshWireClientSkillList(WithSpecialized(WithStigmas(data.WithChainVariantsOnHotbar(WithLevels(kit), profile, MasteryLevel))));
     }
 
     byte[] WireSkillListPacket()
@@ -139,7 +141,8 @@ public sealed partial class GameSession
     }
 
     int ChainMirrorSource(int skillId) =>
-        data.Skill(skillId) is { ChainPrev: > 0 } ? ChainRoot(skillId) : skillId;
+        Specialized.ParentOf(skillId) is { } parent && !StigmaData.IsStigma(parent) ? ChainMirrorSource(parent)   // a specialisation child mirrors its parent
+        : data.Skill(skillId) is { ChainPrev: > 0 } ? ChainRoot(skillId) : skillId;
 
     int SkillWireMasteryLevel(int skillId) => MasteryLevel(ChainMirrorSource(skillId));
 
@@ -193,6 +196,7 @@ public sealed partial class GameSession
             var saved = await Stored(async () => await store.SetSkillLevelAsync(character, skillId, next, PurchasedLevel(skillId, next), ct) ? [[]] : []);
             if (saved.Count == 0) return [Reply(1), ..SkillPointClientSync()];
         }
+        var childBefore = SpecializedChild(skillId);
         ApplyMasteryLevel(skillId, next);
         LogSkillPoints(skillId, next, $"level_up left={SkillPointsLeft} sent5105_spent={SpentSkillPoints()}");
         List<byte[]>? chainUpdates = null;
@@ -201,7 +205,22 @@ public sealed partial class GameSession
         RebuildWireClientSkillList();
         // Official burst (capture 20261013 / 2026-10-31): 0x3656, 0x3840, 0x3813 reason SkillPointLevelUp, optional chain
         // 0x3813 reason SkillLevelModify, then 0x5105 only — no extra 0x5100 / entry resync on success.
-        return SkillMasteryCoreReplies(Reply(0), skillId, next, SkillPointLevelUp, chainUpdates);
+        return [.. SpecializedLevelChange(skillId, childBefore, next), .. SkillMasteryCoreReplies(Reply(0), skillId, next, SkillPointLevelUp, chainUpdates)];
+    }
+
+    /// <summary>
+    /// A mastery skill's level changed: its child (and its chain steps' children) follow. A child that stays is updated to the new
+    /// level (0x3813 reason 6, OBSERVED before each parent level-up); one that changes because a slot or part opened or closed is
+    /// deleted and added (GameSession.Specialization.cs; Addiboii/A2Core a1c5058).
+    /// </summary>
+    List<byte[]> SpecializedLevelChange(int skillId, int childBefore, int newLevel)
+    {
+        if (!Specialized.HasParts(skillId)) return [];
+        var after = SpecializedChild(skillId);
+        if (after != childBefore) return ChildChange(skillId, childBefore, after);
+        if (after == 0) return [];
+        return [.. ChainStepsAfter(skillId).Prepend(skillId).Select(s => s + (after - skillId)).Where(c => Specialized.ParentOf(c) is not null)
+            .Select(c => SkillLevelUpdate(c, newLevel, SpecializedChange))];
     }
 
     /// <summary>After FixSlot basic mastery changes: base chain steps appear in 0x5100 at the same level (unlocks Skill Order rows).</summary>
@@ -287,8 +306,9 @@ public sealed partial class GameSession
         if (current <= baseline || !HasPurchasedMastery(skillId)) return [Reply(1), ..SkillPointClientSync()];
         var next = current - 1;
         if (!await SaveSkillLevelAsync(skillId, next, ct)) return [Reply(1), ..SkillPointClientSync()];
+        var childBefore = SpecializedChild(skillId);
         ApplyMasteryLevel(skillId, next);
-        return [..SkillMasteryCoreReplies(Reply(0), skillId, next, SkillPointLevelDown, appendSkillPointUpdate: false), ..SkillPointListResync(), SkillPointUpdate()];
+        return [..SpecializedLevelChange(skillId, childBefore, next), ..SkillMasteryCoreReplies(Reply(0), skillId, next, SkillPointLevelDown, appendSkillPointUpdate: false), ..SkillPointListResync(), SkillPointUpdate()];
     }
 
     /// <summary>
@@ -303,14 +323,21 @@ public sealed partial class GameSession
         var acquireType = plain[2];
         var skillId = BitConverter.ToInt32(plain, 3);
         if (StigmaRules.Enabled && (acquireType == SkillAcquireTypeStigma || IsOwnStigma(skillId))) return await StigmaResetAsync(acquireType, skillId, ct);
+        // A stigma reset with stigmas off: nothing to reset, and the skill-point levels stay (it used to fall through and reset
+        // every bought mastery level; adapted from Doxylamin/KiskEmu 2fc9767). The official shape with an empty list, refund 0.
+        if (acquireType == SkillAcquireTypeStigma)
+            return [PacketWriter.Opcode(SkillLevelResetRs).U16(0).U8(SkillAcquireTypeStigma).I32(skillId).Varint(0)
+                .Varint(1).AppendSkillPointInfo(0, SkillPointTypeStigmaShard).ToArray()];
         var targets = (skillId == 0
             ? persistedSkillLevels.Keys.Union(skillLevels.Keys).Where(HasPurchasedMastery).ToList()
             : HasPurchasedMastery(skillId) ? [skillId] : []).ToList();
+        var spentBefore = SpentSkillPoints();
         byte[] Reply(int result, IReadOnlyList<int> reset)
         {
             var w = PacketWriter.Opcode(SkillLevelResetRs).U16(result).U8(acquireType).I32(skillId).Varint((uint)reset.Count);
             foreach (var id in reset) w.I32(id).U8((byte)KitSkillLevel(id));
-            return w.Varint(1).AppendSkillPointInfo(SkillPointsLeft, SkillPointTypePoint).ToArray();
+            // The points refunded, not the points left (OBSERVED official reply; adapted from Doxylamin/KiskEmu 5f125d9).
+            return w.Varint(1).AppendSkillPointInfo(Math.Max(0, spentBefore - SpentSkillPoints()), SkillPointTypePoint).ToArray();
         }
         if (targets.Count == 0) return [Reply(1, []), ..SkillPointClientSync()];
         var reset = new List<int>();

@@ -77,6 +77,8 @@ public sealed class SharedWorld(GameData data)
 
     /// <summary>Fortress siege schedule, applications, live battle and ownership (AirspaceBattle).</summary>
     public AirspaceSiege Airspace { get; } = new();
+    /// <summary>The season ranking lists, rebuilt every update period (GameSession.Ranking.cs).</summary>
+    public SeasonRankingCache Rankings { get; } = new();
 
     /// <summary>Daily/weekly reset cursors and world-scoped rollover (legion attendance, weekly contribution).</summary>
     public ContentResetCoordinator Resets { get; } = new();

@@ -61,9 +61,31 @@ public sealed class PlatformGoodsTables
     public GoodsRow? Goods(int goodsId) => byPlatformId.TryGetValue(goodsId, out var e)
         ? new GoodsRow(e.GoodsId, e.SaleStatus, e.CategoryId, e.ItemId ?? 0, e.ItemCount ?? 1, e.Currency, e.Price ?? 0) : null;
 
+    /// <summary>The bag currency item for a platform catalog currency name. GameCash, Cash and Mileage are Quna; GoldCombined is Kina. Membership and Quna top-up stay unmapped.</summary>
+    public int? CurrencyItemId(string? currency) => ShopCurrency.CurrencyItemId(currency);
+
+    /// <summary>A BM catalog row as a shop goods row, for purchases of SKUs omitted from shops.json.</summary>
+    public ShopTables.GoodsRow? ToShopGoods(int platformOrGoodsId)
+    {
+        if (Goods(platformOrGoodsId) is not { ItemId: > 0 } g) return null;
+        if (ShopCurrency.IsBlocked(null, [g.ItemId], [g.CategoryId])) return null;
+        if (ShopCurrency.CurrencyItemId(g.Currency, g.ItemId, g.CategoryId) is not { } currency) return null;
+        var price = ShopCurrency.Map(platformOrGoodsId, CurrencyGroup(g.Currency), g.Price, ShopCurrency.PlatformQunaPrice(platformOrGoodsId))?.Price ?? g.Price;
+        return new ShopTables.GoodsRow(g.ItemId, g.ItemCount, price, 0, currency, 0, 0, 0);
+    }
+
+    static int? CurrencyGroup(string? currency) => currency switch
+    {
+        "Cash" => ShopCurrency.CashGroup,
+        "GameCash" => ShopCurrency.QunaGroup,
+        "GoldCombined" => ShopCurrency.KinaGroup,
+        "Mileage" => ShopCurrency.MileageGroup,
+        _ => null,
+    };
+
     public int? ResolveGameGoodsId(int platformOrGameGoodsId) =>
         ShopTables.Embedded.RowByGoodsId(platformOrGameGoodsId) is not null ? platformOrGameGoodsId
-        : platformToGame.GetValueOrDefault(platformOrGameGoodsId);
+        : platformToGame.TryGetValue(platformOrGameGoodsId, out var game) ? game : null;
 
     public IReadOnlyList<(int GoodsId, int SaleStatus)> Filter(string? categoryId, int pageIndex, int pageSize, int saleStatusMask = 0)
     {

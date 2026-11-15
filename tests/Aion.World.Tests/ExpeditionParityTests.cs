@@ -117,8 +117,9 @@ public sealed class ExpeditionParityTests
     }
 
     [Fact]
-    public async Task Expedition_ticket_is_consumed_on_first_entry()
+    public async Task Expedition_entry_takes_no_entry_ticket()
     {
+        // MapEntrance.dat lists no entry ticket for KraoCave Easy; its reward cube costs energy instead (ContentTicketTests).
         var store = new FakeCharacterStore();
         FakeCharacterStore.SeedExpeditionItemLevel(store);
         var session = await GameSessionTestHelpers.EnterSharedWorldAsync(store, Now, level: 55);
@@ -126,21 +127,7 @@ public sealed class ExpeditionParityTests
         var before = session.EnterDungeonById(600002, Now + 50);
         Assert.NotEmpty(before);
         await session.TickAsync(Now + 60_000);
-        Assert.Contains(store.ExpeditionTickets, t => t.TicketId == 4 && t.Count == 1);
-    }
-
-    [Fact]
-    public async Task Weekly_reset_ignores_previous_period_ticket_usage()
-    {
-        var store = new FakeCharacterStore();
-        FakeCharacterStore.SeedExpeditionItemLevel(store);
-        var oldPeriod = ShopTables.Period(2, DateTimeOffset.FromUnixTimeMilliseconds(Now));
-        store.ExpeditionTickets.Add((4, oldPeriod, 30));
-        var weekLater = Now + 8L * 24 * 60 * 60 * 1000;
-        var session = await GameSessionTestHelpers.EnterSharedWorldAsync(store, weekLater, level: 55);
-        await GameSessionTestHelpers.LoadInventoryAsync(session, weekLater + 10);
-        var moved = session.EnterDungeonById(600002, weekLater + 50);
-        Assert.NotEmpty(moved);
+        Assert.Empty(store.ContentTickets);
     }
 
     [Fact]
@@ -157,18 +144,5 @@ public sealed class ExpeditionParityTests
         Assert.True(GameSessionTestHelpers.HasOpcode(enter, GameSession.PartyDungeonEnterRs));
         Assert.Equal(0, BitConverter.ToInt32(enter.First(b => GameSessionTestHelpers.Op(b) == GameSession.PartyDungeonEnterRs), 2));
         Assert.NotEqual(0, session.InstanceKey);
-    }
-
-    [Fact]
-    public async Task Exhausted_tickets_block_new_expedition_entry()
-    {
-        var store = new FakeCharacterStore();
-        FakeCharacterStore.SeedExpeditionItemLevel(store);
-        var period = ShopTables.Period(2, DateTimeOffset.FromUnixTimeMilliseconds(Now));
-        store.ExpeditionTickets.Add((4, period, 30));
-        var session = await GameSessionTestHelpers.EnterSharedWorldAsync(store, Now, level: 55);
-        await GameSessionTestHelpers.LoadInventoryAsync(session, Now + 10);
-        var moved = session.EnterDungeonById(600002, Now + 50);
-        Assert.Empty(moved);
     }
 }

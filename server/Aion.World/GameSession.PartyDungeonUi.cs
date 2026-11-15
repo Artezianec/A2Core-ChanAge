@@ -33,7 +33,6 @@ public sealed partial class GameSession
     /// <summary>Solo create path before PartyDungeonEnter (no room).</summary>
     int pendingPartyDungeonId;
 
-    static byte[] BookmarkedContentList() => PacketWriter.Opcode(BookmarkedContentListNt).Varint(0).ToArray();
 
     static byte[] PartyDungeonChallengeList() => PacketWriter.Opcode(PartyDungeonChallengeNt).Varint(0).ToArray();
 
@@ -138,7 +137,7 @@ public sealed partial class GameSession
         return w.U8(reason).ToArray();
     }
 
-    static int TicketFailId(DungeonInfo room) => Expeditions.TicketFor(room)?.Id ?? 0;
+    static int TicketFailId(DungeonInfo room) => ContentTickets.UsesOf(MapEventData.IdOf(room)).FirstOrDefault(u => ContentTickets.Of(u.TicketId) is { Counted: true })?.TicketId ?? 0;
 
     bool RoomEntryAllowed(DungeonInfo room, long now, out int ticketId, bool allowInCopy = false)
     {

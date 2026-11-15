@@ -36,8 +36,19 @@ class StigmaDataTests(unittest.TestCase):
 
     def test_self_stigmas_have_no_borrowed_damage(self):
         for skill_id, skill in DATA['generated']['skills'].items():
-            if skill['target'] != 'MainTarget':
+            if skill['target'] != 'MainTarget' and not skill.get('damage_source', '').startswith('Skill.dat'):
                 self.assertEqual([], skill['damage'], skill_id)
+
+    def test_every_stigma_has_its_four_level_variants(self):
+        variants = DATA['generated']['variants']
+        stigma_ids = {str(i) for ids in DATA['generated']['classes'].values() for i in ids}
+        self.assertEqual(stigma_ids, set(variants))
+        for stigma, steps in variants.items():
+            with self.subTest(stigma):
+                self.assertEqual([5, 10, 15, 20], [s[0] for s in steps])
+                self.assertEqual([int(stigma) + d for d in (10, 20, 30, 40)], [s[1] for s in steps])
+                for _, variant in steps:
+                    self.assertIn(str(variant), DATA['generated']['skills'])
 
     @unittest.skipUnless(Path(os.environ.get('AION_CATALOG', stigmas.DEFAULT_CATALOG)).exists(), 'needs game-catalog-v2 entries.jsonl')
     def test_matches_the_client_catalogue(self):

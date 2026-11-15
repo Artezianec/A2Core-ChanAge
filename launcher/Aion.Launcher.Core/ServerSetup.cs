@@ -126,7 +126,9 @@ public static class ServerSetup
             reply.ClientVersions is { Length: > 0 } versions ? versions : kept?.ClientVersions,
             reply.SelectedClientVersion ?? kept?.SelectedClientVersion,
             kept?.SteamClientPath,
-            kept?.RedirectMode);
+            kept?.RedirectMode,
+            kept?.RedirectConfigHosts,
+            kept?.WriteDefaultSavedIni);
         config.Validate();
         return config;
     }

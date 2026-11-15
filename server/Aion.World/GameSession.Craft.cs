@@ -174,7 +174,8 @@ public sealed partial class GameSession
         var conversions = Crafts.Conversions(profileRace);
         var converted = PacketWriter.Opcode(0x8d8c).Varint(conversions.Count);
         foreach (var id in conversions) converted.I32(id).I32(0);
-        var replies = new List<byte[]> { Convert.FromHexString("378D0000000000"), CraftRecipeList(), converted.ToArray() };
+        // OBSERVED order (the 34 recorded world entries; Addiboii/A2Core 827b359): 0x8d7e, 0x8d37, 0x8d8c.
+        var replies = new List<byte[]> { CraftRecipeList(), Convert.FromHexString("378D0000000000"), converted.ToArray() };
         foreach (var (category, (lvl, exp)) in craftMastery.OrderBy(p => p.Key))
             if (lvl > 1) replies.Add(CraftLevelUpdate(category, lvl, exp));
         if (gatherLevel > 1) replies.Add(GatherLevelUpdate());

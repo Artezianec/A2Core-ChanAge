@@ -33,7 +33,7 @@ public sealed record PlatformOptions
     public string? GeolocationFile { get; init; }
     /// <summary>Account-page launch authorization file; its single-use token is redeemed for the authn_token.</summary>
     public string? LaunchAuthorizationFile { get; init; }
-    /// <summary>Optional JSONL of requests (method, path, status; MobileAppConfigSdk queries). Never bodies.</summary>
+    /// <summary>Optional JSONL of requests (method, path, status; MobileAppConfigSdk queries and headers). Never bodies or Authorization/Cookie.</summary>
     public string? RequestLog { get; init; }
     /// <summary>
     /// Policy custom_data keys set (or overridden) on the served policy, by name: the game's own switches (the key table
@@ -48,6 +48,20 @@ public sealed record PlatformOptions
     /// Launch-code policies (/c/&lt;code&gt;) keep the bootstrap http://address:port form.
     /// </summary>
     public string? ConfigApiHost { get; init; }
+    /// <summary>
+    /// How /cr/ (nccr-api) requests are answered: NotFound (404 text/plain, Addiboii rc1),
+    /// Empty200 (empty 200), or Json (shaped official body). Default NotFound.
+    /// Configuration: Aion:Platform:NccrMode.
+    /// </summary>
+    public string? NccrMode { get; init; }
+}
+
+/// <summary>How the nccr-api /cr/ stub answers boot-time properties and run-info requests.</summary>
+public enum NccrMode
+{
+    NotFound,
+    Empty200,
+    Json,
 }
 
 /// <summary>The responses, validated once at startup like the Python fixture checks.</summary>
@@ -395,6 +409,28 @@ public static partial class PlatformBootstrapEndpoints
     /// </summary>
     public static readonly string[] ConfigHosts = ["mobileappconfig.g.nc.com", "mobileappconfig-ncus.g.nc.com", "api.g.nc.com", "nccr-api.global.nc.com"];
 
+    public static NccrMode ParseNccrMode(string? value)
+    {
+        if (value is not null && value.Equals(nameof(NccrMode.Json), StringComparison.OrdinalIgnoreCase)) return NccrMode.Json;
+        if (value is not null && value.Equals(nameof(NccrMode.Empty200), StringComparison.OrdinalIgnoreCase)) return NccrMode.Empty200;
+        return NccrMode.NotFound;
+    }
+
+    /// <summary>Status, content type and body for a /cr/ stub reply (HEAD uses the same body length except the caller omits the write).</summary>
+    public static (int Status, string ContentType, byte[] Body) NccrReply(NccrMode mode, string path)
+    {
+        if (mode == NccrMode.NotFound) return (404, "text/plain", []);
+        if (mode == NccrMode.Empty200) return (200, "text/plain", []);
+        byte[] body;
+        if (path.Contains("/run-info", StringComparison.Ordinal))
+            body = """{"result":"success"}"""u8.ToArray();
+        else if (path.Contains("/properties", StringComparison.Ordinal))
+            body = """{"samplingRate":100,"handledExceptionSamplingRate":100,"isLive":true,"skipBadEmulators":true,"enableNetLog":false,"netLogSamplingRate":0,"disableNccr":false}"""u8.ToArray();
+        else
+            body = "{}"u8.ToArray();
+        return (200, "application/json; charset=utf-8", body);
+    }
+
     /// <summary>A TLS request on the NCGuard port whose SNI is an official config/login host.</summary>
     public static bool IsConfigHostRequest(HttpContext context, int? ncGuardPort)
     {
@@ -414,7 +450,7 @@ public static partial class PlatformBootstrapEndpoints
     private static partial Regex CodePrefix();
 
     /// <summary>Answers every request on the bootstrap port in its own branch (no static files or other routes there).</summary>
-    public static void UsePlatformBootstrap(this WebApplication app, int port, PlatformResponses responses, string? requestLog, NetworkOptions network, string accountPageBase, int? ncGuardPort = null)
+    public static void UsePlatformBootstrap(this WebApplication app, int port, PlatformResponses responses, string? requestLog, NetworkOptions network, string accountPageBase, int? ncGuardPort = null, string? nccrMode = null)
     {
         var accountBase = accountPageBase.TrimEnd('/');
         var platformLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aion.Platform");
@@ -441,6 +477,34 @@ public static partial class PlatformBootstrapEndpoints
         var platformAuth = app.Services.GetService<IPlatformSecondaryAuth>();
         var qunaBalance = app.Services.GetService<ShopQunaBalanceService>();
         var logLock = new object();
+        var resolvedNccrMode = ParseNccrMode(nccrMode);
+        static Dictionary<string, string>? CaptureRequestHeaders(HttpRequest request)
+        {
+            var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var header in request.Headers)
+            {
+                if (header.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase)
+                    || header.Key.Equals("Cookie", StringComparison.OrdinalIgnoreCase)
+                    || header.Key.Equals("Proxy-Authorization", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                headers[header.Key] = header.Value.ToString();
+            }
+            return headers.Count == 0 ? null : headers;
+        }
+        void AppendBootstrapLog(string method, string path, string? code, int status, string? query, string? responseBody, string? nccr, Dictionary<string, string>? headers = null)
+        {
+            if (requestLog is null) return;
+            var entry = JsonSerializer.Serialize(new
+            {
+                utc = DateTimeOffset.UtcNow, method, path,
+                query,
+                headers,
+                launch_code = code is not null, response_status = status,
+                response_body = responseBody,
+                nccr_mode = nccr,
+            });
+            lock (logLock) File.AppendAllText(requestLog, entry + "\n");
+        }
         app.MapWhen(context => context.Connection.LocalPort == port || IsConfigHostRequest(context, ncGuardPort), branch => branch.Run(async context =>
         {
             var request = context.Request;
@@ -464,22 +528,15 @@ public static partial class PlatformBootstrapEndpoints
                 return;
             }
             // NC Crash Reporter (nccr-api.global.nc.com): the client fetches /cr/<ver>/<app>/properties
-            // and posts /cr/<ver>/run-info at boot and blocks on the connection. The official server
-            // answers an empty 200 (capture 2026-10-30); match it so a private server needs no upstream.
+            // and posts /cr/<ver>/run-info at boot and blocks on the connection. Default NotFound matches
+            // Addiboii rc1 (no /cr/ stub; 404). Json is the official-shaped 200 body; Empty200 is a bare 200.
             if (path.StartsWith("/cr/", StringComparison.Ordinal)
                 && (method == "GET" || method == "POST" || method == "HEAD"))
             {
-                // Official nccr-api (capture 2026-11-11): properties is a small JSON object; run-info is {"result":"success"}.
-                // An empty body kept the client alive but some builds wait on a parseable payload.
-                byte[] body;
-                if (path.Contains("/run-info", StringComparison.Ordinal))
-                    body = """{"result":"success"}"""u8.ToArray();
-                else if (path.Contains("/properties", StringComparison.Ordinal))
-                    body = """{"samplingRate":100,"handledExceptionSamplingRate":100,"isLive":true,"skipBadEmulators":true,"enableNetLog":false,"netLogSamplingRate":0,"disableNccr":false}"""u8.ToArray();
-                else
-                    body = "{}"u8.ToArray();
-                context.Response.StatusCode = 200;
-                context.Response.ContentType = "application/json; charset=utf-8";
+                var (status, contentType, body) = NccrReply(resolvedNccrMode, path);
+                AppendBootstrapLog(method, path, code, status, request.QueryString.Value, null, resolvedNccrMode.ToString());
+                context.Response.StatusCode = status;
+                context.Response.ContentType = contentType;
                 context.Response.Headers.Connection = "close";
                 context.Response.ContentLength = method == "HEAD" ? 0 : body.Length;
                 if (method != "HEAD") await context.Response.Body.WriteAsync(body);
@@ -609,11 +666,13 @@ public static partial class PlatformBootstrapEndpoints
                     responseBody = System.Text.Encoding.UTF8.GetString(reply.Body);
                 else if (path.StartsWith("/local-api-gate/virtual_currency/", StringComparison.Ordinal) && reply.Status == 200)
                     responseBody = System.Text.Encoding.UTF8.GetString(reply.Body);
+                var isMobileAppConfig = path.StartsWith("/MobileAppConfigSdk", StringComparison.Ordinal);
                 var entry = JsonSerializer.Serialize(new
                 {
                     utc = DateTimeOffset.UtcNow, method, path = logPath,
-                    query = path.StartsWith("/local-api-gate", StringComparison.Ordinal) || path.StartsWith("/MobileAppConfigSdk", StringComparison.Ordinal)
+                    query = path.StartsWith("/local-api-gate", StringComparison.Ordinal) || isMobileAppConfig
                         ? request.QueryString.Value : null,
+                    headers = isMobileAppConfig ? CaptureRequestHeaders(request) : null,
                     route_family = family, launch_code = code is not null, response_status = reply.Status,
                     response_body = responseBody,
                 });

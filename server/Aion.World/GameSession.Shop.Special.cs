@@ -126,7 +126,16 @@ public sealed partial class GameSession
             if (!PacketSecurity.TryMultiply(g.Bundle, count, out var bundleTotal) || !PacketSecurity.TryMultiply(g.Price, count, out var linePrice)) return [reply(1)];
             var priced = ApplyPremiumPrice(g.Currency, linePrice);
             if (priced is null) return [reply(1)];
-            rewards.Add((g.ItemId, bundleTotal));
+            var parts = OfficialShopGoods.Embedded.Parts(goodsId);
+            if (parts.Count > 0)
+            {
+                foreach (var (itemId, itemCount) in parts)
+                {
+                    if (!PacketSecurity.TryMultiply(itemCount, count, out var partTotal)) return [reply(1)];
+                    rewards.Add((itemId, partTotal));
+                }
+            }
+            else rewards.Add((g.ItemId, bundleTotal));
             orders.Add(new(kind, goodsId, count, priced.Value.Currency, priced.Value.Price));
             if (!PacketSecurity.TryAdd(prices.GetValueOrDefault(priced.Value.Currency), priced.Value.Price, out var sum)) return [reply(1)];
             prices[priced.Value.Currency] = sum;

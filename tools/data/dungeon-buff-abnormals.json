@@ -1,0 +1,196 @@
+{
+ "source": "client tables SkillAbnormal + SkillAbnormalEffect, the DungeonBuff abnormals 19003xxx (via zaraza87/A2Core dell-merge-2026-11 29934bea tools/data/abnormal-table.json)",
+ "abnormals": {
+  "19003001": {
+   "group": 19003000,
+   "type": "Buff",
+   "effects": [
+    [
+     190030011,
+     "StatChange",
+     "DamageRatio",
+     "3000",
+     "0",
+     "0",
+     "1"
+    ]
+   ]
+  },
+  "19003011": {
+   "group": 19003000,
+   "type": "Buff",
+   "effects": [
+    [
+     190030111,
+     "StatChange",
+     "DefenseRatio",
+     "3000",
+     "0",
+     "0",
+     "1"
+    ]
+   ]
+  },
+  "19003021": {
+   "group": 19003000,
+   "type": "Buff",
+   "effects": [
+    [
+     190030211,
+     "StatChange",
+     "Critical",
+     "300",
+     "0",
+     "0",
+     "1"
+    ]
+   ]
+  },
+  "19003031": {
+   "group": 19003000,
+   "type": "Buff",
+   "effects": [
+    [
+     190030311,
+     "StatChange",
+     "CombatSpeed",
+     "3000",
+     "0",
+     "0",
+     "1"
+    ]
+   ]
+  },
+  "19003041": {
+   "group": 19003000,
+   "type": "Buff",
+   "effects": [
+    [
+     190030411,
+     "StatChange",
+     "MoveSpeed",
+     "2000",
+     "0",
+     "0",
+     "1"
+    ]
+   ]
+  },
+  "19003051": {
+   "group": 19003000,
+   "type": "Buff",
+   "effects": [
+    [
+     190030511,
+     "TriggerSkillByKill",
+     "1900305",
+     "10000",
+     "1000",
+     "-1",
+     "None",
+     "None",
+     "None",
+     "None"
+    ]
+   ]
+  },
+  "19003061": {
+   "group": 19003000,
+   "type": "Buff",
+   "effects": [
+    [
+     190030611,
+     "TriggerSkillByKill",
+     "1900306",
+     "10000",
+     "1000",
+     "-1",
+     "None",
+     "None",
+     "None",
+     "None"
+    ]
+   ]
+  },
+  "19003101": {
+   "group": 19003000,
+   "type": "Buff",
+   "effects": [
+    [
+     190031011,
+     "AddAbnormalByCondition",
+     "19003105",
+     "-1",
+     "0"
+    ]
+   ]
+  },
+  "19003111": {
+   "group": 19003000,
+   "type": "Buff",
+   "effects": [
+    [
+     190031111,
+     "AddAbnormalByCondition",
+     "19003115",
+     "-1",
+     "0"
+    ]
+   ]
+  },
+  "19003121": {
+   "group": 19003000,
+   "type": "Buff",
+   "effects": [
+    [
+     190031211,
+     "AddAbnormalByCondition",
+     "19003125",
+     "-1",
+     "0"
+    ]
+   ]
+  },
+  "19003131": {
+   "group": 19003000,
+   "type": "Buff",
+   "effects": [
+    [
+     190031311,
+     "AddAbnormalByCondition",
+     "19003135",
+     "-1",
+     "0"
+    ]
+   ]
+  },
+  "19003141": {
+   "group": 19003000,
+   "type": "Buff",
+   "effects": [
+    [
+     190031411,
+     "AddAbnormalByCondition",
+     "19003145",
+     "-1",
+     "0"
+    ]
+   ]
+  },
+  "19003301": {
+   "group": 19003301,
+   "type": "Buff",
+   "effects": [
+    [
+     190033011,
+     "StatChange",
+     "MoveSpeed",
+     "3000",
+     "0",
+     "0",
+     "1"
+    ]
+   ]
+  }
+ }
+}

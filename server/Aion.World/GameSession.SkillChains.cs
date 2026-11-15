@@ -199,7 +199,7 @@ public sealed partial class GameSession
                 if (skill > 0) stacks[slot] = StackOf(new QuickSlotRecord(slot, 0, 0, 0, skill));
         foreach (var saved in quickSlots.Values)
         {
-            if (saved.Type == 0 && saved.SkillId != 0) stacks[saved.Slot] = StackOf(saved);
+            if (saved.Type == 0 && saved.SkillId != 0 && saved.Slot < FirstStigmaQuickSlot) stacks[saved.Slot] = StackOf(saved);   // stigma slots 20-23 are not skill stacks
             else stacks.Remove(saved.Slot);
         }
         return stacks;
@@ -271,9 +271,7 @@ public sealed partial class GameSession
     List<byte[]> NotifyQuickSlotContextSkill(byte slotId, byte contextIndex, int skillId)
     {
         if (Profile() is not { } profile) return [];
-        var rs = PacketWriter.Opcode(QuickSlotContextSkillRs).U16(0).U8(slotId).U8(contextIndex).I32(skillId)
-            .Bool(false).U8(0).U8(0).I32(0).ToArray();
-        return [rs, Hotbar(profile.DefaultBar())];
+        return [QuickSlotContextReply(0, slotId, contextIndex, skillId), Hotbar(profile.DefaultBar())];
     }
 
     bool TryContextSlotOfSkill(int skillId, out byte slotId, out byte contextIndex)
@@ -431,11 +429,28 @@ public sealed partial class GameSession
     }
 
     /// <summary>
+    /// 0x5608 QuickSlotContextSkillUpdate_RS, OBSERVED (6 instances in the community recordings of 2026-11-05/06, Addiboii/A2Core
+    /// 6714299): presence mask u8, result u16, slot u8, context slot u8, skill i32, then the fields whose bit is set: bit 0 is_swap
+    /// u8, bit 1 swap slot u8, bit 2 swap context slot u8 (a swap on context slot 0 is mask 3). Without the mask the client read
+    /// the slot as the result.
+    /// </summary>
+    static byte[] QuickSlotContextReply(int result, byte slotId, byte contextSlot, int skillId, bool swap = false, byte swapSlot = 0, byte swapContext = 0)
+    {
+        var mask = (byte)(swap ? 3 | (swapContext != 0 ? 4 : 0) : 0);
+        var w = PacketWriter.Opcode(QuickSlotContextSkillRs).U8(mask).U16(result).U8(slotId).U8(contextSlot).I32(skillId);
+        if ((mask & 1) != 0) w.U8(1);
+        if ((mask & 2) != 0) w.U8(swapSlot);
+        if ((mask & 4) != 0) w.U8(swapContext);
+        return w.ToArray();
+    }
+
+    /// <summary>
     /// 0x5607 QuickSlotContextSkillUpdate_RQ {slot u8, context index u8, skill id i32} (OBSERVED live 2026-10-30, 8 bytes:
     /// `06 01 D008E500` = slot 6, index 1, skill 15010000). The Skill Order window sends every edit as this one request:
     /// index 0 is the slot's own skill (skill 0 empties the slot, `07 00 00000000`), indexes 1-3 the rows under it. A skill
     /// already placed elsewhere in the bar swaps with the one it displaces. Answered 0x5608 {result u16, request echo,
-    /// is_swap, swap slot, swap index, displaced skill} (field widths CANDIDATE), then the bar as 0x5600.
+    /// is_swap, swap slot, swap index} in the OBSERVED presence-mask form (<see cref="QuickSlotContextReply"/>), then the bar as 0x5600.
+    /// The stigma quick slots (wire slots 20-23) take the stigma rules (GameSession.Stigmas.cs).
     /// </summary>
     async Task<List<byte[]>> UpdateQuickSlotContextAsync(byte[] plain, CancellationToken ct)
     {
@@ -444,8 +459,9 @@ public sealed partial class GameSession
         var contextSlot = plain[3];
         var skillId = BitConverter.ToInt32(plain, 4);
         byte[] Rs(int result, bool swap = false, byte swapSlot = 0, byte swapContext = 0, int swapSkill = 0) =>
-            PacketWriter.Opcode(QuickSlotContextSkillRs).U16(result).U8(slotId).U8(contextSlot).I32(skillId)
-                .Bool(swap).U8(swapSlot).U8(swapContext).I32(swapSkill).ToArray();
+            QuickSlotContextReply(result, slotId, contextSlot, skillId, swap, swapSlot, swapContext);
+        if (slotId is >= FirstStigmaQuickSlot and <= LastStigmaQuickSlot && StigmasOn)
+            return await SetStigmaQuickSlotAsync(slotId, contextSlot, skillId, ct);
         List<byte[]> Refused()
         {
             ConnectionLog?.Invoke($"quick-slot 0x5607 refused: slot {slotId} index {contextSlot} skill {skillId}");

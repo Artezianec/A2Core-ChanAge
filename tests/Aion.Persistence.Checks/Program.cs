@@ -140,6 +140,16 @@ await using(var source=NpgsqlDataSource.Create(connectionString))
             "configure_starters dark begin weapon equipped on create");
     }
     Check(await game.InventoryAsync(second,id) is null,"inventory ownership");
+    // Skill parts (migration 128): a skill's set replaced by compare-and-set, owner-scoped, a part in one slot only.
+    SkillPartRecord Part(int slot,int part)=>new(11020000,slot,part);
+    Check(await game.ReplaceSkillPartsAsync(first,id,11020000,[],[Part(1,11020030)]) && !await game.ReplaceSkillPartsAsync(first,id,11020000,[],[Part(1,11020010)]),
+          "skill parts: equipped once from the empty set, a stale set refused");
+    var partSwaps=await Task.WhenAll(game.ReplaceSkillPartsAsync(first,id,11020000,[Part(1,11020030)],[Part(1,11020030),Part(2,11020040)]),
+        game.ReplaceSkillPartsAsync(first,id,11020000,[Part(1,11020030)],[Part(1,11020020)]));
+    Check(partSwaps.Count(x=>x)==1 && !await game.ReplaceSkillPartsAsync(second,id,11020000,[],[Part(1,11020010)]) && (await game.SkillPartsAsync(second,id)).Count==0,
+          "one concurrent parts change wins; ownership");
+    Check(await game.ReplaceSkillPartsAsync(first,id,11020000,(await game.SkillPartsAsync(first,id)).ToList(),[]) && (await game.SkillPartsAsync(first,id)).Count==0,
+          "unequipping every part removes the rows");
     var item=bag.Items[0];
     Check(item.WireId>0,"starter item receives durable wire ID");
     Check(!await game.MoveItemAsync(second,id,item.InstanceId,item.Revision,null),"foreign item move denied");
@@ -214,6 +224,18 @@ await using(var source=NpgsqlDataSource.Create(connectionString))
     Check(await game.SortContainerAsync(first,id,"bag"),"bag sort succeeds when slots must be renumbered");
     var bagSorted=(await game.InventoryAsync(first,id))!.Items.Where(x=>x.Location=="bag").OrderBy(x=>x.Slot!.Value).Select(x=>x.TemplateId).ToList();
     Check(bagSorted.SequenceEqual(bagSorted.Order().ToList()),"bag sort orders by template_id");
+    // Warehouse and account storage: a bag item moves into each container and back out again. The target
+    // location is a column value, not a share, so account storage is per character like the personal depot.
+    var depotItem=(await game.InventoryAsync(first,id))!.Items.First(x=>x.Location=="bag");
+    Check(await game.MoveItemToContainerAsync(first,id,depotItem.InstanceId,depotItem.Revision,"storage",2),"a bag item moves into the personal warehouse");
+    var inStorage=(await game.InventoryAsync(first,id))!.Items.Single(x=>x.InstanceId==depotItem.InstanceId);
+    Check(inStorage is {Location:"storage",Slot:2},"the item is stored in the warehouse at the chosen slot");
+    Check(await game.MoveItemToContainerAsync(first,id,inStorage.InstanceId,inStorage.Revision,"account_storage",0),"a warehouse item moves into account storage");
+    var inAccount=(await game.InventoryAsync(first,id))!.Items.Single(x=>x.InstanceId==depotItem.InstanceId);
+    Check(inAccount is {Location:"account_storage",Slot:0},"the item is stored in account storage");
+    Check(await game.MoveItemToContainerAsync(first,id,inAccount.InstanceId,inAccount.Revision,"bag",20),"an account-storage item moves back into the bag");
+    Check((await game.InventoryAsync(first,id))!.Items.Single(x=>x.InstanceId==depotItem.InstanceId) is {Location:"bag",Slot:20},"the item returns to the bag");
+    await Reject(()=>game.MoveItemToContainerAsync(first,id,depotItem.InstanceId,0,"equipment",0),"invalid_slot");
     // Ascension grade: staff-set, 1..6, loaded with the character for the spawn.
     Check((await game.AdminCharacterAsync(second,id))!.Ascension==1,"new characters start at ascension grade 1");
     await Reject(()=>game.AdminAsync(second,new(Guid.NewGuid(),id,"ascension",Ascension:7)),"invalid_ascension");
@@ -261,6 +283,16 @@ await using(var source=NpgsqlDataSource.Create(connectionString))
     Check(await game.SoulBindItemAsync(first,id,bagItem.InstanceId,1) && (await game.InventoryAsync(first,id))!.Items.Single(x=>x.InstanceId==bagItem.InstanceId).Upgrades.GetProperty("soul_bind").GetInt32()==1,"a soul bind is stored on the item");
     Check(!await game.ExchangeAsync(first,id,[(bagItem.InstanceId,bagItem.Quantity)],second,staffChar,[]),"soul-bound items are not traded");
     Check(!await game.SoulBindItemAsync(second,id,bagItem.InstanceId,1),"another account cannot bind the item");
+    Check(await game.SoulBindItemAsync(first,id,bagItem.InstanceId,1,default,[(41,99),(194,16)]) && (await game.InventoryAsync(first,id))!.Items.Single(x=>x.InstanceId==bagItem.InstanceId).Upgrades is var soulUp
+        && soulUp.GetProperty("soul_bind").GetInt32()==1 && soulUp.GetProperty("soul_stats")[1][0].GetInt32()==194 && soulUp.GetProperty("soul_stats")[1][1].GetInt32()==16,"a bind stores the count and the bound stats");
+    // Manastones: upgrades.magicstones written at the item's revision, beside the soul bind; stale or foreign refused.
+    var bound=(await game.InventoryAsync(first,id))!.Items.Single(x=>x.InstanceId==bagItem.InstanceId);
+    MagicStoneSlot[] rolled=[new(531360001,199,2),new(531360001,307,1)];
+    Check(!await game.ImprintItemAsync(second,id,bound.InstanceId,bound.Revision,[],rolled) && !await game.ImprintItemAsync(first,id,bound.InstanceId,bound.Revision+1,[],rolled),
+          "imprint: another account or a stale revision is refused");
+    Check(await game.ImprintItemAsync(first,id,bound.InstanceId,bound.Revision,[],rolled) && (await game.InventoryAsync(first,id))!.Items.Single(x=>x.InstanceId==bagItem.InstanceId) is var stoned
+          && stoned.Upgrades.GetProperty("magicstones").EnumerateArray().SelectMany(s=>s.EnumerateArray()).Select(v=>v.GetInt32()).SequenceEqual([531360001,199,2,531360001,307,1]) && stoned.Upgrades.GetProperty("soul_bind").GetInt32()==1,
+          "imprint: the slots stored on the item, its soul bind kept");
     Check(await game.EngraveTeleportArtifactAsync(first,id,1051035) && !await game.EngraveTeleportArtifactAsync(first,id,1051035)
           && (await game.TeleportArtifactsAsync(first,id))!.SequenceEqual([1051035]) && await game.TeleportArtifactsAsync(second,id) is null,"a Kibelisk is engraved once, readable by its owner only");
     // World-map fog: groups stored once each, new ones reported.
@@ -295,6 +327,10 @@ await using(var source=NpgsqlDataSource.Create(connectionString))
     Check((await game.ExpeditionTicketsAsync(first,id)).Single()==(4,period,2),"expedition tickets load");
     Check(await game.SaveExpeditionTicketsAsync(first,id,[]),"expedition tickets clear");
     Check((await game.ExpeditionTicketsAsync(first,id)).Count==0,"expedition tickets empty after clear");
+    var ticketAt=DateTimeOffset.FromUnixTimeSeconds(1_793_000_000);
+    Check(await game.SaveContentTicketAsync(first,id,new(80000001,2,ticketAt)) && await game.SaveContentTicketAsync(first,id,new(80000001,1,ticketAt.AddMinutes(5))),"content tickets save (upsert)");
+    Check((await game.ContentTicketsAsync(first,id)).Single() is {TicketId:80000001,Remaining:1} savedTicket && savedTicket.UpdatedAt==ticketAt.AddMinutes(5),"content tickets load the last count and its time");
+    Check(!await game.SaveContentTicketAsync(second,id,new(80000001,0,ticketAt)) && (await game.ContentTicketsAsync(second,id)).Count==0,"another account cannot read or write the tickets");
     // Wave 7: full character state survives a new pool (logout / server restart).
     Check(await game.SaveProgressAsync(first,id,12,98765),"level and experience save");
     var gatingQuest=await game.SaveQuestAsync(first,id,new QuestRecord("HQ1101018",1101018,0,2,4,[1,0,0,0,0,0]));

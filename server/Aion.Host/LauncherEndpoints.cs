@@ -50,7 +50,7 @@ public sealed class LauncherEndpoints(byte[] buildJson, string fingerprint)
         app.MapGet(ConfigPath, (IConfiguration configuration) =>
         {
             var section = configuration.GetSection("Aion:Launcher");
-            var version = section["ClientVersion"]?.Trim() is { Length: > 0 } named ? named[..Math.Min(named.Length, 40)] : "2.0.6.0";
+            var version = section["ClientVersion"]?.Trim() is { Length: > 0 } named ? named[..Math.Min(named.Length, 40)] : "2.0.9.0";
             var versions = new List<object> { new { id = version, name = version, kind = "private", build = fingerprint } };
             if (section.GetValue<bool?>("AllowSteam") ?? true)
                 versions.Add(new { id = "steam-latest", name = "Official latest (Steam)", kind = "steam" });

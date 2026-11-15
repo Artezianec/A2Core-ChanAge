@@ -83,7 +83,7 @@ public sealed partial class GameSession
             if (i >= objects.Count) continue;
             var o = objects[i];
             double dx = o.Position[0] - at.X, dy = o.Position[1] - at.Y;
-            var near = (instance && o.LongRange || dx * dx + dy * dy <= WorldObjects.VisibleRange * WorldObjects.VisibleRange) && !MapEventHidden(i, o);
+            var near = (instance && o.LongRange || dx * dx + dy * dy <= WorldObjects.VisibleRange * WorldObjects.VisibleRange) && !MapEventHidden(i, o) && PoolOrRiftShown(i, o, now);
             if (CarryBoxExpired(i, now) && shownObjects.Remove(i))
             {
                 replies.Add(GamePackets.EnvObjDespawn(WorldObjects.FirstKey + i));
@@ -198,6 +198,7 @@ public sealed partial class GameSession
         // A refusal carries the available state too, so the client's interaction never stays open on it.
         if (!PlayerMayUseEnvObj(found, o) || CarryRefused(o)) return [GamePackets.InteractEnvObjReply(key2, 1), GamePackets.InteractEnvObjAvailableState(key2)];
         if (EnvObjCombatPowerRefused(found, o)) return [GamePackets.InteractEnvObjReply(key2, 1), GamePackets.InteractEnvObjAvailableState(key2)];
+        if (PoolOrRiftRefusal(found, o, key2, now) is { } poolRefused) return poolRefused;   // hidden cubes and rifts (GameSession.Rifts.cs)
         if (o.Gather is not null && GatherFailReason(o) is { } gatherFail) return GatherRefusedPackets(key2, gatherFail);
         if (position is { } at && Math.Sqrt(Math.Pow(at.X - o.Position[0], 2) + Math.Pow(at.Y - o.Position[1], 2)) > o.InteractRange + WorldObjects.InteractSlack)
             return [GamePackets.InteractEnvObjReply(key2, 1)];
@@ -247,6 +248,8 @@ public sealed partial class GameSession
         var objects = WorldObjects.ObjectsOn(worldMap);
         if (index >= objects.Count) return [];
         var key = WorldObjects.FirstKey + index;
+        if (objects[index].Pool is not null) return await OpenCubeAsync(index, objects[index], key, now, ct);   // GameSession.Rifts.cs
+        if (objects[index].Rift is not null) return await UseRiftAsync(index, objects[index], key, now, ct);
         var replies = new List<byte[]>
         {
             GamePackets.InteractEnvObjCompleted(key, playerKey), GamePackets.InteractEnvObjFinishState(key), GamePackets.InteractEnvObjAvailableState(key),
@@ -262,6 +265,8 @@ public sealed partial class GameSession
         var objects = WorldObjects.ObjectsOn(worldMap);
         var key = WorldObjects.FirstKey + index;
         var replies = new List<byte[]>();
+        replies.AddRange(FestivalUsedObject(index, objects[index], now));
+        DailyUsedObject(objects[index].Env, now);   // a daily dungeon's orbs and coins (DungeonPoint UseEnvObj)   // a festival point item (GameSession.FestivalGames.cs)
         if (objects[index].Gather is not null) replies.AddRange(await CompleteGatherAsync(index, objects[index], now, ct));
         var destroyed = CarryUsed(index, objects[index], now, replies);
         var monolithReplies = objects[index].Monolith ? await MonolithResonateAsync(objects[index], ct) : [];

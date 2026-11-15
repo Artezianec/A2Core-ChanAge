@@ -48,7 +48,7 @@ public sealed class BossChallengeTables
 // clear level, best point i64, best point level, best point time, best point update time i64, cumulative point i64}; CANDIDATE).
 // Entering (group, level ≤ cleared + 1 and ≤ MaxLevel) opens a private copy with the level's boss at the map's BossSpawn
 // point; killing it clears the level: the first-clear reward once, the repeat reward (grade 0) every time, clear points
-// 1000 × level (OURS), ClearBossChallenge achievements, and the way out after the dungeon's 30 s hold. Tickets
+// from the official formula (GameSession.Ranking.cs BossClearPoints), ClearBossChallenge achievements, and the way out after the dungeon's 30 s hold. Tickets
 // (Contents_Ticket_BossChallenge) and the grade multipliers are not modelled.
 public sealed partial class GameSession
 {
@@ -107,7 +107,7 @@ public sealed partial class GameSession
         var hp = Combat.HpFor(spawn);
         targets[BossChallengeKey] = new Target
         {
-            Key = BossChallengeKey, Name = spawn.Name, Hp = hp, HpMax = hp, Position = new Vector3d(at[0], at[1], at[2]), NpcId = spawn.NpcId, Level = spawn.Level,
+            Key = BossChallengeKey, Name = spawn.Name, Hp = hp, HpMax = hp, Position = new Vector3d(at[0], at[1], at[2]), NpcId = spawn.NpcId, Level = spawn.Level, Grade = spawn.Grade,
             Direction = at[3], Relationship = 6, Aggressive = true, WalkSpeed = spawn.WalkSpeed, RunSpeed = spawn.RunSpeed, Radius = spawn.Radius, Function = spawn.Function,
             Aggro = spawn.Aggro, Skills = spawn.Skills ?? [], NoRotation = spawn.NoRotation, Air = spawn.Air, AirMonster = spawn.Air && spawn.SubType.EndsWith("Monster", StringComparison.Ordinal), DamageScale = Combat.DamageScale(spawn.SubType, spawn.Grade),
         };
@@ -121,7 +121,7 @@ public sealed partial class GameSession
         var (groupId, level, startMs) = activeChallenge;
         activeChallenge = default;
         var elapsed = (int)Math.Max(0, now - startMs);
-        var points = 1000L * level;
+        var points = BossClearPoints(group.Tier, level, elapsed / 1000);   // OBSERVED formula (GameSession.Ranking.cs)
         var before = bossChallenges.GetValueOrDefault(groupId) ?? new BossChallengeRecord(groupId, 0, 0, 0, 0, 0, DateTimeOffset.FromUnixTimeMilliseconds(now));
         var first = level > before.ClearLevel;
         var record = before with
@@ -132,6 +132,7 @@ public sealed partial class GameSession
         };
         bossChallenges[groupId] = record;
         pendingBossChallengeSave = record;
+        RecordBossChallengeSeason(groupId, level, points, elapsed / 1000);   // the season ranking (GameSession.Ranking.cs)
         var rewards = (first ? stage.First : []).Concat(stage.Repeat).Where(r => r.Length >= 2).Select(r => ((int)r[0], r[1])).ToList();
         if (rewards.Count > 0) pendingRewards.Add(rewards);
         var replies = new List<byte[]> { WriteBossChallenge(PacketWriter.Opcode(UpdateBossChallengeNt).U16(0).I64(points).I32(elapsed), record).U8(0).ToArray() };

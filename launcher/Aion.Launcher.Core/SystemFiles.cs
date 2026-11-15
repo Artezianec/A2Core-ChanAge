@@ -16,6 +16,10 @@ public static class GamePlatformIni
     public static string PathFor(string localAppData, string suffix) =>
         Path.Combine(localAppData, "AION2", "Saved_" + suffix, "Config", "Windows", "GamePlatform.ini");
 
+    /// <summary>The unsuffixed Saved folder the client uses when started without -saveddirsuffix.</summary>
+    public static string DefaultPathFor(string localAppData) =>
+        Path.Combine(localAppData, "AION2", "Saved", "Config", "Windows", "GamePlatform.ini");
+
     /// <summary>The file with our section replaced (other sections, e.g. the game's own user settings, kept).</summary>
     public static string WithBootstrap(string? existing, string bootstrapUrl)
     {
@@ -69,8 +73,12 @@ public static class HostsFile
         "mobileappconfig.g.nc.com", "mobileappconfig-ncus.g.nc.com", "api.g.nc.com",
     ];
 
-    /// <summary>Every hostname the launcher redirects to the private server during Play.</summary>
+    /// <summary>Every hostname the launcher can redirect (NCGuard hosts plus official config/login hosts).</summary>
     public static readonly string[] AllHostnames = [.. Hostnames, .. ConfigHostnames];
+
+    /// <summary>Hostnames written for one Play session. Default (false) is the 6 NCGuard hosts from Addiboii rc1.</summary>
+    public static string[] RedirectHostnames(bool redirectConfigHosts) =>
+        redirectConfigHosts ? AllHostnames : Hostnames;
     const string Begin = "# >>> private server (added by the launcher; removed when the game closes)";
     const string End = "# <<< private server";
     // Markers written by launchers before 0.2; still recognised so their leftovers are removed.
@@ -96,10 +104,10 @@ public static class HostsFile
         return string.Join("\r\n", output).TrimEnd('\r', '\n') + "\r\n";
     }
 
-    public static string With(string text, IPAddress server)
+    public static string With(string text, IPAddress server, bool redirectConfigHosts = false)
     {
         var block = new StringBuilder().Append(Begin).Append("\r\n");
-        foreach (var host in AllHostnames) block.Append(server).Append(' ').Append(host).Append("\r\n");
+        foreach (var host in RedirectHostnames(redirectConfigHosts)) block.Append(server).Append(' ').Append(host).Append("\r\n");
         block.Append(End).Append("\r\n");
         return Without(text) + block;
     }

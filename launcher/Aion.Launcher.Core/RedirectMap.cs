@@ -31,13 +31,14 @@ public static class RedirectMap
     public static string Format(IPAddress server, IEnumerable<string> hostnames) =>
         string.Join(';', hostnames.Select(host => $"{host}={server}"));
 
-    /// <summary>Every hostname the launcher sends to <paramref name="server"/> (NCGuard and the official config/login hosts).</summary>
-    public static string FormatForServer(IPAddress server) => Format(server, HostsFile.AllHostnames);
+    /// <summary>Hostnames the launcher sends to <paramref name="server"/>. Default is the 6 NCGuard hosts (Addiboii rc1); set <paramref name="redirectConfigHosts"/> to also include official config/login hosts.</summary>
+    public static string FormatForServer(IPAddress server, bool redirectConfigHosts = false) =>
+        Format(server, HostsFile.RedirectHostnames(redirectConfigHosts));
 
-    public static void WriteMapFile(string path, IPAddress server)
+    public static void WriteMapFile(string path, IPAddress server, bool redirectConfigHosts = false)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, FormatForServer(server) + Environment.NewLine, Encoding.UTF8);
+        File.WriteAllText(path, FormatForServer(server, redirectConfigHosts) + Environment.NewLine, Encoding.UTF8);
     }
 }
 

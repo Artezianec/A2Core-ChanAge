@@ -21,6 +21,16 @@ The dungeon boss phases and waves (`tools/boss_phases.py`, `server/Aion.World/Bo
 are adapted from ckrealm/A2Core (https://github.com/ckrealm/A2Core, branch friends-server, commits c299686, c52fc1a and
 77ac9ed), AGPL-3.0.
 
+Later upstream work (Addiboii/A2Core, https://github.com/Addiboii/A2Core, branch update-26262663, after v0.2.0-rc1),
+AGPL-3.0, is ported here commit by commit: each ported commit keeps Addiboii as its author and names the upstream commit
+("cherry picked from commit ..."). Our own adaptations are noted in the commits and pull requests.
+
+The duty missions, Shugo festival games, spatial rifts and hidden cubes, season ranking and rewards, skill presets and
+character inspect, daily dungeons, Black Cloud random shop and Arcana are ported from zaraza87/A2Core
+(https://github.com/zaraza87/A2Core, branch dell-merge-2026-11), AGPL-3.0; the ported files say so in their headers.
+Launcher and gameplay fixes are also ported from Doxylamin/KiskEmu (https://github.com/Doxylamin/KiskEmu, including
+tag launcher-v0.6.1), AGPL-3.0.
+
 A2Core contains no game client and no client archive key. Players use their own copy of the game, obtained through
 their own Steam account.
 

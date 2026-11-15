@@ -309,7 +309,7 @@ partial class GameSession
         replies.AddRange(AchieveKill(target.NpcId));
         replies.AddRange(BossChallengeKilled(target, now));
         InstanceKill(target, now);
-        killedLevels.Add(target.Level);
+        killedLevels.Add((target.Level, target.Grade, instanceKey != 0));
         if (!FieldBossPersonalRewards(target)) replies.AddRange(DropLoot(target, now));
         FieldBossKilled(target, now);   // before ai.Killed: the hate table and healers name who fought it
         replies.Add(GamePackets.TargetUpdate(target.Key));

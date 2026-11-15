@@ -294,10 +294,9 @@ public static class SocialPackets
 
     /// <summary>Common_EquipItemDetail in the layout of the observed Common_Item detail (GamePackets.WriteItem).</summary>
     static void WriteEquipDetail(PacketWriter w, EquipDetail d) =>
-        w.U8(d.EnchantLevel).I32(0).I32(d.EnchantBonusProb).U8(d.SurpassEnchantLevel).I32(d.SurpassEnchantBonusProb).I32(d.ItemLevel).Bool(false).U8(d.EquipSlot)
-            .Varint(1).Zeros(7).I64(d.SoulBindOwner).U8(d.SoulBindCount)
-            .Varint(3).Zeros(12)
-            .Zeros(7).U8(0);
+        GamePackets.DetailTail(GamePackets.MagicStoneSlots(w.U8(d.EnchantLevel).I32(0).I32(d.EnchantBonusProb).U8(d.SurpassEnchantLevel).I32(d.SurpassEnchantBonusProb).I32(d.ItemLevel).Bool(false).U8(d.EquipSlot),
+            d.MagicStones).I64(d.SoulBindOwner).U8(d.SoulBindCount)
+            .Varint(3).Zeros(12), d.SoulStats, d.SoulStats is { Count: > 0 });
 
     // ---------- Friends ----------
 
