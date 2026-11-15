@@ -217,12 +217,15 @@ public sealed class NcGuardSink : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var started = DateTimeOffset.UtcNow;
+        var processStarted = NcGuardStopFile.ProcessStartedAt();
+        if (options.StopFile is { } path)
+            NcGuardStopFile.ClearStale(path, processStarted);
         try
         {
             while (!stoppingToken.IsCancellationRequested)
             {
                 if ((options.DurationSeconds is { } seconds && (DateTimeOffset.UtcNow - started).TotalSeconds >= seconds) ||
-                    (options.StopFile is { } stop && File.Exists(stop)))
+                    NcGuardStopFile.IsRequested(options.StopFile, processStarted))
                 { lifetime.StopApplication(); return; }
                 await Task.Delay(250, stoppingToken);
             }
