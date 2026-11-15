@@ -39,6 +39,10 @@ public sealed record GameSessionOptions
     public int? DevelopmentMap { get; init; }
     /// <summary>The training dummy (key 1000) next to the spawn point: off since 2026-10-18 (it was the first combat target; the checks still use it).</summary>
     public bool TrainingDummy { get; init; }
+    /// <summary>Refuse dungeon entries without the ticket MapEntrance names (GameSession.ContentTickets.cs); off: count only.</summary>
+    public bool EnforceContentTickets { get; init; }
+    /// <summary>The live Black Cloud Merchants and Arcana requests (GameSession.BlackCloudShop.cs, GameSession.Arcana.cs); default on, as official.</summary>
+    public bool ExperimentalRandomShopArcana { get; init; } = true;
     /// <summary>The race of the world this wire account picked on the login port (<see cref="WorldChoices"/>); null: none known.</summary>
     public Func<string, int?>? WorldRace { get; init; }
     /// <summary>Overrides Resurrect.dat auto-rez delay (development / tests use a short wait).</summary>
@@ -367,16 +371,24 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case CharRenameRq when plain.Length >= 4: return await RenameCharacterAsync(plain, ct);
             case CharSlotSwapRq when plain.Length >= 4: return await SwapLobbySlotsAsync(plain, now, ct);
             case CharCustomizingListRq when plain.Length == 2: return await CharCustomizingListAsync(ct);
+            case BookmarkRq when plain.Length >= 8 && resources is not null: return await BookmarkAsync(plain, now, ct);
         }
+        if (InWorld && Opcode(plain) is LatestSeasonRankingRq or MySeasonRankingRq or TakePrevSeasonRankingRewardRq
+            && await RankingRequestAsync(plain, now, ct) is { } rankingReplies) return rankingReplies;   // GameSession.Ranking.cs
         if (InWorld && ClientRequest(plain, now) is { } clientReplies) return clientReplies;
         if (InWorld && Opcode(plain) is var skinBlockOp && skinBlockOp >= 0x8d62 && skinBlockOp <= 0x8d67 && (skinBlockOp - 0x8d60) % 2 == 0)
             return SkinBlockRefusal(plain);
         if (InWorld && await GuildRequestAsync(plain, ct) is { } guildReplies) return guildReplies;
+        if (InWorld && FieldEventRequest(plain, now) is { } fieldEventReplies) return fieldEventReplies;   // GameSession.FieldEvents.cs
         if (InWorld && await PartyLootRequestAsync(plain, now, ct) is { } lootRollReplies) return lootRollReplies;
         if (InWorld && ForceRequest(plain, now) is { } forceReplies) return forceReplies;
         if (await SocialRequestAsync(plain, now, ct) is { } socialReplies) return socialReplies;
         if (InWorld && await TradeRequestAsync(plain, now, ct) is { Count: > 0 } tradeReplies) return tradeReplies;
         if (await EquipRequestAsync(plain, ct) is { } equipped) return equipped;
+        if (InWorld && await DutyRequestAsync(plain, now, ct) is { } dutyReplies) return dutyReplies;   // GameSession.Duty.cs
+        // On by default, as official (ExperimentalRandomShopArcana turns them off): GameSession.BlackCloudShop.cs, GameSession.Arcana.cs.
+        if (InWorld && await BlackCloudShopRequestAsync(plain, now, ct) is { } blackCloudReplies) return blackCloudReplies;
+        if (InWorld && await ArcanaRequestAsync(plain, now, ct) is { } arcanaReplies) return arcanaReplies;
         if (PositionReport(plain) is { } reported)
         {
             // Too fast: rejected (the client goes back), not stored, not shown to others.
@@ -404,6 +416,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             TrackFallStart(wasAir, air, reported);
             uncovered = [.. uncovered, .. FallLandingReplies(wasAir, air, reported, now)];
             var entering = MapEventPosition(reported, now);
+            entering.AddRange(FestivalPosition(reported, now));   // checkpoints, laps (GameSession.FestivalGames.cs)
             entering.AddRange(InstanceTrigger(reported, Opcode(plain), now));
             entering.AddRange(TickRecoveryOrbs(now));
             if (worldPlayer?.Map is { } map)
@@ -497,12 +510,16 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case GamePackets.SyncMonolithAccountAchievementsRq when plain.Length >= 6: return await SyncMonolithAccountAchievementsAsync(plain);
             case ItemRestoreRq when plain.Length >= 3: return await RestoreItemsAsync(plain, ct);
             case ItemEnchantRq when plain.Length >= 10: return await EnchantAsync(plain, ct);
+            case ItemImprintRq when plain.Length >= 22: return await ImprintAsync(plain, ct);   // GameSession.Imprint.cs
             case ItemExceedEnchantRq when plain.Length >= 10: return await ExceedEnchantAsync(plain, ct);
             case ItemEnchantGodstoneRq when plain.Length >= 15: return await EnchantGodstoneAsync(plain, ct);
             case CombineGodstoneRq when plain.Length >= 3: return await CombineGodstoneAsync(plain, ct);
             case GatherStartRq when plain.Length >= 3: return await GatherStartAsync(plain, now, ct);
             case TitleChangeRq when plain.Length >= 6: return await TitleChangeAsync(plain, ct);
             case SkillLevelUpRq: return await SkillLevelUpAsync(plain, ct);
+            case SpecializedEquipRq when plain.Length >= 7: return await EquipSkillPartAsync(plain, ct);   // GameSession.Specialization.cs
+            case SpecializedUnequipRq when plain.Length >= 6: return await UnequipSkillPartAsync(plain, ct);
+            case SpecializedChangeRq when plain.Length >= 10: return await ChangeSkillPartSlotAsync(plain, ct);
             case TitleEquipRq when plain.Length >= 7: return await TitleEquipAsync(plain, ct);
             case SkinEquipRq when plain.Length >= 3: return await SkinEquipAsync(plain, ct);
             case SkinExtractionRq when plain.Length >= 3: return await SkinExtractionAsync(plain, ct);
@@ -563,6 +580,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case ItemAutoUseRq when plain.Length >= 7 && resources is not null: return await SetItemAutoUseAsync(plain, ct);
             case PresetSetRq when plain.Length >= 5 && resources is not null: return await PresetSetAsync(plain[2], plain[3], plain[4] != 0, ct);
             case PresetListSetRq when plain.Length >= 3 && resources is not null: return await PresetListSetAsync(plain, ct);
+            case InspectPackets.ViewCharRq when plain.Length >= 4 && resources is not null: return ViewChar(plain);
+            // The daily dungeon's buff choice (GameSession.DungeonBuffs.cs; CANDIDATE layout {dungeon i32, slot i32}).
+            case DailyDungeons.DungeonBuffSelectRq when plain.Length >= 10 && resources is not null: return SelectDungeonBuff(plain, now);
             case 0x3747 or 0x374a when plain.Length >= 3 && resources is not null:
             {
                 var start = Opcode(plain) == 0x3747;
@@ -1010,11 +1030,13 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             var equipment = equipped || data?.Item(item.TemplateId) is not null;
             var container = equipped ? InventoryItem.Equipped : item.Location == "storage" ? InventoryItem.Storage : InventoryItem.Bag;
             result.Add(new InventoryItem(key, item.TemplateId, item.Quantity, container, slot,
-                equipment ? new EquipDetail((data?.ItemLevel(item.TemplateId) ?? 1) + Enchants.Effect(item.TemplateId, EnchantOf(item)).ItemLevel, equipped ? (byte)slot : (byte)0,
+                // Item level: its own, the enchant's and the manastone grades' (OBSERVED 2026-11-06 234912: 23 + grades; GameSession.Imprint.cs).
+                equipment ? new EquipDetail((data?.ItemLevel(item.TemplateId) ?? 1) + Enchants.Effect(item.TemplateId, EnchantOf(item)).ItemLevel
+                    + MagicStonesOf(item).Sum(s => s.Grade), equipped ? (byte)slot : (byte)0,
                     (byte)EnchantOf(item), SoulBindCount(item) > 0 ? owner : 0, SoulBindCount(item),
                     (byte)EnchantOf(item, "surpass_enchant"), EnchantOf(item, "enchant_bonus"), EnchantOf(item, "surpass_enchant_bonus"), GodstonesOf(item),
                     RolledWireStats(item.RolledStats),
-                    (byte)Math.Clamp(SkinExtractionUsed(item), 0, 255)) : null));
+                    (byte)Math.Clamp(SkinExtractionUsed(item), 0, 255), SoulStatsOf(item), MagicStonesOf(item)) : null));
         }
         return result;
     }
@@ -1033,9 +1055,13 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         if (Store is not { } store || CharacterId is not { } character || !storedItems.TryGetValue(key, out var row))
             return [GamePackets.SoulBindComplete(key)];
         var count = (byte)Math.Min(255, SoulBindCount(row) + 1);
-        var bound = await Stored(async () => await store.SoulBindItemAsync(character, row.InstanceId, count, ct) ? [Array.Empty<byte>()] : []);
+        // The item's stats from its soul-bind pool, kept and raised from bind to bind (GameSession.SoulBind.cs).
+        var stats = SoulBindPools.Of(row.TemplateId) is { } binding ? SoulBindPools.Bind(binding, SoulBindHeld(row), count, rng) : null;
+        var bound = await Stored(async () => await store.SoulBindItemAsync(character, row.InstanceId, count, ct, stats) ? [Array.Empty<byte>()] : []);
         if (bound.Count != 1) return [GamePackets.SoulBindComplete(key, 0, 1)];
-        return [GamePackets.SoulBindComplete(key, count), .. await InventoryChangesAsync(ct), .. Achieve("SoulbindTry")];
+        List<byte[]> replies = [GamePackets.SoulBindComplete(key, count, 0, stats), .. await InventoryChangesAsync(ct), .. Achieve("SoulbindTry")];
+        if (row.Location == "equipment" && stats is { Count: > 0 }) replies.AddRange(RefreshStats());
+        return replies;
     }
 
     void Remember(IEnumerable<InventoryItem> items)
@@ -1151,7 +1177,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     /// The stored items against what the client has: adds, updates and removals (EItemModificationType
     /// 0/1/2) with the given EIncreaseReason / EDecreaseReason.
     /// </summary>
-    async Task<List<byte[]>> InventoryChangesAsync(CancellationToken ct, byte increase, byte decrease, IReadOnlyDictionary<long, int>? hints = null)
+    async Task<List<byte[]>> InventoryChangesAsync(CancellationToken ct, byte increase, byte decrease, IReadOnlyDictionary<long, int>? hints = null, byte update = 0)
     {
         if (Store is not { } store || CharacterId is not { } character) return [];
         var items = await LoadInventoryAsync(store, character, ct, hints);
@@ -1162,7 +1188,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             if (!inventory.TryGetValue(item.Key, out var before)) { changes.Add(new ItemModification(0, item, Increase: increase)); gained.Add((item.ItemId, item.Count)); }
             else if (!before.WireSameAs(item))
             {
-                changes.Add(new ItemModification(1, item, Increase: (byte)(item.Count > before.Count ? increase : 0), Decrease: (byte)(item.Count < before.Count ? decrease : 0)));
+                changes.Add(new ItemModification(1, item, Increase: (byte)(item.Count > before.Count ? increase : 0), Decrease: (byte)(item.Count < before.Count ? decrease : 0),
+                    Update: item.Count == before.Count ? update : (byte)0));   // EItemUpdateReason of a changed item whose count stays
                 if (item.Count > before.Count) gained.Add((item.ItemId, item.Count - before.Count));
             }
         }
@@ -1451,7 +1478,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 LoadAchievements(await store.AchievementsAsync(state.Summary.CharacterId, ct), await store.GroupRewardsTakenAsync(state.Summary.CharacterId, ct), now);
                 LoadCollections(await store.CollectionsAsync(state.Summary.CharacterId, ct));
                 LoadBossChallenges(await store.BossChallengesAsync(state.Summary.CharacterId, ct));
-                LoadExpeditionTickets(await store.ExpeditionTicketsAsync(state.Summary.CharacterId, ct));
+                await LoadSeasonRankingAsync(store, state.Summary.CharacterId, now, ct);   // GameSession.Ranking.cs
+                LoadContentTickets(await store.ContentTicketsAsync(state.Summary.CharacterId, ct));   // GameSession.ContentTickets.cs
                 LoadRewardLimits(await store.RewardLimitsAsync(state.Summary.CharacterId, ct));
                 LoadDungeonCooltimes(await store.DungeonCooltimesAsync(state.Summary.CharacterId, ct));
                 LoadAbyss(await store.AbyssAsync(state.Summary.CharacterId, ct), now);
@@ -1471,6 +1499,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 await LoadGuildAsync(store, state.Summary.CharacterId, ct);
                 await LoadGodstoneCollectionAsync(store, state.Summary.CharacterId, ct);
                 await LoadQuestsAsync(store, state.Summary.CharacterId, state.Race, ct);
+                LoadDuty(settings);   // GameSession.Duty.cs (after the quests: held duty quests only)
                 engraved.Clear();
                 engraved.AddRange(await store.TeleportArtifactsAsync(state.Summary.CharacterId, ct));
                 fog.Clear();
@@ -1494,6 +1523,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 RefreshKitSkillLevels();
                 LoadSkillLevels(storedSkills);
                 LoadStigmas(await store.StigmasAsync(state.Summary.CharacterId, ct));
+                LoadSkillParts(await store.SkillPartsAsync(state.Summary.CharacterId, ct));   // GameSession.Specialization.cs
                 LoadStigmaBonus(await store.StigmaBonusShardsAsync(state.Summary.CharacterId, ct));
                 await TrimStigmasAsync(store, state.Summary.CharacterId, ct);
                 var savedMap = state.Progress.MapId.Value;
@@ -1626,6 +1656,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         RefreshStats();   // wing equip/owned stats (HP, defense, ...) now that the wing is known
         if (fresh) (resources.Hp, resources.Mp) = (resources.HpMax, resources.MpMax);
         resources.FpMax = resources.Fp = wingId != 0 ? FlightMax : 0;
+        // The flight gauge as it was at the logout (GameSession.Buffs.cs), once after the selection.
+        if (fresh && pendingFlightGauge is { } keptFp) { pendingFlightGauge = null; if (resources.FpMax > 0) resources.Fp = Math.Clamp(keptFp, 0, resources.FpMax); }
         // An instance-layer move in or out (the level stays loaded): the official load is the short list, not the world-entry
         // set (OBSERVED entry #9676-9702: 0x3623, 0x3633, 0x3646, 0x382a, 0x364a, 0x8d00, 0x4001, 0x4002, 0x6100.., 0x922e, spawns;
         // exit #14305-14345: the same with 0x3722 and 0x3742 after 0x4002 and no dungeon state). Live 2026-10-19: with the
@@ -1665,6 +1697,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 Equips = VisualEquips(all: false),
                 CustomizingData = character?.CustomizingData ?? [], VoiceType = character?.VoiceType ?? 0,
                 Ascension = selected?.Ascension ?? 1, DbId = selected?.WireId ?? 0,
+                SpentSkillPoints = SpentSkillPoints(), SpentStigmaPoints = StigmasOn ? StigmaShardsSpent : 0,
+                ItemStigmaPoints = StigmasOn ? StigmaShardsBonus : 0,
                 WingId = wingId, Fp = resources.Fp, FpMax = resources.FpMax,
                 EquipItemLevel = armed, HighestTotalItemLevel = armed,
                 CombatPower = combatPower,
@@ -1719,15 +1753,18 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             replies.AddRange(InventoryDepotSyncPackets());
             replies.Add(PeriodCollectionList(now));
             replies.Add(BossChallengeList());
-            replies.Add(BookmarkedContentList());
             replies.Add(PartyDungeonChallengeList());
-            replies.Add(ContentsTicketsList(now));
+            replies.Add(BookmarkList());   // 0x9330 right before the ticket list (OBSERVED 34 of 34 upstream; GameSession.Bookmarks.cs)
+            if (Store is not null) replies.Add(ContentTicketList(now));   // 0x610b (GameSession.ContentTickets.cs)
             replies.Add(DungeonCoolTimesList(now));
             replies.Add(GodstoneList());
             replies.Add(DaevanionPointUpdate());
             replies.Add(DaevanionBoardInfo());
             replies.AddRange(AbyssAtEntry(now));
-            replies.AddRange(EntryConstants(now, AccountContentsInfoList(now), SubscribeList(now)));
+            // WaveDungeonInfo_NT 0x6103: the daily dungeon records instead of the constant `00` (GameSession.DailyDungeons.cs).
+            replies.AddRange(EntryConstants(now, AccountContentsInfoList(now), SubscribeList(now), profileRace == 2 ? 2 : 1, level)
+                .Select(p => p.Length >= 2 && BitConverter.ToUInt16(p, 0) == DailyDungeons.WaveDungeonInfoNt ? WaveDungeonInfoAtEntry() : p));
+            StartFieldEventTracking(now);   // 0x6000 in the constants lists the running festival events; their changes follow
             replies.AddRange(AchieveSet("EquipItemLevel", EquipItemLevel(), now: now));
             if (fresh) { replies.AddRange(Achieve("LoginCharacter", now: now)); elapsedAchieveAt = now + 60_000; }
             replies.AddRange(ApplyLazyPeriodicResets(now, notifyClient: true));
@@ -1752,16 +1789,15 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             {
                 // Owned skills before the hotbar (0x5100 then 0x5600; not the usmap ordinals).
                 var leveledKit = WithLevels(kit);
-                RefreshWireClientSkillList(WithStigmas(leveledKit));
+                RefreshWireClientSkillList(WithSpecialized(WithStigmas(leveledKit)));
                 var skillList = WireSkillListPacket();
                 replies.Add(skillList);
                 LogSkillPointsAtEntry();
                 replies.AddRange(SkillPointSpendBaselineSeeds());
                 replies.Add(SkillPointUpdate());
                 replies.AddRange(StigmaShardSync());
-                var actives = learned.Where(id => id >= 11_000_000 && !IsDodgeId(id) && data.Skill(id)?.Type == "Active").Order().ToList();
-                replies.Add(GamePackets.SkillOptionSlots(actives, SkillOptionMap()));
-                replies.Add([0x58, 0x8d, 0x00]);
+                replies.Add(SpecializedSkillLoad());   // 0x3900 (GameSession.Specialization.cs)
+                replies.Add(MyPrevSeasonRanking());   // 0x8d58: "00" without an ended season's results (GameSession.Ranking.cs)
                 replies.Add(AgitDecoListAtEntry());
                 replies.AddRange(SettingsAtEntry(now));
                 DedupeQuickSlotsAtEntry();
@@ -1783,6 +1819,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             // HQ1100010 as never done and offered it, and never offered the next NPC-acquired story quest (HQ1101030 after HQ1101021).
             if (questLog is not null)
                 replies.AddRange(await QuestRecheckAsync(ct));
+            // The duty mission board before the quest list (OBSERVED A2Core Dell recordings: 0x8d1c, then 0x8d09).
+            if (DutyEntryNotice() is { } dutyBoard) replies.Add(dutyBoard);
             replies.AddRange(QuestJournalAtEntry());
         }
         if (reloading)
@@ -1982,6 +2020,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             && resources.Mp >= cost.Mp && resources.Sp >= cost.Sp && resources.Hp > cost.Hp
             && (resources.ApMax <= 0 || resources.Ap >= cost.Ap)
             && (SkillFamilyLearned(skill) || normalDodge || chainSkill || CarriedSkill == skill)
+            && SpecializedCastAllowed(skill)   // a specialisation child only with its parts in effect (GameSession.Specialization.cs)
             && (weapons.Count == 0 || weapons.Contains(data.WeaponType(equippedWeapon) ?? ""))
             && (sprintDash || UseConditionMet(definition, now, request.TargetKey, skill))
             && CastTargetReachValid(definition, skill, request);
@@ -2488,6 +2527,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     {
         if (resources is null) throw new InvalidOperationException("Not in the world.");
         if (mapId != worldMap) LogTeleport(mapId, at, "teleport");
+        RiftTeleporting(mapId);   // GameSession.Rifts.cs: leaving the other faction's land ends a rift visit
         var ending = CancelPendingSkillCharge(sendStopReply: false);
         BroadcastWarpLeave(effect, cutscene.Length > 0);
         // An instance layer or dungeon is a private copy (the entry set it; a staff move gets one too); elsewhere the shared map.
@@ -3023,7 +3063,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         await FlushAbyssAsync(now, ct);
         await FlushAirspaceAsync(ct);
         await FlushBossChallengeAsync(ct);
-        await FlushExpeditionTicketsAsync(ct);
+        replies.AddRange(await RankRewardsTickAsync(now, ct));   // GameSession.RankRewards.cs: season points, weekly rewards, rank buffs
+        await FlushDailyRecordsAsync(ct);
+        await FlushContentTicketsAsync(ct);
+        ContentTicketRechargeTick(now);
+        replies.AddRange(ContentTicketUpdates());   // 0x610c for the tickets spent or recharged since the last tick
         await FlushRewardLimitsAsync(now, ct);
         await FlushDungeonCooltimesAsync(now, ct);
         await FlushBuffSettingsAsync(now, ct);
@@ -3089,11 +3133,13 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         }
         PartyTick(now);
         replies.AddRange(NpcStaggerGaugeTick(now));
+        replies.AddRange(RiftTick(now));   // GameSession.Rifts.cs: rift notices, the visit's end, cubes and rifts coming and going
         replies.AddRange(ClearPlayerStaggerIfExpired(now));
         replies.AddRange(ClearStaggerReactiveContextIfTargetLost(now));
         PartyLootTick(now);
         DuelTick(now);
         ArenaTick(now);
+        replies.AddRange(await FieldEventsTickAsync(now, ct));   // GameSession.FieldEvents.cs: festival state changes, reward mail
         if (pendingAchievementPackets.Count > 0) { replies.AddRange(pendingAchievementPackets); pendingAchievementPackets.Clear(); }
         if (worldPlayer is not null)
             while (worldPlayer.Outbox.TryDequeue(out var queued)) replies.Add(queued);
@@ -3114,10 +3160,13 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         await FlushAbyssAsync(now, ct, force: true);
         await FlushAirspaceAsync(ct);
         await FlushBossChallengeAsync(ct);
-        await FlushExpeditionTicketsAsync(ct);
+        await FlushSeasonPointsAsync(ct);
+        await FlushDailyRecordsAsync(ct);
+        await FlushContentTicketsAsync(ct);
         await FlushRewardLimitsAsync(now, ct, force: true);
         await FlushDungeonCooltimesAsync(now, ct, force: true);
         await FlushContentResetWorkAsync(ct);
+        await SaveLogoutStateAsync(now, ct);   // the buffs' time left and the flight gauge (GameSession.Buffs.cs)
         await FlushBuffSettingsAsync(now, ct, force: true);
         await FlushPendingInstanceReturnAsync(ct);
         if (InWorld && Store is { } logoutStore && selected is { } logoutWho)

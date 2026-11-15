@@ -165,8 +165,37 @@ public sealed class NcGuardSink : BackgroundService
     public void Configure(KestrelServerOptions server) => server.Listen(IPAddress.Parse(options.BindAddress), options.Port!.Value, listener =>
     {
         listener.Protocols = HttpProtocols.Http1;
+        listener.Use(next => async context =>
+        {
+            try
+            {
+                await next(context);
+                var sni = context.Features.Get<ITlsHandshakeFeature>()?.HostName;
+                if (context.Features.Get<ITlsHandshakeFeature>() is not null)
+                    logger.LogInformation("NCGuard TLS handshake succeeded SNI={Sni} Remote={Remote}", sni ?? "(none)", context.RemoteEndPoint);
+                else
+                    logger.LogWarning("NCGuard TLS handshake did not complete SNI=(none) Remote={Remote}", context.RemoteEndPoint);
+            }
+            catch (Exception error)
+            {
+                var sni = context.Features.Get<ITlsHandshakeFeature>()?.HostName;
+                if (context.Features.Get<ITlsHandshakeFeature>() is not null)
+                    logger.LogWarning(error, "NCGuard connection failed after TLS SNI={Sni} Remote={Remote}", sni ?? "(none)", context.RemoteEndPoint);
+                else
+                    logger.LogWarning(error, "NCGuard TLS handshake failed SNI={Sni} Remote={Remote}", sni ?? "(none)", context.RemoteEndPoint);
+                throw;
+            }
+        });
         listener.UseHttps(https => https.ServerCertificateSelector = (_, name) =>
-            name is not null && certificates.TryGetValue(name, out var cert) ? cert : certificates["localhost"]);
+        {
+            if (name is not null && certificates.TryGetValue(name, out var cert))
+            {
+                logger.LogInformation("NCGuard TLS SNI requested {Sni} cert={Cert}", name, name);
+                return cert;
+            }
+            logger.LogInformation("NCGuard TLS SNI requested {Sni} cert={Cert}", name ?? "(none)", "localhost-fallback");
+            return certificates["localhost"];
+        });
     });
 
     public override async Task StartAsync(CancellationToken cancellationToken)

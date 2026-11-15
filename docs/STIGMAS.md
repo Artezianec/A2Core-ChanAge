@@ -31,7 +31,7 @@ Every value is marked as in CONTRIBUTING.md: **recovered** (the client's own tab
   (buffs, stances) have none until their SkillEffect rows are exported, so they cast but do nothing yet.
 - **Reset (OBSERVED cost).** Resetting one stigma or all forgets them, refunds every spent shard and clears their quick
   slots. Official KR launch (Nov 2025) charged **100,000 Kinah** on the confirm button and refunded all spent shards.
-  `Aion:Stigmas:ResetKinah` defaults to 100000; 0 is free (a later KR/TW video claimed a free reset). The same amount is
+  `Aion:Stigmas:ResetKinah` defaults to 0 (free): six official resets in the global community recordings of 2026-11-05/06 had no cost message. The KR launch video showed 100000; set it for that. The same amount is
   charged for one skill or all; we have no official all-reset price. If the character has too little Kinah, the reset is
   refused with generic result 1 (we have no named not-enough-Kinah EResult on this path) and nothing is forgotten.
   Taking one level back refunds that level and does not charge Kinah.
@@ -52,7 +52,7 @@ Every value is marked as in CONTRIBUTING.md: **recovered** (the client's own tab
 | `Slots` | `4` | Stigma slots (0 to 6). 4 = global, 6 = Korea. |
 | `ShardRate` | `1` | Multiplies the shards from levelling (0 to 100). Bonus shards are not multiplied. |
 | `MaxLevel` | `20` | Highest stigma level (1 to 20). |
-| `ResetKinah` | `100000` | Kinah charged for one reset (one skill or all). `0` is free. |
+| `ResetKinah` | `0` | Kinah charged for one reset (one skill or all). `0` is free (the official global server). |
 | `RequireSlot` | `true` | A stigma casts only from a quick slot. Set `false` if the client registers stigmas some other way. |
 | `ShardUpdateSendsSpent` | `true` | 0x5105 for StigmaShard carries the shards spent (like the OBSERVED skill-point update); `false` sends the shards left. **Not changed:** this default is CANDIDATE. Note that a reset's 0x3844 always carries shards *left*, so one reset currently sends left in 0x3844 and spent in 0x5105. Do not flip the default without a capture of an official reset. |
 
@@ -111,7 +111,7 @@ What we took from them:
 | Global 4 slots at 22/27/32/37, cap 20, 13 stigmas/class | CONFIRMED (guide + kvniUsnS6cg) | Already the default; marked CONFIRMED in `tools/data/stigmas.json`. |
 | Cost ladder 1 / 2 / 4 / 8 per level in bands 1–5 / 6–10 / 11–15 / 16–20 (15 to 10, 75 to 20) | CONFIRMED (guide + kvniUsnS6cg; already recovered from SkillAcquireData) | Unchanged default. |
 | KR launch upgrade clicks on Delayed Explosion: 1, 1, 2, 2 for 1→2, 2→3, 3→4, 4→5; reset at LV5 refunded 6 shards | OBSERVED regional / older ladder (oHzyEGdzZso 2:16–3:11) | Documented only. If learn costs 1, those four upgrades plus learn would be 7, but the dialog said 6; we do not guess which. The global default stays 1+1+1+1+1 = 5 to reach 5. |
-| Reset dialog “지연 폭발 LV 5 성장을 초기화하시겠습니까?” / “사용된 스티그마 샤드 6개를 돌려받습니다.” with a yellow confirm costing 100,000 Kinah; all spent shards refunded | OBSERVED (oHzyEGdzZso 3:02–3:11) | `ResetKinah` defaults to 100000; shards are refunded as before. A later KR/TW video claims a free reset: set `ResetKinah=0`. |
+| Reset dialog “지연 폭발 LV 5 성장을 초기화하시겠습니까?” / “사용된 스티그마 샤드 6개를 돌려받습니다.” with a yellow confirm costing 100,000 Kinah; all spent shards refunded | OBSERVED (oHzyEGdzZso 3:02–3:11) | `ResetKinah` defaulted to 100000 until the global recordings (2026-11-05/06) showed free resets; now 0. |
 | Level-up toast “[지연 폭발] 스킬이 LV 2로 상승했습니다.” | OBSERVED (oHzyEGdzZso ~2:16) | Almost certainly client-side from the skill-level update we already send. No matching server system-message id is in our tables, so we do not add a server chat/system line. |
 | Trade Shop → Abyss tab: “Stigma Shard (Bound)” listed at 10,000 with weekly purchase limit 0/50. Guide: Abyss Point shop with rising tier prices, plus Nightmare and Shugo shops | OBSERVED UI + recovered GameShopGoods | Item **531900010** “Stigma Shard (Bound)” (`Charge_StigmaShardPoint_1_A_s_01a_b`) is in Item.dat: `GetStigmaShard` +1, `AutoUseWhenAcquire`. Already in `tools/data/shops.json`: Abyss upgrade lists (Light 401015113–116, Dark 501015113–116) at **10,000 / 15,000 / 20,000 / 25,000 Abyss Points** (`930100003`), limit 50 per listing; Nightmare upgrade 1,500 Phantasmal Fragments (`930100017`), limit 35; FieldEvent usable 300 Centuryroot Tokens (`930100011`), limit 35. Coin shops now resolve those `goods_lists` (`coin_shop_abyss`, `coin_shop_nightmare`). Buying or using the item grants bonus shard points. The video’s “10,000 Kinah” is the first Abyss-Point price; the currency in the client tables is Abyss Points, not Kinah. The export has `LimitPeriod` 0 (lifetime “all”), while the video showed a weekly 0/50; we did not overwrite the recovered period. `coin_shop_festa` is not mapped to FieldEvent lists (name mismatch) — staff can still `//stigma grant`. Dev menu `Item_StigmaShard` (`acquireitem 930100004`) is not an Item.dat row. |
 

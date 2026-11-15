@@ -233,6 +233,14 @@ public sealed partial class GameSession
         match.State = 4;
         Social?.Arenas.Remove(match.RoomKey);
         var (join, win) = ArenaRewards(match.MatchingId);
+        // The season ratings (GameSession.Ranking.cs): each player against the other team's mean rating before the match.
+        var ratingType = match.MatchingId switch { 1 => SeasonContentsArenaSingle, 2 => SeasonContentsArenaTeam, _ => 0 };
+        var ratings = match.Players.ToDictionary(p => p.Key, p => (Team: match.TeamOf(p), Rating: ratingType == 0 ? ArenaStartRating : p.Session.ArenaRating(ratingType)));
+        foreach (var p in match.Players)
+        {
+            var others = ratings.Values.Where(r => r.Team != match.TeamOf(p)).Select(r => (double)r.Rating).DefaultIfEmpty(ArenaStartRating).Average();
+            p.Session.ArenaRated(match.MatchingId, match.TeamOf(p) == winner ? 1 : 0, others);
+        }
         foreach (var p in match.Players)
         {
             var won = match.TeamOf(p) == winner;

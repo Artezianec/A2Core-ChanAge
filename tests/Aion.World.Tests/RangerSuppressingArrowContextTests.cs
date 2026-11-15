@@ -64,8 +64,8 @@ public sealed class RangerSuppressingArrowContextTests
         Assert.True(abn >= 0 && ctx >= 0, "expected 0x382a and 0x5608 on Marking Shot accept");
         Assert.True(abn < ctx && ctx < accept, "Precision and context select must precede 0x3801");
         var rs = replies[ctx];
-        Assert.Equal(ESlot, rs[4]);
-        Assert.Equal(SuppressingArrow, BitConverter.ToInt32(rs, 6));
+        Assert.Equal(ESlot, rs[5]);   // after the presence mask and the result
+        Assert.Equal(SuppressingArrow, BitConverter.ToInt32(rs, 7));
         Assert.Contains(PrecisionGroup, session.ActiveBuffs);
     }
 
@@ -91,7 +91,7 @@ public sealed class RangerSuppressingArrowContextTests
         var store = new FakeCharacterStore { Progress = (45, 0) };
         var session = await EnterRangerAsync(store);
         var rs = (await session.HandleAsync(ContextUpdate(6, 1, ElementalistComboSkill), Now + 500)).First();
-        Assert.Equal(1, BitConverter.ToUInt16(rs, 2));
+        Assert.Equal(1, BitConverter.ToUInt16(rs, 3));
         Assert.False(store.QuickSlots.TryGetValue(6, out var slot) && slot.ContextSkills?.Contains(ElementalistComboSkill) == true);
     }
 
@@ -102,7 +102,7 @@ public sealed class RangerSuppressingArrowContextTests
         var store = new FakeCharacterStore { Progress = (45, 0) };
         var session = await EnterRangerAsync(store);
         var rs = (await session.HandleAsync(ContextUpdate(ESlot, 1, Deadshot), Now + 600)).First();
-        Assert.Equal(0, BitConverter.ToUInt16(rs, 2));
+        Assert.Equal(0, BitConverter.ToUInt16(rs, 3));
         Assert.Equal(Deadshot, store.QuickSlots[ESlot].ContextSkills![1]);
     }
 
@@ -113,9 +113,9 @@ public sealed class RangerSuppressingArrowContextTests
         var store = new FakeCharacterStore { Progress = (45, 0) };
         var session = await EnterRangerAsync(store);
         var setMain = (await session.HandleAsync(ContextUpdate(Slot6, 0, MarkingShot), Now + 1000)).First();
-        Assert.Equal(0, BitConverter.ToUInt16(setMain, 2));
+        Assert.Equal(0, BitConverter.ToUInt16(setMain, 3));
         var place = (await session.HandleAsync(ContextUpdate(Slot6, 1, SuppressingArrow), Now + 1100)).First();
-        Assert.Equal(0, BitConverter.ToUInt16(place, 2));
+        Assert.Equal(0, BitConverter.ToUInt16(place, 3));
         Assert.Equal(SuppressingArrow, store.QuickSlots[Slot6].ContextSkills![1]);
     }
 

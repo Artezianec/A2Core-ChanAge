@@ -9,7 +9,7 @@ using NpgsqlTypes;
 
 namespace Aion.Infrastructure.Postgres;
 
-public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOptions progression, IItemStatRoller? itemRoller = null) : IGameplayStore
+public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOptions progression, IItemStatRoller? itemRoller = null) : IGameplayStore
 {
     /// <summary>Configured live character cap (Exp.dat tables still define levels through <see cref="ProgressionOptions.TableMaxLevel"/>).</summary>
     int MaxLevel => progression.LevelCap;
@@ -38,6 +38,13 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
     }
     private static async Task<object?> Scalar(NpgsqlConnection c, NpgsqlTransaction? t, string sql, CancellationToken ct, params object[] args)
     { await using var q = Query(c,t,sql,args); return await q.ExecuteScalarAsync(ct); }
+    /// <summary>The first row's columns, or null when there is none. Scalar returns only the first column.</summary>
+    private static async Task<object[]?> Row(NpgsqlConnection c, NpgsqlTransaction? t, string sql, CancellationToken ct, params object[] args)
+    {
+        await using var q = Query(c,t,sql,args); await using var r = await q.ExecuteReaderAsync(ct);
+        if (!await r.ReadAsync(ct)) return null;
+        var row = new object[r.FieldCount]; r.GetValues(row); return row;
+    }
     private static async Task Execute(NpgsqlConnection c, NpgsqlTransaction? t, string sql, CancellationToken ct, params object[] args)
     { await using var q = Query(c,t,sql,args); await q.ExecuteNonQueryAsync(ct); }
     private static async Task<int> ExecuteCount(NpgsqlConnection c, NpgsqlTransaction? t, string sql, CancellationToken ct, params object[] args)
@@ -647,6 +654,15 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
             throw new GameplayException("invalid_shop_buy");
         await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
         if(!await Own(c,t,account.AccountId,character,ct)) return false;
+        // Templates must exist before any debit: a missing catalog row would otherwise charge Quna and roll back,
+        // or worse if a caller debited outside this transaction. The client already showed the item; a stale
+        // catalog.items export is the usual cause (log the template so it can be imported).
+        var build=await Scalar(c,t,"SELECT build_id FROM catalog.builds ORDER BY imported_at DESC LIMIT 1",ct) as string;
+        foreach(var (template,count) in goods)
+        {
+            if(build is null || await Scalar(c,t,"SELECT template_id FROM catalog.items WHERE build_id=$1 AND template_id=$2",ct,build,template) is null)
+                throw new GameplayException($"shop_buy_missing_template:{template}");
+        }
         if(qunaSpend is { } quna && !await DebitQunaAsync(c,t,quna,ct)) return false;
         foreach(var (cost,revision,count) in costs)
             if(!await Consume(c,t,character,cost,revision,count,ct)) return false;
@@ -658,11 +674,9 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
                 +"DO UPDATE SET count=game.shop_purchases.count+EXCLUDED.count RETURNING count",ct,owner,goodsId,period,count);
             if(total is not int n || n>limit) return false;
         }
-        var build=await Scalar(c,t,"SELECT build_id FROM catalog.builds ORDER BY imported_at DESC LIMIT 1",ct) as string;
         foreach(var (template,count) in goods)
         {
-            if(build is null || await Scalar(c,t,"SELECT template_id FROM catalog.items WHERE build_id=$1 AND template_id=$2",ct,build,template) is null) return false;
-            if(!await GrantShopGoodAsync(c,t,character,build,template,count,itemRoller,ct)) return false;
+            if(!await GrantShopGoodAsync(c,t,character,build!,template,count,itemRoller,ct)) return false;
         }
         foreach(var o in orders ?? [])
             await Execute(c,t,"INSERT INTO game.shop_orders(character_id,account_id,kind,goods_id,quantity,currency_item,price) VALUES($1,$2,$3,$4,$5,$6,$7)",ct,
@@ -799,6 +813,46 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
     private static Task PurgeBuyback(NpgsqlConnection c, NpgsqlTransaction t, Guid character, CancellationToken ct) =>
         Execute(c,t,"DELETE FROM game.item_instances WHERE character_id=$1 AND location='buyback' AND (created_at<now()-interval '72 hours' OR instance_id IN "
             +"(SELECT instance_id FROM game.item_instances WHERE character_id=$1 AND location='buyback' ORDER BY created_at DESC OFFSET 50))",ct,character);
+
+    public async Task<IReadOnlyList<(int Category,long Revision,string State)>> RandomShopOffersAsync(VerifiedAccount account, Guid character, CancellationToken ct=default)
+    {
+        await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
+        if(!await Own(c,t,account.AccountId,character,ct)) return [];
+        var rows=new List<(int,long,string)>();
+        await using(var q=Query(c,t,"SELECT category,revision,state::text FROM game.character_random_shops WHERE character_id=$1",character))
+        {
+            await using var r=await q.ExecuteReaderAsync(ct);
+            while(await r.ReadAsync(ct)) rows.Add((r.GetInt16(0),r.GetInt64(1),r.GetString(2)));
+        }
+        await t.CommitAsync(ct); return rows;
+    }
+
+    // Black Cloud Merchants (migration 131): the list row is written only at the revision the game read (two logins of one
+    // character cannot both buy one slot), with the Kina and the item in the same transaction.
+    public async Task<string> RandomShopSaveAsync(VerifiedAccount account, Guid character, int category, long revision, string state,
+        IReadOnlyList<(Guid Item,long Revision,int Count)> costs, IReadOnlyList<(int TemplateId,long Count)> goods, object? audit, CancellationToken ct=default)
+    {
+        if(category is <101 or >299 || revision<0 || state.Length is 0 or >16384 || goods.Any(g=>g.Count<1) || costs.Any(x=>x.Count<1))
+            throw new GameplayException("invalid_random_shop");
+        await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
+        if(!await Own(c,t,account.AccountId,character,ct)) return "failed";
+        foreach(var (cost,costRevision,count) in costs)
+            if(!await Consume(c,t,character,cost,costRevision,count,ct)) return "failed";
+        var written=revision==0
+            ? await ExecuteCount(c,t,"INSERT INTO game.character_random_shops(character_id,category,revision,state) VALUES($1,$2,1,$3::jsonb) ON CONFLICT DO NOTHING",ct,character,(short)category,state)
+            : await ExecuteCount(c,t,"UPDATE game.character_random_shops SET revision=revision+1,state=$4::jsonb,updated_at=now() WHERE character_id=$1 AND category=$2 AND revision=$3",ct,character,(short)category,revision,state);
+        if(written==0) return "stale";
+        var build=goods.Count==0 ? null : await Scalar(c,t,"SELECT build_id FROM catalog.builds ORDER BY imported_at DESC LIMIT 1",ct) as string;
+        foreach(var (template,count) in goods)
+        {
+            if(build is null || await Scalar(c,t,"SELECT template_id FROM catalog.items WHERE build_id=$1 AND template_id=$2",ct,build,template) is null) return "failed";
+            await Scalar(c,t,"SELECT game.grant_item($1,$2,$3,$4,$5)",ct,character,build,template,count,Guid.NewGuid());
+        }
+        if(audit is not null)
+            await Execute(c,t,"INSERT INTO audit.events(action,character_id,actor_id,details) VALUES('random_shop',$1,$2,$3)",ct,character,account.AccountId,
+                Json(new {shop=audit,goods=goods.Select(g=>new[]{(long)g.TemplateId,g.Count}),costs=costs.Select(x=>new{x.Item,x.Count})}));
+        await t.CommitAsync(ct); return "ok";
+    }
 
     public async Task<bool> SellToMerchantAsync(VerifiedAccount account, Guid character, Guid item, long revision, int count, long kina, CancellationToken ct=default)
     {
@@ -1254,7 +1308,7 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
         foreach(var (item,revision,count) in items)
         {
             if(count<1) return "failed";
-            var row=await Scalar(c,t,"SELECT template_id,quantity,location FROM game.item_instances WHERE instance_id=$1 AND character_id=$2",ct,item,character);
+            var row=await Row(c,t,"SELECT template_id,quantity,location FROM game.item_instances WHERE instance_id=$1 AND character_id=$2",ct,item,character);
             if(row is not object[] r || (string)r[2]!="bag") return "failed";
             var template=(int)r[0]; var qty=(long)r[1];
             if(qty<count) return "failed";
@@ -1283,7 +1337,7 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
         foreach(var (key,count) in items)
         {
             if(count<1) return "failed";
-            var row=await Scalar(c,t,"SELECT template_id,quantity FROM game.guild_storage_items WHERE guild_id=$1 AND item_key=$2",ct,gid,key);
+            var row=await Row(c,t,"SELECT template_id,quantity FROM game.guild_storage_items WHERE guild_id=$1 AND item_key=$2",ct,gid,key);
             if(row is not object[] r) return "missing";
             var template=(int)r[0]; var qty=(long)r[1];
             if(qty<count) return "failed";
@@ -1437,7 +1491,7 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
         var guildId=await Scalar(c,t,"SELECT guild_id FROM game.guild_members WHERE character_id=$1 AND grade=0",ct,character);
         if(guildId is not long gid) return ("authority",0);
         if(await Scalar(c,t,"SELECT union_id FROM game.guilds WHERE guild_id=$1",ct,gid) is long) return ("member",0);
-        var rule=await Scalar(c,t,"SELECT join_rule,password FROM game.guild_unions WHERE union_id=$1",ct,unionId);
+        var rule=await Row(c,t,"SELECT join_rule,password FROM game.guild_unions WHERE union_id=$1",ct,unionId);
         if(rule is not object[] r) return ("none",0);
         if((short)r[0]==3&&(string)r[1]!=password) return ("password",0);
         if((short)r[0]==2)
@@ -1761,18 +1815,23 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
     public Task<bool> SortBagAsync(VerifiedAccount account, Guid character, CancellationToken ct=default) =>
         SortContainerAsync(account, character, "bag", ct);
 
-    public async Task<bool> SortContainerAsync(VerifiedAccount account, Guid character, string location, CancellationToken ct=default)
+    public async Task<bool> SortContainerAsync(VerifiedAccount account, Guid character, string location, CancellationToken ct=default, IReadOnlyCollection<int>? currencies=null)
     {
         if(location is not ("bag" or "storage")) throw new GameplayException("invalid_container");
         await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
         if(!await Own(c,t,account.AccountId,character,ct)) return false;
         // Clear slots first: one UPDATE that renumbers in place hits item_slot_idx (23505) mid-statement.
+        // Currencies (Item.dat ItemType Currency) take no bag slot: the client shows them in its currency bar, and a sorted-in
+        // one left a gap in the bag (found by Addiboii/A2Core, bdb7879). They lose a slot they had.
+        var skip=location=="bag"?(currencies??[]).ToArray():[];
+        await Execute(c,t,"UPDATE game.item_instances SET slot=NULL,revision=revision+1 WHERE character_id=$1 AND location=$2 AND slot IS NOT NULL AND template_id=ANY($3)",ct,character,location,skip);
         await Execute(c,t,"UPDATE game.item_instances SET slot=NULL WHERE character_id=$1 AND location=$2",ct,character,location);
         await Execute(c,t,"""
             UPDATE game.item_instances i SET slot=o.n-1,revision=i.revision+1
-            FROM (SELECT instance_id,row_number() OVER (ORDER BY template_id,created_at,instance_id) n FROM game.item_instances WHERE character_id=$1 AND location=$2) o
+            FROM (SELECT instance_id,row_number() OVER (ORDER BY template_id,created_at,instance_id) n FROM game.item_instances
+                  WHERE character_id=$1 AND location=$2 AND NOT template_id=ANY($3)) o
             WHERE i.instance_id=o.instance_id
-            """,ct,character,location);
+            """,ct,character,location,skip);
         await t.CommitAsync(ct); return true;
     }
 
@@ -1884,10 +1943,10 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
     // Count units of a bag stack are used up: the row shrinks, or goes when it reaches zero.
     public async Task<bool> MoveItemToContainerAsync(VerifiedAccount account, Guid character, Guid item, long revision, string location, int slot, CancellationToken ct=default)
     {
-        if(slot is <0 or >999 || location is not ("bag" or "storage")) throw new GameplayException("invalid_slot");
+        if(slot is <0 or >999 || location is not ("bag" or "storage" or "account_storage")) throw new GameplayException("invalid_slot");
         await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
         if(!await Own(c,t,account.AccountId,character,ct)) return false;
-        await using(var q=Query(c,t,"SELECT location,slot FROM game.item_instances WHERE instance_id=$1 AND character_id=$2 AND revision=$3 AND location IN ('bag','storage') FOR UPDATE",item,character,revision))
+        await using(var q=Query(c,t,"SELECT location,slot FROM game.item_instances WHERE instance_id=$1 AND character_id=$2 AND revision=$3 AND location IN ('bag','storage','account_storage') FOR UPDATE",item,character,revision))
         {
             await using var r=await q.ExecuteReaderAsync(ct);
             if(!await r.ReadAsync(ct)) return false;
@@ -2242,6 +2301,30 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
             ON CONFLICT (character_id,group_id) DO UPDATE SET clear_level=GREATEST(game.character_boss_challenges.clear_level,EXCLUDED.clear_level),best_point=EXCLUDED.best_point,
                 best_level=EXCLUDED.best_level,best_time_ms=EXCLUDED.best_time_ms,cumulative_point=EXCLUDED.cumulative_point,updated_at=EXCLUDED.updated_at
             """,ct,character,record.GroupId,record.ClearLevel,record.BestPoint,record.BestLevel,record.BestTimeMs,record.CumulativePoint,record.UpdatedAt);
+        await t.CommitAsync(ct); return true;
+    }
+
+    public async Task<IReadOnlyList<ContentTicketRecord>> ContentTicketsAsync(VerifiedAccount account, Guid character, CancellationToken ct=default)
+    {
+        await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
+        if(!await Own(c,t,account.AccountId,character,ct)) return [];
+        var list=new List<ContentTicketRecord>();
+        await using(var q=Query(c,t,"SELECT ticket_id,remaining,updated_at FROM game.character_content_tickets WHERE character_id=$1",character))
+        {
+            await using var r=await q.ExecuteReaderAsync(ct);
+            while(await r.ReadAsync(ct)) list.Add(new(r.GetInt32(0),r.GetInt32(1),r.GetFieldValue<DateTimeOffset>(2)));
+        }
+        await t.CommitAsync(ct); return list;
+    }
+
+    public async Task<bool> SaveContentTicketAsync(VerifiedAccount account, Guid character, ContentTicketRecord record, CancellationToken ct=default)
+    {
+        await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
+        if(!await Own(c,t,account.AccountId,character,ct)) return false;
+        await Execute(c,t,"""
+            INSERT INTO game.character_content_tickets(character_id,ticket_id,remaining,updated_at) VALUES($1,$2,$3,$4)
+            ON CONFLICT (character_id,ticket_id) DO UPDATE SET remaining=EXCLUDED.remaining,updated_at=EXCLUDED.updated_at
+            """,ct,character,record.TicketId,record.Remaining,record.UpdatedAt);
         await t.CommitAsync(ct); return true;
     }
 
@@ -2790,12 +2873,13 @@ public sealed class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOp
         await t.CommitAsync(ct); return added;
     }
 
-    public async Task<bool> SoulBindItemAsync(VerifiedAccount account, Guid character, Guid item, byte count, CancellationToken ct=default)
+    public async Task<bool> SoulBindItemAsync(VerifiedAccount account, Guid character, Guid item, byte count, CancellationToken ct=default, IReadOnlyList<(int Type, int Value)>? stats=null)
     {
         if(count<1) throw new GameplayException("invalid_soul_bind");
+        var soul=JsonSerializer.Serialize(stats is null?new Dictionary<string,object>{["soul_bind"]=(int)count}:new Dictionary<string,object>{["soul_bind"]=(int)count,["soul_stats"]=stats.Select(s=>new[]{s.Type,s.Value})});
         await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
         if(!await Own(c,t,account.AccountId,character,ct)) return false;
-        var bound=await Scalar(c,t,"UPDATE game.item_instances SET upgrades=upgrades||jsonb_build_object('soul_bind',$3::int),revision=revision+1 WHERE instance_id=$1 AND character_id=$2 RETURNING instance_id",ct,item,character,(int)count) is Guid;
+        var bound=await Scalar(c,t,"UPDATE game.item_instances SET upgrades=upgrades||$3::jsonb,revision=revision+1 WHERE instance_id=$1 AND character_id=$2 RETURNING instance_id",ct,item,character,soul) is Guid;
         await t.CommitAsync(ct); return bound;
     }
 

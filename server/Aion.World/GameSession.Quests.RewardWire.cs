@@ -98,7 +98,7 @@ public sealed partial class GameSession
     List<byte[]> QuestRewardWireBatch(
         int uid, IReadOnlyList<byte[]> inventoryReplies,
         List<byte[]> expBeforeTake, List<byte[]> expAfterTake, int levelBefore, int levelAfter,
-        List<byte[]> achieve5684, List<byte[]> achieveOther)
+        List<byte[]> achieve5684, List<byte[]> achieveOther, IReadOnlyList<int>? randomPaid = null)
     {
         var replies = new List<byte[]>();
         var leveled = levelAfter > levelBefore;
@@ -117,7 +117,7 @@ public sealed partial class GameSession
         if (achieve5684.Count > 0) replies.Add(achieve5684[0]);
         replies.AddRange(expBeforeTake);
         replies.AddRange(inventoryReplies);
-        replies.Add(GamePackets.QuestTakeRewardReply(uid));
+        replies.Add(GamePackets.QuestTakeRewardReply(uid, 0, randomPaid));
         replies.AddRange(expAfterTake);
         for (var i = 1; i < achieve5684.Count; i++) replies.Add(achieve5684[i]);
         replies.AddRange(achieveOther);

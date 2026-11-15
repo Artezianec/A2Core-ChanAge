@@ -46,14 +46,7 @@ public sealed partial class GameSession
             // WorldMapContentsInfo_RQ {i32 map id}: Field Boss / Exploration tab. See GameSession.FieldBosses.
             case WorldMapContentsInfoRq when plain.Length >= 6:
                 return WorldMapContentsInfo(plain);
-            // RetrieveMyLatestSeasonRanking_RQ {contents type u8, class u8}: no ranking, the official empty reply.
-            case MySeasonRankingRq when plain.Length >= 4:
-            {
-                var body = (byte[])SeasonRankingNone.Clone();
-                body[2] = plain[2];
-                body[3] = plain[3];
-                return [PacketWriter.Opcode(MySeasonRankingRs).Raw(body).I64(now + 3_600_000).ToArray()];
-            }
+            // RetrieveMyLatestSeasonRanking_RQ: GameSession.Ranking.cs (the empty reply when nobody is ranked).
             // QuickSlotContextSkill (0x5607) and CoinShopOpen (0x8c06) are handled in HandleAsync main switch (persistence + shop parity).
             // LockOnTarget_RQ: 00 | target varint (as SetMainTarget_RQ; no request sample, CANDIDATE). The reply is the
             // OBSERVED form 0000 | target varint | 0000 (target 0 = unlock); others see 0x3832 key | 00 | target varint.

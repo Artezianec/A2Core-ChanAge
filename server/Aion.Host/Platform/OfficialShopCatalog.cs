@@ -2,11 +2,13 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
+using Aion.World;
+
 namespace Aion.Host.Platform;
 
 /// <summary>
-/// Official BM shop catalog (tools/data/official_shop.json, built by tools/shop_official_import.py from a local
-/// capture, account data stripped). Served verbatim in the official goods/v2.0 shape: all goods with their
+/// Official BM shop catalog (tools/data/official_shop.served.json, built by tools/shop_served_catalog.py from the
+/// official capture plus on-sale BMShopGoods rows; Cash/Mileage priced in Quna). Served verbatim in the official goods/v2.0 shape: all goods with their
 /// goods_data (catl/catd/do/gi/thm...), display names in every language, display policies, prices and items.
 /// Expired effective/display windows are pushed to 2123 so the captured shop stays open.
 /// </summary>
@@ -41,6 +43,8 @@ public static class OfficialShopCatalog
     {
         var o = g.DeepClone().AsObject();
         Extend(o, now);
+        RepriceMembershipToQuna(o);
+        ClearPaymentGatewayIfQuna(o);
         if (o["display_policies"] is JsonArray dp)
             foreach (var p in dp) if (p is JsonObject po) Extend(po, now);
         return o;
@@ -95,14 +99,14 @@ public static class OfficialShopCatalog
                 .GroupBy(g => g["goods_id"]!.GetValue<string>()).ToDictionary(x => x.Key, x => x.First());
             foreach (var id in ids)
             {
-                if (quotas.TryGetValue(id, out var q)) outList.Add(Quota(q, now));
-                else outList.Add(DefaultQuota(id, goods.GetValueOrDefault(id), currencyGroupId));
+                if (quotas.TryGetValue(id, out var q)) outList.Add(RepriceMembershipQuota(Quota(q, now)));
+                else outList.Add(RepriceMembershipQuota(DefaultQuota(id, goods.GetValueOrDefault(id), currencyGroupId)));
             }
         }
         else if (keys.Count > 0)
         {
             foreach (var q in quotas.Values)
-                if (q["pg_goods_key"]?.GetValue<string>() is { } k && keys.Contains(k)) outList.Add(Quota(q, now));
+                if (q["pg_goods_key"]?.GetValue<string>() is { } k && keys.Contains(k)) outList.Add(RepriceMembershipQuota(Quota(q, now)));
         }
         return Serialize(new JsonObject { ["quotas"] = outList });
     }
@@ -139,5 +143,84 @@ public static class OfficialShopCatalog
             ["current_payment_amount"] = price?["goods_basic_price"]?.GetValue<string>() ?? "0.0000",
             ["mileage_currency_id"] = "0", ["mileage_amount"] = "0.000000", ["limit_list"] = new JsonArray(),
         };
+    }
+
+    /// <summary>
+    /// Private servers charge membership in Quna. Official Cash/USD SKUs (currency group 1) are rewritten to
+    /// group 145 with the platform_goods Quna price so the 2.0.9 client sends 0x568b instead of the GPA flow.
+    /// </summary>
+
+    /// <summary>
+    /// The 2.0.9 client routes any goods row with a non-empty pgs list through GPA, even when
+    /// the HTTP price is already Quna. Clear pgs on every Quna-priced SKU, not only membership.
+    /// </summary>
+    static void ClearPaymentGatewayIfQuna(JsonObject o)
+    {
+        if (o["goods_basic_price_policies"] is JsonArray pp && pp.Count > 0
+            && pp[0]?["currency_group_id"]?.ToString() == OfficialShopGoods.QunaCurrencyGroupId.ToString(CultureInfo.InvariantCulture))
+            o["pgs"] = new JsonArray();
+    }
+
+    static void RepriceMembershipToQuna(JsonObject o)
+    {
+        if (!IsMembershipGoods(o)) return;
+        var price = MembershipQunaPrice(o);
+        o["goods_basic_price_policies"] = new JsonArray(new JsonObject
+        {
+            ["currency_group_id"] = OfficialShopGoods.QunaCurrencyGroupId.ToString(CultureInfo.InvariantCulture),
+            ["goods_basic_price"] = price.ToString("0.0000", CultureInfo.InvariantCulture),
+        });
+        o["goods_basic_currency_price_policies"] = new JsonArray();
+        // A non-empty pgs list makes the 2.0.9 client treat the SKU as a GPA/cash purchase
+        // even after the price is rewritten to Quna, so it never sends 0x568b.
+        o["pgs"] = new JsonArray();
+    }
+
+    static JsonObject RepriceMembershipQuota(JsonObject quota)
+    {
+        if (quota["goods_id"]?.GetValue<string>() is not { } id || !IsMembershipGoodsId(id)) return quota;
+        var price = MembershipQunaPriceId(id, quota["current_payment_amount"]?.GetValue<string>());
+        quota["currency_group_id"] = OfficialShopGoods.QunaCurrencyGroupId.ToString(CultureInfo.InvariantCulture);
+        quota["current_payment_amount"] = price.ToString("0.000000", CultureInfo.InvariantCulture);
+        return quota;
+    }
+
+    static bool IsMembershipGoods(JsonObject o)
+    {
+        if (o["goods_id"]?.ToString() is { } id && IsMembershipGoodsId(id)) return true;
+        if (o["items"] is JsonArray items && items.Count > 0 && items[0] is JsonObject it
+            && ItemIdOf(it) == GameSession.QuaiMembershipItemId)
+            return true;
+        return false;
+    }
+
+    static bool IsMembershipGoodsId(string id) =>
+        int.TryParse(id, CultureInfo.InvariantCulture, out var goodsId)
+        && (PlatformGoodsTables.Embedded.Goods(goodsId)?.ItemId == GameSession.QuaiMembershipItemId);
+
+    static long MembershipQunaPrice(JsonObject o)
+    {
+        var id = o["goods_id"]?.ToString();
+        var listed = o["goods_basic_price_policies"] is JsonArray pp && pp.Count > 0
+            ? pp[0]?["goods_basic_price"]?.ToString() : null;
+        return MembershipQunaPriceId(id, listed);
+    }
+
+    static long MembershipQunaPriceId(string? id, string? fallback)
+    {
+        if (int.TryParse(id, CultureInfo.InvariantCulture, out var goodsId)
+            && PlatformGoodsTables.Embedded.Goods(goodsId) is { Price: > 0 } row)
+            return row.Price;
+        if (decimal.TryParse(fallback, NumberStyles.Number, CultureInfo.InvariantCulture, out var dec))
+            return (long)dec;
+        return 0;
+    }
+
+    static int ItemIdOf(JsonObject it)
+    {
+        foreach (var key in new[] { "item_id", "game_item_key" })
+            if (it[key] is { } n && int.TryParse(n.ToString(), CultureInfo.InvariantCulture, out var id))
+                return id;
+        return 0;
     }
 }

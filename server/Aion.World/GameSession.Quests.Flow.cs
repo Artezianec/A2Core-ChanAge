@@ -87,7 +87,9 @@ public sealed partial class GameSession
             ];
         }
 
-        if (questLog is null || !questLog.Book.ById.TryGetValue(questId, out var code) || !questLog.CanAccept(code, level, QuestConditionsHold))
+        // Duty quests come from the mission board and the scrolls only (GameSession.Duty.cs).
+        if (questLog is null || !questLog.Book.ById.TryGetValue(questId, out var code) || !questLog.CanAccept(code, level, QuestConditionsHold)
+            || DutyTables.IsDuty(questLog.Book.Find(code)?.Type))
             return [GamePackets.QuestAcceptReply(questId, 0, 1)];
         return await Stored(async () =>
         {
@@ -109,6 +111,7 @@ public sealed partial class GameSession
             if (Store is { } store && CharacterId is { } character) await store.RemoveQuestAsync(character, record.Code, ct);
             questLog.Remove(record.Code);
             var replies = new List<byte[]> { GamePackets.QuestGiveUpReply(uid), GamePackets.QuestRemove([uid], 5) };
+            replies.AddRange(await DutyGaveUpAsync(record, ct));
             replies.AddRange(ApplyQuestWorldGating(lastNow));
             return replies;
         });
@@ -123,6 +126,7 @@ public sealed partial class GameSession
     {
         if (questLog?.ByUid(uid) is not { Status: QuestLog.Complete } record || questLog.Book.Find(record.Code) is not { } quest)
             return [GamePackets.QuestTakeRewardReply(uid, 1)];
+        if (DutyRewardRefusal(quest) is var dutyRefused and > 0) return [GamePackets.QuestTakeRewardReply(uid, dutyRefused)];   // GameSession.Duty.cs
         return await Stored(async () =>
         {
             var unlockedBefore = QuestUnlockTypes().ToHashSet();
@@ -134,6 +138,9 @@ public sealed partial class GameSession
                 if (choices[idx] is { Length: >= 2 } chosen)
                     items.Add(((int)chosen[0], chosen[1]));
             }
+            // A duty quest's offered random rewards (QuestReward RandomReward): the items its chances pay (GameSession.Duty.cs).
+            var (randomItems, randomPaid) = DutyRandomPaid(record);
+            items.AddRange(randomItems);
             if (rewards.Kina > 0) items.Insert(0, (KinaItemId, rewards.Kina));
             var replies = new List<byte[]>();
             var levelBeforeReward = level;
@@ -154,15 +161,21 @@ public sealed partial class GameSession
             achieveAll.AddRange(AchieveQuest(record.Code, quest.Type));
             var (achieve5684, achieveOther) = SplitAchievementCounters(achieveAll);
             replies.AddRange(QuestRewardWireBatch(uid, inventoryReplies,
-                expBeforeTake, expAfterTake, levelBefore, levelAfter, achieve5684, achieveOther));
+                expBeforeTake, expAfterTake, levelBefore, levelAfter, achieve5684, achieveOther, randomPaid));
             if (AscensionQuests.Contains(record.Code) && (selected?.Ascension ?? 1) < 2
                 && (Store is not { } ascending || CharacterId is not { } ascended || await ascending.AscendAsync(ascended, 2, ct)))
                 replies.AddRange(Ascend(2));
             var rewarded = record with { Status = QuestLog.Rewarded };
             questLog.Set(rewarded);
-            // QuestAdd (0x8d11) before QuestProgress (0x8d10), the same order as accept and step changes.
-            replies.Add(GamePackets.QuestAdd(Wire(rewarded)));
-            replies.Add(GamePackets.QuestProgress(Wire(rewarded)));
+            if (DutyTables.IsDuty(quest.Type))
+                // A rewarded duty quest leaves the log (it can be drawn again) and a mission counts for the day (GameSession.Duty.cs).
+                replies.AddRange(await DutyRewardedAsync(rewarded, quest, ct));
+            else
+            {
+                // QuestAdd (0x8d11) before QuestProgress (0x8d10), the same order as accept and step changes.
+                replies.Add(GamePackets.QuestAdd(Wire(rewarded)));
+                replies.Add(GamePackets.QuestProgress(Wire(rewarded)));
+            }
             var unlocked = QuestUnlockTypes().Where(t => !unlockedBefore.Contains(t)).ToArray();
             if (unlocked.Length > 0 && levelAfter <= levelBeforeReward)
                 replies.Add(GamePackets.ContentsUnlockUpdate(unlocked));
@@ -187,7 +200,7 @@ public sealed partial class GameSession
     /// The quest whose turn-in ascends the character. OBSERVED in the 2026-10-19 recording at HQ1101020's reward (Ashar): the
     /// flight gauge's maximum (0x8d00 type 13, 250,000), WingChange 0x5676 with the race's default wing, the stats, then the
     /// Subspace's event and quests; the gauge then filled from 40,000 in 40,000 steps (a self skill, 5002). OURS: filled at once,
-    /// the wing list resent (0x5672; the official 0x5673/0xe295 notices are not decoded). The Dark chain's counterpart is
+    /// WingAcquire 0x5673 for the default wing right before the stats (upstream #35172); 0xe295 is not decoded. The Dark chain's counterpart is
     /// HQ2101050 (same Ashar turn-in, then "Spread Your Wings" HQ2101060 in the Subspace, as HQ1101021); only the Light one
     /// ascended, so an Asmodian never got wings.
     /// </summary>
@@ -200,7 +213,7 @@ public sealed partial class GameSession
         if (resources is null) return [];
         resources.FpMax = resources.Fp = FlightMax;
         return [GamePackets.CharPoints(playerKey, [(CharPoint.MaxFp, resources.FpMax), (CharPoint.Fp, resources.Fp)]),
-                GamePackets.WingChangeNotice(playerKey, wingId, false), GamePackets.WingList(OwnedWings()), GamePackets.GlideCooltime(playerKey), .. RefreshStats()];
+                GamePackets.WingChangeNotice(playerKey, wingId, false), GamePackets.WingAcquire(playerKey, wingId), .. RefreshStats(), GamePackets.GlideCooltime(playerKey)];
     }
 
     /// <summary>Builder QuestAdd / QuestComplete / QuestCompleteStep / QuestSetStep / QuestDelete for a quest code or numeric id.</summary>

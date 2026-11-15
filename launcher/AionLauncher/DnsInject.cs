@@ -18,9 +18,9 @@ static class DnsInject
     const uint MemCommit = 0x1000;
     const uint MemReserve = 0x2000;
     const uint PageReadWrite = 0x04;
-    const uint ProcessAllAccess = 0x001F0FFF;
     const uint MemRelease = 0x8000;
-    const uint Infinite = 0xFFFFFFFF;
+    const uint ListModulesAll = 0x03;
+    const int InjectWaitMilliseconds = 15000;
 
     public static void Log(string message)
     {
@@ -33,32 +33,43 @@ static class DnsInject
     }
 
     /// <summary>Materializes the redirect DLL and map file under the launcher data folder.</summary>
-    public static string? PrepareRedirectBundle(IPAddress server)
+    public static string? PrepareRedirectBundle(IPAddress server, bool redirectConfigHosts = false)
     {
         var folder = LauncherSettings.Folder;
         Directory.CreateDirectory(folder);
         var dllPath = Path.Combine(folder, DllFileName);
-        if (!File.Exists(dllPath) && !TryMaterializeDll(dllPath))
+        var materialized = TryMaterializeDll(dllPath);
+        if (!materialized && !File.Exists(dllPath))
             return null;
-        RedirectMap.WriteMapFile(Path.Combine(folder, MapFileName), server);
+        if (!materialized)
+            Log($"Could not refresh {DllFileName}; using the copy already in the data folder.");
+        RedirectMap.WriteMapFile(Path.Combine(folder, MapFileName), server, redirectConfigHosts);
         return dllPath;
     }
 
     static bool TryMaterializeDll(string destination)
     {
-        var besideExe = Path.Combine(AppContext.BaseDirectory, DllFileName);
-        if (File.Exists(besideExe))
+        try
         {
-            File.Copy(besideExe, destination, overwrite: true);
+            var besideExe = Path.Combine(AppContext.BaseDirectory, DllFileName);
+            if (File.Exists(besideExe))
+            {
+                File.Copy(besideExe, destination, overwrite: true);
+                return true;
+            }
+            var assembly = typeof(DnsInject).Assembly;
+            var name = assembly.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith(DllFileName, StringComparison.OrdinalIgnoreCase));
+            if (name is null) return false;
+            using var stream = assembly.GetManifestResourceStream(name)!;
+            using var file = File.Create(destination);
+            stream.CopyTo(file);
             return true;
         }
-        var assembly = typeof(DnsInject).Assembly;
-        var name = assembly.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith(DllFileName, StringComparison.OrdinalIgnoreCase));
-        if (name is null) return false;
-        using var stream = assembly.GetManifestResourceStream(name)!;
-        using var file = File.Create(destination);
-        stream.CopyTo(file);
-        return true;
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            Log($"Failed to materialize {DllFileName}: {error.Message}");
+            return false;
+        }
     }
 
     public static Process? TryStartWithInject(ProcessStartInfo startInfo, string dllPath, out string? failure)
@@ -69,23 +80,21 @@ static class DnsInject
         if (!CreateProcessW(startInfo.FileName, commandLine, IntPtr.Zero, IntPtr.Zero, inheritHandles: false,
                 CreateSuspended, IntPtr.Zero, startInfo.WorkingDirectory, ref startup, out var processInfo))
         {
-            failure = new Win32Exception(Marshal.GetLastWin32Error()).Message;
+            failure = Stage("CreateProcessW", Marshal.GetLastWin32Error());
             return null;
         }
         try
         {
-            if (!InjectDll(processInfo.dwProcessId, dllPath))
+            if (!InjectDll(processInfo.hProcess, processInfo.hThread, processInfo.dwProcessId, dllPath, out failure))
             {
-                failure = new Win32Exception(Marshal.GetLastWin32Error()).Message;
                 TerminateProcess(processInfo.hProcess, 1);
                 return null;
             }
-            ResumeThread(processInfo.hThread);
             return Process.GetProcessById(processInfo.dwProcessId);
         }
         catch (Exception error)
         {
-            failure = error.Message;
+            failure = "exception: " + error.Message;
             try { TerminateProcess(processInfo.hProcess, 1); } catch (Win32Exception) { }
             return null;
         }
@@ -112,40 +121,115 @@ static class DnsInject
         return "\"" + argument.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
     }
 
-    static bool InjectDll(int processId, string dllPath)
+    static string Stage(string stage, int error, string? extra = null)
     {
+        var message = new Win32Exception(error).Message;
+        return extra is null
+            ? $"{stage}: {error} ({message})"
+            : $"{stage}: {error} ({message}); {extra}";
+    }
+
+    /// <summary>
+    /// Queue LoadLibraryW as an APC on the primary thread, then resume it.
+    /// CreateRemoteThread+LoadLibraryW returns NULL in a CREATE_SUSPENDED NCGuard-packed
+    /// AION2.exe (the launcher used to report that as "operation completed successfully"
+    /// because cleanup calls cleared GetLastError, and GetExitCodeThread only returns the
+    /// low 32 bits of a 64-bit HMODULE). NtTestAlert during process init runs the APC and
+    /// the DLL actually loads.
+    /// </summary>
+    static bool InjectDll(IntPtr process, IntPtr primaryThread, int processId, string dllPath, out string? failure)
+    {
+        failure = null;
         var fullPath = Path.GetFullPath(dllPath);
-        if (!File.Exists(fullPath)) return false;
-        var process = OpenProcess(ProcessAllAccess, false, processId);
-        if (process == IntPtr.Zero) return false;
+        if (!File.Exists(fullPath))
+        {
+            failure = $"DLL not found: {fullPath}";
+            return false;
+        }
+
+        var pathBytes = Encoding.Unicode.GetBytes(fullPath + "\0");
+        var remote = VirtualAllocEx(process, IntPtr.Zero, (nuint)pathBytes.Length, MemCommit | MemReserve, PageReadWrite);
+        if (remote == IntPtr.Zero)
+        {
+            failure = Stage("VirtualAllocEx", Marshal.GetLastWin32Error());
+            return false;
+        }
+
         try
         {
-            var pathBytes = Encoding.Unicode.GetBytes(fullPath + "\0");
-            var remote = VirtualAllocEx(process, IntPtr.Zero, (nuint)pathBytes.Length, MemCommit | MemReserve, PageReadWrite);
-            if (remote == IntPtr.Zero) return false;
             if (!WriteProcessMemory(process, remote, pathBytes, (nuint)pathBytes.Length, out _))
             {
-                VirtualFreeEx(process, remote, 0, MemRelease);
+                failure = Stage("WriteProcessMemory", Marshal.GetLastWin32Error());
                 return false;
             }
+
             var kernel = GetModuleHandle("kernel32.dll");
-            var loadLibrary = GetProcAddress(kernel, "LoadLibraryW");
-            var thread = CreateRemoteThread(process, IntPtr.Zero, 0, loadLibrary, remote, 0, IntPtr.Zero);
-            if (thread == IntPtr.Zero)
+            if (kernel == IntPtr.Zero)
             {
-                VirtualFreeEx(process, remote, 0, MemRelease);
+                failure = Stage("GetModuleHandle(kernel32)", Marshal.GetLastWin32Error());
                 return false;
             }
-            WaitForSingleObject(thread, Infinite);
-            GetExitCodeThread(thread, out var module);
-            CloseHandle(thread);
-            VirtualFreeEx(process, remote, 0, MemRelease);
-            return module != 0;
+            var loadLibrary = GetProcAddress(kernel, "LoadLibraryW");
+            if (loadLibrary == IntPtr.Zero)
+            {
+                failure = Stage("GetProcAddress(LoadLibraryW)", Marshal.GetLastWin32Error());
+                return false;
+            }
+
+            var queued = QueueUserAPC(loadLibrary, primaryThread, remote);
+            if (queued == 0)
+            {
+                failure = Stage("QueueUserAPC", Marshal.GetLastWin32Error());
+                return false;
+            }
+
+            if (ResumeThread(primaryThread) == 0xFFFFFFFF)
+            {
+                failure = Stage("ResumeThread", Marshal.GetLastWin32Error());
+                return false;
+            }
+
+            var dllName = Path.GetFileName(fullPath);
+            if (!WaitForModule(process, dllName, InjectWaitMilliseconds))
+            {
+                failure = $"LoadLibraryW APC did not load {dllName} within {InjectWaitMilliseconds}ms (pid={processId})";
+                return false;
+            }
+            Log($"injected {dllName} into pid={processId}");
+            return true;
         }
         finally
         {
-            CloseHandle(process);
+            VirtualFreeEx(process, remote, 0, MemRelease);
         }
+    }
+
+    static bool WaitForModule(IntPtr process, string dllName, int milliseconds)
+    {
+        var stop = Environment.TickCount64 + milliseconds;
+        do
+        {
+            if (HasModule(process, dllName)) return true;
+            Thread.Sleep(25);
+        } while (Environment.TickCount64 < stop);
+        return HasModule(process, dllName);
+    }
+
+    static bool HasModule(IntPtr process, string dllName)
+    {
+        var modules = new IntPtr[1024];
+        var bytes = modules.Length * IntPtr.Size;
+        if (!K32EnumProcessModulesEx(process, modules, bytes, out var needed, ListModulesAll) || needed <= 0)
+            return false;
+        var count = Math.Min(modules.Length, needed / IntPtr.Size);
+        var buffer = new StringBuilder(1024);
+        for (var i = 0; i < count; i++)
+        {
+            buffer.Clear();
+            if (K32GetModuleFileNameEx(process, modules[i], buffer, buffer.Capacity) == 0) continue;
+            if (buffer.ToString().EndsWith(dllName, StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        return false;
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -173,13 +257,12 @@ static class DnsInject
     [DllImport("kernel32.dll", SetLastError = true)] static extern bool CloseHandle(IntPtr handle);
     [DllImport("kernel32.dll", SetLastError = true)] static extern uint ResumeThread(IntPtr thread);
     [DllImport("kernel32.dll", SetLastError = true)] static extern bool TerminateProcess(IntPtr process, uint exitCode);
-    [DllImport("kernel32.dll", SetLastError = true)] static extern IntPtr OpenProcess(uint access, bool inherit, int processId);
     [DllImport("kernel32.dll", SetLastError = true)] static extern IntPtr VirtualAllocEx(IntPtr process, IntPtr address, nuint size, uint allocationType, uint protect);
     [DllImport("kernel32.dll", SetLastError = true)] static extern bool VirtualFreeEx(IntPtr process, IntPtr address, nuint size, uint freeType);
     [DllImport("kernel32.dll", SetLastError = true)] static extern bool WriteProcessMemory(IntPtr process, IntPtr baseAddress, byte[] buffer, nuint size, out nuint written);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern IntPtr GetModuleHandle(string moduleName);
     [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)] static extern IntPtr GetProcAddress(IntPtr module, string procName);
-    [DllImport("kernel32.dll", SetLastError = true)] static extern IntPtr CreateRemoteThread(IntPtr process, IntPtr threadAttributes, nuint stackSize, IntPtr startAddress, IntPtr parameter, uint creationFlags, IntPtr threadId);
-    [DllImport("kernel32.dll", SetLastError = true)] static extern uint WaitForSingleObject(IntPtr handle, uint milliseconds);
-    [DllImport("kernel32.dll", SetLastError = true)] static extern bool GetExitCodeThread(IntPtr thread, out nuint exitCode);
+    [DllImport("kernel32.dll", SetLastError = true)] static extern uint QueueUserAPC(IntPtr pfnAPC, IntPtr hThread, IntPtr dwData);
+    [DllImport("kernel32.dll", SetLastError = true)] static extern bool K32EnumProcessModulesEx(IntPtr process, [Out] IntPtr[] modules, int size, out int needed, uint filter);
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)] static extern uint K32GetModuleFileNameEx(IntPtr process, IntPtr module, StringBuilder fileName, int size);
 }

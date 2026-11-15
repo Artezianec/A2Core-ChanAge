@@ -37,6 +37,11 @@ public sealed record NativeOptions
     public int? DevelopmentStartMap { get; init; }
     /// <summary>Development logins only: spawn the training dummy (key 1000) for tools/load_test.py --combat.</summary>
     public bool TrainingDummy { get; init; }
+    /// <summary>Refuse dungeon entries without their entry ticket (ContentsTicket.dat counts; default off: counted only).</summary>
+    public bool EnforceContentTickets { get; init; }
+    /// <summary>Answer the live Black Cloud Merchants (0x5691-0x5699) and Arcana (0x564f-0x5658) requests (default on, as official;
+    /// false turns both off).</summary>
+    public bool ExperimentalRandomShopArcana { get; init; } = true;
     /// <summary>Development logins only: character names allowed to use the /gm chat commands.</summary>
     public string[] DevelopmentGmNames { get; init; } = [];
     /// <summary>Ground grids (tools/TerrainProbe: &lt;dir&gt;/&lt;map id&gt;/terrain.bin); unset: research/local/terrain above the host, if any.</summary>
@@ -284,7 +289,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
     : NativeListener(options.GamePort ?? 0, NativeHandshake.GameGreeting, options, logger)
 {
     static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(50);
-    /// <summary>Extra client frames in one TCP read are dropped (logged on the session) instead of starving the tick loop.</summary>
+    /// <summary>Client frames handled per tick; extra ones wait for the next tick (ClientFrameBacklog) instead of starving the loop.</summary>
     const int MaxClientFramesPerTick = 64;
     protected override string Name => "Native game";
     protected override byte[] HandshakeReply(RsaPublicKey key, byte[] sessionKey) => NativeHandshake.GameReply(key, sessionKey);
@@ -304,6 +309,8 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
             Builder = services.GetService<BuilderCommands>(), Terrain = services.GetService<TerrainStore>(), Nav = services.GetService<NavMeshStore>(),
             World = services.GetService<SharedWorld>(), DevelopmentMap = Options.Development ? Options.DevelopmentStartMap : null,
             TrainingDummy = Options.Development && Options.TrainingDummy,
+            EnforceContentTickets = Options.EnforceContentTickets,
+            ExperimentalRandomShopArcana = Options.ExperimentalRandomShopArcana,
             WorldRace = services.GetService<WorldChoices>() is { } choices ? choices.Race : null,
             AutoResurrectMsOverride = Options.Development ? GameSession.ReviveDelayMs : null,
             MapEventAskNpcProximityFallback = Options.MapEventAskNpcProximityFallback,
@@ -339,6 +346,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         }
         var authenticated = Options.Development;
         var chunk = new byte[8192];
+        var backlog = new ClientFrameBacklog(cipher);
         Task<int>? pending = null;
         Task? wake = null;
         var lastData = DateTimeOffset.UtcNow;
@@ -381,13 +389,15 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
                     Logger.LogInformation("Native game closed: {Reason}", closing);
                     return;
                 }
-                var incoming = buffer.Drain();
-                if (incoming.Count > MaxClientFramesPerTick) session.RecordPacketFrameBurst(incoming.Count, MaxClientFramesPerTick);
-                for (var frameIndex = 0; frameIndex < incoming.Count; frameIndex++)
+                // Deciphered on arrival, all of them, so the keystream stays in step; past 64 per tick they wait for the next tick.
+                var dropped = backlog.Add(buffer.Drain());
+                if (dropped > 0)
                 {
-                    if (frameIndex >= MaxClientFramesPerTick) break;
-                    var body = incoming[frameIndex];
-                    var plain = cipher.Crypt(body);
+                    session.RecordPacketFrameBurst(backlog.Capacity + dropped, backlog.Capacity);
+                    Logger.LogWarning("Native game dropped {Dropped} client frames: backlog full ({Capacity})", dropped, backlog.Capacity);
+                }
+                foreach (var plain in backlog.Take(MaxClientFramesPerTick))
+                {
                     var header = plain.Length >= 2 ? plain[0] | plain[1] << 8 : -1;
                     if (!Options.Development)
                     {

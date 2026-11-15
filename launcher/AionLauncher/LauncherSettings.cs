@@ -59,6 +59,9 @@ sealed class LauncherSettings
     public bool NoInstall { get; set; }
     public string? DownloadFolder { get; set; }
     public string? DownloadBuild { get; set; }
+    /// <summary>The download folder the player chose before a download started, and the build it is for.</summary>
+    public string? DownloadChoice { get; set; }
+    public string? DownloadChoiceBuild { get; set; }
     public string? SteamAccount { get; set; }
     public string? SteamToken { get; set; }
     public bool AllowClientPatchPaks { get; set; }

@@ -18,12 +18,12 @@ public sealed record ClientVersion(
     [property: JsonPropertyName("build"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Build = null)
 {
     public const string PrivateKind = "private", SteamKind = "steam";
-    public const string DefaultId = "2.0.6.0", SteamLatestId = "steam-latest";
+    public const string DefaultId = "2.0.9.0", SteamLatestId = "steam-latest";
     public bool IsSteam => Kind.Equals(SteamKind, StringComparison.OrdinalIgnoreCase);
 
     public static IReadOnlyList<ClientVersion> Defaults { get; } =
     [
-        new(DefaultId, "2.0.6.0", PrivateKind),
+        new(DefaultId, "2.0.9.0", PrivateKind),
         new(SteamLatestId, "Official latest (Steam)", SteamKind),
     ];
 }
@@ -34,12 +34,23 @@ public static class ClientVersions
     public static IReadOnlyList<ClientVersion> All(LauncherConfig config) =>
         config.ClientVersions is { Length: > 0 } list ? list : ClientVersion.Defaults;
 
-    /// <summary>Kept per-server choice, else config selection, else the first (2.0.6.0).</summary>
+    const string LegacyPrivateId = "2.0.6.0";
+
+    static ClientVersion? Find(IReadOnlyList<ClientVersion> all, string? id)
+    {
+        if (id is null) return null;
+        return all.FirstOrDefault(v => v.Id.Equals(id, StringComparison.OrdinalIgnoreCase))
+            ?? (id.Equals(LegacyPrivateId, StringComparison.OrdinalIgnoreCase)
+                ? all.FirstOrDefault(v => v.Id.Equals(ClientVersion.DefaultId, StringComparison.OrdinalIgnoreCase))
+                : null);
+    }
+
+    /// <summary>Kept per-server choice, else config selection, else the first (2.0.9.0).</summary>
     public static ClientVersion Selected(LauncherConfig config, string? chosen = null)
     {
         var all = All(config);
-        return all.FirstOrDefault(v => v.Id.Equals(chosen, StringComparison.OrdinalIgnoreCase))
-            ?? all.FirstOrDefault(v => v.Id.Equals(config.SelectedClientVersion, StringComparison.OrdinalIgnoreCase))
+        return Find(all, chosen)
+            ?? Find(all, config.SelectedClientVersion)
             ?? all[0];
     }
 
@@ -53,6 +64,20 @@ public static class ClientVersions
             if (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path)) return Path.GetFullPath(path);
         return steam?.FindApp() is { } app ? Path.GetFullPath(app.Folder) : null;
     }
+
+    /// <summary>
+    /// Whether a "steam" version's game is there to start: its folder (<see cref="SteamFolder"/>) holds the executable.
+    /// The Steam copy is used whatever its build, so this is its "installed".
+    /// </summary>
+    public static bool SteamReady(ClientVersion version, LauncherConfig config, SteamInstall? steam, string executable) =>
+        version.IsSteam && SteamFolder(version, config, steam) is { } folder && File.Exists(Path.Combine(folder, executable));
+
+    /// <summary>
+    /// The server's "steam" version when the player's Steam copy is there to start: the alternative to downloading the
+    /// private build once Steam has moved past it (every official patch). Null when the server offers none or no copy exists.
+    /// </summary>
+    public static ClientVersion? SteamAlternative(LauncherConfig config, SteamInstall? steam, string executable) =>
+        All(config).FirstOrDefault(v => SteamReady(v, config, steam, executable));
 
     /// <summary>Steam's launch arguments for the game plus the version's extra ones (duplicates dropped).</summary>
     public static string[] Arguments(IEnumerable<string> steamArguments, ClientVersion version)

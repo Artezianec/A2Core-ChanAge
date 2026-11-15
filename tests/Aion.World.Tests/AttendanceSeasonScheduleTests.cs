@@ -22,7 +22,8 @@ public sealed class AttendanceSeasonScheduleTests
     {
         var packet = GameSession.SeasonSchedule(1, Now);
         Assert.Equal(GameSession.SeasonScheduleNt, BitConverter.ToUInt16(packet, 0));
-        Assert.Equal(4, packet[2]);   // Attendance1..Attendance4
+        // Attendance1..Attendance4 first, then the ranked seasons live at that time (GameSession.Ranking.cs).
+        Assert.Equal(4 + GameSession.RankedSeasonRows(Now).Count, packet[2]);
         Assert.Equal(22, packet[3]);  // ESeasonContentsType::Attendance1
         var name = "Global_Attendance_Group_1"u8.ToArray();
         Assert.Equal(name.Length, packet[4]);

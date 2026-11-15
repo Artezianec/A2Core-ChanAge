@@ -59,18 +59,18 @@ public sealed class InstanceParityTests
     }
 
     [Fact]
-    public async Task Party_member_joining_leaders_copy_consumes_expedition_ticket()
+    public async Task Party_member_joining_leaders_copy_takes_no_entry_ticket()
     {
         var (world, lead, mate, _, leadStore, mateStore, _) = await ExpeditionPartyOfThreeAsync();
         lead.EnterDungeonById(KraoEasy, Now + 20);
         await lead.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 21);
         await lead.TickAsync(Now + 22_000);
-        Assert.Contains(leadStore.ExpeditionTickets, t => t.TicketId == 4 && t.Count == 1);
+        Assert.Empty(leadStore.ContentTickets);   // KraoCave Easy has no entry ticket (MapEntrance.dat)
         mate.EnterDungeonById(KraoEasy, Now + 30);
         await mate.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 31);
         await mate.TickAsync(Now + 32_000);
         Assert.Equal(lead.InstanceKey, mate.InstanceKey);
-        Assert.Contains(mateStore.ExpeditionTickets, t => t.TicketId == 4 && t.Count == 1);
+        Assert.Empty(mateStore.ContentTickets);
     }
 
     [Fact]
@@ -179,8 +179,6 @@ public sealed class InstanceParityTests
         await mate.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 102_002);
         Assert.Equal(600002, lead.MapId);
         Assert.Contains(lead.MapEventRuns, r => r.Name == "KraoCave_Easy_MapEvent");
-        Assert.Contains(leadStore.ExpeditionTickets, t => t.TicketId == 4);
-        Assert.Contains(mateStore.ExpeditionTickets, t => t.TicketId == 4);
     }
 
     [Fact]
@@ -222,20 +220,6 @@ public sealed class InstanceParityTests
         var mateRoll = await mate.HandleAsync(new PacketWriter().U16(DistributionOpcodes.RollDiceRq).I64(roll.DiceUid).ToArray(), Now + 21);
         Assert.Contains(mateRoll, p => GameSessionTestHelpers.Op(p) == DistributionOpcodes.RollDiceRs);
         Assert.DoesNotContain(world.Social.DiceRolls, kv => kv.Key == roll.DiceUid);
-    }
-
-    [Fact]
-    public async Task Weekly_ticket_period_reset_allows_reentry_after_new_week()
-    {
-        var store = new FakeCharacterStore();
-        FakeCharacterStore.SeedExpeditionItemLevel(store);
-        var period = ShopTables.Period(2, DateTimeOffset.FromUnixTimeMilliseconds(Now));
-        store.ExpeditionTickets.Add((4, period, 30));
-        var weekLater = Now + 8L * 24 * 60 * 60 * 1000;
-        var session = await GameSessionTestHelpers.EnterSharedWorldAsync(store, weekLater, level: 55);
-        await GameSessionTestHelpers.LoadInventoryAsync(session, weekLater + 10);
-        var moved = session.EnterDungeonById(KraoEasy, weekLater + 50);
-        Assert.NotEmpty(moved);
     }
 
     [Fact]

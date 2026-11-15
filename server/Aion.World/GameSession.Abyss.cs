@@ -291,6 +291,7 @@ public sealed partial class GameSession
             abyssDirty = true;
             replies.Add(RankingPointUpdate());
         }
+        AbyssSeason(abyssRankingPoint, 1);   // the season's Abyss ranking (GameSession.Ranking.cs)
         return replies;
     }
 

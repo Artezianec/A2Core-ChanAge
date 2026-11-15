@@ -26,12 +26,12 @@ public sealed partial class GameSession
     QuestWire Wire(QuestRecord q, int publisherId = 0)
     {
         if (questLog?.Book.Find(q.Code) is not { } quest)
-            return new(q.QuestId, (byte)q.Status, q.Step, q.Goals, (int)q.Uid, publisherId);
+            return WithDuty(q, new(q.QuestId, (byte)q.Status, q.Step, q.Goals, (int)q.Uid, publisherId));
         var step = quest.Steps.FirstOrDefault(s => s.Order == q.Step);
         var wireStep = step is null ? q.Step : QuestBook.WireStep(quest, step);
         var publisher = publisherId != 0 ? publisherId : quest.StartNpc ?? 0;
         var roll = questLog.Book.PartRollIndex(q.Code);
-        return new(q.QuestId, (byte)q.Status, wireStep, q.Goals, (int)q.Uid, publisher, roll);
+        return WithDuty(q, new(q.QuestId, (byte)q.Status, wireStep, q.Goals, (int)q.Uid, publisher, roll));
     }
 
     /// <summary>

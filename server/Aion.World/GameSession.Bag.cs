@@ -264,7 +264,7 @@ public sealed partial class GameSession
         byte[] Reply(int result) => PacketWriter.Opcode(ItemSortRs).U16(result).I32(npc).U8(container).ToArray();
         var location = container switch { InventoryItem.Bag => "bag", InventoryItem.Storage => "storage", InventoryItem.AccountStorage => "account_storage", _ => null };
         if (location is null || Store is not { } store || CharacterId is not { } character) return [Reply(1)];
-        var sorted = await Stored(async () => await store.SortContainerAsync(character, location, ct) ? [[]] : []);
+        var sorted = await Stored(async () => await store.SortContainerAsync(character, location, ct, ItemCurrencies.All) ? [[]] : []);
         return sorted.Count == 0 ? [Reply(1)] : [Reply(0), .. await InventoryChangesAsync(ct, 0, 0)];
     }
 

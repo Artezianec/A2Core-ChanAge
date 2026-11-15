@@ -337,7 +337,7 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         return Task.FromResult(true);
     }
 
-    public Task<bool> SoulBindItemAsync(Guid character, Guid item, byte count, CancellationToken ct) =>
+    public Task<bool> SoulBindItemAsync(Guid character, Guid item, byte count, CancellationToken ct, IReadOnlyList<(int Type, int Value)>? stats = null) =>
         Task.FromResult(false);
 
     readonly InMemorySocialGraph socialGraph = new();
@@ -510,6 +510,25 @@ public sealed class FakeCharacterStore : INativeCharacterStore
             Upgrades = JsonSerializer.SerializeToElement(new { enchant = level, enchant_bonus = bonus }),
             Revision = revision + 1
         };
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> ImprintItemAsync(Guid character, Guid item, long revision, IReadOnlyList<(Guid Item, long Revision, int Count)> costs,
+        IReadOnlyList<MagicStoneSlot> slots, CancellationToken ct)
+    {
+        var index = Items.FindIndex(i => i.InstanceId == item && i.Revision == revision);
+        if (index < 0 || costs.Any(c => Items.FindIndex(i => i.InstanceId == c.Item && i.Revision == c.Revision && i.Quantity >= c.Count) < 0))
+            return Task.FromResult(false);
+        foreach (var (costItem, costRev, count) in costs)
+        {
+            var cIdx = Items.FindIndex(i => i.InstanceId == costItem && i.Revision == costRev);
+            if (Items[cIdx].Quantity == count) Items.RemoveAt(cIdx);
+            else Items[cIdx] = Items[cIdx] with { Quantity = Items[cIdx].Quantity - count, Revision = Items[cIdx].Revision + 1 };
+        }
+        index = Items.FindIndex(i => i.InstanceId == item);
+        var upgrades = System.Text.Json.Nodes.JsonNode.Parse(Items[index].Upgrades.ValueKind == JsonValueKind.Object ? Items[index].Upgrades.GetRawText() : "{}")!.AsObject();
+        upgrades["magicstones"] = JsonSerializer.SerializeToNode(slots.Select(s => new[] { s.StoneId, s.Stat, s.Grade }));
+        Items[index] = Items[index] with { Upgrades = JsonSerializer.SerializeToElement(upgrades), Revision = revision + 1 };
         return Task.FromResult(true);
     }
 
@@ -847,9 +866,13 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         return Task.FromResult(true);
     }
 
-    public Task<bool> SortContainerAsync(Guid character, string location, CancellationToken ct)
+    public Task<bool> SortContainerAsync(Guid character, string location, CancellationToken ct, IReadOnlyCollection<int>? currencies = null)
     {
-        var bag = Items.Select((item, index) => (item, index)).Where(x => x.item.Location == location).OrderBy(x => x.item.TemplateId).ThenBy(x => x.item.WireId).ToList();
+        var skip = location == "bag" ? currencies ?? [] : [];
+        for (var i = 0; i < Items.Count; i++)
+            if (Items[i].Location == location && skip.Contains(Items[i].TemplateId) && Items[i].Slot is not null)
+                Items[i] = Items[i] with { Slot = null, Revision = Items[i].Revision + 1 };
+        var bag = Items.Select((item, index) => (item, index)).Where(x => x.item.Location == location && !skip.Contains(x.item.TemplateId)).OrderBy(x => x.item.TemplateId).ThenBy(x => x.item.WireId).ToList();
         for (var n = 0; n < bag.Count; n++)
             Items[bag[n].index] = bag[n].item with { Slot = n, Revision = bag[n].item.Revision + 1 };
         return Task.FromResult(true);
@@ -868,6 +891,18 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     }
 
     public List<(int TicketId, string Period, int Count)> ExpeditionTickets { get; } = [];
+
+    public List<ContentTicketRecord> ContentTickets { get; } = [];
+
+    public Task<IReadOnlyList<ContentTicketRecord>> ContentTicketsAsync(Guid character, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<ContentTicketRecord>>(ContentTickets.ToList());
+
+    public Task<bool> SaveContentTicketAsync(Guid character, ContentTicketRecord record, CancellationToken ct)
+    {
+        ContentTickets.RemoveAll(t => t.TicketId == record.TicketId);
+        ContentTickets.Add(record);
+        return Task.FromResult(true);
+    }
 
     public Task<IReadOnlyList<(int TicketId, string Period, int Count)>> ExpeditionTicketsAsync(Guid character, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<(int, string, int)>>(ExpeditionTickets.ToList());
@@ -1383,6 +1418,70 @@ public sealed class FakeCharacterStore : INativeCharacterStore
 
     /// <summary>game.character_stigmas: stigma skill → stigma level.</summary>
     public Dictionary<int, int> StigmaLevels { get; } = [];
+
+    // Season rankings (migrations 129, 130) in memory. Extra ranked characters for tests: SeasonOthers.
+    public List<(Guid Character, SeasonPointRow Row)> SeasonPointRows { get; } = [];
+    public List<SeasonRankingRow> SeasonOthers { get; } = [];
+    public List<SeasonResultRow> SeasonResultRows { get; } = [];
+    public HashSet<(int Type, DateTimeOffset WeekEnd)> WeeklySettled { get; } = [];
+    public Task<IReadOnlyList<SeasonRankingRow>> SeasonRankingAsync(int contentsType, int season, int limit, CancellationToken ct)
+    {
+        var own = SeasonPointRows.Where(x => x.Row.ContentsType == contentsType && x.Row.Season == season && x.Row.Point > 0)
+            .Select(x => States.FirstOrDefault(s => s.Summary.CharacterId == x.Character) is { } st
+                ? new SeasonRankingRow(x.Character, 1, st.Summary.Name, Progress.Level, st.CreationId, st.Gender, x.Row.Point, x.Row.Extra, x.Row.BestPoint)
+                : null).OfType<SeasonRankingRow>();
+        return Task.FromResult<IReadOnlyList<SeasonRankingRow>>(own.Concat(SeasonOthers)
+            .OrderByDescending(r => r.BestPoint).ThenByDescending(r => r.Point).ThenBy(r => r.WireId).Take(limit).ToList());
+    }
+    public Task<IReadOnlyList<SeasonPointRow>> SeasonPointsAsync(Guid character, int season, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<SeasonPointRow>>(SeasonPointRows.Where(x => x.Character == character && x.Row.Season == season).Select(x => x.Row).ToList());
+    public Task<bool> SaveSeasonPointsAsync(Guid character, SeasonPointRow row, CancellationToken ct)
+    {
+        SeasonPointRows.RemoveAll(x => x.Character == character && x.Row.ContentsType == row.ContentsType && x.Row.Season == row.Season);
+        SeasonPointRows.Add((character, row));
+        return Task.FromResult(true);
+    }
+    public Task<IReadOnlyList<SeasonResultRow>> SeasonResultsAsync(int season, int contentsType, Guid? character, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<SeasonResultRow>>(SeasonResultRows.Where(r => r.Season == season && (contentsType == 0 || r.ContentsType == contentsType)
+            && (character is null || r.Character == character)).ToList());
+    public Task<int> SaveSeasonResultsAsync(IReadOnlyList<SeasonResultRow> rows, CancellationToken ct)
+    {
+        var fresh = rows.Where(r => !SeasonResultRows.Any(x => x.Character == r.Character && x.ContentsType == r.ContentsType && x.Season == r.Season)).ToList();
+        SeasonResultRows.AddRange(fresh);
+        return Task.FromResult(fresh.Count);
+    }
+    public Task<bool> TakeSeasonRewardAsync(Guid character, int season, int contentsType, CancellationToken ct)
+    {
+        var i = SeasonResultRows.FindIndex(r => r.Character == character && r.Season == season && r.ContentsType == contentsType && !r.RewardTaken);
+        if (i < 0) return Task.FromResult(false);
+        SeasonResultRows[i] = SeasonResultRows[i] with { RewardTaken = true };
+        return Task.FromResult(true);
+    }
+    public Task<IReadOnlyList<(Guid Character, PostRecord Post)>?> SettleWeeklyRankingAsync(int contentsType, int season, DateTimeOffset weekEnd,
+        IReadOnlyList<WeeklyRewardMail> mails, TimeSpan valid, CancellationToken ct)
+    {
+        if (!WeeklySettled.Add((contentsType, weekEnd))) return Task.FromResult<IReadOnlyList<(Guid, PostRecord)>?>(null);
+        var sent = new List<(Guid, PostRecord)>();
+        foreach (var m in mails)
+        {
+            var post = new PostRecord(nextPostId++, 1, 2, m.PostDataId, "", false, false, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow + valid, m.Items, 0);
+            if (States.Any(s => s.Summary.CharacterId == m.Character)) Posts.Add(post);
+            sent.Add((m.Character, post));
+        }
+        return Task.FromResult<IReadOnlyList<(Guid, PostRecord)>?>(sent);
+    }
+
+    // Skill parts (migration 128) in memory, with the Postgres store's compare-and-set on a skill's whole set.
+    public List<SkillPartRecord> SkillPartRows { get; } = [];
+    public Task<IReadOnlyList<SkillPartRecord>> SkillPartsAsync(Guid character, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<SkillPartRecord>>(SkillPartRows.OrderBy(p => p.SkillId).ThenBy(p => p.Slot).ToList());
+    public Task<bool> ReplaceSkillPartsAsync(Guid character, int skillId, IReadOnlyList<SkillPartRecord> expected, IReadOnlyList<SkillPartRecord> parts, CancellationToken ct)
+    {
+        if (!SkillPartRows.Where(p => p.SkillId == skillId).OrderBy(p => p.Slot).SequenceEqual(expected.OrderBy(p => p.Slot))) return Task.FromResult(false);
+        SkillPartRows.RemoveAll(p => p.SkillId == skillId);
+        SkillPartRows.AddRange(parts);
+        return Task.FromResult(true);
+    }
 
     public Task<IReadOnlyList<StigmaState>> StigmasAsync(Guid character, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<StigmaState>>(StigmaLevels.OrderBy(p => p.Key).Select(p => new StigmaState(p.Key, p.Value)).ToList());

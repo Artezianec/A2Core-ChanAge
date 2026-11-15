@@ -47,6 +47,10 @@ public sealed class StigmaTests
 
     static int Result(byte[] reply) => BitConverter.ToUInt16(reply, 2);
 
+    /// <summary>The request's own reply: the official order puts a level variant's 0x3810/0x380f/0x3813 before 0x3840 and 0x3844.</summary>
+    static byte[] Own(List<byte[]> replies) =>
+        replies.FirstOrDefault(p => GameSessionTestHelpers.Op(p) is GameSession.SkillLevelUpRs or GameSession.SkillLevelDownRs or GameSession.SkillLevelResetRs) ?? replies[0];
+
     [Fact]
     public void Table_has_the_clients_117_stigmas_13_per_class_and_none_in_a_level_kit()
     {
@@ -85,7 +89,7 @@ public sealed class StigmaTests
     public void Options_are_validated_and_off_by_default()
     {
         Assert.False(StigmaOptions.Default.Enabled);
-        Assert.Equal(100_000, StigmaOptions.Default.ResetKinah);
+        Assert.Equal(0, StigmaOptions.Default.ResetKinah);   // free, as the official global resets
         Assert.Throws<InvalidOperationException>(() => new StigmaOptions { Slots = 7 }.Validated());
         Assert.Throws<InvalidOperationException>(() => new StigmaOptions { MaxLevel = 21 }.Validated());
         Assert.Throws<InvalidOperationException>(() => new StigmaOptions { ShardRate = -1 }.Validated());
@@ -100,7 +104,7 @@ public sealed class StigmaTests
         var (session, _) = await EnterAsync(store, 30, StigmaOptions.Default);
         var stigma = ClassStigmas(session)[0];
         var reply = await LevelUp(session, stigma);
-        Assert.Equal(GameSession.SkillAcquireNotFoundData, Result(reply[0]));
+        Assert.Equal(GameSession.SkillAcquireNotFoundData, Result(Own(reply)));
         Assert.Empty(store.StigmaLevels);
         Assert.False(session.StigmasOn);
     }
@@ -111,7 +115,7 @@ public sealed class StigmaTests
         var store = new FakeCharacterStore();
         var (session, _) = await EnterAsync(store, 21);
         var reply = await LevelUp(session, ClassStigmas(session)[0]);
-        Assert.Equal(GameSession.SkillAcquireNotEnoughCharLevel, Result(reply[0]));
+        Assert.Equal(GameSession.SkillAcquireNotEnoughCharLevel, Result(Own(reply)));
         Assert.Equal(0, session.StigmaShardsTotal);
         Assert.Equal(0, session.StigmaSlotsOpen);
         Assert.Empty(store.StigmaLevels);
@@ -128,8 +132,9 @@ public sealed class StigmaTests
         var stigma = ClassStigmas(session)[0];
 
         var learn = await LevelUp(session, stigma);
-        Assert.Equal(0, Result(learn[0]));
-        Assert.Equal(0x5101, GameSessionTestHelpers.Op(learn[1]));
+        Assert.Equal(0, Result(Own(learn)));
+        Assert.Equal(GameSession.SkillAddNt, GameSessionTestHelpers.Op(learn[1]));   // 0x380f reason 2 (learned), as recorded
+        Assert.Equal(2, learn[1][^1]);
         Assert.Equal(GameSession.SkillPointUpdateNt, GameSessionTestHelpers.Op(learn[^1]));
         Assert.Equal(2, learn[^1][3]);   // ESkillPointType StigmaShard
         Assert.Equal(1, learn[^1][4]);   // one shard spent
@@ -137,16 +142,16 @@ public sealed class StigmaTests
         Assert.Equal(1, session.SkillLevel(stigma));
 
         var raise = await LevelUp(session, stigma);
-        Assert.Equal(0, Result(raise[0]));
+        Assert.Equal(0, Result(Own(raise)));
         Assert.Equal(GameSession.SkillLevelUpdateNt, GameSessionTestHelpers.Op(raise[1]));
         Assert.Equal(2, session.SkillLevel(stigma));
 
         // Levels 3-5 cost 1, 6 costs 2: 1+1+1+1+1+2 = 7, then 7 costs 2 (9 spent), then 8 needs 2 more.
-        for (var i = 0; i < 5; i++) Assert.Equal(0, Result((await LevelUp(session, stigma))[0]));
+        for (var i = 0; i < 5; i++) Assert.Equal(0, Result(Own(await LevelUp(session, stigma))));
         Assert.Equal(7, session.Stigmas[stigma]);
         Assert.Equal(0, session.StigmaShardsLeft);
         var refused = await LevelUp(session, stigma);
-        Assert.Equal(GameSession.SkillAcquireNotEnoughSkillPoint, Result(refused[0]));
+        Assert.Equal(GameSession.SkillAcquireNotEnoughSkillPoint, Result(Own(refused)));
         Assert.Equal(7, store.StigmaLevels[stigma]);
     }
 
@@ -157,7 +162,7 @@ public sealed class StigmaTests
         var (session, _) = await EnterAsync(store, 30);
         var other = GameData.Embedded.Stigmas.Classes.Where(c => c != session.ClassName).SelectMany(GameData.Embedded.Stigmas.ClassStigmas).First();
         var reply = await LevelUp(session, other);
-        Assert.NotEqual(0, Result(reply[0]));
+        Assert.NotEqual(0, Result(Own(reply)));
         Assert.Empty(store.StigmaLevels);
     }
 
@@ -171,10 +176,10 @@ public sealed class StigmaTests
         await LevelUp(session, stigma);
         var left = session.StigmaShardsLeft;
         var down = await LevelDown(session, stigma);
-        Assert.Equal(0, Result(down[0]));
+        Assert.Equal(0, Result(Own(down)));
         Assert.Equal(1, store.StigmaLevels[stigma]);
         Assert.Equal(left + 1, session.StigmaShardsLeft);
-        Assert.NotEqual(0, Result((await LevelDown(session, stigma))[0]));
+        Assert.NotEqual(0, Result(Own(await LevelDown(session, stigma))));
         Assert.Equal(1, store.StigmaLevels[stigma]);
     }
 
@@ -187,13 +192,14 @@ public sealed class StigmaTests
         await LevelUp(session, a);
         await LevelUp(session, a);
         await LevelUp(session, b);
-        Assert.Equal(0, Result((await SetSlot(session, 30, 4, a))[0]));
+        Assert.Equal(0, Result(Own(await SetSlot(session, 30, 4, a))));
         Assert.True(session.StigmaCastable(a));
 
         var reset = await Reset(session, 2, 0);
         Assert.Equal(GameSession.SkillLevelResetRs, GameSessionTestHelpers.Op(reset[0]));
-        Assert.Equal(0, Result(reset[0]));
-        Assert.Equal(GameSession.RemoveSkillListNt, GameSessionTestHelpers.Op(reset[1]));
+        Assert.Equal(0, Result(Own(reset)));
+        Assert.Equal(GameSession.SkillLevelUpdateNt, GameSessionTestHelpers.Op(reset[1]));   // the levels to 0 (0x3813 reason 5), as recorded
+        Assert.Equal(GameSession.SkillPointUpdateNt, GameSessionTestHelpers.Op(reset[^1]));
         Assert.Empty(store.StigmaLevels);
         Assert.Empty(session.Stigmas);
         Assert.Equal(session.StigmaShardsTotal, session.StigmaShardsLeft);
@@ -209,7 +215,7 @@ public sealed class StigmaTests
         var (a, b) = (ClassStigmas(session)[0], ClassStigmas(session)[1]);
         await LevelUp(session, a);
         await LevelUp(session, b);
-        Assert.Equal(0, Result((await Reset(session, 2, a))[0]));
+        Assert.Equal(0, Result(Own(await Reset(session, 2, a))));
         Assert.Equal([b], store.StigmaLevels.Keys);
     }
 
@@ -220,10 +226,10 @@ public sealed class StigmaTests
         var (session, _) = await EnterAsync(store, 22);
         Assert.Equal(1, session.StigmaSlotsOpen);
         var (a, b) = (ClassStigmas(session)[0], ClassStigmas(session)[1]);
-        Assert.Equal(GameSession.SkillAcquireNotFoundData, Result((await SetSlot(session, 30, 4, a))[0]));   // not learned
+        Assert.Equal(GameSession.SkillAcquireNotFoundData, Result(Own(await SetSlot(session, 30, 4, a))));   // not learned
         await LevelUp(session, a);
         Assert.False(session.StigmaCastable(a));   // learned, not on a slot
-        Assert.Equal(0, Result((await SetSlot(session, 30, 4, a))[0]));
+        Assert.Equal(0, Result(Own(await SetSlot(session, 30, 4, a))));
         Assert.True(session.StigmaCastable(a));
         // Level 22 gives one shard: b cannot be learned, and a second stigma would not fit one slot anyway.
         store.StigmaLevels[b] = 1;
@@ -234,7 +240,7 @@ public sealed class StigmaTests
         Assert.Equal(0, relog.StigmaShardsLeft);
         Assert.Single(store.StigmaLevels);
         Assert.Contains(entry, p => GameSessionTestHelpers.Op(p) == GameSession.SkillPointUpdateNt && p.Length > 3 && p[3] == 2);
-        Assert.Equal(GameSession.QuickSlotMismatchSlotType, Result((await SetSlot(relog, 31, 4, RendingBlow))[0]));
+        Assert.Equal(GameSession.QuickSlotMismatchSlotType, Result(Own(await SetSlot(relog, 31, 4, RendingBlow))));
     }
 
     [Fact]
@@ -245,9 +251,9 @@ public sealed class StigmaTests
         var (a, b) = (ClassStigmas(session)[0], ClassStigmas(session)[1]);
         await LevelUp(session, a);
         await LevelUp(session, b);
-        Assert.Equal(0, Result((await SetSlot(session, 30, 4, a))[0]));
-        Assert.Equal(GameSession.QuickSlotStigmaMaxCount, Result((await SetSlot(session, 31, 4, b))[0]));
-        Assert.Equal(0, Result((await SetSlot(session, 30, 4, b))[0]));   // replacing a's slot is fine
+        Assert.Equal(0, Result(Own(await SetSlot(session, 30, 4, a))));
+        Assert.Equal(GameSession.QuickSlotStigmaMaxCount, Result(Own(await SetSlot(session, 31, 4, b))));
+        Assert.Equal(0, Result(Own(await SetSlot(session, 30, 4, b))));   // replacing a's slot is fine
         Assert.True(session.StigmaCastable(b));
         Assert.False(session.StigmaCastable(a));
     }
@@ -355,7 +361,7 @@ public sealed class StigmaTests
         var store = new FakeCharacterStore();
         var (session, _) = await EnterAsync(store, 45);
         var a = ClassStigmas(session)[0];
-        for (var i = 0; i < 8; i++) Assert.Equal(0, Result((await LevelUp(session, a))[0]));
+        for (var i = 0; i < 8; i++) Assert.Equal(0, Result(Own(await LevelUp(session, a))));
         Assert.Equal(8, store.StigmaLevels[a]);
         var (relog, _) = await EnterAsync(store, 45, new StigmaOptions { Enabled = true, MaxLevel = 3 }, create: false);
         Assert.Equal(3, relog.Stigmas[a]);
@@ -371,7 +377,7 @@ public sealed class StigmaTests
         var a = ClassStigmas(session)[0];
         await LevelUp(session, a);
         var reply = await Reset(session, 99, a);
-        Assert.Equal(GameSession.SkillAcquireInvalidClass, Result(reply[0]));
+        Assert.Equal(GameSession.SkillAcquireInvalidClass, Result(Own(reply)));
         Assert.Equal(99, reply[0][4]);   // acquireType echoed on the 0x3844 refusal
         Assert.Equal(1, store.StigmaLevels[a]);
         Assert.Equal(1, session.Stigmas[a]);
@@ -385,8 +391,8 @@ public sealed class StigmaTests
         var a = ClassStigmas(session)[0];
         store.FailStigmaSaves = 1;
         var reply = await LevelUp(session, a);
-        Assert.Equal(GameSession.SkillAcquirePersistFailed, Result(reply[0]));
-        Assert.NotEqual(GameSession.SkillAcquireNotFoundData, Result(reply[0]));
+        Assert.Equal(GameSession.SkillAcquirePersistFailed, Result(Own(reply)));
+        Assert.NotEqual(GameSession.SkillAcquireNotFoundData, Result(Own(reply)));
         Assert.Empty(store.StigmaLevels);
         Assert.Empty(session.Stigmas);
     }
@@ -398,10 +404,10 @@ public sealed class StigmaTests
         var (session, _) = await EnterAsync(store, 30);
         var a = ClassStigmas(session)[0];
         await LevelUp(session, a);
-        Assert.Equal(0, Result((await SetSlot(session, 30, 4, a))[0]));
+        Assert.Equal(0, Result(Own(await SetSlot(session, 30, 4, a))));
         store.FailQuickSlotSaves = 1;
         var reset = await Reset(session, 2, a);
-        Assert.Equal(0, Result(reset[0]));
+        Assert.Equal(0, Result(Own(reset)));
         Assert.Empty(session.Stigmas);
         Assert.DoesNotContain(session.QuickSlots.Values, s => s.SkillId == a);
         Assert.Contains(store.QuickSlots.Values, s => s.SkillId == a);   // store save failed; next load retries the clear
@@ -436,8 +442,8 @@ public sealed class StigmaTests
         var (session, _) = await EnterAsync(store, 30);
         var a = ClassStigmas(session)[0];
         await LevelUp(session, a);
-        Assert.Equal(0, Result((await SetSlot(session, 30, 4, a))[0]));
-        Assert.Equal(0, Result((await SetSlot(session, 1, 0, a))[0]));
+        Assert.Equal(0, Result(Own(await SetSlot(session, 30, 4, a))));
+        Assert.Equal(0, Result(Own(await SetSlot(session, 1, 0, a))));
         Assert.Equal(2, session.QuickSlots.Values.Count(s => s.SkillId == a));
         Assert.Equal([a], session.EquippedStigmas);
     }
@@ -451,17 +457,17 @@ public sealed class StigmaTests
     }
 
     [Fact]
-    public async Task Reset_costs_default_kinah_and_refunds_shards()
+    public async Task Reset_costs_the_configured_kinah_and_refunds_shards()
     {
         var store = new FakeCharacterStore();
-        var (session, _) = await EnterAsync(store, 40);
+        var (session, _) = await EnterAsync(store, 40, new StigmaOptions { Enabled = true, ResetKinah = 100_000 });
         var stigma = ClassStigmas(session)[0];
         await LevelUp(session, stigma);
         await LevelUp(session, stigma);
         var left = session.StigmaShardsLeft;
         var before = FakeCharacterStore.KinaIn(store);
         var reset = await Reset(session, 2, stigma);
-        Assert.Equal(0, Result(reset[0]));
+        Assert.Equal(0, Result(Own(reset)));
         Assert.Empty(session.Stigmas);
         Assert.Equal(left + 2, session.StigmaShardsLeft);
         Assert.Equal(before - 100_000, FakeCharacterStore.KinaIn(store));
@@ -471,11 +477,11 @@ public sealed class StigmaTests
     public async Task Reset_without_enough_kinah_is_refused_and_keeps_the_stigma()
     {
         var store = new FakeCharacterStore();
-        var (session, _) = await EnterAsync(store, 40, kina: 50_000);
+        var (session, _) = await EnterAsync(store, 40, new StigmaOptions { Enabled = true, ResetKinah = 100_000 }, kina: 50_000);
         var stigma = ClassStigmas(session)[0];
         await LevelUp(session, stigma);
         var reset = await Reset(session, 2, stigma);
-        Assert.Equal(GameSession.SkillAcquirePersistFailed, Result(reset[0]));
+        Assert.Equal(GameSession.SkillAcquirePersistFailed, Result(Own(reset)));
         Assert.Equal(1, session.Stigmas[stigma]);
         Assert.Equal(50_000, FakeCharacterStore.KinaIn(store));
     }
@@ -487,7 +493,7 @@ public sealed class StigmaTests
         var (session, _) = await EnterAsync(store, 40, new StigmaOptions { Enabled = true, ResetKinah = 0 }, kina: 0);
         var stigma = ClassStigmas(session)[0];
         await LevelUp(session, stigma);
-        Assert.Equal(0, Result((await Reset(session, 2, stigma))[0]));
+        Assert.Equal(0, Result(Own(await Reset(session, 2, stigma))));
         Assert.Empty(session.Stigmas);
         Assert.Equal(0, FakeCharacterStore.KinaIn(store));
     }
@@ -560,10 +566,66 @@ public sealed class StigmaTests
         await session.HandleAsync(new PacketWriter().U16(GameSession.CoinShopOpenRq).I32(990001).ToArray(), Now);
         var buy = await session.HandleAsync(new PacketWriter().U16(GameSession.CoinShopBuyRq).I32(990001).Varint(1).I32(401015113).I32(1).ToArray(), Now);
         Assert.Equal(GameSession.CoinShopBuyRs, GameSessionTestHelpers.Op(buy[0]));
-        Assert.Equal(0, Result(buy[0]));
+        Assert.Equal(0, Result(Own(buy)));
         Assert.Equal(1, session.StigmaShardsBonus);
         Assert.Equal(2, session.StigmaShardsTotal);
         Assert.DoesNotContain(store.Items, i => i.TemplateId == GameSession.StigmaShardPointItemId && i.Quantity > 0);
         Assert.Equal(0, store.Items.Where(i => i.TemplateId == 930100003).Sum(i => i.Quantity));
+    }
+
+    [Fact]
+    public async Task Level_five_swaps_in_the_variant_before_the_reply_and_casts_it_in_the_stigmas_place()
+    {
+        var store = new FakeCharacterStore();
+        var (session, _) = await EnterAsync(store, 45);
+        var stigma = ClassStigmas(session)[0];
+        for (var i = 0; i < 4; i++) Assert.Equal(0, Result(Own(await LevelUp(session, stigma))));
+        Assert.Equal(0, GameData.Embedded.Stigmas.Variant(stigma, 4));
+        var five = await LevelUp(session, stigma);
+        // OBSERVED order: SkillAdd_NT 0x380f for the +10 variant (reason 6), then 0x3840, 0x3813, 0x5105.
+        Assert.Equal(GameSession.SkillAddNt, GameSessionTestHelpers.Op(five[0]));
+        Assert.Equal(stigma + 10, BitConverter.ToInt32(five[0], 3));
+        Assert.Equal(6, five[0][^1]);
+        Assert.Equal(GameSession.SkillLevelUpRs, GameSessionTestHelpers.Op(five[1]));
+        Assert.Equal(5, session.SkillLevel(stigma + 10));
+        // 6-9 update the variant (0x3813 before the reply); 10 deletes it (0x3810) and adds the +20 one.
+        var six = await LevelUp(session, stigma);
+        Assert.Equal(GameSession.SkillLevelUpdateNt, GameSessionTestHelpers.Op(six[0]));
+        for (var i = 0; i < 3; i++) await LevelUp(session, stigma);
+        var ten = await LevelUp(session, stigma);
+        Assert.Equal(GameSession.SkillDeleteNt, GameSessionTestHelpers.Op(ten[0]));
+        Assert.Equal(stigma + 10, BitConverter.ToInt32(ten[0], 2));
+        Assert.Equal(GameSession.SkillAddNt, GameSessionTestHelpers.Op(ten[1]));
+        Assert.Equal(stigma + 20, BitConverter.ToInt32(ten[1], 3));
+        // Castable only from a stigma slot, and only the current variant.
+        Assert.False(session.StigmaCastable(stigma + 20));
+        Assert.Equal(0, Result(Own(await SetSlot(session, 30, 4, stigma))));
+        Assert.True(session.StigmaCastable(stigma + 20));
+        Assert.False(session.StigmaCastable(stigma + 10));
+    }
+
+    [Fact]
+    public async Task Stigma_wire_slots_20_to_23_take_a_learned_stigma_through_0x5607()
+    {
+        var store = new FakeCharacterStore();
+        var (session, _) = await EnterAsync(store, 30);
+        var (a, b) = (ClassStigmas(session)[0], ClassStigmas(session)[1]);
+        await LevelUp(session, a);
+        byte[] Update(byte slot, int skill) => new PacketWriter().U16(GameSession.QuickSlotContextSkillRq).U8(slot).U8(0).I32(skill).ToArray();
+        // Not learned: refused. Learned: stored on slot 20 and castable; the reply is the recorded 0x5608 form (mask, result, ...).
+        Assert.Equal(1, BitConverter.ToUInt16((await session.HandleAsync(Update(20, b), Now)).First(), 3));
+        var placed = (await session.HandleAsync(Update(20, a), Now)).First();
+        Assert.Equal(GameSession.QuickSlotContextSkillRs, GameSessionTestHelpers.Op(placed));
+        Assert.Equal(new byte[] { 0, 0, 0, 20, 0 }, placed[2..7]);
+        Assert.Equal(a, store.QuickSlots[20].SkillId);
+        Assert.True(session.StigmaCastable(a));
+        // Moving it to slot 21 (open at level 27) trades places: mask 3, is_swap 1, swap slot 20.
+        var moved = (await session.HandleAsync(Update(21, a), Now)).First();
+        Assert.Equal(3, moved[2]);
+        Assert.Equal(new byte[] { 1, 20 }, moved[11..13]);
+        Assert.Equal(a, store.QuickSlots[21].SkillId);
+        Assert.False(store.QuickSlots.ContainsKey(20));
+        // Slot 22 opens at 32: refused at 30.
+        Assert.Equal(GameSession.QuickSlotStigmaMaxCount, BitConverter.ToUInt16((await session.HandleAsync(Update(22, a), Now)).First(), 3));
     }
 }

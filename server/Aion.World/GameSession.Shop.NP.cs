@@ -18,15 +18,29 @@ public sealed partial class GameSession
     public const ushort TrustLimitInfoRq = 0xe260, TrustLimitInfoRs = 0xe261, TrustLimitInfoNt = 0xe262;
 
     /// <summary>
-    /// 0xe260 TrustLimitInfo_RQ: TrustLimitInfo_NT {trust_daily_limit_use bool, limit_info map (empty: count 0),
-    /// bmshop_purchase_enable bool = 1, update_time i64, trust_step i32} then TrustLimitInfo_RS result 0. Field order and
-    /// widths from the usmap; the empty map as a zero count is CANDIDATE (arrays use a varint count).
+    /// 0xe260 TrustLimitInfo_RQ: TrustLimitInfo_NT then TrustLimitInfo_RS result 0 (OBSERVED 2026-11-06 182716 and 234912,
+    /// the same moment, that order; ported from Addiboii/A2Core be7c165).
     /// </summary>
     static List<byte[]> TrustLimitInfo(long now) =>
     [
-        PacketWriter.Opcode(TrustLimitInfoNt).U8(0).Varint(0).U8(1).I64(now).I32(0).ToArray(),
+        TrustLimitInfoNotice(now),
         PacketWriter.Opcode(TrustLimitInfoRs).U16(0).ToArray(),
     ];
+
+    /// <summary>
+    /// TrustLimitInfo_NT 0xe262: flags (07), the Kina limits by EContentsKinaLimitType {type u8, type u8, used i64, limit i64,
+    /// time i64}, the update time i64 and the trust step i32. The form of every 2026-11-05/06 world entry (21; ported from
+    /// Addiboii/A2Core 827b359): type 2 limited to 500,000,000, types 3-5 unlimited (-1), nothing used, step 5. Some
+    /// accounts had flags 03, step 1 and type 2 at 0 (per account; OURS: the permissive form, as we enforce no Kina limit).
+    /// CANDIDATE: the times (the server's clock). Replaces our usmap guess (an empty limit map).
+    /// </summary>
+    public static byte[] TrustLimitInfoNotice(long now)
+    {
+        var w = PacketWriter.Opcode(TrustLimitInfoNt).U8(0x07).Varint(4);
+        foreach (var type in new byte[] { 2, 3, 4, 5 })
+            w.U8(type).U8(type).I64(0).I64(type == 2 ? 500_000_000 : -1).I64(now);
+        return w.I64(now).I32(5).ToArray();
+    }
 
     async Task<List<byte[]>> NPShopGameMoneyLimitAsync(byte[] plain, long now, CancellationToken ct)
     {

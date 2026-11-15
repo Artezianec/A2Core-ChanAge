@@ -11,7 +11,8 @@ namespace Aion.World;
 // PotionItemAutoUseList_NT 0x5648 (OBSERVED "01 01 b314991f 00000000": group HP, Life Potion, none), SetAutoUsePotionItem
 // 0x5649/0x564a, ItemAutoUseActivatedList_NT 0x564b, SetAutoUseItem 0x564c/0x564d; ItemRestoreStatusList_NT 0xe343
 // (OBSERVED: 3 types, char db id, count 0, a time); PresetInfo_NT 0xe28c (OBSERVED 904 B), PresetEquipUpdate_NT 0xe28d,
-// PresetListSet 0xe291/0xe292. Request layouts are the usmap's (no request sample): CANDIDATE.
+// PresetListSet 0xe291/0xe292, PresetSkillUpdate_NT 0xe293 (skill presets: GameSession.SkillPresets.cs). Request layouts are
+// the usmap's (no request sample): CANDIDATE.
 public sealed partial class GameSession
 {
     public const ushort SocialActionAcquireNt = 0x9500,
@@ -58,7 +59,11 @@ public sealed partial class GameSession
         autoUseItems.Clear();
         autoUseItems.UnionWith(Read<int[]>("item_auto_use") ?? []);
         presets = Read<PresetSetting>("presets") ?? new([], []);
+        LoadSkillPresets(Read<Dictionary<string, int[][]>>("skill_presets"));
+        LoadDailyRecords(Read<Dictionary<string, int[]>>("daily_dungeon_records"));
         restoreCounts = Read<Dictionary<int, RestoreCount>>("item_restores") ?? [];
+        bookmarks = Read<List<BookmarkEntry>>("bookmarks") ?? [];
+        LoadArcana(Read<long[]>("arcana_create"), Read<Dictionary<string, int>>("arcana_exp"));
     }
 
     async Task SaveSettingAsync(string name, object value, CancellationToken ct)
@@ -208,7 +213,8 @@ public sealed partial class GameSession
     /// <summary>
     /// PresetInfo_NT in the official order (OBSERVED 904 B): equip no + [{no, [{i64 item, u8 slot}]}], arcana no + presets,
     /// skill no + [{mask, no, slot, ...}], title no + [], wing no + wing i32 + [], creature board no, housing no + [].
-    /// The current equip preset is what is worn; skill, title and wing presets are not kept yet (empty lists).
+    /// The current equip preset is what is worn; the skill presets are the bar and the kept
+    /// "skill_presets" (GameSession.SkillPresets.cs); title and wing presets are not kept yet (empty lists).
     /// </summary>
     byte[] PresetInfo()
     {
@@ -216,7 +222,7 @@ public sealed partial class GameSession
         var w = PacketWriter.Opcode(PresetInfoNt).U8(PresetNo(PresetEquip));
         WriteEquipPresets(w, equip);
         w.U8(PresetNo(1)).Varint(0);
-        w.U8(PresetNo(2)).Varint(0);
+        WriteSkillPresets(w);
         w.U8(PresetNo(3)).Varint(0);
         w.U8(PresetNo(4)).I32(wingId).Varint(0);
         w.U8(PresetNo(6)).U8(1).Varint(0);
@@ -243,7 +249,9 @@ public sealed partial class GameSession
         if (type >= PresetTypes || no is < 1 or > PresetCount) return [PacketWriter.Opcode(PresetSetRs).U16(1).U8(type).U8(no).Bool(batch).Varint(0).ToArray()];
         var changes = new Dictionary<int, int>();
         foreach (var t in batch ? Enumerable.Range(0, PresetTypes) : new[] { (int)type }) changes[t] = no;
-        var replies = new List<byte[]> { PacketWriter.Opcode(PresetSetRs).U16(0).U8(type).U8(no).Bool(batch).Varint(0).ToArray() };
+        // A skill preset never used starts as a copy of the current one, announced before the reply (OBSERVED).
+        var replies = new List<byte[]>(NewSkillPreset(changes));
+        replies.Add(PacketWriter.Opcode(PresetSetRs).U16(0).U8(type).U8(no).Bool(batch).Varint(0).ToArray());
         replies.AddRange(await ApplyPresetsAsync(changes, ct));
         return replies;
     }
@@ -265,13 +273,15 @@ public sealed partial class GameSession
         catch (ProtocolException) { return []; }
         var reply = PacketWriter.Opcode(PresetListSetRs).U16(0).Varint(changes.Count);
         foreach (var (t, no) in changes) reply.U8(t).U8(no);
-        return [reply.Varint(0).ToArray(), .. await ApplyPresetsAsync(changes, ct)];
+        var created = NewSkillPreset(changes);
+        return [.. created, reply.Varint(0).ToArray(), .. await ApplyPresetsAsync(changes, ct)];
     }
 
     async Task<List<byte[]>> ApplyPresetsAsync(Dictionary<int, int> changes, CancellationToken ct)
     {
         var replies = new List<byte[]>();
         var equipFrom = PresetNo(PresetEquip);
+        var skillFrom = PresetNo(PresetSkill);
         foreach (var (t, no) in changes) presets.Numbers[t] = no;
         if (changes.TryGetValue(PresetEquip, out var equipTo) && equipTo != equipFrom)
         {
@@ -305,6 +315,7 @@ public sealed partial class GameSession
             WriteEquipPresets(update, new SortedDictionary<int, Dictionary<int, long>>(presets.Equip) { [equipTo] = EquippedSlots() });
             replies.Add(update.ToArray());
         }
+        if (changes.TryGetValue(PresetSkill, out var skillTo) && skillTo != skillFrom) replies.AddRange(await SwitchSkillPresetAsync(skillFrom, skillTo, ct));
         await SaveSettingAsync("presets", presets, ct);
         return replies;
     }

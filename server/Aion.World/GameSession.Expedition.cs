@@ -85,68 +85,10 @@ public sealed class ExpeditionTables
 
 public sealed partial class GameSession
 {
-    public const ushort PartyDungeonClearNt = 0x3A69, PartyDungeonMiddleBossKillNt = 0x3829,
-        ContentsTicketsNt = 0x3854, ContentsTicketUpdateNt = 0x3855;
+    // The content tickets moved to GameSession.ContentTickets.cs (OBSERVED 0x610b / 0x610c; our 0x3854 / 0x3855 were guesses).
+    public const ushort PartyDungeonClearNt = 0x3A69, PartyDungeonMiddleBossKillNt = MiddleBossKillNt;
 
     static ExpeditionTables Expeditions => ExpeditionTables.Embedded;
-
-    readonly Dictionary<int, (string Period, int Count)> expeditionTickets = [];
-    bool expeditionTicketsDirty;
-
-    void LoadExpeditionTickets(IReadOnlyList<(int TicketId, string Period, int Count)> stored)
-    {
-        expeditionTickets.Clear();
-        foreach (var row in stored) expeditionTickets[row.TicketId] = (row.Period, row.Count);
-    }
-
-    async Task FlushExpeditionTicketsAsync(CancellationToken ct)
-    {
-        if (!expeditionTicketsDirty || Store is not { } store || CharacterId is not { } character) return;
-        expeditionTicketsDirty = false;
-        var rows = expeditionTickets.Select(kv => (kv.Key, kv.Value.Period, kv.Value.Count)).ToList();
-        await Stored(async () => await store.SaveExpeditionTicketsAsync(character, rows, ct) ? [[]] : []);
-    }
-
-    (int Remaining, int Max, string Period) TicketState(ExpeditionTables.Ticket ticket, long now)
-    {
-        var period = ShopTables.Period(ticket.Reset, DateTimeOffset.FromUnixTimeMilliseconds(now));
-        var used = expeditionTickets.TryGetValue(ticket.Id, out var row) && row.Period == period ? row.Count : 0;
-        return (Math.Max(0, ticket.MaxCount - used), ticket.MaxCount, period);
-    }
-
-    bool HasExpeditionTicket(DungeonInfo room, long now, out ExpeditionTables.Ticket? ticket)
-    {
-        ticket = Expeditions.TicketFor(room);
-        if (ticket is null || ticket.MaxCount <= 0 || !Timed(room)) return true;
-        return TicketState(ticket, now).Remaining > 0;
-    }
-
-    void ConsumeExpeditionTicket(DungeonInfo room, long now)
-    {
-        if (Expeditions.TicketFor(room) is not { MaxCount: > 0 } ticket || !Timed(room)) return;
-        var period = ShopTables.Period(ticket.Reset, DateTimeOffset.FromUnixTimeMilliseconds(now));
-        var used = expeditionTickets.TryGetValue(ticket.Id, out var row) && row.Period == period ? row.Count : 0;
-        expeditionTickets[ticket.Id] = (period, used + 1);
-        expeditionTicketsDirty = true;
-        var remaining = Math.Max(0, ticket.MaxCount - used - 1);
-        worldPlayer?.Send([ContentsTicketUpdate(ticket.Id, remaining, ticket.MaxCount)]);
-    }
-
-    /// <summary>ContentsTickets_NT at world entry (OBSERVED non-empty on live accounts; CANDIDATE field widths).</summary>
-    byte[] ContentsTicketsList(long now)
-    {
-        var tickets = Expeditions.AllTickets.ToList();
-        var w = PacketWriter.Opcode(ContentsTicketsNt).Varint((uint)tickets.Count);
-        foreach (var ticket in tickets)
-        {
-            var (remaining, max, _) = TicketState(ticket, now);
-            w.I32(ticket.Id).I32(0).I32(0).I32(remaining).I32(max);
-        }
-        return w.ToArray();
-    }
-
-    static byte[] ContentsTicketUpdate(int ticketId, int remaining, int max) =>
-        PacketWriter.Opcode(ContentsTicketUpdateNt).I32(ticketId).I32(0).I32(0).I32(remaining).I32(max).U8(0).I32(0).ToArray();
 
     /// <summary>PartyDungeonClear_NT after a party dungeon script clear (CANDIDATE score breakdown).</summary>
     static byte[] PartyDungeonClear(long elapsedMs, DungeonInfo room)
@@ -176,21 +118,25 @@ public sealed partial class GameSession
             else session.worldPlayer?.Send([pkt]);
     }
 
-    /// <summary>Clear score, complete/end dungeon state — every member in the copy (not only the script host).</summary>
-    void BroadcastPartyDungeonClearEnd(DungeonInfo room, long elapsedMs, int dungeonId, long now, long holdMs)
+    /// <summary>
+    /// The clear, to every member in the copy: an expedition's 0x6108 `00`, DungeonCompleteResult_NT with the member's clear
+    /// reward (by race), Complete (3) for the hold, End (4) at once when there is no hold, and an expedition's clear score.
+    /// </summary>
+    void BroadcastDungeonClear(DungeonInfo room, long elapsedMs, DungeonCopy c, bool endNow)
     {
-        if (room.Type != "Party") return;
-        var packets = new[]
-        {
-            DungeonCompleteResult(dungeonId, true),
-            DungeonState(dungeonId, DungeonStateComplete, now, now),
-            DungeonState(dungeonId, DungeonStateEnd, now, now + holdMs),
-            PartyDungeonClear(elapsedMs, room),
-        };
         foreach (var session in DungeonCopySessions())
-            foreach (var pkt in packets)
-                if (session == this) mapEventOut.Add(pkt);
-                else session.worldPlayer?.Send([pkt]);
+        {
+            List<byte[]> packets = [];
+            if (room.Type == "Party") packets.Add(PacketWriter.Opcode(DungeonClearKillNpcNt).U8(0).ToArray());
+            var shown = (session.profileRace == 2 ? room.RewardDark : room.RewardLight) is { Length: > 0 } won
+                ? won.Where(r => r.Length >= 2).Select(r => ((int)r[0], r[1])).ToList() : null;
+            packets.Add(DungeonCompleteResult(c.DungeonId, true, shown));
+            packets.Add(DungeonState(c.DungeonId, DungeonStateComplete, c.ClearedMs, c.CompleteEndsMs));
+            if (endNow) packets.Add(DungeonState(c.DungeonId, DungeonStateEnd, c.ClearedMs, c.ClearedMs + DungeonEndStateMs));
+            if (room.Type == "Party") packets.Add(PartyDungeonClear(elapsedMs, room));
+            if (session == this) mapEventOut.AddRange(packets);
+            else session.worldPlayer?.Send(packets);
+        }
     }
 
     /// <summary>A dungeon boss's hit against this player after the Oct 28 2026 boss attack cuts (Expedition and Transcendence stages).</summary>

@@ -34,7 +34,7 @@ public sealed partial class GameSession
             replies.AddRange(moved);
         }
         if (o.MoveTo is { Length: > 0 } point) replies.AddRange(MoveMapDoor(point, now));
-        if (o.SpacetimeRift) replies.AddRange(EnterSpacetimeRift(now));
+        if (o.SpacetimeRift && o.Rift is null) replies.AddRange(EnterSpacetimeRift(now));
         return replies;
     }
 }

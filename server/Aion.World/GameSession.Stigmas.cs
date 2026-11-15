@@ -17,11 +17,24 @@ namespace Aion.World;
 // StigmaShard (2). SkillLevelDown_RQ 0x3841 takes one stigma level back; SkillLevelReset_RQ 0x3843 {ESkillAcquireType Stigma (2),
 // skill or 0} forgets it (RemoveSkillList, opcode CANDIDATE 0x5102 next to AddSkillList 0x5101) and clears its quick slots.
 // Everything here is behind Aion:Stigmas:Enabled (off by default); off, the skill-point messages behave exactly as before.
+//
+// OBSERVED in the community recordings of 2026-11-05/06 (official global server; ported from Addiboii/A2Core 0d3d3a8, 6714299):
+// - Learning answers 0x3840, then SkillAdd_NT 0x380f {mask 01, skill i32, level u8, original u8, 5 additional-level bytes,
+//   reason u8 2}, not AddSkillList 0x5101.
+// - From stigma level 5 the client casts the stigma's level variant (StigmaTable.Variant). Crossing a threshold the server deletes
+//   the old variant (SkillDelete_NT 0x3810 {skill i32}) and adds the new one at the stigma's level (0x380f reason 6); on other
+//   levels it updates it (0x3813 reason 6); all before the 0x3840. The variant is cast in its stigma's place and listed in 0x5100.
+// - A reset is free (Aion:Stigmas:ResetKinah defaults to 0): variants deleted, 0x3844, the levels to 0 (0x3813 reason 5), 0x5105.
+// - Stigma quick slots are wire slots 20-23 (QuickSlotData SlotId - 1), filled with QuickSlotContextSkillUpdate 0x5607.
 public sealed partial class GameSession
 {
     const byte SkillPointTypeStigmaShard = 2;   // ESkillPointType
     const byte SkillAcquireTypeStigma = 2;      // ESkillAcquireType
     const int QuickSlotTypeStigma = 4;          // EQuickSlotType
+    public const ushort SkillAddNt = 0x380f, SkillDeleteNt = 0x3810;
+    const byte StigmaLearnedReason = 2, StigmaVariantReason = 6;   // ESkillAcquireReason (OBSERVED: learned 2, variant 6)
+    /// <summary>The stigma quick slots on the wire (QuickSlot_Stigma_1..4 = SlotId 21-24, sent as SlotId - 1; OBSERVED).</summary>
+    public const int FirstStigmaQuickSlot = 20, LastStigmaQuickSlot = 23;
     /// <summary>RemoveSkillList_NT {ActionProtocol key, skill ids}: CANDIDATE opcode (AddSkillList 0x5101 + 1; never observed).</summary>
     public const ushort RemoveSkillListNt = 0x5102;
     // EResult (usmap) for refused stigma requests.
@@ -54,7 +67,13 @@ public sealed partial class GameSession
     bool IsOwnStigma(int skillId) => StigmaRules.Enabled && StigmaData.IsStigmaOf(className, skillId);
 
     /// <summary>The stigma level of a learned stigma (stigmas on), else null.</summary>
-    int? StigmaLevelOf(int skillId) => StigmasOn && stigmas.TryGetValue(skillId, out var lvl) ? lvl : null;
+    int? StigmaLevelOf(int skillId)
+    {
+        if (!StigmasOn) return null;
+        if (stigmas.TryGetValue(skillId, out var lvl)) return lvl;
+        // A level variant reads its stigma's level while it is the stigma's current variant.
+        return StigmaData.StigmaOfVariant(skillId) is { } stigma && stigmas.TryGetValue(stigma, out var at) && StigmaData.Variant(stigma, at) == skillId ? at : null;
+    }
 
     /// <summary>Shards from levelling only (x ShardRate), not including bonus shards.</summary>
     public int StigmaShardsFromLevel => (int)Math.Floor(StigmaData.ShardsAt(level) * StigmaRules.ShardRate + 1e-9);
@@ -77,12 +96,43 @@ public sealed partial class GameSession
         quickSlots.Values.Select(s => s.SkillId).Where(stigmas.ContainsKey).Distinct().ToList();
 
     /// <summary>Whether a stigma may be cast: learned and on a slot (unless Aion:Stigmas:RequireSlot is off).</summary>
-    internal bool StigmaCastable(int skillId) =>
-        StigmasOn && stigmas.ContainsKey(skillId) && (!StigmaRules.RequireSlot || EquippedStigmas.Contains(skillId));
+    internal bool StigmaCastable(int skillId)
+    {
+        // A variant is cast in its stigma's place: castable when it is the stigma's variant at its level and the stigma is castable.
+        if (StigmasOn && StigmaData.StigmaOfVariant(skillId) is { } stigma)
+            return stigmas.TryGetValue(stigma, out var at) && StigmaData.Variant(stigma, at) == skillId && StigmaCastable(stigma);
+        return StigmasOn && stigmas.ContainsKey(skillId) && (!StigmaRules.RequireSlot || EquippedStigmas.Contains(skillId));
+    }
 
     /// <summary>The learned stigmas for the skill list (skill, stigma level).</summary>
     IEnumerable<(int SkillId, int Level)> StigmaEntries() =>
-        StigmasOn ? stigmas.OrderBy(p => p.Key).Select(p => (p.Key, Math.Clamp(p.Value, 1, 255))) : [];
+        StigmasOn
+            ? stigmas.OrderBy(p => p.Key).SelectMany(p => StigmaData.Variant(p.Key, p.Value) is > 0 and var v
+                ? new[] { (p.Key, Math.Clamp(p.Value, 1, 255)), (v, Math.Clamp(p.Value, 1, 255)) }   // the variant listed too (OBSERVED 0x5100)
+                : [(p.Key, Math.Clamp(p.Value, 1, 255))])
+            : [];
+
+    /// <summary>0x380f SkillAdd_NT {mask 01, skill, level, original level, 5 additional-level bytes, reason} (OBSERVED).</summary>
+    static byte[] SkillAdd(int skillId, int level, byte reason) =>
+        PacketWriter.Opcode(SkillAddNt).U8(1).I32(skillId).U8((byte)level).U8((byte)level).Zeros(5).U8(reason).ToArray();
+
+    /// <summary>0x3810 SkillDelete_NT {skill i32} (OBSERVED).</summary>
+    static byte[] SkillDelete(int skillId) => PacketWriter.Opcode(SkillDeleteNt).I32(skillId).ToArray();
+
+    /// <summary>The variant messages of a stigma going from one level to another: delete and add at a threshold, else an update.</summary>
+    List<byte[]> StigmaVariantChange(int stigma, int from, int to)
+    {
+        int before = StigmaData.Variant(stigma, from), after = StigmaData.Variant(stigma, to);
+        var messages = new List<byte[]>();
+        if (before == after)
+        {
+            if (after > 0 && to > 0) messages.Add(StigmaWireLevel(after, to, StigmaVariantReason));
+            return messages;
+        }
+        if (before > 0) messages.Add(SkillDelete(before));
+        if (after > 0 && to > 0) messages.Add(SkillAdd(after, to, StigmaVariantReason));
+        return messages;
+    }
 
     /// <summary>The leveled kit with the learned stigmas after it (0x5100 and its resyncs).</summary>
     List<(int SkillId, int Level)> WithStigmas(IReadOnlyList<(int SkillId, int Level)> kit)
@@ -165,18 +215,12 @@ public sealed partial class GameSession
     byte[] StigmaShardUpdate()
     {
         var point = StigmaRules.ShardUpdateSendsSpent ? StigmaShardsSpent : StigmaShardsLeft;
-        return PacketWriter.Opcode(SkillPointUpdateNt).U8(1).U8(SkillPointTypeStigmaShard).Varint(point).U8(0).ToArray();
+        // {type u8, point u16} (GamePackets.AppendSkillPointInfo): a varint and a zero byte matched it only below 128.
+        return PacketWriter.Opcode(SkillPointUpdateNt).U8(1).AppendSkillPointInfo(point, SkillPointTypeStigmaShard).ToArray();
     }
 
     /// <summary>The shard update after skill-point syncs, from the stigma tab's level (stigmas on).</summary>
     IEnumerable<byte[]> StigmaShardSync() => StigmasOn && level >= StigmaData.UnlockLevel ? [StigmaShardUpdate()] : [];
-
-    byte[] RemoveSkills(IReadOnlyList<int> ids)
-    {
-        var w = PacketWriter.Opcode(RemoveSkillListNt).Varint(playerKey).Varint((uint)ids.Count);
-        foreach (var id in ids) w.I32(id);
-        return w.ToArray();
-    }
 
     /// <summary>What a stigma's next level needs, or why not: 0 ok, else the EResult the client shows.</summary>
     internal (int Result, int Next, int Cost) StigmaNext(int skillId)
@@ -209,12 +253,14 @@ public sealed partial class GameSession
             return [Reply(result), ..StigmaShardSync()];
         }
         if (!await SaveStigmaAsync(skillId, next, ct)) return [Reply(SkillAcquirePersistFailed), ..StigmaShardSync()];
+        var current = next - 1;
         stigmas[skillId] = next;
         RebuildWireClientSkillList();
         RecomputeCombatPower();
+        // OBSERVED order: the variant change, 0x3840, then 0x380f reason 2 (learned) or 0x3813, then 0x5105.
         return next == 1
-            ? [Reply(0), GamePackets.AddSkillList(playerKey, [(skillId, 1)], SkillPointLevelUp, originalLevels: new Dictionary<int, int> { [skillId] = 1 }), StigmaShardUpdate()]
-            : [Reply(0), StigmaWireLevel(skillId, next, SkillPointLevelUp), StigmaShardUpdate()];
+            ? [.. StigmaVariantChange(skillId, current, next), Reply(0), SkillAdd(skillId, 1, StigmaLearnedReason), StigmaShardUpdate()]
+            : [.. StigmaVariantChange(skillId, current, next), Reply(0), StigmaWireLevel(skillId, next, SkillPointLevelUp), StigmaShardUpdate()];
     }
 
     /// <summary>0x3841 for a stigma: one stigma level back (not below 1), its shards refunded.</summary>
@@ -227,12 +273,13 @@ public sealed partial class GameSession
         stigmas[skillId] = current - 1;
         RebuildWireClientSkillList();
         RecomputeCombatPower();
-        return [Reply(0), StigmaWireLevel(skillId, current - 1, SkillPointLevelDown), StigmaShardUpdate()];
+        return [.. StigmaVariantChange(skillId, current, current - 1), Reply(0), StigmaWireLevel(skillId, current - 1, SkillPointLevelDown), StigmaShardUpdate()];
     }
 
     /// <summary>
     /// 0x3843 for stigmas (type Stigma, or a stigma skill): the stigma (every stigma when skill is 0) forgotten, its shards refunded
-    /// and its quick slots cleared. Aion:Stigmas:ResetKinah Kinah is deducted in the same store step as the forget (0 = free).
+    /// and its quick slots cleared. Aion:Stigmas:ResetKinah Kinah is deducted in the same store step as the forget (default 0 = free,
+    /// as the official resets; the reply order and points list are OBSERVED, see the header).
     /// There is no named not-enough-Kinah EResult in our skill-reset path, so a short purse is refused with generic result 1
     /// (the same code as a failed store save) and nothing is forgotten. Reply 0x3844 {result, type, skill, modify list {skill, 0},
     /// modify points [StigmaShard, left]}. 0x3844 always carries shards left; the following 0x5105 follows ShardUpdateSendsSpent
@@ -241,11 +288,14 @@ public sealed partial class GameSession
     async Task<List<byte[]>> StigmaResetAsync(byte acquireType, int skillId, CancellationToken ct)
     {
         var targets = skillId == 0 ? stigmas.Keys.Order().ToList() : stigmas.ContainsKey(skillId) ? [skillId] : [];
+        var levelsBefore = targets.ToDictionary(id => id, id => stigmas[id]);
+        var spentBefore = StigmaShardsSpent;
+        // Points list as the OBSERVED skill-point reset (capture 000506) and the official stigma resets: [type u8 2, shards refunded u16].
         byte[] Reply(int result, IReadOnlyList<int> reset)
         {
             var w = PacketWriter.Opcode(SkillLevelResetRs).U16(result).U8(acquireType).I32(skillId).Varint((uint)reset.Count);
             foreach (var id in reset) w.I32(id).U8(0);
-            return w.Varint(1).AppendSkillPointInfo(StigmaShardsLeft, SkillPointTypeStigmaShard).ToArray();
+            return w.Varint(1).U8(SkillPointTypeStigmaShard).U16(Math.Max(0, spentBefore - StigmaShardsSpent)).ToArray();
         }
         if (acquireType != SkillAcquireTypeStigma)
             return [Reply(SkillAcquireInvalidClass, []), ..StigmaShardSync()];
@@ -277,7 +327,12 @@ public sealed partial class GameSession
         await ClearForgottenStigmaSlotsAsync(forgotten, ct);
         RebuildWireClientSkillList();
         RecomputeCombatPower();
-        var replies = new List<byte[]> { Reply(0, forgotten), RemoveSkills(forgotten), StigmaShardUpdate() };
+        // OBSERVED order (official resets): the variants deleted, 0x3844, the levels to 0 (0x3813 reason 5), 0x5105.
+        var replies = new List<byte[]>();
+        foreach (var id in forgotten) replies.AddRange(StigmaVariantChange(id, levelsBefore[id], 0));
+        replies.Add(Reply(0, forgotten));
+        foreach (var id in forgotten) replies.Add(StigmaWireLevel(id, 0, SkillLevelModify));
+        replies.Add(StigmaShardUpdate());
         if (cost > 0) replies.AddRange(await InventoryChangesAsync(ct, 0, DecreaseShopBuy));
         return replies;
     }
@@ -331,6 +386,41 @@ public sealed partial class GameSession
         if (!stigmas.ContainsKey(skillId)) return SkillAcquireNotFoundData;
         var others = quickSlots.Values.Where(s => s.Slot != slotNumber).Select(s => s.SkillId).Where(stigmas.ContainsKey).ToHashSet();
         return others.Contains(skillId) || others.Count < StigmaSlotsOpen ? 0 : QuickSlotStigmaMaxCount;
+    }
+
+    /// <summary>
+    /// 0x5607 on a stigma quick slot (wire slots 20-23; OBSERVED as the official client's only way to slot a stigma, ported from
+    /// Addiboii/A2Core 6714299): context slot 0 stores the stigma with the stigma rules, a stigma already on another stigma slot trades
+    /// places with this slot's (reply mask 3), skill 0 clears. Context slots 1-3 are accepted and not stored (CANDIDATE).
+    /// </summary>
+    async Task<List<byte[]>> SetStigmaQuickSlotAsync(byte slotId, byte contextSlot, int skillId, CancellationToken ct)
+    {
+        byte[] Reply(int result, int swapSlot = -1) =>
+            QuickSlotContextReply(result, slotId, contextSlot, skillId, swapSlot >= 0, (byte)Math.Max(0, swapSlot));
+        if (contextSlot != 0) return [Reply(0)];
+        if (skillId < 0) return [Reply(1)];
+        var other = skillId == 0 ? null
+            : quickSlots.Values.FirstOrDefault(q => q.Slot != slotId && q.SkillId == skillId && q.Slot is >= FirstStigmaQuickSlot and <= LastStigmaQuickSlot);
+        if (skillId != 0)
+        {
+            if (!IsOwnStigma(skillId) || !stigmas.ContainsKey(skillId)) return [Reply(1)];
+            if (slotId - FirstStigmaQuickSlot >= StigmaSlotsOpen) return [Reply(QuickSlotStigmaMaxCount)];
+        }
+        var previous = quickSlots.GetValueOrDefault(slotId) is { SkillId: > 0 } p && stigmas.ContainsKey(p.SkillId) ? p.SkillId : 0;
+        var changes = new List<(int Slot, int Skill)> { (slotId, skillId) };
+        if (other is not null) changes.Add((other.Slot, previous));
+        foreach (var (slot, skill) in changes)
+        {
+            var record = skill == 0 ? null : new QuickSlotRecord(slot, 0, 0, 0, skill);   // EQuickSlotType Skill, as upstream's recorded bar
+            if (Store is { } store && CharacterId is { } character)
+            {
+                var saved = await Stored(async () => await store.SaveQuickSlotAsync(character, slot, record, ct) ? [[]] : []);
+                if (saved.Count == 0) return [Reply(1)];
+            }
+            if (record is null) quickSlots.Remove(slot);
+            else quickSlots[slot] = record;
+        }
+        return [Reply(0, other?.Slot ?? -1)];
     }
 
     /// <summary>The reply to /stigma: shards, slots and the learned stigmas.</summary>

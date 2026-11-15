@@ -18,8 +18,15 @@ public sealed record LauncherConfig(
     [property: JsonPropertyName("clientVersions"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ClientVersion[]? ClientVersions = null,
     [property: JsonPropertyName("selectedClientVersion"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SelectedClientVersion = null,
     [property: JsonPropertyName("steamClientPath"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SteamClientPath = null,
-    [property: JsonPropertyName("redirectMode"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RedirectMode = null)
+    [property: JsonPropertyName("redirectMode"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RedirectMode = null,
+    [property: JsonPropertyName("redirectConfigHosts"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? RedirectConfigHosts = null,
+    [property: JsonPropertyName("writeDefaultSavedIni"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? WriteDefaultSavedIni = null)
 {
+    /// <summary>When true, Play also redirects official config/login hosts (mobileappconfig*, api.g.nc.com). Default false, matching Addiboii rc1 (6 NCGuard hosts only).</summary>
+    [JsonIgnore] public bool RedirectConfigHostsEnabled => RedirectConfigHosts == true;
+    /// <summary>When true (the default), Play also writes GamePlatform.ini into the unsuffixed Saved folder in case the client starts without -saveddirsuffix.</summary>
+    [JsonIgnore] public bool WriteDefaultSavedIniEnabled => WriteDefaultSavedIni != false;
+
     /// <summary>Embedded launcher.json (the default server baked into this build).</summary>
     public static LauncherConfig Load()
     {

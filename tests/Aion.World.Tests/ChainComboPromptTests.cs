@@ -1,3 +1,4 @@
+using Aion.Application.Gameplay;
 using Aion.Protocol.Native;
 using Aion.World;
 using Xunit;
@@ -86,6 +87,9 @@ public sealed class ChainComboPromptTests
     public async Task Spec_variant_cast_emits_3818_with_matching_chain_step()
     {
         var store = new FakeCharacterStore { Progress = (45, 0) };
+        // A specialisation child is cast only with its part in effect: 14020000 at level 8 (slot 1 open) with part 14020010.
+        store.Skills.Add(new SkillState(14_020_000, 8, null, 8));
+        store.SkillPartRows.Add(new SkillPartRecord(14_020_000, 1, 14_020_010));
         var session = new GameSession(GameSessionTestHelpers.LiveGameData,
             new GameSessionOptions { CharacterLevel = 45, WorldId = store.WorldId }, new Random(1)) { Store = store };
         await session.HandleAsync(GameSessionTestHelpers.Login(), Now);

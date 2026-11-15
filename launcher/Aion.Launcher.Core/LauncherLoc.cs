@@ -137,9 +137,14 @@ public static class LauncherLoc
     public static string ButtonGetSteam => T("Get Steam", "Установить Steam");
     public static string TitleContinueDownload => T("Continue the download", "Продолжить загрузку");
     public static string TitleDownloadGame => T("Download the game", "Загрузить игру");
-    public static string IntroDownloadGame(string launcherName) => T(
-        "This server runs one specific version of the game (about 88 GB). " + launcherName + " downloads it from Steam with your own Steam account. Your normal Steam copy of the game is not changed.",
-        "Сервер использует одну версию игры (около 88 ГБ). " + launcherName + " скачивает её из Steam с вашего аккаунта. Обычная копия в Steam не изменяется.");
+    public static string IntroDownloadGame(string launcherName, string? version, double gb) => T(
+        $"This server runs {(version is null ? "one specific version of the game" : "game version " + version)} ({gb:0.0} GB). " + launcherName + " downloads it from Steam with your own Steam account. Your normal Steam copy of the game is not changed.",
+        $"Сервер использует {(version is null ? "одну версию игры" : "версию игры " + version)} ({gb:0.0} ГБ). " + launcherName + " скачивает её из Steam с вашего аккаунта. Обычная копия в Steam не изменяется.");
+    public static string LinkChooseDownloadFolder => T("Choose another download folder", "Выбрать другую папку для загрузки");
+    public static string ChooseDownloadFolderDescription(double gb) => T(
+        $"Choose where to download the game ({gb:0.0} GB). A folder for this version is made inside it.",
+        $"Выберите, куда загрузить игру ({gb:0.0} ГБ). Внутри будет создана папка для этой версии.");
+    public static string SpaceRequirementNoRoom => T(" Not enough space there: choose another folder.", " Там мало места: выберите другую папку.");
     public static string SteamQrHelp(string launcherName) => T(
         "You sign in by scanning a QR code with the Steam app on your phone. " + launcherName + " never sees your Steam password.",
         "Вход — QR-код в мобильном приложении Steam. " + launcherName + " не видит ваш пароль Steam.");
@@ -147,6 +152,12 @@ public static class LauncherLoc
     public static string ButtonSignInSteamDownload => T("Sign in to Steam and download", "Войти в Steam и загрузить");
     public static string ButtonCheckAgain => T("Check again", "Проверить снова");
     public static string LinkExistingFolder => T("I already have this version in another folder", "У меня уже есть эта версия в другой папке");
+    public static string UseSteamCopyNote(string name) => T(
+        $"Or play with your Steam copy as it is ({name}): nothing to download and its files are not changed, "
+            + "but it is newer than the version this server runs, so it may not connect or may misbehave in game.",
+        $"Или играйте с вашей копией Steam как есть ({name}): ничего скачивать не нужно и её файлы не изменяются, "
+            + "но она новее версии этого сервера, поэтому подключение или игра могут работать некорректно.");
+    public static string ButtonUseSteamCopy(string name) => T($"Use my Steam copy ({name})", $"Использовать мою копию Steam ({name})");
     public static string PausedDownload => T("Paused. Press Continue download to carry on.", "Пауза. Нажмите «Продолжить загрузку».");
     public static string TitleInstallingDownloaded => T("Installing", "Установка");
     public static string IntroInstallingDownloaded => T(
@@ -177,8 +188,8 @@ public static class LauncherLoc
     public static string LinkSignOut => T("Sign out", "Выйти");
     public static string LabelClientVersion => T("Client version", "Версия клиента");
     public static string VersionNoteSteam(string? folder) => T(
-        $"Game files: {folder ?? "Steam copy not found (set steamClientPath in launcher.json)"}. Used as-is: not changed, no patch paks; the server supports 2.0.6.0, so a newer client may not connect.",
-        $"Файлы: {folder ?? "копия Steam не найдена (steamClientPath в launcher.json)"}. Без изменений, без патч-паков; сервер на 2.0.6.0 — более новый клиент может не подключиться.");
+        $"Game files: {folder ?? "Steam copy not found (set steamClientPath in launcher.json)"}. Used as-is: not changed, no patch paks; the server supports 2.0.9.0, so a newer client may not connect.",
+        $"Файлы: {folder ?? "копия Steam не найдена (steamClientPath в launcher.json)"}. Без изменений, без патч-паков; сервер на 2.0.9.0 — более новый клиент может не подключиться.");
     public static string VersionNotePrivate(string folder) => T($"Game files: {folder}", $"Файлы игры: {folder}");
     public static string PatchPaksCheck => T("Apply client patch paks (z_A2Core_Patch-Windows_P) before launch", "Применять патч-паки (z_A2Core_Patch-Windows_P) перед запуском");
     public static string ButtonPlay => T("Play", "Играть");
@@ -230,6 +241,12 @@ public static class LauncherLoc
     public static string ErrStillMismatch(string problem) => T($"Some files still do not match after download ({problem}).", $"После загрузки файлы всё ещё не совпадают ({problem}).");
     public static string ErrFirewallDeclined => T("The Windows permission prompt was declined, so the firewall rules were not added. Press Try again and choose Yes.", "Разрешение Windows отклонено — правила брандмауэра не добавлены. Нажмите «Повторить» и «Да».");
     public static string ErrSteamCopyMissing => T("The Steam copy of AION2 was not found. Set steamClientPath in launcher.json.", "Копия AION2 в Steam не найдена. Укажите steamClientPath в launcher.json.");
+    public static string ErrNoPrivateCopyForFirewall => T(
+        "There is no private game copy to set firewall rules for; the Steam copy runs without them.",
+        "Нет частной копии игры для правил брандмауэра; копия Steam запускается без них.");
+    public static string SteamCopyNotChecked => T(
+        "the Steam copy is used as it is and not checked against the server's version",
+        "копия Steam используется как есть и не сверяется с версией сервера");
     public static string ErrGameNotInstalled => T("The game is not installed.", "Игра не установлена.");
     public static string ErrGameAlreadyRunning => T("The game is already running.", "Игра уже запущена.");
     public static string ErrGameFilesChanged(string problem) => T($"Game files changed ({problem}). Use Check all files, or Uninstall and set up again.", $"Файлы изменились ({problem}). Проверьте все файлы или переустановите.");

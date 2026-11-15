@@ -1,4 +1,4 @@
-namespace Aion.World;
+﻿namespace Aion.World;
 
 public sealed partial class GameSession
 {
@@ -29,6 +29,10 @@ public sealed partial class GameSession
     static ShopTables.GoodsRow? ResolveExportedGoods(int platformOrGoodsId)
     {
         var gameId = PlatformGoodsTables.Embedded.ResolveGameGoodsId(platformOrGoodsId) ?? platformOrGoodsId;
-        return Shops.RowByGoodsId(gameId);
+        // Quna / Kina BM SKUs are omitted from shops.json at export; fall back to the platform catalog.
+        return Shops.RowByGoodsId(gameId)
+            ?? PlatformGoodsTables.Embedded.ToShopGoods(platformOrGoodsId)
+            ?? OfficialShopGoods.Embedded.ToShopGoods(platformOrGoodsId)
+            ?? OfficialShopGoods.Embedded.ToShopGoods(gameId);
     }
 }

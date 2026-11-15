@@ -38,8 +38,9 @@ foreach (var bad in new[] { config with { ServerAddress = "example.com" }, confi
 }
 
 // ---------- Client versions ----------
-Check(ClientVersions.Selected(config).Id == ClientVersion.DefaultId && !ClientVersions.Selected(config).IsSteam, "default client version is 2.0.6.0");
+Check(ClientVersions.Selected(config).Id == ClientVersion.DefaultId && !ClientVersions.Selected(config).IsSteam, "default client version is 2.0.9.0");
 Check(ClientVersions.Selected(config with { SelectedClientVersion = "steam-latest" }).IsSteam, "steam version selectable");
+        Check(ClientVersions.Selected(config, "2.0.6.0").Id == ClientVersion.DefaultId, "legacy 2.0.6.0 alias resolves");
 Check(ClientVersions.Selected(config with { SelectedClientVersion = "nope" }).Id == ClientVersion.DefaultId, "unknown selection falls back");
 Check(ClientVersions.Arguments(["-steam", "-lp:x"], new("a", "a", "steam", null, ["-foo", "-steam"])).SequenceEqual(["-steam", "-lp:x", "-foo"]), "extra launch args appended once");
 try { (config with { ClientVersions = [new("x", "x", "other")] }).Validate(); Check(false, "bad kind accepted"); } catch (InvalidDataException) { checks++; }
@@ -52,6 +53,17 @@ try { (config with { ClientVersions = [new("x", "x", "other")] }).Validate(); Ch
     var steamVersion = ClientVersion.Defaults[1];
     Check(ClientVersions.SteamFolder(steamVersion, config, new SteamInstall(cvSteamRoot)) == Path.Combine(library, "steamapps", "common", "AION2"), "steam client found via libraryfolders.vdf");
     Check(ClientVersions.SteamFolder(steamVersion, config with { SteamClientPath = temp }, new SteamInstall(cvSteamRoot)) == temp, "steamClientPath overrides detection");
+    // A Steam copy at any build (here: no file list, a newer buildid) is offered instead of downloading the private build.
+    var cvSteam = new SteamInstall(cvSteamRoot);
+    var exe = SupportedBuild.Embedded.Executable;
+    Check(!ClientVersions.SteamReady(steamVersion, config, cvSteam, exe) && ClientVersions.SteamAlternative(config, cvSteam, exe) is null, "no Steam alternative without the game executable");
+    var steamExe = Path.Combine(library, "steamapps", "common", "AION2", exe.Replace('/', Path.DirectorySeparatorChar));
+    Directory.CreateDirectory(Path.GetDirectoryName(steamExe)!); File.WriteAllText(steamExe, "");
+    Check(ClientVersions.SteamReady(steamVersion, config, cvSteam, exe), "a Steam copy of another build counts as installed for the Steam version");
+    Check(!ClientVersions.SteamReady(ClientVersion.Defaults[0], config, cvSteam, exe), "the private version never counts the Steam copy as installed");
+    Check(ClientVersions.SteamAlternative(config, cvSteam, exe)?.Id == ClientVersion.SteamLatestId, "Steam copy offered as the alternative to the download");
+    Check(ClientVersions.SteamAlternative(config with { ClientVersions = [ClientVersion.Defaults[0]] }, cvSteam, exe) is null, "no Steam alternative when the server does not offer it");
+    Check(ClientVersions.SteamAlternative(config, null, exe) is null, "no Steam alternative without Steam");
     var json = Path.Combine(temp, "launcher.json");
     File.WriteAllText(json, """{"name":"N","custom":1}""");
     ClientVersions.SaveSelection(json, config, "steam-latest");
@@ -171,8 +183,10 @@ Check(build.Files.Count(f => f.Quick) > 500 && build.DownloadCommand == $"downlo
         File.WriteAllBytes(Path.Combine(folder, "Aion2/Binaries/Win64/AION2.exe"), "exe"u8.ToArray());
         File.WriteAllBytes(Path.Combine(folder, "Aion2/Content/Paks/a.ucas"), "data"u8.ToArray());
         Check((await ClientFiles.CheckAsync(folder, sha1Build, CheckLevel.Full)).Ok, "full verify accepts manifest sha1 when sha256 absent");
+        Check((await ClientFiles.FindHashMismatchesAsync(folder, sha1Build)).Count == 0, "repair hash check accepts manifest sha1 when sha256 absent");
         File.WriteAllBytes(Path.Combine(folder, "Aion2/Content/Paks/a.ucas"), "DATA"u8.ToArray());
         Check(!(await ClientFiles.CheckAsync(folder, sha1Build, CheckLevel.Full)).Ok, "full verify detects bad sha1 content");
+        Check((await ClientFiles.FindHashMismatchesAsync(folder, sha1Build)).SequenceEqual(["Aion2/Content/Paks/a.ucas"]), "repair hash check detects bad sha1 content");
     }
     finally { sha1Root.Delete(recursive: true); }
 }
@@ -193,13 +207,18 @@ var ini = GamePlatformIni.WithBootstrap("[/Script/Aion2.AionGamePlatformUserSett
 Check(ini.Contains("FunnelLogHistory=1") && !ini.Contains("Old=1") && ini.Contains("ConfigurationServerUrl=\"http://1.2.3.4:8087/c/AB\""), "settings section replaced, others kept");
 Check(GamePlatformIni.WithBootstrap(ini, "http://1.2.3.4:8087/c/CD").Split("[/Script/Aion2.AionGamePlatformSettings]").Length == 2, "settings section appears once");
 Check(GamePlatformIni.PathFor(@"C:\L", "A2CorePrivate").Replace('\\', '/').EndsWith("AION2/Saved_A2CorePrivate/Config/Windows/GamePlatform.ini"), "private saved folder");
+Check(GamePlatformIni.DefaultPathFor(@"C:\L").Replace('\\', '/').EndsWith("AION2/Saved/Config/Windows/GamePlatform.ini"), "default unsuffixed Saved folder");
+Check(config.WriteDefaultSavedIniEnabled && !(config with { WriteDefaultSavedIni = false }).WriteDefaultSavedIniEnabled, "writeDefaultSavedIni defaults on");
+Check(!config.RedirectConfigHostsEnabled && (config with { RedirectConfigHosts = true }).RedirectConfigHostsEnabled, "redirectConfigHosts defaults off");
 
 // ---------- Hosts ----------
 var server = IPAddress.Parse("203.0.113.5");
 var original = "127.0.0.1 localhost\r\n# keep me\r\n";
 var withBlock = HostsFile.With(original, server);
 Check(HostsFile.HasBlock(withBlock) && withBlock.Contains("203.0.113.5 bladnoch.ncsoft.com") && withBlock.Contains("# keep me"), "hosts block added");
-        Check(withBlock.Contains("203.0.113.5 mobileappconfig.g.nc.com") && withBlock.Contains("203.0.113.5 api.g.nc.com"), "hosts block redirects the official config and login hosts");
+Check(!withBlock.Contains("mobileappconfig.g.nc.com") && !withBlock.Contains("api.g.nc.com") && withBlock.Contains("203.0.113.5 nccr-api.global.nc.com"), "default hosts block is the 6 NCGuard hosts (rc1), not config hosts");
+var withConfig = HostsFile.With(original, server, redirectConfigHosts: true);
+Check(withConfig.Contains("203.0.113.5 mobileappconfig.g.nc.com") && withConfig.Contains("203.0.113.5 api.g.nc.com"), "hosts block can redirect official config and login hosts");
 Check(HostsFile.With(withBlock, server).Split("bladnoch").Length == 2, "hosts block replaced, not duplicated");
 Check(HostsFile.Without(withBlock) == original && !HostsFile.HasBlock(HostsFile.Without(withBlock)), "hosts block removed exactly");
 var legacy = original + "# >>> AION2 private server (added by AionLauncher; removed when the game closes)\r\n203.0.113.5 bladnoch.ncsoft.com\r\n# <<< AION2 private server\r\n";
@@ -209,8 +228,10 @@ Check(!withBlock.Contains("AION", StringComparison.OrdinalIgnoreCase), "hosts bl
 // ---------- DNS redirect map and mode ----------
 var redirectServer = IPAddress.Parse("203.0.113.5");
 var formatted = RedirectMap.FormatForServer(redirectServer);
-Check(formatted.Contains("sdk.gpa.ncsoft.com=203.0.113.5") && formatted.Contains("mobileappconfig.g.nc.com=203.0.113.5") && formatted.Split(';').Length == HostsFile.AllHostnames.Length, "redirect map lists every NC and config hostname");
-var parsed = RedirectMap.Parse(formatted);
+Check(formatted.Contains("sdk.gpa.ncsoft.com=203.0.113.5") && formatted.Contains("nccr-api.global.nc.com=203.0.113.5") && !formatted.Contains("mobileappconfig.g.nc.com") && formatted.Split(';').Length == HostsFile.Hostnames.Length, "default redirect map is the 6 NCGuard hosts");
+var formattedAll = RedirectMap.FormatForServer(redirectServer, redirectConfigHosts: true);
+Check(formattedAll.Contains("mobileappconfig.g.nc.com=203.0.113.5") && formattedAll.Split(';').Length == HostsFile.AllHostnames.Length, "redirect map can list every NC and config hostname");
+var parsed = RedirectMap.Parse(formattedAll);
 Check(parsed["bladnoch.ncsoft.com"].Equals(redirectServer) && parsed["mobileappconfig.g.nc.com"].Equals(redirectServer) && parsed.Count == HostsFile.AllHostnames.Length, "redirect map parses");
 Check(RedirectMap.Parse("Host.EXAMPLE=1.2.3.4")["host.example"].ToString() == "1.2.3.4", "redirect hostnames are case-insensitive");
 try { RedirectMap.Parse("bad"); Check(false, "bad redirect accepted"); } catch (FormatException) { checks++; }

@@ -34,5 +34,57 @@ public sealed class ShopPlatformTests
         Assert.Equal(ShopPremiumMode.Free, ShopOptions.Parse("Free"));
         Assert.Equal(ShopPremiumMode.Disabled, ShopOptions.Parse("Disabled"));
     }
-}
 
+    [Fact]
+    public void Platform_quna_goods_omitted_from_shops_json_map_to_a_shop_row()
+    {
+        var platform = PlatformGoodsTables.Embedded;
+        Assert.Null(platform.ResolveGameGoodsId(1242));
+        Assert.Null(ShopTables.Embedded.RowByGoodsId(1242));
+        var row = platform.ToShopGoods(1242);
+        Assert.NotNull(row);
+        Assert.Equal(534200008, row.ItemId);
+        Assert.Equal(1, row.Bundle);
+        Assert.Equal(300, row.Price);
+        Assert.Equal(platform.QunaItemId, row.Currency);
+        Assert.Equal(0, row.Level);
+        // Cash membership stays on the dedicated path, not this mapping.
+        Assert.Null(platform.ToShopGoods(100024));
+        Assert.Null(platform.ToShopGoods(999_999_999));
+        Assert.Equal(platform.QunaItemId, platform.CurrencyItemId("GameCash"));
+        Assert.Equal(platform.KinaItemId, platform.CurrencyItemId("GoldCombined"));
+        Assert.Equal(platform.QunaItemId, platform.CurrencyItemId("Cash"));
+        Assert.Equal(platform.QunaItemId, platform.CurrencyItemId("Mileage"));
+        // Cash skins are sold for Quna at the platform price. Quna top-up stays unsold.
+        var cashSkin = platform.ToShopGoods(100115);
+        Assert.NotNull(cashSkin);
+        Assert.Equal(platform.QunaItemId, cashSkin!.Currency);
+        Assert.Equal(29000, cashSkin.Price);
+        Assert.Equal(534760341, cashSkin.ItemId);
+        Assert.Null(platform.ToShopGoods(100003));
+    }
+    [Fact]
+    public void Official_shop_quna_goods_missing_from_platform_goods_map_to_a_shop_row()
+    {
+        const int OfficialOnlyQunaGoods = 1252, OfficialOnlyQunaItem = 534200002;
+        Assert.Null(ShopTables.Embedded.RowByGoodsId(OfficialOnlyQunaGoods));
+        Assert.Null(PlatformGoodsTables.Embedded.ToShopGoods(OfficialOnlyQunaGoods));
+        var row = OfficialShopGoods.Embedded.ToShopGoods(OfficialOnlyQunaGoods);
+        Assert.NotNull(row);
+        Assert.Equal(OfficialOnlyQunaItem, row.ItemId);
+        Assert.Equal(1, row.Bundle);
+        Assert.Equal(300, row.Price);
+        Assert.Equal(PlatformGoodsTables.Embedded.QunaItemId, row.Currency);
+        // Membership uses the dedicated path. Cash skins resolve as Quna. Multi-item packs grant every part.
+        Assert.Null(OfficialShopGoods.Embedded.ToShopGoods(100024));
+        Assert.Null(OfficialShopGoods.Embedded.ToShopGoods(999_999_999));
+        var cashSkin = OfficialShopGoods.Embedded.ToShopGoods(100115);
+        Assert.NotNull(cashSkin);
+        Assert.Equal(PlatformGoodsTables.Embedded.QunaItemId, cashSkin!.Currency);
+        Assert.Equal(29000, cashSkin.Price);
+        // Founder packs have a null platform part: only game_item_key rows are granted.
+        var parts = OfficialShopGoods.Embedded.Parts(1152);
+        Assert.Equal([(503700002, 1)], parts);
+        Assert.Contains(OfficialShopGoods.Embedded.Parts(100047), p => p.ItemId == 536310006);
+    }
+}

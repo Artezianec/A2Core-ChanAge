@@ -58,8 +58,8 @@ public sealed class ExpeditionRoomMatchmakingTests
         Assert.Equal(lead.InstanceKey, mate.InstanceKey);
         await lead.TickAsync(Now + 60_000);
         await mate.TickAsync(Now + 60_000);
-        Assert.Contains(leadStore.ExpeditionTickets, t => t.TicketId == 4 && t.Count == 1);
-        Assert.Contains(mateStore.ExpeditionTickets, t => t.TicketId == 4 && t.Count == 1);
+        Assert.Empty(leadStore.ContentTickets);   // KraoCave Easy has no entry ticket (MapEntrance.dat)
+        Assert.Empty(mateStore.ContentTickets);
         Assert.DoesNotContain(world.Social.DungeonRooms, kv => kv.Key == roomKey);
     }
 

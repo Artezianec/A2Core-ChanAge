@@ -193,6 +193,12 @@ public sealed partial class GameSession : IMapEventHost
                 LogNpcTalkRefused(npcKey, npc.NpcId, npc.Name, "unknown_dungeon");
                 return [];
             }
+            // A scheduled festival event (GameSession.FieldEvents.cs): its NPC lets in only during the entry window.
+            if (room.Type == "FieldEvent" && FieldEventEntryClosed(room.Map, now))
+            {
+                LogNpcTalkRefused(npcKey, npc.NpcId, npc.Name, "field_event_closed");
+                return [];
+            }
             if (!MeetsEntry(room, now, out var why))
             {
                 LogNpcTalkRefused(npcKey, npc.NpcId, npc.Name, string.IsNullOrEmpty(why) ? "entry_refused" : why);
@@ -326,9 +332,9 @@ public sealed partial class GameSession : IMapEventHost
         // took the start point (2026-10-30, HQ003: TriggerActor_03 fired, the client stayed at the door), so a door is a PCTeleport
         // (reason 2) with the door's effect SeamlessDoorTeleport_heavy_in (TeleportEffect 40).
         var moved = InstanceMove(room.Map, arrival, now, teleportEffect: throughDoor ? DoorTeleportEffect : null);
-        // Every member pays one weekly ticket on first entry (portal join into the leader's copy included); room UI passes consumeTicket too.
-        if (moved.Count > 0 && !IsAdmin && Timed(room) && !alreadyInCopy)
-            ConsumeExpeditionTicket(room, now);
+        // Every member pays the entry's tickets (MapEntrance DeductType Enter) on first entry, a portal join into the leader's copy included.
+        if (moved.Count > 0 && !IsAdmin && !alreadyInCopy)
+            SpendContentTickets(dungeonId, "Enter", now);
         return moved;
     }
 
@@ -482,6 +488,8 @@ public sealed partial class GameSession : IMapEventHost
         waveParts.Clear();
         if (!RunsMapEvents || targets is null) return;
         dormantSpawners.UnionWith(MapEventData.Deferred(worldMap));
+        // A festival game's own spawners (trap boards, round bonus orbs, its EventFunc phases) wait for the game.
+        dormantSpawners.UnionWith(FestivalDormant(worldMap));
         PrepareWaves();   // the named waves' spawn entries wait for their StartWave too
         foreach (var t in targets.Values)
         {
@@ -549,8 +557,10 @@ public sealed partial class GameSession : IMapEventHost
 
     List<byte[]> MapEventKilled(Target target, long now)
     {
+        FestivalKilled(target, now);   // the killer's points (GameSession.FestivalGames.cs)
         if (ToCopyOwner(o => o.MapEventKilled(target, now))) return [];
         CubeKilled(target, now);
+        DailyKilled(target, now);   // a daily dungeon's points (GameSession.DailyDungeons.cs)
         if (mapEventRuns.Count == 0) return DrainMapEvents();
         mapEventNow = now;
         var alive = targets?.Values.Any(t => string.Equals(t.Name, target.Name, StringComparison.OrdinalIgnoreCase) && !t.Dead) == true;
@@ -705,7 +715,9 @@ public sealed partial class GameSession : IMapEventHost
     {
         if (mapEventRuns.Count == 0 && pendingSpawns.Count == 0 && pendingExit is null && npcBuffs.Count == 0 && copy is null) return [];
         mapEventNow = now;
+        DailyTick(now);   // GameSession.DailyDungeons.cs
         DungeonTimeLimit(now);
+        DungeonEndTick(now);   // GameSession.PartyDungeons.cs
         var phase = DungeonPhaseTick(now);
         if (phase.Count > 0) mapEventOut.InsertRange(0, phase);
         NpcBuffTick(now);
@@ -721,6 +733,7 @@ public sealed partial class GameSession : IMapEventHost
         WaveTick(now);
         foreach (var run in mapEventRuns.ToList()) run.Tick(now);
         MapEventAskNpcProximityFallback(now);
+        mapEventOut.AddRange(FestivalTick(now));   // GameSession.FestivalGames.cs
         if (mapEventRuns.Any(r => !r.Finished))
         {
             if (mapEventShownAt == 0) mapEventShownAt = now + 8000;
@@ -995,7 +1008,8 @@ public sealed partial class GameSession : IMapEventHost
     bool MapEventHidden(int index, WorldObject o)
     {
         var host = CopyOwner ?? this;
-        return host.removedObjects.Contains(index) || host.dormantSpawners.Count > 0 && host.dormantSpawners.Contains(o.Name);
+        return host.removedObjects.Contains(index) || host.dormantSpawners.Count > 0 && host.dormantSpawners.Contains(o.Name)
+            || host.copy?.Festival?.Rejected.Contains(index) == true;   // one object per position of a festival spawn entry
     }
 
     /// <summary>
@@ -1049,7 +1063,9 @@ public sealed partial class GameSession : IMapEventHost
         foreach (var (index, o) in SpawnerObjects(spawner))
         {
             removedObjects.Remove(index);
-            if (position is { } at && o.At.DistanceSquared(at) <= WorldObjects.VisibleRange * WorldObjects.VisibleRange && shownObjects.Add(index))
+            copy?.Festival?.Taken.Remove(index);   // a festival spawner started again gives its points again
+            if (position is { } at && o.At.DistanceSquared(at) <= WorldObjects.VisibleRange * WorldObjects.VisibleRange
+                && copy?.Festival?.Rejected.Contains(index) != true && shownObjects.Add(index))
                 PushEnvObjSpawn(index, o, mapEventNow);
         }
     }
@@ -1472,6 +1488,19 @@ public sealed partial class GameSession : IMapEventHost
     void IMapEventHost.DungeonClear(MapEventRun run)
     {
         run.MarkDungeonClear(mapEventNow);
+        // A festival game's clear (Racing after the finish, Defence after the waves) ends the game with its rewards.
+        if (copy is { Festival: { } festival } fc && fc.Host == this)
+        {
+            if (!clearedEvents.Contains(run.Name)) clearedEvents.Add(run.Name);
+            FestivalFinish(festival, mapEventNow);
+            return;
+        }
+        // A daily dungeon's clear ends its run with the points (GameSession.DailyDungeons.cs).
+        if (copy is { Cleared: false } daily && daily.Host == this && Dailies.Of(daily.DungeonId) is { } dailyRoom)
+        {
+            DailyEnd(dailyRoom, daily, mapEventNow, timeUp: false, run.Name);
+            return;
+        }
         var room = MapEventData.DungeonOfMap(worldMap);
         var hold = room is { Hold: > 0 } ? room.Hold * 1000L : PartyDungeonHoldMs;
         var first = copy is { Cleared: false };
@@ -1489,6 +1518,8 @@ public sealed partial class GameSession : IMapEventHost
             // The clear reward (RewardDungeon.dat RewardLight/RewardDark by race: sealed dungeons' kina, materials, a title), once per copy.
             if (first && room is not null && (session.profileRace == 2 ? room.RewardDark : room.RewardLight) is { Length: > 0 } reward)
                 session.pendingRewards.Add(reward.Where(r => r.Length >= 2).Select(r => ((int)r[0], r[1])).ToList());
+            if (first && room is not null) session.SpendContentTickets(MapEventData.IdOf(room), "Clear", mapEventNow);
+            if (first && room is not null && copy is { } scored) session.RecordSeasonClear(room, MapEventData.IdOf(room), mapEventNow - scored.StartedMs);   // GameSession.Ranking.cs
             if (first && room is not null)
             {
                 var earned = session.AchieveDungeonClear(room, run.Name, CopyMembers().Count() + 1);
@@ -1499,8 +1530,16 @@ public sealed partial class GameSession : IMapEventHost
         if (copy is { } c && room is not null && !c.Cleared)
         {
             c.Cleared = true;
-            // OBSERVED (HQ001 clear #14161-14167): DungeonCompleteResult_NT, Complete (3), then End (4) until the hold's end — all copy members.
-            BroadcastPartyDungeonClearEnd(room, mapEventNow - c.StartedMs, c.DungeonId, mapEventNow, hold);
+            // OBSERVED (community recordings 2026-11-04 to 06, reports/dungeons.md 2 and 7; adapted from Addiboii/A2Core aa66cea):
+            // an expedition sends 0x6108 `00` first; DungeonCompleteResult_NT with the clear reward (sealed 310027 #44952);
+            // Complete (3) from the clear for Dungeon.dat's hold (sealed [t, t + 10 s] #44953; the layer's hold 0 [t, t] #16201);
+            // End (4) when it ends, for 600 s (#45201, the layer's 50 ms later #16209). Sent to every member in the copy.
+            // The way out keeps its own timing (instanceExitAt: the hold, else 60 s, OURS).
+            var tableHold = room.Hold > 0 ? room.Hold * 1000L : 0;
+            c.ClearedMs = mapEventNow;
+            c.CompleteEndsMs = mapEventNow + tableHold;
+            c.EndSent = tableHold == 0;
+            BroadcastDungeonClear(room, mapEventNow - c.StartedMs, c, tableHold == 0);
         }
     }
 

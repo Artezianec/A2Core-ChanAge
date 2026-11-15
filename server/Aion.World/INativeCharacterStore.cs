@@ -95,6 +95,13 @@ public interface INativeCharacterStore : IAsyncDisposable
         Task.FromResult<IReadOnlyList<(int, int, string, int)>>([]);
     Task<bool> ConversionAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
         IReadOnlyList<(int Target, int RecipeId, string Period, int Count, int Limit)> limits, CancellationToken ct) => Task.FromResult(false);
+    /// <summary>The character's Black Cloud Merchants lists (wire category, revision, JSON; migration 131).</summary>
+    Task<IReadOnlyList<(int Category, long Revision, string State)>> RandomShopOffersAsync(Guid character, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<(int, long, string)>>([]);
+    /// <summary>Stores a Black Cloud Merchants list over the revision it was read at (0: none yet), all or nothing with the Kina
+    /// stacks consumed and the items granted (IGameplayStore.RandomShopSaveAsync): "ok", "stale" or "failed".</summary>
+    Task<string> RandomShopSaveAsync(Guid character, int category, long revision, string state, IReadOnlyList<(Guid Item, long Revision, int Count)> costs,
+        IReadOnlyList<(int TemplateId, long Count)> goods, object? audit, CancellationToken ct) => Task.FromResult("failed");
     Task<bool> SellToMerchantAsync(Guid character, Guid item, long revision, int count, long kina, CancellationToken ct) => Task.FromResult(false);
     Task<IReadOnlyList<ItemState>> BuybackAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<ItemState>>([]);
     Task<string> RestoreItemAsync(Guid character, Guid item, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, CancellationToken ct) => Task.FromResult("failed");
@@ -126,6 +133,8 @@ public interface INativeCharacterStore : IAsyncDisposable
     Task<bool> SaveDaevanionAsync(Guid character, DaevanionProgress progress, CancellationToken ct) => Task.FromResult(false);
     Task<IReadOnlyList<BossChallengeRecord>> BossChallengesAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<BossChallengeRecord>>([]);
     Task<bool> SaveBossChallengeAsync(Guid character, BossChallengeRecord record, CancellationToken ct) => Task.FromResult(false);
+    Task<IReadOnlyList<ContentTicketRecord>> ContentTicketsAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<ContentTicketRecord>>([]);
+    Task<bool> SaveContentTicketAsync(Guid character, ContentTicketRecord record, CancellationToken ct) => Task.FromResult(false);
     Task<IReadOnlyList<(int TicketId, string Period, int Count)>> ExpeditionTicketsAsync(Guid character, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<(int, string, int)>>([]);
     Task<bool> SaveExpeditionTicketsAsync(Guid character, IReadOnlyList<(int TicketId, string Period, int Count)> rows, CancellationToken ct) =>
@@ -143,6 +152,20 @@ public interface INativeCharacterStore : IAsyncDisposable
     Task<bool> SaveRewardLimitsAsync(Guid character, IReadOnlyList<RewardLimitRecord> rows, CancellationToken ct) => Task.FromResult(false);
     Task<IReadOnlyList<DungeonCooltimeRecord>> DungeonCooltimesAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<DungeonCooltimeRecord>>([]);
     Task<bool> SaveDungeonCooltimesAsync(Guid character, IReadOnlyList<DungeonCooltimeRecord> rows, CancellationToken ct) => Task.FromResult(false);
+    Task<IReadOnlyList<SkillPartRecord>> SkillPartsAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<SkillPartRecord>>([]);
+    Task<bool> ReplaceSkillPartsAsync(Guid character, int skillId, IReadOnlyList<SkillPartRecord> expected, IReadOnlyList<SkillPartRecord> parts, CancellationToken ct) =>
+        Task.FromResult(false);
+    // Season rankings (migrations 129, 130): IGameplayStore's calls for this connection's account. The defaults keep nothing.
+    Task<IReadOnlyList<SeasonRankingRow>> SeasonRankingAsync(int contentsType, int season, int limit, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<SeasonRankingRow>>([]);
+    Task<IReadOnlyList<SeasonPointRow>> SeasonPointsAsync(Guid character, int season, CancellationToken ct) => Task.FromResult<IReadOnlyList<SeasonPointRow>>([]);
+    Task<bool> SaveSeasonPointsAsync(Guid character, SeasonPointRow row, CancellationToken ct) => Task.FromResult(false);
+    Task<IReadOnlyList<SeasonResultRow>> SeasonResultsAsync(int season, int contentsType, Guid? character, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<SeasonResultRow>>([]);
+    Task<int> SaveSeasonResultsAsync(IReadOnlyList<SeasonResultRow> rows, CancellationToken ct) => Task.FromResult(0);
+    Task<bool> TakeSeasonRewardAsync(Guid character, int season, int contentsType, CancellationToken ct) => Task.FromResult(false);
+    Task<IReadOnlyList<(Guid Character, PostRecord Post)>?> SettleWeeklyRankingAsync(int contentsType, int season, DateTimeOffset weekEnd, IReadOnlyList<WeeklyRewardMail> mails,
+        TimeSpan valid, CancellationToken ct) => Task.FromResult<IReadOnlyList<(Guid, PostRecord)>?>(null);
     Task<bool> SaveCollectionAsync(Guid character, int collectionId, int listId, int registered, bool rewarded, CancellationToken ct) => Task.FromResult(false);
     Task<IReadOnlyList<AchievementRecord>> AchievementsAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<AchievementRecord>>([]);
     Task<IReadOnlyList<(int Group, int Step)>> GroupRewardsTakenAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<(int, int)>>([]);
@@ -150,7 +173,8 @@ public interface INativeCharacterStore : IAsyncDisposable
     Task<bool> TakeAchievementRewardAsync(Guid character, int achievementId, int step, int progressCount, IReadOnlyList<(int TemplateId, long Count)> items, CancellationToken ct) => Task.FromResult(false);
     Task<bool> TakeGroupRewardAsync(Guid character, int groupId, int step, IReadOnlyList<(int TemplateId, long Count)> items, CancellationToken ct) => Task.FromResult(false);
     Task<bool> SortBagAsync(Guid character, CancellationToken ct) => SortContainerAsync(character, "bag", ct);
-    Task<bool> SortContainerAsync(Guid character, string location, CancellationToken ct) => Task.FromResult(false);
+    /// <summary>Sorts a container; in the bag the <paramref name="currencies"/> (Item.dat ItemType Currency) keep no slot.</summary>
+    Task<bool> SortContainerAsync(Guid character, string location, CancellationToken ct, IReadOnlyCollection<int>? currencies = null) => Task.FromResult(false);
     Task<IReadOnlyList<QuickSlotRecord>> QuickSlotsAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<QuickSlotRecord>>([]);
     Task<bool> SaveQuickSlotAsync(Guid character, int number, QuickSlotRecord? slot, CancellationToken ct) => Task.FromResult(false);
     /// <summary>Per-character settings by name (emotes, seal stone, auto-use, presets), JSON values.</summary>
@@ -256,8 +280,8 @@ public interface INativeCharacterStore : IAsyncDisposable
         CancellationToken ct) => Task.FromResult(false);
     Task<bool> SetSkinEquipsAsync(Guid character, IReadOnlyDictionary<int, int> equips, CancellationToken ct) => Task.FromResult(false);
     Task<bool> SaveMasteryAsync(Guid character, string kind, int category, int level, long exp, CancellationToken ct) => Task.FromResult(false);
-    /// <summary>Stores a soul bind (bind count) on an owned item.</summary>
-    Task<bool> SoulBindItemAsync(Guid character, Guid item, byte count, CancellationToken ct);
+    /// <summary>Stores a soul bind (bind count and, when given, the bound stats {EStat, value}) on an owned item.</summary>
+    Task<bool> SoulBindItemAsync(Guid character, Guid item, byte count, CancellationToken ct, IReadOnlyList<(int Type, int Value)>? stats = null);
     Task<bool> EnchantItemAsync(Guid character, Guid item, long revision, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, int level, int bonus,
         CancellationToken ct) => Task.FromResult(false);
     Task<bool> ExceedEnchantItemAsync(Guid character, Guid item, long revision, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, int surpassLevel, int surpassBonus,
@@ -270,6 +294,8 @@ public interface INativeCharacterStore : IAsyncDisposable
         Task.FromResult(false);
     Task<bool> CombineGodstonesAsync(Guid character, IReadOnlyDictionary<int, int> materials, int rewardId, CancellationToken ct) =>
         Task.FromResult(false);
+    Task<bool> ImprintItemAsync(Guid character, Guid item, long revision, IReadOnlyList<(Guid Item, long Revision, int Count)> costs,
+        IReadOnlyList<MagicStoneSlot> slots, CancellationToken ct) => Task.FromResult(false);
     Task<IReadOnlyList<QuestRecord>> QuestsAsync(Guid character, CancellationToken ct);
     Task<QuestRecord> SaveQuestAsync(Guid character, QuestRecord quest, CancellationToken ct);
     Task<bool> RemoveQuestAsync(Guid character, string code, CancellationToken ct);
