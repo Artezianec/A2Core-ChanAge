@@ -16,6 +16,7 @@ import locale
 import os
 from pathlib import Path
 import secrets
+import sys
 import subprocess
 import tempfile
 import zipfile
@@ -233,6 +234,92 @@ def import_catalog(directory, allow_shrink=False):
     return {'build_id': build_id, 'counts': counts}
 
 
+DEFAULT_CATALOG = ROOT / 'research/local/game-catalog-v2'
+STARTER_SETUP_TOOLS = (
+    ('configure_starters.py',),
+    ('class_skills.py', 'install'),
+    ('equipment_rules.py',),
+)
+MISSING_CATALOG_MESSAGE = """The item/skill catalogue is not imported and the catalogue directory is missing, so character creation will fail with profile_unavailable.
+
+To build research/local/game-catalog-v2:
+  1. Extract client tables with tools/WorldProbe into a new folder under research/local/
+     (command and selection limits are in the header of tools/WorldProbe/Program.cs).
+  2. Run: python tools/game_catalog.py build
+     It reads research/local/reuse-table-probe (Item.dat, Skill.dat) and related tables
+     and writes research/local/game-catalog-v2 (manifest.json and entries.jsonl).
+
+Or unpack aion-server-data.tar.gz from the Releases page (it includes game-catalog-v2/)
+into research/local/ on Windows, or pass it to deploy/linux/install.sh --data on Linux.
+
+Then re-run start-all.cmd / install.sh, or:
+  python tools/postgres_dev.py import-catalog
+  python tools/configure_starters.py
+  python tools/class_skills.py install
+  python tools/equipment_rules.py
+"""
+NO_STARTERS_MESSAGE = """No enabled rows in game.starter_profiles; character creation will fail with profile_unavailable.
+The catalogue may be missing starter weapons or skills for the classes. Re-run:
+  python tools/configure_starters.py
+  python tools/class_skills.py install
+  python tools/equipment_rules.py
+"""
+
+
+def catalog_files_present(directory):
+    directory = Path(directory)
+    return (directory / 'manifest.json').is_file() and (directory / 'entries.jsonl').is_file()
+
+
+def run_starter_tools(build_id=None, *, runner=None):
+    """Run configure_starters, class_skills install and equipment_rules. All three are safe to repeat."""
+    runner = runner or subprocess.run
+    extra = ('--build-id', build_id) if build_id else ()
+    for script, *args in STARTER_SETUP_TOOLS:
+        command = [sys.executable, str(ROOT / 'tools' / script), *args, *extra]
+        result = runner(command, cwd=ROOT, capture_output=True, text=True, check=False)
+        if result.returncode:
+            detail = (result.stderr or result.stdout or '').strip() or f'exit {result.returncode}'
+            raise RuntimeError(f'{script} failed: {detail}')
+        yield script, (result.stdout or '').strip()
+
+
+def ensure_game_data(directory=None, *, log=print, runner=None, force=False):
+    """Import the catalogue when catalog.builds is empty, then install starter policy if needed.
+
+    configure_starters, class_skills install and equipment_rules are idempotent (ON CONFLICT / rebuild).
+    They run after a fresh import, when no enabled starter profiles exist, or when force=True
+    (Windows start-all re-applies them every time). Missing catalogue files are a warning, not
+    an error: the database can still start.
+    """
+    directory = Path(directory or DEFAULT_CATALOG)
+    builds = int(sql('SELECT count(*) FROM catalog.builds;').stdout.strip() or '0')
+    imported = False
+    if builds == 0:
+        if catalog_files_present(directory):
+            log(f'Importing item/skill catalogue from {directory}')
+            import_catalog(directory)
+            imported = True
+        else:
+            log(MISSING_CATALOG_MESSAGE)
+            return {'imported': False, 'configured': False, 'enabled': 0, 'build_id': None}
+    enabled = int(sql('SELECT count(*) FROM game.starter_profiles WHERE enabled;').stdout.strip() or '0')
+    build_id = sql('SELECT build_id FROM catalog.builds ORDER BY imported_at DESC, build_id LIMIT 1;').stdout.strip() or None
+    configured = False
+    if imported or force or enabled == 0:
+        log('Configuring starter profiles, class skills and equipment rules')
+        for script, output in run_starter_tools(build_id, runner=runner):
+            if output:
+                log(output)
+        configured = True
+        enabled = int(sql('SELECT count(*) FROM game.starter_profiles WHERE enabled;').stdout.strip() or '0')
+    if enabled == 0:
+        log(NO_STARTERS_MESSAGE)
+    else:
+        log(f'Starter profiles ready: {enabled} enabled.')
+    return {'imported': imported, 'configured': configured, 'enabled': enabled, 'build_id': build_id}
+
+
 def verify_backup(path):
     """Restore into a uniquely named disposable DB; never restore over aion."""
     name = 'aion_restore_' + secrets.token_hex(8)
@@ -268,8 +355,11 @@ def main():
     for command in ('setup', 'start', 'stop', 'status', 'migrate'):
         sub.add_parser(command)
     load = sub.add_parser('import-catalog')
-    load.add_argument('--directory', type=Path, default=ROOT / 'research/local/game-catalog-v2')
+    load.add_argument('--directory', type=Path, default=DEFAULT_CATALOG)
     load.add_argument('--allow-shrink', action='store_true')
+    ensure = sub.add_parser('ensure-game-data', help='import the catalogue if needed and install starter profiles')
+    ensure.add_argument('--directory', type=Path, default=DEFAULT_CATALOG)
+    ensure.add_argument('--force', action='store_true', help='re-apply starter tools even when enabled profiles already exist')
     backup = sub.add_parser('backup')
     backup.add_argument('output', type=Path)
     verify = sub.add_parser('verify-backup')
@@ -292,6 +382,8 @@ def main():
         migrate()
     elif args.command == 'import-catalog':
         print(json.dumps(import_catalog(args.directory, allow_shrink=args.allow_shrink), indent=2))
+    elif args.command == 'ensure-game-data':
+        print(json.dumps(ensure_game_data(args.directory, force=args.force), indent=2))
     elif args.command == 'backup':
         if args.output.exists():
             raise ValueError('Backup destination already exists')

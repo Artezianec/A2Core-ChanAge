@@ -73,7 +73,9 @@ if (!string.IsNullOrWhiteSpace(connectionString))
     builder.Services.AddSingleton<CharacterService>();
     builder.Services.AddSingleton<CharacterPersistenceService>();
     builder.Services.AddSingleton<IGameplayStore>(sp => new PostgresGameplayStore(
-        sp.GetRequiredService<NpgsqlDataSource>(), sp.GetRequiredService<ProgressionOptions>(), sp.GetService<IItemStatRoller>()));
+        sp.GetRequiredService<NpgsqlDataSource>(), sp.GetRequiredService<ProgressionOptions>(), sp.GetService<IItemStatRoller>(),
+        sp.GetService<ILogger<PostgresGameplayStore>>()));
+    builder.Services.AddHostedService<StarterProfileHealth>();
     builder.Services.AddSingleton<IGameTicketRedeemer, PostgresGameTicketRedeemer>();
     // The account Quna wallets (migration 111, docs/QUNA_WALLET.md); every change is pushed to the account's sessions.
     builder.Services.AddSingleton<PostgresQunaWallet>();

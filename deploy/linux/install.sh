@@ -100,21 +100,17 @@ dotnet publish "$REPO/server/Aion.Host/Aion.Host.csproj" -c Release -o $HOST.new
 rm -rf $HOST && mv $HOST.new $HOST
 
 as_aion() { cd / && runuser -u aion -- env AION_PG_HOME="$AION_PG_HOME" AION_PG_BIN="$PG_BIN" "$@"; }
-FIRST=0
-[[ -f $AION_PG_HOME/credentials.json ]] || FIRST=1
 systemctl stop aion-host 2>/dev/null || true
 if systemctl is-active --quiet aion-postgres; then
   # Running under systemd: apply new migrations in place.
   as_aion python3 $SRC/tools/postgres_dev.py migrate
+  # Fills an empty catalogue / missing starter profiles; skips when they are already present
+  # except for the idempotent starter-policy tools when catalog.builds exists and profiles are empty.
+  as_aion python3 $SRC/tools/postgres_dev.py ensure-game-data --directory $DATA/game-catalog-v2
 else
   # setup creates the cluster (first run), starts it with pg_ctl and applies migrations.
   as_aion python3 $SRC/tools/postgres_dev.py setup
-  if [[ $FIRST -eq 1 ]]; then
-    as_aion python3 $SRC/tools/postgres_dev.py import-catalog --directory $DATA/game-catalog-v2
-    as_aion python3 $SRC/tools/configure_starters.py
-    as_aion python3 $SRC/tools/class_skills.py install
-    as_aion python3 $SRC/tools/equipment_rules.py
-  fi
+  as_aion python3 $SRC/tools/postgres_dev.py ensure-game-data --directory $DATA/game-catalog-v2
   as_aion python3 $SRC/tools/postgres_dev.py stop
 fi
 

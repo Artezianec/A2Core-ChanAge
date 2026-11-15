@@ -6,11 +6,19 @@ using Aion.Core.Security;
 using Npgsql;
 using Aion.Core.Characters;
 using NpgsqlTypes;
+using Microsoft.Extensions.Logging;
 
 namespace Aion.Infrastructure.Postgres;
 
-public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOptions progression, IItemStatRoller? itemRoller = null) : IGameplayStore
+public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, ProgressionOptions progression, IItemStatRoller? itemRoller = null, ILogger<PostgresGameplayStore>? logger = null) : IGameplayStore
 {
+    /// <summary>How to fill game.starter_profiles when character creation fails with profile_unavailable.</summary>
+    public const string StarterSetupHint =
+        "Import the catalogue and configure starters, then restart the server: "
+        + "python tools/postgres_dev.py import-catalog && python tools/configure_starters.py && "
+        + "python tools/class_skills.py install && python tools/equipment_rules.py. "
+        + "start-all.cmd and deploy/linux/install.sh do this automatically when the catalogue is present.";
+
     /// <summary>Configured live character cap (Exp.dat tables still define levels through <see cref="ProgressionOptions.TableMaxLevel"/>).</summary>
     int MaxLevel => progression.LevelCap;
     private static JsonElement Json(object value) => JsonSerializer.SerializeToElement(value);
@@ -125,7 +133,13 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
         await using (var q=Query(c,t,"SELECT build_id,creation_id,race,gender,definition::text FROM game.starter_profiles WHERE profile_id=$1 AND enabled",input.ProfileId))
         {
             await using var r=await q.ExecuteReaderAsync(ct);
-            if (!await r.ReadAsync(ct)) throw new GameplayException("profile_unavailable");
+            if (!await r.ReadAsync(ct))
+            {
+                logger?.LogWarning(
+                    "Character creation failed: starter profile '{ProfileId}' is missing or disabled (profile_unavailable). {Hint}",
+                    input.ProfileId, StarterSetupHint);
+                throw new GameplayException("profile_unavailable");
+            }
             build=r.GetString(0); creation=r.GetInt32(1); race=r.GetInt32(2); gender=r.GetInt32(3); p=JsonSerializer.Deserialize<JsonElement>(r.GetString(4));
         }
         if(input.WorldId is int requiredWorld && p.GetProperty("worldId").GetInt32()!=requiredWorld)

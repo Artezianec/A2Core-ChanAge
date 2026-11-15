@@ -196,6 +196,7 @@ def postgres_up() -> int:
         else:
             postgres_dev.start()
             postgres_dev.migrate()
+        postgres_dev.ensure_game_data(log=_msg, force=True)
     except Exception as error:
         _msg(f'[ERROR] PostgreSQL: {error}')
         return 1

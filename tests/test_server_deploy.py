@@ -198,5 +198,15 @@ class PackServerDataTests(unittest.TestCase):
                                           'navmesh': source / 'navmesh', 'catalog': source / 'game-catalog-v2'})
 
 
+class InstallScriptTests(unittest.TestCase):
+    def test_install_runs_ensure_game_data_after_migrate(self):
+        script = (ROOT / 'deploy/linux/install.sh').read_text(encoding='utf-8')
+        self.assertIn('postgres_dev.py ensure-game-data --directory $DATA/game-catalog-v2', script)
+        self.assertNotIn('postgres_dev.py import-catalog --directory $DATA/game-catalog-v2', script)
+        # First-install-only starter setup was replaced by ensure-game-data on every install
+        # (it no-ops when enabled starter profiles already exist).
+        self.assertLess(script.find('postgres_dev.py migrate'), script.find('ensure-game-data'))
+
+
 if __name__ == '__main__':
     unittest.main()

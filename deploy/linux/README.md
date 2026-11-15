@@ -69,8 +69,10 @@ What install.sh does:
 4. Builds the account page and staff dashboard (React, `web/`) and publishes the host (`dotnet publish -c Release`) to `/opt/aion/host`.
 5. First run: creates the database cluster (`tools/postgres_dev.py setup` with
    `AION_PG_HOME=/var/lib/aion/postgres`: 127.0.0.1:55432, generated passwords in
-   `credentials.json`), applies migrations, imports the catalogue, installs starter profiles,
-   class skills and the equipment rules (`tools/equipment_rules.py`). Later runs apply new migrations only.
+   `credentials.json`), applies migrations, and runs `postgres_dev.py ensure-game-data` to import the
+   catalogue and install starter profiles, class skills and equipment rules (`tools/equipment_rules.py`).
+   Later runs apply new migrations and fill starter data only if the catalogue or enabled starter
+   profiles are still missing.
 6. Writes `/etc/aion/aion.env` (`tools/server_env.py`; mode 640, contains database passwords).
    Server and debug log files go to `/var/lib/aion/logs` (writable; not under `/opt/aion/host`).
 7. Builds **A2Core Launcher** for Windows on the server (`deploy/linux/build_launcher.sh`: cross-builds
