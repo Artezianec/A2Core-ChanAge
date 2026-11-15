@@ -85,6 +85,8 @@ Requirements: .NET 10 SDK, Python 3.11+, Node.js LTS with npm (https://nodejs.or
    terrain and navmesh). If the archive is missing it stops with a download hint.
 3. Double-click `start-all.cmd` (or run it from a terminal). It checks the requirements, builds `server/Aion.Host`,
    starts PostgreSQL, the account server (http://127.0.0.1:8780), the login/game/chat hosts and the launcher.
+   After PostgreSQL is up, it imports the catalogue when `catalog.builds` is empty and installs starter profiles,
+   class skills and equipment rules. Without that catalogue, character creation fails with `profile_unavailable`.
    Options: `nobuild`, `nolauncher`, `skipncguard`.
 4. Stop everything with `stop-all.cmd`.
 
