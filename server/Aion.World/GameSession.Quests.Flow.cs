@@ -131,7 +131,8 @@ public sealed partial class GameSession
         {
             var unlockedBefore = QuestUnlockTypes().ToHashSet();
             var rewards = quest.Rewards ?? new QuestRewards();
-            var items = (rewards.Items ?? []).Where(i => i.Length == 2).Select(i => ((int)i[0], i[1])).ToList();
+            var classItems = className is { } cls && rewards.ClassItems?.GetValueOrDefault(cls) is { } own ? own : [];
+            var items = (rewards.Items ?? []).Concat(classItems).Where(i => i.Length == 2).Select(i => ((int)i[0], i[1])).ToList();
             if (rewards.Select is { Length: > 0 } choices)
             {
                 var idx = selectIndex >= 0 && selectIndex < choices.Length ? selectIndex : 0;

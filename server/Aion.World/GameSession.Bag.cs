@@ -15,7 +15,7 @@ public readonly record struct ContainerSlotExtendView(int InventoryByItem, int I
     {
         InventoryItem.Bag => ((byte)InventoryByItem, (byte)InventoryByGold),
         InventoryItem.Storage => ((byte)StorageByItem, (byte)Storage),
-        InventoryItem.AccountStorage => ((byte)CharacterStorageByItem, (byte)CharacterStorageByGold),
+        InventoryItem.AccountStorage or GameSession.CharacterStorageContainer => ((byte)CharacterStorageByItem, (byte)CharacterStorageByGold),
         _ => (0, 0),
     };
 }
@@ -47,7 +47,6 @@ public sealed partial class GameSession
         QuickSlotContextSkillResetRq = 0x5609, QuickSlotContextSkillResetRs = 0x560a;
     ContainerSlotExtendView containerSlotExtends;
     const byte DecreaseItemRemove = 13;   // EDecreaseReason kItemRemove
-    const byte DecreaseBagSlotExtend = 15;   // EDecreaseReason kShopBuy (kinah spend, same as merchant purchase)
     readonly SortedDictionary<int, QuickSlotRecord> quickSlots = [];
     public IReadOnlyDictionary<int, QuickSlotRecord> QuickSlots => quickSlots;
 
@@ -176,7 +175,53 @@ public sealed partial class GameSession
     }
 
     /// <summary>0x563e ItemSort_RQ {npc key i32, EItemContainerType u8}: the bag ordered by item, answered 0x563f.</summary>
-    /// <summary>ItemContainerSlotExtend_RQ (0x5848 or 0x8d4f): npc i32, container u8, item uid i64, cost idx u8 (gold path uses uid 0).</summary>
+    /// <summary>
+    /// ItemContainerSlotExtend_RS results: success stays 0 (the live client accepted it with this i32 layout); the refusals are
+    /// the client's own EResult kItem_Container_Slot_Extend_Fail / _Fail_OverMaxExtendCount / _Fail_InvalidItem (usmap 2.0.6,
+    /// CANDIDATE on 2.0.9; adapted from Addiboii/A2Core cff553c, which also sends 0x220 for success as a u16).
+    /// </summary>
+    public const int SlotExtendSuccess = 0, SlotExtendFail = 0x221, SlotExtendOverMax = 0x222, SlotExtendInvalidItem = 0x223;
+    /// <summary>The Kina's EDecreaseReason: kItemContainerExtendInventory 7 (bag), kItemContainerExtendStorage 8 (warehouses) (usmap 2.0.6).</summary>
+    public const byte DecreaseExtendInventory = 7, DecreaseExtendStorage = 8;
+    /// <summary>EItemContainerType kCharacterStorage (usmap).</summary>
+    public const byte CharacterStorageContainer = 15;
+    /// <summary>
+    /// Gold + voucher extensions a container takes in all: max lines - default lines (InventorySlot MaxSlotLineCount 80 - 8,
+    /// GlobalSetting storage 80 - 5; Addiboii/A2Core 3149109, CANDIDATE). The Kina ladders stay MaxBag/MaxStorageGoldExtensions.
+    /// </summary>
+    public const int MaxBagExtensions = 72, MaxStorageExtensions = 75;
+    /// <summary>
+    /// Slot extension vouchers by template (Item.dat UseEffect ExtendInventorySlot / ExtendStorageSlot / ExtendCharacterStorageSlot,
+    /// build 26262663, "Unlocks 1 line of ..."; Addiboii/A2Core tools/data/slot-extensions.json).
+    /// </summary>
+    public static readonly IReadOnlyDictionary<int, byte> SlotExtendVouchers = new Dictionary<int, byte>
+    {
+        [534000001] = InventoryItem.Bag, [534000002] = InventoryItem.Bag,
+        [536700001] = InventoryItem.Storage, [536700002] = InventoryItem.Storage,
+        [536700003] = CharacterStorageContainer, [536700004] = CharacterStorageContainer,
+    };
+
+    static int GoldExtensions(ContainerSlotExtendView v, byte container) => container switch
+    {
+        InventoryItem.Bag => v.InventoryByGold,
+        InventoryItem.Storage => v.Storage,
+        CharacterStorageContainer => v.CharacterStorageByGold,
+        _ => 0,
+    };
+
+    static int ItemExtensions(ContainerSlotExtendView v, byte container) => container switch
+    {
+        InventoryItem.Bag => v.InventoryByItem,
+        InventoryItem.Storage => v.StorageByItem,
+        CharacterStorageContainer => v.CharacterStorageByItem,
+        _ => 0,
+    };
+
+    /// <summary>
+    /// ItemContainerSlotExtend_RQ (0x5848 or 0x8d4f): npc i32, container u8, item uid i64, cost idx u8. Without an item uid one
+    /// row is bought with Kina (bag, warehouse, character warehouse); with one, a voucher of that container opens one row
+    /// (ported from Addiboii/A2Core 3149109/cff553c).
+    /// </summary>
     async Task<List<byte[]>> ExtendContainerSlotsAsync(byte[] plain, CancellationToken ct)
     {
         var rq = Opcode(plain);
@@ -201,29 +246,28 @@ public sealed partial class GameSession
             var (byItem, byGold) = counts.WireExtendPair(container);
             return PacketWriter.Opcode(ntOpcode).U8(container).I64(itemUid).U8(byItem).U8(byGold).ToArray();
         }
-        var cachedExt = container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage;
+        var cachedExt = GoldExtensions(containerSlotExtends, container);
         if (Store is not { } store || CharacterId is not { } character)
         {
-            LogContainerSlotExtend(container, costIdx, 1, cachedExt, "no_store");
-            return [Rs(1, containerSlotExtends)];
+            LogContainerSlotExtend(container, costIdx, SlotExtendFail, cachedExt, "no_store");
+            return [Rs(SlotExtendFail, containerSlotExtends)];
         }
-        if (itemUid != 0)
+        if (container is not (InventoryItem.Bag or InventoryItem.Storage or CharacterStorageContainer))
         {
-            LogContainerSlotExtend(container, costIdx, 1, cachedExt, $"item_path_unsupported uid={itemUid} op=0x{rq:x4} len={plain.Length}");
-            return [Rs(1, containerSlotExtends)];
-        }
-        if (container is not (InventoryItem.Bag or InventoryItem.Storage))
-        {
-            LogContainerSlotExtend(container, costIdx, 1, cachedExt, "container_unsupported");
-            return [Rs(1, containerSlotExtends)];
+            LogContainerSlotExtend(container, costIdx, SlotExtendFail, cachedExt, "container_unsupported");
+            return [Rs(SlotExtendFail, containerSlotExtends)];
         }
         containerSlotExtends = ContainerSlotExtendView.From(await store.ContainerSlotExtendsAsync(character, ct));
+        var maxTotal = container == InventoryItem.Bag ? MaxBagExtensions : MaxStorageExtensions;
+        if (itemUid != 0)
+            return await ExtendContainerByVoucherAsync(store, character, container, itemUid, costIdx, maxTotal, Rs, Nt, ct);
+
         var maxExt = container == InventoryItem.Bag ? MaxBagGoldExtensions : MaxStorageGoldExtensions;
-        var currentExt = container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage;
-        if (currentExt >= maxExt)
+        var currentExt = GoldExtensions(containerSlotExtends, container);
+        if (currentExt >= maxExt || currentExt + ItemExtensions(containerSlotExtends, container) >= maxTotal)
         {
-            LogContainerSlotExtend(container, costIdx, 4, currentExt, "max_reached");
-            return [Rs(4, containerSlotExtends), .. InventoryDepotSyncPackets(), .. await InventoryChangesAsync(ct, 0, 0)];
+            LogContainerSlotExtend(container, costIdx, SlotExtendOverMax, currentExt, "max_reached");
+            return [Rs(SlotExtendOverMax, containerSlotExtends), .. InventoryDepotSyncPackets(), .. await InventoryChangesAsync(ct, 0, 0)];
         }
         // The live client keeps sending costIdx=0 (the price row it shows) after an extension, so its index is advisory:
         // the server always charges the next tier (= current extension count) and accepts the request.
@@ -232,27 +276,69 @@ public sealed partial class GameSession
         var outcome = ("none", ContainerSlotExtendCounts.Zero);
         await Stored(async () =>
         {
-            outcome = container == InventoryItem.Bag
-                ? await store.ExtendInventoryByGoldAsync(character, tier, ct)
-                : await store.ExtendStorageByGoldAsync(character, tier, ct);
+            outcome = container switch
+            {
+                InventoryItem.Bag => await store.ExtendInventoryByGoldAsync(character, tier, ct),
+                InventoryItem.Storage => await store.ExtendStorageByGoldAsync(character, tier, ct),
+                _ => await store.ExtendCharacterStorageByGoldAsync(character, tier, ct),
+            };
             return outcome.Item1 == "ok" ? [[]] : [];
         });
         if (outcome.Item1 != "ok")
         {
-            var fail = outcome.Item1 switch { "kina" => 3, "count" => 4, _ => 1 };
+            var fail = outcome.Item1 == "count" ? SlotExtendOverMax : SlotExtendFail;   // no Kina code of its own (CANDIDATE)
             // "none" (store refused / not owned / row missing) carries zero counts: keep the cached ones so the bag does not shrink.
             if (outcome.Item1 != "none") containerSlotExtends = ContainerSlotExtendView.From(outcome.Item2);
-            LogContainerSlotExtend(container, costIdx, fail, container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage, $"store_{outcome.Item1}");
+            LogContainerSlotExtend(container, costIdx, fail, GoldExtensions(containerSlotExtends, container), $"store_{outcome.Item1}");
             return [Rs(fail, containerSlotExtends), .. await InventoryChangesAsync(ct, 0, 0)];
         }
         containerSlotExtends = ContainerSlotExtendView.From(outcome.Item2);
-        var newExt = container == InventoryItem.Bag ? containerSlotExtends.InventoryByGold : containerSlotExtends.Storage;
-        LogContainerSlotExtend(container, costIdx, 0, newExt, reason);
+        LogContainerSlotExtend(container, costIdx, SlotExtendSuccess, GoldExtensions(containerSlotExtends, container), reason);
         return
         [
-            Rs(0, containerSlotExtends),
+            Rs(SlotExtendSuccess, containerSlotExtends),
             Nt(containerSlotExtends),
-            .. await InventoryChangesAsync(ct, 0, DecreaseBagSlotExtend),
+            .. await InventoryChangesAsync(ct, 0, container == InventoryItem.Bag ? DecreaseExtendInventory : DecreaseExtendStorage),
+            .. InventoryDepotSyncPackets(),
+        ];
+    }
+
+    /// <summary>A voucher in the bag (Item.dat UseEffect Extend*Slot) of the requested container opens one row and is used up.</summary>
+    async Task<List<byte[]>> ExtendContainerByVoucherAsync(INativeCharacterStore store, Guid character, byte container, long itemUid, byte costIdx, int maxTotal,
+        Func<int, ContainerSlotExtendView, byte[]> rs, Func<ContainerSlotExtendView, byte[]> nt, CancellationToken ct)
+    {
+        var total = GoldExtensions(containerSlotExtends, container) + ItemExtensions(containerSlotExtends, container);
+        if (!storedItems.TryGetValue(itemUid, out var row) || row.Location != "bag" || row.Quantity < 1
+            || !SlotExtendVouchers.TryGetValue(row.TemplateId, out var target) || target != container)
+        {
+            LogContainerSlotExtend(container, costIdx, SlotExtendInvalidItem, total, $"voucher_invalid uid={itemUid} template={row?.TemplateId ?? 0}");
+            return [rs(SlotExtendInvalidItem, containerSlotExtends)];
+        }
+        if (total >= maxTotal)
+        {
+            LogContainerSlotExtend(container, costIdx, SlotExtendOverMax, total, "voucher_max_reached");
+            return [rs(SlotExtendOverMax, containerSlotExtends)];
+        }
+        var outcome = ("none", ContainerSlotExtendCounts.Zero);
+        await Stored(async () =>
+        {
+            outcome = await store.ExtendContainerByItemAsync(character, container, row.InstanceId, row.Revision, maxTotal, ct);
+            return outcome.Item1 == "ok" ? [[]] : [];
+        });
+        if (outcome.Item1 != "ok")
+        {
+            var fail = outcome.Item1 switch { "count" => SlotExtendOverMax, "item" => SlotExtendInvalidItem, _ => SlotExtendFail };
+            if (outcome.Item1 != "none") containerSlotExtends = ContainerSlotExtendView.From(outcome.Item2);
+            LogContainerSlotExtend(container, costIdx, fail, total, $"voucher_store_{outcome.Item1}");
+            return [rs(fail, containerSlotExtends), .. await InventoryChangesAsync(ct, 0, 0)];
+        }
+        containerSlotExtends = ContainerSlotExtendView.From(outcome.Item2);
+        LogContainerSlotExtend(container, costIdx, SlotExtendSuccess, total + 1, $"voucher_ok template={row.TemplateId}");
+        return
+        [
+            rs(SlotExtendSuccess, containerSlotExtends),
+            nt(containerSlotExtends),
+            .. await InventoryChangesAsync(ct, 0, DecreaseItemUse),
             .. InventoryDepotSyncPackets(),
         ];
     }

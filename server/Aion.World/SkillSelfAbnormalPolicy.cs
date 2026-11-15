@@ -52,6 +52,8 @@ public static class SkillSelfAbnormalPolicy
                 if (MayApplyOnChainAccept(data, skillId)) return true;
                 denyReason = "chain_accept";
                 return false;
+            case SelfAbnormalPath.ClassSelfBuff:
+                return true;
             default:
                 denyReason = "unknown_path";
                 return false;

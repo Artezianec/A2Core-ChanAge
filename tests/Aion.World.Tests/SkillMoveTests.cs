@@ -131,7 +131,7 @@ public sealed class SkillMoveTests
         Assert.NotNull(SkillAreas.For(selfBuff));
         var replies = await session.HandleAsync(Cast(selfBuff, session.PlayerKey, session.Position!.Value), Now + 6_000);
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3801 && GameSession.CastResultCode(p) == 0);
-        Assert.DoesNotContain(100200001, session.ActiveBuffs);
+        Assert.Contains(100200001, session.ActiveBuffs);
 
         _ = await session.TickAsync(Now + 6_000 + 3_000);
     }

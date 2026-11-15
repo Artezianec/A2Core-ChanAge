@@ -48,11 +48,11 @@ partial class GameSession
         var area = CastArea(skill);
         var ground = area is { IsGround: true };
         // Locked field / instance NPC (2000..): always schedule on that target; area splash is extra (SkillEffectFilter).
-        IEnumerable<Target> chosen = ground ? GroundTargets(area!, request)
+        IEnumerable<Target> chosen = ground ? GroundTargets(area!, request, skill)
             : request.TargetKey is >= Combat.FirstNpcKey and < SharedWorld.FirstPlayerKey
             && targets.TryGetValue(request.TargetKey, out var locked)
             ? AreaTargets(area, request, locked)
-            : request.TargetKey == playerKey ? SelfCastTargets(request, area)
+            : request.TargetKey == playerKey ? SelfCastTargets(request, area, skill)
             : targets.TryGetValue(request.TargetKey, out var direct) ? AreaTargets(area, request, direct)
             : [];
         var caster = position ?? request.Location;
@@ -75,6 +75,7 @@ partial class GameSession
             if (target.Immune && !openQuestOrEventKill && !questKill && !mapEventKill)
                 hits = hits.Select(h => h with { Amount = 0 }).ToList();
             else if (SealStone()) hits = SealStoneBoost(hits);
+            hits = target.Landed(hits);
             // SkillProjectile.dat Speed: an arrow / bolt lands after its flight, not at the release frame.
             var flight = ground ? mainFlight : area?.FlightMs(Math.Sqrt(target.Position.DistanceSquared(caster))) ?? 0;
             // The client flies an arrow for the 0x3803's remaining time from when it arrives, so it goes out at the release and its
@@ -157,18 +158,22 @@ partial class GameSession
     /// <see cref="AreaRange"/> of the cast location or of the caster; when none, the selected / auto-attacked NPC or the nearest
     /// one within <see cref="SelfCastReach"/>. Live 2026-10-30: the assassin's skills landed on nobody (only auto-attacks hit).
     /// </summary>
-    List<Target> SelfCastTargets(CastRequest request, SkillAreas.Area? shape = null)
+    List<Target> SelfCastTargets(CastRequest request, SkillAreas.Area? shape = null, int skillId = 0)
     {
         var here = position ?? request.Location;
+        var definition = skillId > 0 ? data.Skill(skillId) : null;
+        var castCentre = AreaCentre(definition, request.Location);
         bool Near(Target t, Vector3d at, double r) => t.Position.DistanceSquared(at) <= r * r;
         if (shape is { IsArea: true, OnTarget: false })
         {
-            var inShape = targets!.Values.Where(t => !t.Dead && (t.Hostile || CombatMayHitNeutralForOpenKillObjective(t))
+            var inShape = targets!.Values.Where(t => !t.Dead && !t.Untouchable && (t.Hostile || CombatMayHitNeutralForOpenKillObjective(t))
                     && shape.Contains(here, request.Yaw, t.Position, t.Radius))
                 .OrderBy(t => t.Position.DistanceSquared(here)).Take(shape.Max).ToList();
             if (inShape.Count > 0) return inShape;
         }
-        var area = targets!.Values.Where(t => !t.Dead && (t.Hostile || CombatMayHitNeutralForOpenKillObjective(t)) && (Near(t, request.Location, AreaRange) || Near(t, here, AreaRange))).ToList();
+        // Area hits skip the NPCs players cannot hit (Target.Untouchable). A client-picked target stays hittable (map events).
+        var area = targets!.Values.Where(t => !t.Dead && !t.Untouchable && (t.Hostile || CombatMayHitNeutralForOpenKillObjective(t))
+            && (Near(t, castCentre, AreaRange) || Near(t, here, AreaRange))).ToList();
         if (area.Count > 0) return area;
         if (selectedTarget != playerKey && targets.TryGetValue(selectedTarget, out var selected) && !selected.Dead && Near(selected, here, SelfCastReach))
             return [selected];
@@ -201,10 +206,11 @@ partial class GameSession
     /// a skill without an enemy filter uses its GroundRadius circle. The locked target is not required to be inside: the
     /// shot lands on the ground. Live 2026-10-30: the Ranger's ground shot drew its arrow and hit nobody.
     /// </summary>
-    List<Target> GroundTargets(SkillAreas.Area area, CastRequest request)
+    List<Target> GroundTargets(SkillAreas.Area area, CastRequest request, int skillId = 0)
     {
         if (targets is null) return [];
-        var centre = area.Ground == "Location" ? request.Location : position ?? request.Location;
+        var definition = skillId > 0 ? data.Skill(skillId) : null;
+        var centre = area.Ground == "Location" ? AreaCentre(definition, request.Location) : position ?? request.Location;
         var circle = area with { Shape = "Circle", Values = [0, 0, 0, 0, area.GroundRadius] };
         var shape = area.Shape is not null ? area : area.GroundRadius > 0 ? circle : null;
         if (shape is null) return [];
@@ -216,6 +222,9 @@ partial class GameSession
     /// <summary>Tests: the enemies a ground cast with <paramref name="area"/> at <paramref name="at"/> lands on.</summary>
     internal List<Target> GroundTargetsForTest(SkillAreas.Area area, Vector3d at, double yaw = 0) =>
         GroundTargets(area, new CastRequest(0, 0, 0, false, playerKey, yaw, at));
+
+    internal List<Target> SelfCastTargetsForTest(int skillId, CastRequest request, SkillAreas.Area? shape = null) =>
+        SelfCastTargets(request, shape, skillId);
 
     CombatHitKind? PvpHitKind(int targetKey)
     {

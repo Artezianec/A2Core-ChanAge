@@ -44,6 +44,20 @@ class DamageTests(unittest.TestCase):
         defended = combat.skill_hits(11020000, 'Gladiator', 1, GREATSWORD, target_defense=1000, rng=FixedRandom())[0]['amount']
         self.assertEqual(defended, round(normal / 2))
 
+    def test_multi_hit_divides_each_row_by_value4(self):
+        # Rending Blow: two rows, value4 2. OBSERVED about half of a single-row skill per unit of ratio.
+        rows = class_skills.skill(11010000)['damage']
+        self.assertEqual([combat.hit_divisor(row) for row in rows], [2, 2])
+        hits = combat.skill_hits(11010000, 'Gladiator', 1, GREATSWORD, rng=FixedRandom())
+        expected = round((70 + 10 * 7425 / 10000) / 2)
+        self.assertEqual([hit['amount'] for hit in hits], [expected, expected])
+
+    def test_skill_level_replaces_flat_from_effect_levels(self):
+        low = combat.skill_hits(11020000, 'Gladiator', 1, GREATSWORD, rng=FixedRandom(), skill_level=1)[0]['amount']
+        high = combat.skill_hits(11020000, 'Gladiator', 1, GREATSWORD, rng=FixedRandom(), skill_level=2)[0]['amount']
+        self.assertEqual(low, round(51 + 10 * 4300 / 10000))
+        self.assertEqual(high, round(70 + 10 * 4300 / 10000))
+
     def test_multi_row_skill_hits_per_row_and_pvp_values(self):
         rows = class_skills.skill(11010000)['damage']   # Rending Blow: two Damage rows
         self.assertEqual(len(combat.skill_hits(11010000, 'Gladiator', 1, GREATSWORD, rng=FixedRandom())), len(rows))

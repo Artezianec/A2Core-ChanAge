@@ -256,6 +256,57 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
         return ("ok", counts);
     }
 
+    public async Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendCharacterStorageByGoldAsync(VerifiedAccount account, Guid character, int costIdx, CancellationToken ct = default)
+    {
+        // Same Kina ladder as kStorage (StorageExtensionCost CharStorageSlotExtensionCostList, build 26262663; upstream Addiboii/A2Core 3149109).
+        const int maxGoldExt = 31;
+        long[] costs =
+        [
+            1_000, 1_000, 1_500, 2_000, 2_500, 3_500, 5_000, 6_500, 9_000, 15_000, 20_000, 25_000, 35_000, 45_000, 60_000,
+            80_000, 150_000, 150_000, 200_000, 300_000, 400_000, 550_000, 700_000, 950_000, 1_300_000, 1_800_000, 2_500_000,
+            3_300_000, 4_500_000, 6_200_000, 8_400_000,
+        ];
+        if (costIdx is < 0 or >= maxGoldExt) return ("count", ContainerSlotExtendCounts.Zero);
+        await using var c = await source.OpenConnectionAsync(ct); await using var t = await c.BeginTransactionAsync(ct);
+        if (!await Own(c, t, account.AccountId, character, ct)) return ("none", ContainerSlotExtendCounts.Zero);
+        var goldExtObj = await Scalar(c, t, "SELECT character_storage_slot_extend_by_gold FROM game.characters WHERE character_id=$1 FOR UPDATE", ct, character);
+        if (goldExtObj is null) return ("none", ContainerSlotExtendCounts.Zero);
+        var goldExt = Convert.ToInt16(goldExtObj);
+        if (goldExt != costIdx || goldExt >= maxGoldExt) return ("count", await ContainerExtends(c, t, character, ct));
+        if (!await DeductKina(c, t, character, costs[costIdx], ct)) return ("kina", await ContainerExtends(c, t, character, ct));
+        goldExt++;
+        await Execute(c, t, "UPDATE game.characters SET character_storage_slot_extend_by_gold=$2,revision=revision+1 WHERE character_id=$1", ct, character, goldExt);
+        var counts = await ContainerExtends(c, t, character, ct);
+        await t.CommitAsync(ct);
+        return ("ok", counts);
+    }
+
+    public async Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendContainerByItemAsync(VerifiedAccount account, Guid character, int container, Guid voucher, long revision,
+        int maxExtensions, CancellationToken ct = default)
+    {
+        // Columns of migration 090; the column names are constants, never input.
+        var (gold, item) = container switch
+        {
+            1 => ("inventory_slot_extend_by_gold", "inventory_slot_extend_by_item"),
+            2 => ("storage_slot_extend", "storage_slot_extend_by_item"),
+            15 => ("character_storage_slot_extend_by_gold", "character_storage_slot_extend_by_item"),
+            _ => ("", ""),
+        };
+        if (gold.Length == 0) return ("none", ContainerSlotExtendCounts.Zero);
+        await using var c = await source.OpenConnectionAsync(ct); await using var t = await c.BeginTransactionAsync(ct);
+        if (!await Own(c, t, account.AccountId, character, ct)) return ("none", ContainerSlotExtendCounts.Zero);
+        if (await Scalar(c, t, $"SELECT {gold}+{item} FROM game.characters WHERE character_id=$1 FOR UPDATE", ct, character) is not { } totalObj)
+            return ("none", ContainerSlotExtendCounts.Zero);
+        if (Convert.ToInt32(totalObj) >= maxExtensions) return ("count", await ContainerExtends(c, t, character, ct));
+        if (!await Consume(c, t, character, voucher, revision, 1, ct)) return ("item", await ContainerExtends(c, t, character, ct));
+        await Execute(c, t, $"UPDATE game.characters SET {item}={item}+1,revision=revision+1 WHERE character_id=$1", ct, character);
+        await Execute(c, t, "INSERT INTO audit.events(action,character_id,actor_id,details) VALUES('slot_extend_item',$1,$2,$3)", ct, character, account.AccountId,
+            Json(new { container, voucher }));
+        var counts = await ContainerExtends(c, t, character, ct);
+        await t.CommitAsync(ct);
+        return ("ok", counts);
+    }
+
     public async Task<bool> GrantWingAsync(VerifiedAccount account, Guid character, int wingId, CancellationToken ct=default)
     {
         if(wingId<=0) throw new GameplayException("invalid_wings");

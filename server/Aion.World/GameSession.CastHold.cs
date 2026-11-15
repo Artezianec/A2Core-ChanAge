@@ -74,7 +74,7 @@ public sealed partial class GameSession
         var projectile = CastArea(skillId) is { Projectile: > 0 };
         if (SkillCooldown.IsBasicAutoAttack(definition))
             return SpeedScaledMs(Math.Max(SkillCooldown.BasicAttackGcdMs, SkillCooldown.SwingEndMs(definition)));
-        return SkillCooldown.LockoutMs(definition, projectile);
+        return SkillCooldown.LockoutMs(definition, projectile, CastSkillLevel(skillId));
     }
 
     void ScheduleNextCastAccept(long now, SkillDefinition definition, int skillId, HeldCastWireKey key, bool freeRecast = false)

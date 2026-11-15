@@ -22,7 +22,30 @@ Design and evidence: `research/client-installer.md`.
   Embedded in the launcher; regenerate with the BuildTool (do not hand-edit).
 - `launcher.json`: the server (account URL, IPv4 address, bootstrap port, private saved-folder suffix).
   `accountUrl` must be `https://` except on loopback (`http://127.0.0.1`, `http://localhost`, or `http://[::1]`).
-  Embedded; a `launcher.json` next to the exe overrides it.
+  Embedded; a `launcher.json` next to the exe overrides it. Optional `certificateThumbprint` (below).
+
+## Settings without rebuilding: launcher.json next to the exe, or arguments
+
+The settings are read in this order, each overriding the one before:
+
+1. the `launcher.json` built into the exe;
+2. a `launcher.json` next to the exe (or the file `--config <path>` names): a prebuilt launcher plus the server's
+   own `launcher.json` needs no rebuild;
+3. command-line arguments, for single values (`--ip=1.2.3.4` or `--ip 1.2.3.4`):
+
+| Argument | Sets |
+|---|---|
+| `--ip` | `serverAddress`; the account URL's host follows it unless `--account-url` is given |
+| `--account-url` | `accountUrl` (`https://`, or `http://` on loopback only) |
+| `--port` | `bootstrapPort` |
+| `--pin` | `certificateThumbprint` (repeat for several; last wins) |
+| `--name` | `name` |
+| `--saved-suffix` | `savedDirSuffix` |
+| `--config` | another launcher.json to start from |
+
+A server on a bare IP with a self-signed certificate needs two: `--ip=192.168.22.33 --pin=<40-hex thumbprint>`. The file stays the
+normal way to hand out a server's settings; arguments are for trying other servers. When the launcher installs itself
+it writes the settings it runs with as `launcher.json` in its program folder, so the installed copy keeps them.
 - `AionLauncher/icon.ico` (exe, window, taskbar, shortcuts) and `AionLauncher/emblem.png` (the rail): the "AH"
   emblem artwork (user-supplied PNG, 1254 px), cropped to the central 77 % and resized with Pillow;
   the ico holds 16-256 px.
@@ -134,7 +157,7 @@ used) download the same manifest.
 dotnet run --project tests/Aion.Launcher.Checks
 # Linux (or deploy/linux/build_launcher.sh): launcher/A2Core.Redirect/build-mingw.sh first
 dotnet publish launcher/AionLauncher -c Release -r win-x64 -o research/local/launcher-publish -p:DebugType=none -p:EnableWindowsTargeting=true
-echo 0.4.4 > "research/local/launcher-publish/A2Core Launcher.exe.version"
+echo 0.6.1 > "research/local/launcher-publish/A2Core Launcher.exe.version"
 scp "research/local/launcher-publish/A2Core Launcher.exe" "research/local/launcher-publish/A2Core Launcher.exe.version" root@<server>:/var/lib/aion/downloads/
 ```
 

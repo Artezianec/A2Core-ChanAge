@@ -25,7 +25,7 @@ public sealed partial class GameSession
     public bool Knows(int skillId) => learned.Contains(skillId) || StigmaCastable(skillId);
 
     /// <summary>When the skill is ready again (0: never used); the cast handler refuses it before (unless NoCool).</summary>
-    public long CooldownUntil(int skillId) => noCool ? 0 : cooldowns.GetValueOrDefault(skillId);
+    public long CooldownUntil(int skillId) => noCool ? 0 : cooldowns.GetValueOrDefault(data.CooldownGroup(skillId));
 
     public bool InCombat => inCombat;
 

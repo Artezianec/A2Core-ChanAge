@@ -136,6 +136,9 @@ public sealed partial class GameSession
         var broadcast = PlayerPackets.LevelBroadcast(playerKey, level);
         worldPlayer?.Map?.Broadcast(worldPlayer, [broadcast]);
         replies.AddRange(RefreshStats());
+        // PCLevel steps and Auto quests from the new level (e.g. AQ1602000 at 5 while HQ1101021 is active) advance here, not only on the next quest event or relog.
+        if (questLog is not null)
+            replies.AddRange(await Stored(() => QuestChangesAsync(questLog.Recheck(level), ct)));
         if (daevanionNodes.Count > daevanionNodesBefore)
         {
             replies.Add(DaevanionBoardInfo());

@@ -6,7 +6,7 @@ Critical stats, and the class's per-level FixingDamage/Defense/HPMax (PcStatLeve
 How they combine is our choice until the client's formula is found:
 
     attack  = weapon damage roll (min..max) + FixingDamage(level)
-    raw     = flat (min..max) + attack * ratio / 10000        per Damage row
+    raw     = (flat (min..max) + attack * ratio / 10000) / value4   per Damage row (value4 below 2 counts as 1)
     crit    = chance Critical / 1000 (capped), damage x CRITICAL_MULTIPLIER
     damage  = raw * DEFENSE_SCALE / (DEFENSE_SCALE + target defense), at least 1
 """
@@ -43,6 +43,7 @@ class Target:
     run_speed: float = 0.0
     radius: int = 0            # NpcData CollisionCylinderRadius
     function: str = 'None'     # NpcData FunctionType (BuySell, EnterInstanceLayer, ...)
+    hit_count: bool = False    # NpcData bHitCountBased: every hit takes 1 HP
 
     @property
     def dead(self):
@@ -70,25 +71,41 @@ def _roll(pair, rng):
     return rng.randint(min(low, high), max(low, high))
 
 
-def skill_hits(skill_id, class_name, level, weapon_item, target_defense=0, rng=random, pvp=False):
-    """One hit per Damage row of the skill: [{'amount', 'critical', 'effect_id'}]."""
+def skill_hits(skill_id, class_name, level, weapon_item, target_defense=0, rng=random, pvp=False, skill_level=1):
+    """One hit per Damage row of the skill: [{'amount', 'critical', 'effect_id'}].
+
+    skill_level 2+ replaces the flat pair from class-skills.json effect_levels (SkillEffectLv.dat) when the row names a
+    level_group. The ratio stays. value4 above 1 divides the row (multi-hit skills).
+    """
     definition = class_skills.skill(skill_id)
     if not definition:
         return []
     weapon = weapon_stats(weapon_item)
     fixing = base_stats(class_name, level).get('FixingDamage', 0)
     critical_chance = min(CRITICAL_CAP, weapon['critical'] / 1000)
+    tables = class_skills.data().get('effect_levels') or {}
     hits = []
     for row in definition.get('damage', []):
         values = row['pvp'] if pvp and row.get('pvp') else row
+        flat = values['flat']
+        group = row.get('level_group')
+        if skill_level > 1 and group in tables and tables[group]:
+            picked = tables[group][min(skill_level - 2, len(tables[group]) - 1)]
+            flat = picked[2:4] if pvp and row.get('pvp') else picked[0:2]
         attack = _roll((weapon['min'], weapon['max']), rng) + fixing
-        raw = _roll(values['flat'], rng) + attack * _roll(values['ratio'], rng) / 10000
+        raw = (_roll(flat, rng) + attack * _roll(values['ratio'], rng) / 10000) / hit_divisor(row)
         critical = rng.random() < critical_chance
         if critical:
             raw *= CRITICAL_MULTIPLIER
         amount = max(1, round(raw * DEFENSE_SCALE / (DEFENSE_SCALE + max(0, target_defense))))
         hits.append({'amount': amount, 'critical': critical, 'effect_id': row['effect_id']})
     return hits
+
+
+def hit_divisor(row):
+    """A Damage row's value4 when it reads as a number above 1 (multi-hit skills split their damage), else 1."""
+    value = str(row.get('value4') or '')
+    return int(value) if value.isdigit() and int(value) > 1 else 1
 
 
 def apply_hits(target, hits):

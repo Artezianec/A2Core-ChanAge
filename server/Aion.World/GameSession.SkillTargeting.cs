@@ -7,6 +7,21 @@ partial class GameSession
     /// <summary>Extra reach beyond Skill.dat NeedSkillUseRange for latency and collision (OURS).</summary>
     public const double CastRangeToleranceCm = 150;
 
+    /// <summary>Where the server places the character: the last accepted position, else its spawn point (before any move).</summary>
+    public Vector3d? KnownPosition => position ?? spawn?.Position;
+
+    /// <summary>The centre of a self-centred area cast: the client's location while it lies within the skill's UseRange plus
+    /// <see cref="CastRangeToleranceCm"/> of the server's position (horizontally), else the server's position. OURS: the client's
+    /// location is never trusted further than the skill reaches (a sent location next to a far monster used to hit it).</summary>
+    public Vector3d AreaCentre(SkillDefinition? definition, Vector3d claimed) => AreaCentre(definition, KnownPosition, claimed);
+
+    public static Vector3d AreaCentre(SkillDefinition? definition, Vector3d? server, Vector3d claimed)
+    {
+        if (server is not { } at) return claimed;
+        var maxReach = Math.Max(0, definition?.UseRangeCm ?? 0) + CastRangeToleranceCm;
+        return at.Distance2d(claimed) > maxReach ? at : claimed;
+    }
+
     /// <summary>Max vertical separation for a valid skill target (SkillEffectCondition Distance_Height; 2D combat OURS).</summary>
     public const double CastHeightToleranceCm = 500;
 

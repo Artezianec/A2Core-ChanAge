@@ -655,6 +655,12 @@ Check(first.Count == 5 && first[0].SequenceEqual(GamePackets.NpcFirstAggro(2001)
       && first[2][0] == 0x1a && first[2][1] == 0x37 && first[3].SequenceEqual(GamePackets.CombatState(2001, true)),
       "aggressive monster engages: 0x8d52, its target 0x3835 (the player), 0x371a, 0x8d21 on (the aggro start as recorded 2026-10-19)");
 Check(first[4][0] == 0x1b && first[4][1] == 0x37, "chase starts with a run (0x371b)");
+// A monster the player hits first: 0x8d21 on without 0x8d52 or 0x3835 (OBSERVED 148 recorded hit-first combat-ons).
+var sheep = new Target { Key = 2003, Name = "sheep", Hp = 100, HpMax = 100, Position = new Vector3d(0, 0, 0), WalkSpeed = 100, RunSpeed = 400, Radius = 50, Aggro = circle };
+var sheepMap = new Dictionary<int, Target> { [sheep.Key] = sheep };
+var struck = new NpcAi(new Random(1)).Engage(sheepMap, sheep, 0);
+Check(struck.Any(b => b.SequenceEqual(GamePackets.CombatState(2003, true))) && !struck.Any(b => (b[0] | b[1] << 8) is 0x8d52 or 0x3835),
+      "a monster hit first: 0x8d21 on, no 0x8d52 first aggro and no 0x3835 target");
 var arrive = ai.Tick(map, new Vector3d(500, 0, 0), 1000);
 Check(arrive.Single()[0] == 0x1a && wolf.Position.X is >= 280 and <= 330, "stops at attack reach beside the player (0x371a)");
 var leash = ai.Tick(map, new Vector3d(5000, 0, 0), 1200);
@@ -874,7 +880,11 @@ Check(patrolPackets.Count(b => (b[0] | b[1] << 8) == 0x371c) > 30 && patrolPacke
       && patrolPackets.Count(b => (b[0] | b[1] << 8) == 0x371d) > 200,
       "only walk updates (no start or stop): a full 0x371c about once a second and 0x371d deltas every 100 ms between (observed)");
 var deltas = patrolPackets.Where(b => (b[0] | b[1] << 8) == 0x371d).ToList();
-Check(deltas.All(b => b[^1] == 1 && (b[4] & 0x26) == 0x26 && (b[4] & 0x01) == 0), "the walk deltas carry dx, dy and the heading pair and end with 01, as the official walk deltas");
+Check(deltas.All(b => b[^1] == 1 && (b[4] & 0x20) == 0x20 && (b[4] & 0x01) == 0 && b.Length == 5 + int.PopCount(b[4] & 0x0e) + 4 + 1),
+      "the walk deltas carry the heading pair, the non-zero deltas named in the mask, and end with 01, as the official walk deltas");
+Check(GamePackets.NpcMoveDelta(0x286, 0, 12, 0, 0, false).AsSpan(4).ToArray() is [0x24, 12, _, _, _, _, 1]
+      && GamePackets.NpcMoveDelta(0x286, 0, 0, 0, 0, false).AsSpan(4).ToArray() is [0x20, _, _, _, _, 1],
+      "a zero dx or dy is left out of 0x371d (OBSERVED masks 0x24, 0x20)");
 // A companion (Robin in the HQ001 layer: Function Companion, aggressive, relationship 13) attacks a monster near it on its
 // own, then follows its player again once the monster is gone (official: Robin ran to the Cherubim and cast first).
 var companion = new Target { Key = 2150, Name = "N_L0_Starter_HQ001_Robin_01", Hp = 100, HpMax = 100, Position = new Vector3d(0, 0, 0), WalkSpeed = 126, RunSpeed = 500,

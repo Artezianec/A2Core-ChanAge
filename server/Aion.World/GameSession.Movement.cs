@@ -32,11 +32,11 @@ public sealed partial class GameSession
 
     public double BuilderSpeedMultiplier => builderSpeedMultiplier;
 
-    /// <summary>Summed MoveSpeed permille for 0x364b: buffs plus builder multiplier (speed × (1 + permille/10000)).</summary>
+    /// <summary>Summed MoveSpeed permille for 0x364b: buffs plus builder multiplier (speed × (1 + permille/10000)). A monster slow is negative.</summary>
     public int WireMoveSpeedPermille()
     {
         var bonus = builderSpeedMultiplier <= 1 ? 0 : (int)Math.Round((builderSpeedMultiplier - 1) * 10_000);
-        return Math.Max(0, BuffStat("MoveSpeed") + bonus);
+        return BuffStat("MoveSpeed") + bonus;
     }
 
     /// <summary>Staff builder: set run speed multiplier and push 0x364b MoveSpeed (stat 205).</summary>

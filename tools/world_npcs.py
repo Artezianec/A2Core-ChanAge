@@ -117,6 +117,26 @@ def companion_hp(row):
     return row['RelationshipEntity'].endswith('::NPC_Companion') and bool(row.get('bCanBeAttacked'))
 
 
+# NpcData bHitCountBased: HP counts hits, every hit takes 1 and none is critical. OBSERVED monsters appear at 7/7;
+# the one recorded summon appears at 5/5. CANDIDATE for the rows not recorded.
+HIT_COUNT_HP = 7
+HIT_COUNT_SUMMON_HP = 5
+
+
+def hit_count(row):
+    """The template fields of a hit-count NPC (NpcData bHitCountBased): its HP in hits and the flag; {} for any other."""
+    if not row.get('bHitCountBased'):
+        return {}
+    return {'hp_max': HIT_COUNT_SUMMON_HP if str(row.get('NpcType', '')).endswith('::Summon') else HIT_COUNT_HP, 'hit_count': True}
+
+
+def untouchable(row):
+    """NpcData bCanBeAttacked false or NpcTargetAble not Able (Unable, Onlypicking): players cannot hit it. OBSERVED: all 20,851
+    player hits in our recordings (2.0.6 and the 2026-11-04..06 community recordings) landed on Able NPCs that can be attacked,
+    none on the others; the invisible battlefield/dungeon controllers, turrets and meteors are of this kind."""
+    return not row.get('bCanBeAttacked') or not str(row.get('NpcTargetAble', '')).endswith('::Able')
+
+
 def _groggy_guard_max(row):
     """NpcData groggy guard max when present (0 = server uses rank defaults)."""
     for key in ('GroggyGuardMaxEnergy', 'MaxGroggyGuardEnergy', 'GroggyGuardMax'):
@@ -326,6 +346,8 @@ def build(maps=MAPDATA, npc_table=NPCDATA, aggro_table=AGGRODATA, skill_table=SK
                                    'grade': int(row.get('Grade') or 3),
                                    **({'air': True} if row.get('ObjectTerrainType', '').endswith('::Air') else {}),
                                    **({'hp_max': COMPANION_HP} if companion_hp(row) else {}),
+                                   **hit_count(row),
+                                   **({'untouchable': True} if untouchable(row) else {}),
                                    **(_groggy_guard_max(row),)})
                 used_skills.update(skills)
                 unique_key = int(record.get('UniqueKey', 0)) & 0xffffffff
@@ -358,6 +380,8 @@ def build(maps=MAPDATA, npc_table=NPCDATA, aggro_table=AGGRODATA, skill_table=SK
                                   'sub_type': _enum(row.get('NpcSubType', 'ENpcSubType::NormalMonster')), 'grade': int(row.get('Grade') or 3),
                                   **({'air': True} if row.get('ObjectTerrainType', '').endswith('::Air') else {}),
                                    **({'hp_max': COMPANION_HP} if companion_hp(row) else {}),
+                                   **hit_count(row),
+                                   **({'untouchable': True} if untouchable(row) else {}),
                                    **_groggy_guard_max(row)}
         used_skills.update(skills)
     out['templates'] = templates
@@ -388,12 +412,13 @@ def map_targets(map_id, target_class):
     targets = {}
     for index, spawn in enumerate(data()['maps'].get(str(map_id), [])):
         template = data()['templates'].get(str(spawn['npc_id']), {})
-        hp = hp_for(spawn['level'], spawn.get('sub_type') or template.get('sub_type', 'NormalMonster'), template.get('grade', 3))
         sub = spawn.get('sub_type') or template.get('sub_type', 'NormalMonster')
         grade = template.get('grade', 3)
+        hp = template['hp_max'] if template.get('hit_count') and template.get('hp_max') else hp_for(spawn['level'], sub, grade)
         defense = npc_defense(spawn['level'], sub, grade)
         key = FIRST_KEY + index
         targets[key] = target_class(key=key, name=spawn['name'], hp=hp, hp_max=hp, defense=defense,
+                                    hit_count=bool(template.get('hit_count') or spawn.get('hit_count')),
                                     position=tuple(spawn['position']), npc_id=spawn['npc_id'],
                                     level=spawn['level'], direction=spawn['yaw'],
                                     relationship=spawn['relationship'], aggressive=spawn['aggressive'],

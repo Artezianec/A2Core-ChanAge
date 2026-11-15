@@ -86,7 +86,7 @@ public sealed class WarehouseStorageExpandTests
     }
 
     [Fact]
-    public async Task Warehouse_extension_at_max_returns_result_4()
+    public async Task Warehouse_extension_at_max_returns_over_max()
     {
         var store = new FakeCharacterStore();
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now + 40);
@@ -98,7 +98,7 @@ public sealed class WarehouseStorageExpandTests
 
         var rs = (await session.HandleAsync(ExtendRq(GameSession.ItemContainerSlotExtend8dRq, InventoryItem.Storage, maxStorageExt), Now + 41))
             .First(p => GameSessionTestHelpers.Op(p) == GameSession.ItemContainerSlotExtend8dRs);
-        Assert.Equal(4, BitConverter.ToInt32(rs, 2));
+        Assert.Equal(GameSession.SlotExtendOverMax, BitConverter.ToInt32(rs, 2));
         Assert.Equal(10_000_000, store.Items.Where(i => i.TemplateId == GameSession.KinaItemId).Sum(i => i.Quantity));
     }
 }

@@ -484,6 +484,28 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
         return outcome;
     }
 
+    public async Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendCharacterStorageByGoldAsync(Guid character, int costIdx, CancellationToken ct)
+    {
+        await ValidateAsync(ct);
+        var outcome = await game.ExtendCharacterStorageByGoldAsync(identity.Account, character, costIdx, ct);
+        if (outcome.Result is "ok" or "count" or "kina")
+            containerExtends = outcome.Counts;
+        if (outcome.Result == "ok")
+            await RefreshItemCacheAsync(character, ct);
+        return outcome;
+    }
+
+    public async Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendContainerByItemAsync(Guid character, int container, Guid voucher, long revision, int maxExtensions, CancellationToken ct)
+    {
+        await ValidateAsync(ct);
+        var outcome = await game.ExtendContainerByItemAsync(identity.Account, character, container, voucher, revision, maxExtensions, ct);
+        if (outcome.Result is "ok" or "count" or "item")
+            containerExtends = outcome.Counts;
+        if (outcome.Result is "ok" or "item")
+            await RefreshItemCacheAsync(character, ct);
+        return outcome;
+    }
+
     public async Task<(string Result, IReadOnlyList<(int Type, long Amount)> Wallet)> DonateGuildWalletAsync(Guid character, long kina,
         IReadOnlyList<(Guid Item, long Revision, int Count)> costs, CancellationToken ct)
     {

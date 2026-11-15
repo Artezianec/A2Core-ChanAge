@@ -227,6 +227,11 @@ public interface INativeCharacterStore : IAsyncDisposable
         Task.FromResult(("none", ContainerSlotExtendCounts.Zero));
     Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendStorageByGoldAsync(Guid character, int costIdx, CancellationToken ct) =>
         Task.FromResult(("none", ContainerSlotExtendCounts.Zero));
+    Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendCharacterStorageByGoldAsync(Guid character, int costIdx, CancellationToken ct) =>
+        Task.FromResult(("none", ContainerSlotExtendCounts.Zero));
+    /// <summary>One voucher (bag item at its revision) opens one row of EItemContainerType 1, 2 or 15: "ok", "none", "count", "item".</summary>
+    Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendContainerByItemAsync(Guid character, int container, Guid voucher, long revision, int maxExtensions, CancellationToken ct) =>
+        Task.FromResult(("none", ContainerSlotExtendCounts.Zero));
     /// <summary>The account's Quna wallet in the realm (server/DATABASES.md); null without one (Quna then cannot be spent).</summary>
     Aion.Application.Gameplay.IQunaWallet? QunaWallet => null;
     /// <summary>

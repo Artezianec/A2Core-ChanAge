@@ -226,7 +226,7 @@ public static class BossSummons
                 Aggressive = true, WalkSpeed = spawn.WalkSpeed, RunSpeed = spawn.RunSpeed, Radius = spawn.Radius, Function = spawn.Function,
                 Aggro = spawn.Aggro, Skills = spawn.Skills ?? [], NoRotation = spawn.NoRotation, Air = spawn.Air,
                 AirMonster = spawn.Air && spawn.SubType.EndsWith("Monster", StringComparison.Ordinal),
-                DamageScale = Combat.DamageScale(spawn.SubType, spawn.Grade), SubType = spawn.SubType, Grade = spawn.Grade,
+                DamageScale = Combat.DamageScale(spawn.SubType, spawn.Grade), SubType = spawn.SubType, Grade = spawn.Grade, HitCount = spawn.HitCount,
                 Defense = Combat.NpcDefense(spawn.Level, spawn.SubType, spawn.Grade, data.BaseStats("Gladiator", spawn.Level).GetValueOrDefault("Defense")),
             };
             targets[t.Key] = t;

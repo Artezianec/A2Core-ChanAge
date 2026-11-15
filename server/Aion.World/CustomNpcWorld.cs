@@ -100,7 +100,7 @@ public sealed partial class MapInstance
                         Key = key, Name = t.Name, Hp = Combat.HpFor(t), HpMax = Combat.HpFor(t), Position = new Vector3d(at.X, at.Y, at.Z),
                         NpcId = t.NpcId, Level = t.Level, Direction = at.Yaw, Relationship = t.Relationship, Aggressive = false,
                         WalkSpeed = t.WalkSpeed, RunSpeed = t.RunSpeed, Radius = t.Radius, Function = t.Function, NoRotation = t.NoRotation,
-                        Air = t.Air, SubType = t.SubType, Grade = t.Grade, Custom = npc,
+                        Air = t.Air, SubType = t.SubType, Grade = t.Grade, Custom = npc, HitCount = t.HitCount,
                     };
             }
         foreach (var key in Targets.Keys.Where(CustomNpcDirectory.IsCustomKey).ToList())

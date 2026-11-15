@@ -13,7 +13,7 @@ public sealed class EnchantRuneFailureTests
     const int RuneTemplate = 310900001;
 
     [Fact]
-    public async Task Failed_rune_enchant_drops_one_level()
+    public async Task Failed_rune_enchant_keeps_level_when_fail_penalty_is_negative_one()
     {
         var store = new FakeCharacterStore();
         var empty = JsonSerializer.SerializeToElement(new { });
@@ -34,6 +34,6 @@ public sealed class EnchantRuneFailureTests
         session.EnchantRoll = () => 9999;
         _ = await session.HandleAsync(new PacketWriter().U16(0x5622).I64(9001).Varint(0).ToArray(), Now);
         var rune = store.Items.Single(i => i.WireId == 9001);
-        Assert.Equal(0, rune.Upgrades.GetProperty("enchant").GetInt32());
+        Assert.Equal(1, rune.Upgrades.GetProperty("enchant").GetInt32());
     }
 }

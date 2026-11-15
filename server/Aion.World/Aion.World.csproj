@@ -70,6 +70,8 @@
     <EmbeddedResource Include="../../tools/data/daily-dungeons.json" LogicalName="daily-dungeons.json" />
     <EmbeddedResource Include="../../tools/data/daily-waves.json" LogicalName="daily-waves.json" />
     <EmbeddedResource Include="../../tools/data/dungeon-buff-abnormals.json" LogicalName="dungeon-buff-abnormals.json" />
+    <!-- Addiboii/A2Core build 26262663 abnormal rows our exports did not carry (monster skills, self-buffs, missing target rows). -->
+    <EmbeddedResource Include="../../tools/data/ported-skill-abnormals.json" LogicalName="ported-skill-abnormals.json" />
     <!-- OURS (ported from ckrealm/A2Core): boss phases, slams and hand-made waves, tools/boss_phases.py. -->
     <EmbeddedResource Include="../../tools/data/boss-phases.json" LogicalName="boss-phases.json" />
     <EmbeddedResource Include="../../tools/data/npc-talks.json" LogicalName="npc-talks.json" />

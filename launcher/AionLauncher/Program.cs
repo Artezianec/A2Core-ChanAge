@@ -13,9 +13,11 @@ static class Program
         if (Environment.ProcessPath is { } exe) _ = LauncherUpdate.RemoveLeftoversAsync(exe);
         ApplicationConfiguration.Initialize();
         var sidecar = Path.Combine(AppContext.BaseDirectory, "launcher.json");
+        var configArgs = LauncherConfig.ConfigArguments(args);
         LauncherConfig? defaultServer = null;
-        try { defaultServer = LauncherConfig.LoadDefault(sidecar) ?? LauncherConfig.Load(); }
-        catch (Exception error) when (error is InvalidDataException or System.Text.Json.JsonException)
+        // launcher.json next to the exe (or --config) over the embedded one, then command-line values on top.
+        try { defaultServer = LauncherConfig.Load(LauncherConfig.ConfigPath(configArgs, sidecar)).WithArguments(configArgs); }
+        catch (Exception error) when (error is InvalidDataException or System.Text.Json.JsonException or IOException or UnauthorizedAccessException)
         {
             LauncherLoc.Apply(null);
             MessageBox.Show(LauncherLoc.InvalidLauncherJson(error.Message), LauncherLoc.DialogTitle, MessageBoxButtons.OK, MessageBoxIcon.Error);

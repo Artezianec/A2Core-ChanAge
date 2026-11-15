@@ -228,6 +228,7 @@ public sealed partial class GameSession
             }
         }
         if (RunsMapEvents && !reloading && mapEventsMap == worldMap) replies.AddRange(StartEligibleEvents(lastNow));
+        replies.AddRange(await SyncQuestCollectItemsAsync(ct));
         return replies;
     }
 

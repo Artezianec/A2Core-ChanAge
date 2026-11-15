@@ -35,6 +35,8 @@ public sealed record QuestRewards(
     [property: JsonPropertyName("exp")] long Exp = 0,
     [property: JsonPropertyName("kina")] long Kina = 0,
     [property: JsonPropertyName("items")] long[][]? Items = null,
+    /// <summary>QuestClassReward.dat: per-class items on top of common rewards (Hero quests, e.g. HQ1102010).</summary>
+    [property: JsonPropertyName("class_items")] Dictionary<string, long[][]>? ClassItems = null,
     [property: JsonPropertyName("select")] long[][]? Select = null,
     /// <summary>QuestReward RandomReward: the duty quests' random reward package (duty.json packages).</summary>
     [property: JsonPropertyName("random")] string? Random = null);

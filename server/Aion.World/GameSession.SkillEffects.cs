@@ -42,19 +42,19 @@ partial class GameSession
         var friendlyBuffs = SkillEffects.IsFriendly(skill) && definition.Damage.Length == 0 && area is not null
             && (area.CasterDebuffRows.Any() || area.TargetDebuffRows.Any());
         if (rows.Count == 0 && !friendlyBuffs) return [];
-        var enemies = rows.Any(SkillEffects.IsHostileRow) ? HostileNpcsOf(area, request).Select(t => t.Key).ToList() : [];
+        var enemies = rows.Any(SkillEffects.IsHostileRow) ? HostileNpcsOf(skill, area, request).Select(t => t.Key).ToList() : [];
         var due = definition.Damage.Length > 0 ? now + SkillTiming.HitLandMs(definition, 0) : now + definition.CastingMs + NpcAi.HitDelayMs;
         pendingSkillEffects.Add(new(due, skill, request.TargetKey, enemies));
         return [];
     }
 
     /// <summary>The living enemy monsters one cast reaches (the same selection as the damage rows and the debuffs).</summary>
-    List<Target> HostileNpcsOf(SkillAreas.Area? area, CastRequest request)
+    List<Target> HostileNpcsOf(int skillId, SkillAreas.Area? area, CastRequest request)
     {
         if (targets is null) return [];
-        List<Target> chosen = area is { IsGround: true } ? GroundTargets(area, request)
+        List<Target> chosen = area is { IsGround: true } ? GroundTargets(area, request, skillId)
             : request.TargetKey != playerKey && targets.TryGetValue(request.TargetKey, out var locked) ? AreaTargets(area, request, locked)
-            : request.TargetKey == playerKey ? SelfCastTargets(request, area)
+            : request.TargetKey == playerKey ? SelfCastTargets(request, area, skillId)
             : [];
         return chosen.Where(t => !t.Dead && t.Hostile && PlayerMayDamageNpc(t)).ToList();
     }

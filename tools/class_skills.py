@@ -12,6 +12,7 @@ without ascension or other prerequisites. Skill-point upgrades (skill levels 2+)
 stigma-point skills and ascension skills are separate systems and stay locked.
 """
 import json
+import os
 import sys
 from collections import Counter
 from functools import lru_cache
@@ -32,6 +33,14 @@ PROGRESSION_LEVEL_CAP = 45
 TABLES = ROOT / 'research/local/starter-skills-tables'
 CATALOG = ROOT / 'research/local/game-catalog-v2/entries.jsonl'
 EFFECT_TABLE = ROOT / 'research/local/skill-tables-20261030/table-001.json'
+# research/local lives in the main checkout only (git-ignored); a worktree points here with AION_RESEARCH_LOCAL.
+LOCAL = Path(os.environ.get('AION_RESEARCH_LOCAL', ROOT / 'research/local'))
+# SkillEffectLv.dat of build 26262663 (WorldProbe, research/local/skill-level-tables-26262663 table-000).
+EFFECT_LEVELS = LOCAL / 'skill-level-tables-26262663/table-000.json'
+# SkillLv.dat of build 26262663 (same export, table-001): per-level cooldowns by Skill.dat SkillLvGroupId.
+SKILL_LEVELS = LOCAL / 'skill-level-tables-26262663/table-001.json'
+# The player-skill acts of build 26262663 (research/local/skill-act-26262663): Design acts and their containers.
+ACTS = LOCAL / 'skill-act-26262663'
 COMMON = 'None'
 # OBSERVED SkillStart cooltime for MainSelf chain basics when NeedCoolTime is 0 (Keen Strike).
 BASIC_ATTACK_GCD_MS = 1000
@@ -132,6 +141,9 @@ def damage_rows(entry):
         payload = {'flat': [number(0), number(1)], 'ratio': [number(2), number(3)], 'value4': values[4] if len(values) > 4 else None,
                    'pvp': {'flat': [number(21), number(22)], 'ratio': [number(23), number(24)]} if len(values) > 24 else None,
                    'effect_id': row['ID']['Value']}
+        group = row.get('SkillEffectLvGroupId')
+        if group not in (None, '', 'None'):
+            payload['level_group'] = group
         if hit_at_ms is not None:
             payload['hit_at_ms'] = hit_at_ms
         rows.append(payload)
@@ -168,6 +180,77 @@ def chain_fields(entry):
     }
     return out
 
+@lru_cache(maxsize=None)
+def act_times(acts=ACTS):
+    """{AnimationName: (EndureEnd s or None, container PlayRate)} from the exported acts; {} when they are missing."""
+    acts = Path(acts)
+    if not (acts / 'acts').is_dir():
+        return {}
+    times = {}
+    for path in sorted((acts / 'acts').glob('*_Design.json')):
+        ends = [link.get('ActivationTime', 0.0) for export in json.loads(path.read_text(encoding='utf-8'))
+                for section in (export.get('Properties') or {}).get('Sections', []) for link in section.get('TaskLinks', [])
+                if link.get('bEnabled', True) and "AionActTask_EndureEnd'" in link['TaskBase']['ObjectName']]
+        times[path.name[:-len('_Design.json')]] = max(ends) if ends else None
+    rates = {}
+    for path in sorted((acts / 'containers').glob('*.json')):
+        for export in json.loads(path.read_text(encoding='utf-8')):
+            if export.get('Type') == 'AionActContainer':
+                rates[path.stem] = (export.get('Properties') or {}).get('PlayRate', 1.0)
+    return {name: (end, rates.get(name, 1.0)) for name, end in times.items()}
+
+
+def end_fields(entry, acts=ACTS):
+    """end_ms: the skill's end (0x3806) after its start at attack speed 10000, before the 50 ms rounding: Design act
+    EndureEnd / container PlayRate. 0 when the skill has no animation (it ends at once). Left out when the act has no
+    EndureEnd, or when the act export is missing (the committed class-skills.json keeps the merged values)."""
+    name = (entry.get('raw') or {}).get('AnimationName')
+    if name in (None, '', 'None'):
+        return {'end_ms': 0}
+    if not act_times(acts):
+        return {}
+    end, rate = act_times(acts).get(name, (None, 1.0))
+    return {'end_ms': round(end * 1000 / (rate or 1.0), 3)} if end else {}
+
+
+@lru_cache(maxsize=None)
+def _skill_level_rows(table=SKILL_LEVELS):
+    path = Path(table)
+    rows = {}
+    if path.exists():
+        for row in json.loads(path.read_text(encoding='utf-8'))['Properties']['Data']:
+            rows.setdefault(row['SkillLvGroupId'], {})[row['SkillLv']] = row
+    return rows
+
+
+def cooldown_levels(entry, table=SKILL_LEVELS):
+    """cooldown_levels: the cooldown (ms) at skill levels 2, 3, ... from SkillLv.dat NeedCoolTime by SkillLvGroupId,
+    when it differs from level 1. {} when the export is missing."""
+    group = (entry.get('raw') or {}).get('SkillLvGroupId')
+    levels = _skill_level_rows(str(table)).get(group) if group not in (None, '', 'None') else None
+    if not levels or sorted(levels) != list(range(2, max(levels) + 1)):
+        return {}
+    times = [int(levels[lv]['NeedCoolTime']) for lv in sorted(levels)]
+    base = int((entry.get('facts') or {}).get('NeedCoolTime') or (entry.get('raw') or {}).get('NeedCoolTime') or 0)
+    return {'cooldown_levels': times} if any(t != base for t in times) else {}
+
+
+def effect_levels(groups, table=EFFECT_LEVELS):
+    """{SkillEffectLvGroupId: [[flat min, flat max, pvp flat min, pvp flat max] for skill levels 2, 3, ...]} of the named
+    groups (SkillEffectLv.dat EffectValueList [0], [1], [21], [22]). {} without the export."""
+    path = Path(table)
+    if not path.exists() or not groups:
+        return {}
+    number = lambda values, i: int(values[i]) if i < len(values) and str(values[i]).lstrip('-').isdigit() else 0
+    found = {}
+    for row in json.loads(path.read_text(encoding='utf-8'))['Properties']['Data']:
+        if row['SkillEffectLvGroupId'] in groups:
+            values = row['EffectValueList']
+            found.setdefault(row['SkillEffectLvGroupId'], {})[row['SkillEffectLv']] = [number(values, i) for i in (0, 1, 21, 22)]
+    return {group: [levels[lv] for lv in range(2, max(levels) + 1) if lv in levels] for group, levels in sorted(found.items())
+            if sorted(levels) == list(range(2, max(levels) + 1))}
+
+
 def cast_row(entry):
     facts = entry.get('facts', {})
     raw = entry.get('raw', {})
@@ -178,6 +261,8 @@ def cast_row(entry):
         'target': _short(facts.get('TargetProcessType', '')),
         'weapons': [_short(w) for w in facts.get('NeedMainWeaponTypes', [])],
         'cooldown_ms': int(facts.get('NeedCoolTime') or raw.get('NeedCoolTime') or 0),
+        **cooldown_levels(entry),
+        **end_fields(entry),
         'casting_ms': int(facts.get('CastingTime') or raw.get('CastingTime') or 0),
         'cost': {k: int(facts.get('NeedCost' + k.title()) or raw.get('NeedCost' + k.title()) or 0) for k in ('mp', 'hp', 'sp')},
         'damage': damage_rows(entry),
@@ -503,7 +588,11 @@ def build(tables=TABLES, catalog=CATALOG):
             'skills': cast, 'levels': levels, 'skill_customizing': customizing,
             'e_combo_stacks': {k: v for k, v in e_combo_stacks().items()},
             'bar_context_by_default_skill': {str(k): v for k, v in bar_context_by_default_skill().items()},
+            'effect_levels': effect_levels({d['level_group'] for c in cast.values() for d in c.get('damage') or [] if d.get('level_group')}),
             'evidence': {'acquire': 'SkillAcquireData bAutoLearn rows without costs/prerequisites/ascension',
+                         'effect_levels': 'SkillEffectLv.dat by the SkillEffectLvGroupId of a Damage row (level_group): flat min/max and PvP flat min/max for skill levels 2+ (build 26262663)',
+                         'cooldown_levels': 'SkillLv.dat NeedCoolTime at skill levels 2+ when it differs from level 1 (build 26262663)',
+                         'end_ms': 'Design act EndureEnd / container PlayRate, before the 50 ms skill-end rounding (build 26262663)',
                          'levels': 'SkillAcquireData Mastery rows of SkillLevel 2+: level, CostSkillPoint, NeedCharacterLevel',
                          'max_level': 'PcStatLevel highest Level',
                          'damage': 'Damage EffectValueList, candidate reading: flat min/max, weapon ratio min/max (1/10000)',

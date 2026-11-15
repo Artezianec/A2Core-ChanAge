@@ -21,6 +21,17 @@ public sealed class Target
     public int Relationship { get; set; } = 6;   // ERelationshipEntity (6 Monster); map events change it
     /// <summary>Held by a scripted abnormal (stun, hold, stone): it neither moves nor attacks until released.</summary>
     public bool Held { get; set; }
+    /// <summary>NpcData says players cannot hit it (NpcSpawn.Untouchable): area hits, spirits and companions leave it alone.</summary>
+    public bool Untouchable { get; init; }
+    /// <summary>NpcData bHitCountBased: every hit takes 1 HP and none is critical.</summary>
+    public bool HitCount { get; init; }
+    /// <summary>Hits as they land: 1 HP each, never critical, on a hit-count NPC; unchanged otherwise.</summary>
+    public IReadOnlyList<Hit> Landed(IReadOnlyList<Hit> hits) =>
+        HitCount ? hits.Select(h => h with { Amount = Math.Min(1, h.Amount), Critical = false }).ToList() : hits;
+    /// <summary>One NPC's damage as it lands (same rule as the hit-list overload).</summary>
+    public int Landed(int damage) => HitCount ? Math.Min(1, damage) : damage;
+    /// <summary>What a player's side picks to hit by itself (spirits, companions): hostile and not untouchable.</summary>
+    public bool Attackable => Hostile && !Untouchable;
     /// <summary>Silenced by an abnormal: it uses its basic attack only (no special skills).</summary>
     public bool Silenced { get; set; }
     /// <summary>Slowed by an abnormal (1/10000 of its speed; 10000 is rooted): it moves that much slower, a rooted one only attacks in reach.</summary>
@@ -110,7 +121,7 @@ public sealed record Hit(int Amount, bool Critical, int EffectId);
 
 /// <summary>
 /// Skill damage. A data-driven CANDIDATE model, not recovered retail formulas (tools/combat.py):
-/// attack = weapon roll + FixingDamage(level); raw = flat + attack * ratio / 10000 per Damage row;
+/// attack = weapon roll + FixingDamage(level); raw = (flat + attack * ratio / 10000) / HitDivisor per Damage row;
 /// crit chance (Critical + attribute crit) / 1000 (capped at 0.5) for x1.5; optional accuracy shaves defense (CANDIDATE);
 /// damage = raw * 1000 / (1000 + defense), at least 1.
 /// </summary>
@@ -174,16 +185,49 @@ public static class Combat
         var hits = new List<Hit>();
         foreach (var row in rows)
         {
-            var (flat, ratio) = pvp && row.Pvp is { } p ? (p.Flat, p.Ratio) : (row.Flat, row.Ratio);
+            // SkillEffectLv.dat replaces the candidate per-level scale when this row names a group.
+            var fromTable = skillLevel > 1 && row.LevelGroup is not null && data.HasEffectLevel(row.LevelGroup);
+            var flat = data.LevelFlat(row, skillLevel, pvp);
+            var ratio = pvp && row.Pvp is { } p ? p.Ratio : row.Ratio;
             var attack = rng.Next(Math.Min(weapon.Min, weapon.Max), Math.Max(weapon.Min, weapon.Max) + 1) + fixing;
-            double raw = Roll(flat, rng) + attack * Roll(ratio, rng) / 10_000.0;
+            double raw = RowDamage(Roll(flat, rng), attack, Roll(ratio, rng), row.HitDivisor);
             var critical = rng.NextDouble() < criticalChance;
             if (critical) raw *= critMult;
-            raw *= amplify * skillScale * levelGapScale;
+            raw *= amplify * (fromTable ? 1.0 : skillScale) * levelGapScale;
             var amount = Math.Max(1, (int)Math.Round(raw * DefenseScale / (DefenseScale + mitigatedDefense)));
             hits.Add(new Hit(amount, critical, row.EffectId));
         }
         return hits;
+    }
+
+    /// <summary>
+    /// One Damage row before critical, amplify and defense: (flat + attack * ratio / 10000) / divisor.
+    /// Dividing the flat part too is CANDIDATE (recorded ratios fit with or without it).
+    /// </summary>
+    public static double RowDamage(int flat, int attack, int ratio, int divisor) =>
+        (flat + attack * ratio / 10_000.0) / Math.Max(1, divisor);
+
+    /// <summary>
+    /// A skill's end after its start: floor(endMs * 10000 / attackSpeed / 50) * 50 ms.
+    /// OBSERVED for recorded skill/speed pairs (tools/class_skills.py end_fields); the 50 ms steps match the server tick.
+    /// </summary>
+    public static int SkillEndMs(double endMs, int attackSpeed = 10000) =>
+        (int)Math.Floor(endMs * 10000 / Math.Max(1, attackSpeed) / 50) * 50;
+
+    /// <summary>
+    /// One Dot_NormalCalc tick of a player's abnormal on an NPC: flat and ratio as a Damage row
+    /// (SkillAbnormalEffect values [3]/[4] flat, [5]/[6] ratio of 10000), no critical, the target's defense.
+    /// OBSERVED fit (Addiboii/A2Core 74fed9b4): Spiritmaster 1614000011 {148, 15000} ticked 762-804.
+    /// </summary>
+    public static int DotTick(GameData data, string? className, int level, int? weaponItem, int targetDefense, Random rng, int flatMin, int flatMax, int ratioMin, int ratioMax)
+    {
+        var weapon = data.WeaponStatsOf(weaponItem);
+        var attack = rng.Next(Math.Min(weapon.Min, weapon.Max), Math.Max(weapon.Min, weapon.Max) + 1)
+            + data.BaseStats(className, level).GetValueOrDefault("FixingDamage");
+        var flat = rng.Next(Math.Min(flatMin, flatMax), Math.Max(flatMin, flatMax) + 1);
+        var ratio = rng.Next(Math.Min(ratioMin, ratioMax), Math.Max(ratioMin, ratioMax) + 1);
+        var raw = RowDamage(flat, attack, ratio, 1);
+        return Math.Max(1, (int)Math.Round(raw * DefenseScale / (DefenseScale + Math.Max(0, targetDefense))));
     }
 
     public const int HpBaseUnit = 133;
@@ -331,6 +375,7 @@ public static class Combat
                 Air = spawn.Air, AirMonster = spawn.Air && spawn.SubType.EndsWith("Monster", StringComparison.Ordinal), DamageScale = DamageScale(spawn.SubType, spawn.Grade),
                 SubType = spawn.SubType, Grade = spawn.Grade, TemplateGroggyMax = spawn.GroggyGuardMax,
                 Defense = NpcDefense(spawn.Level, spawn.SubType, spawn.Grade, data.BaseStats("Gladiator", spawn.Level).GetValueOrDefault("Defense")),
+                Untouchable = spawn.Untouchable, HitCount = spawn.HitCount,
             };
             NpcAi.InitGroggy(targets[key]);
         }

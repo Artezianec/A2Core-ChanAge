@@ -23,9 +23,11 @@ public static class AbnormalSpecs
     };
 
     /// <summary>The rows of an abnormal: item abnormals first, then class-skill abnormals, then the daily dungeons' buffs
-    /// (DungeonBuffAbnormals); null when no table knows it.</summary>
+    /// (DungeonBuffAbnormals), then the ported client rows (PortedSkillAbnormals) for ids none of those know.
+    /// Improvised skill-areas overrides stay ahead of the ported table.</summary>
     public static AbnormalInfo? Info(int abnormalId) =>
-        RewardBoxes.Embedded.Abnormal(abnormalId) ?? SkillAreas.Abnormal(abnormalId) ?? DungeonBuffAbnormals.Of(abnormalId);
+        RewardBoxes.Embedded.Abnormal(abnormalId) ?? SkillAreas.Abnormal(abnormalId) ?? DungeonBuffAbnormals.Of(abnormalId)
+        ?? PortedSkillAbnormals.Info(abnormalId);
 
     public static IEnumerable<string> Types(int abnormalId) => Info(abnormalId)?.Effects.Select(e => e.Type) ?? [];
 

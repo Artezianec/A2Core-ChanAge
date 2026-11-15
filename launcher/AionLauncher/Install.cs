@@ -32,8 +32,12 @@ static class Install
 
     public static bool Present => File.Exists(ExePath);
 
-    /// <summary>Copies this exe into place, makes the shortcuts and the Apps &amp; features entry. Returns the installed exe.</summary>
-    public static string Run()
+    /// <summary>
+    /// Copies this exe into place with the server settings in use as launcher.json beside it (a prebuilt launcher's
+    /// launcher.json or command-line values would otherwise be lost), makes the shortcuts and the Apps &amp; features entry.
+    /// Returns the installed exe.
+    /// </summary>
+    public static string Run(LauncherConfig config)
     {
         var source = Environment.ProcessPath ?? throw new LauncherException(LauncherLoc.ErrUnknownExePath);
         Directory.CreateDirectory(Folder);
@@ -57,6 +61,7 @@ static class Install
         key.SetValue("NoModify", 1, RegistryValueKind.DWord);
         key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
         key.SetValue("EstimatedSize", (int)(new FileInfo(ExePath).Length / 1024), RegistryValueKind.DWord);
+        File.WriteAllText(Path.Combine(Folder, "launcher.json"), config.ToJson());
         RegisterLinks();
         return ExePath;
     }

@@ -31,7 +31,18 @@ public sealed record DamageRow(
     [property: JsonPropertyName("ratio")] int?[] Ratio,
     [property: JsonPropertyName("pvp")] DamageValues? Pvp,
     [property: JsonPropertyName("effect_id")] int EffectId,
-    [property: JsonPropertyName("hit_at_ms")] int HitAtMs = 0);
+    [property: JsonPropertyName("hit_at_ms")] int HitAtMs = 0,
+    // Skill.dat Damage EffectValueList[4] (tools/class_skills.py, build 26262663).
+    [property: JsonPropertyName("value4")] string? Value4 = null,
+    // SkillEffectLvGroupId: flat min/max at skill levels 2+ (GameData.LevelFlat). Null: the same at every level.
+    [property: JsonPropertyName("level_group")] string? LevelGroup = null)
+{
+    /// <summary>
+    /// What this row's damage is divided by: EffectValueList[4] when it reads as a number above 1, else 1.
+    /// OBSERVED for 2 (Rending Blow and Smashing Blow hit about half of a single-row skill per unit of ratio). CANDIDATE above 2.
+    /// </summary>
+    public int HitDivisor => int.TryParse(Value4, out var n) && n > 1 ? n : 1;
+}
 
 public sealed record DamageValues(
     [property: JsonPropertyName("flat")] int?[] Flat,
@@ -88,7 +99,17 @@ public sealed record SkillDefinition(
     [property: JsonPropertyName("stagger_gauge")] int StaggerGauge = 0,
     [property: JsonPropertyName("stagger_gauge_source")] string? StaggerGaugeSource = null,
     /// <summary>Skill.dat NeedSkillUseRange (cm); may also come from skill-cast-ranges.json overlay.</summary>
-    [property: JsonPropertyName("range")] double UseRangeCm = 0);
+    [property: JsonPropertyName("range")] double UseRangeCm = 0,
+    // Skill end (0x3806) after its start at attack speed 10000, before the 50 ms rounding (Combat.SkillEndMs).
+    // Design act EndureEnd / container PlayRate; 0 ends at once; null keeps the swing-end schedule (GameSession.SkillEnd).
+    [property: JsonPropertyName("end_ms")] double? EndMs = null,
+    // SkillLv.dat NeedCoolTime at skill levels 2, 3, ... when it differs from level 1.
+    [property: JsonPropertyName("cooldown_levels")] int[]? CooldownLevels = null)
+{
+    /// <summary>Cooldown at a skill level: SkillLv.dat when level 2+ lists one (level N uses row N, CANDIDATE), else <see cref="CooldownMs"/>.</summary>
+    public int CooldownAt(int skillLevel) =>
+        skillLevel >= 2 && CooldownLevels is { Length: > 0 } levels ? levels[Math.Min(skillLevel - 2, levels.Length - 1)] : CooldownMs;
+}
 
 public sealed record WeaponStats(
     [property: JsonPropertyName("min")] int Min,
@@ -139,7 +160,10 @@ public sealed record NpcSpawn(
     [property: JsonPropertyName("height")] int Height = 0,
     [property: JsonPropertyName("no_rotation")] bool NoRotation = false,
     uint UniqueKey = 0, int SocialAction = 0, NpcRoute? Route = null, string SubType = "NormalMonster", int Grade = 3, bool Air = false, int HpMax = 0,
-    [property: JsonPropertyName("groggy_guard_max")] int GroggyGuardMax = 0);
+    [property: JsonPropertyName("groggy_guard_max")] int GroggyGuardMax = 0,
+    [property: JsonPropertyName("untouchable")] bool Untouchable = false,
+    // NpcData bHitCountBased: every hit removes 1 HP and hp_max is that hit count.
+    bool HitCount = false);
 
 /// <summary>
 /// A MapData waypoint set an NPC walks (tools/world_npcs.py routes): points, Circular / TwoWay / OneWay, walk or run.
@@ -193,7 +217,9 @@ public sealed class GameData
         [property: JsonPropertyName("skills")] Dictionary<string, SkillDefinition> Skills,
         [property: JsonPropertyName("skill_customizing")] Dictionary<string, int[][]>? SkillCustomizing = null,
         [property: JsonPropertyName("e_combo_stacks")] Dictionary<string, int[]>? EComboStacks = null,
-        [property: JsonPropertyName("bar_context_by_default_skill")] Dictionary<string, int[]>? BarContextByDefaultSkill = null);
+        [property: JsonPropertyName("bar_context_by_default_skill")] Dictionary<string, int[]>? BarContextByDefaultSkill = null,
+        // SkillEffectLvGroupId -> [flat min, flat max, pvp flat min, pvp flat max] for skill levels 2, 3, ...
+        [property: JsonPropertyName("effect_levels")] Dictionary<string, int[][]>? EffectLevels = null);
 
     /// <summary>An NpcData template of the compact world-npcs.json (every field of a spawn but where it stands).</summary>
     sealed record NpcTemplate(
@@ -213,7 +239,11 @@ public sealed class GameData
         [property: JsonPropertyName("grade")] int Grade = 3,
         [property: JsonPropertyName("air")] bool Air = false,
         [property: JsonPropertyName("hp_max")] int HpMax = 0,
-        [property: JsonPropertyName("groggy_guard_max")] int GroggyGuardMax = 0);
+        [property: JsonPropertyName("groggy_guard_max")] int GroggyGuardMax = 0,
+        // NpcData bCanBeAttacked false or NpcTargetAble not Able (tools/world_npcs.py untouchable, build 26262663).
+        [property: JsonPropertyName("untouchable")] bool Untouchable = false,
+        // NpcData bHitCountBased: every hit takes 1 HP; hp_max is the hit count (7 monsters, 5 summons).
+        [property: JsonPropertyName("hit_count")] bool HitCount = false);
 
     /// <summary>world-npcs.json: templates by NpcData ID and spawns [name, npc_id, x, y, z, yaw] per map (tools/world_npcs.py).</summary>
     sealed record NpcFile([property: JsonPropertyName("maps")] Dictionary<string, JsonElement[][]> Maps,
@@ -727,8 +757,29 @@ public sealed class GameData
     /// <summary>A skill's definition: class-skills.json (Skill.dat), else a stigma's (tools/data/stigmas.json, docs/STIGMAS.md), else a
     /// specialisation child's (<see cref="SpecializedChild"/>).</summary>
     public SkillDefinition? Skill(int skillId) =>
-        classes.Skills.GetValueOrDefault(skillId.ToString(System.Globalization.CultureInfo.InvariantCulture)) ?? StigmaTable.Embedded.Skill(skillId)
-        ?? SpecializedChild(skillId);
+        classes.Skills.GetValueOrDefault(skillId.ToString(System.Globalization.CultureInfo.InvariantCulture)) is { } row
+            ? InheritedFromParent(skillId, row)
+            : StigmaTable.Embedded.Skill(skillId) ?? SpecializedChild(skillId);
+
+    readonly System.Collections.Concurrent.ConcurrentDictionary<int, SkillDefinition> inheritedFromParent = new();
+
+    /// <summary>
+    /// A class-skills.json row that is also a specialisation child does not carry SkillLv / SkillEffectLv / act fields.
+    /// Those stay on the parent (the child export in specialized-skills.json is used only when class-skills has no row).
+    /// </summary>
+    SkillDefinition InheritedFromParent(int skillId, SkillDefinition own) =>
+        inheritedFromParent.GetOrAdd(skillId, _ =>
+        {
+            if (SpecializedSkillTables.Embedded.ParentOf(skillId) is not { } parentId
+                || !classes.Skills.TryGetValue(parentId.ToString(System.Globalization.CultureInfo.InvariantCulture), out var parent))
+                return own;
+            var damage = InheritLevelGroups(own.Damage, parent.Damage);
+            var levels = own.CooldownLevels ?? parent.CooldownLevels;
+            var end = own.EndMs ?? parent.EndMs;
+            return ReferenceEquals(damage, own.Damage) && levels == own.CooldownLevels && end == own.EndMs
+                ? own
+                : own with { Damage = damage, CooldownLevels = levels, EndMs = end };
+        });
 
     readonly System.Collections.Concurrent.ConcurrentDictionary<int, SkillDefinition?> specializedChildren = new();
 
@@ -754,6 +805,9 @@ public sealed class GameData
                 ChainDeactivate = parent.ChainDeactivate, ContextRegister = parent.ContextRegister,
                 GroupCooldownId = parent.GroupCooldownId > 0 ? parent.GroupCooldownId : parentId,
                 ChainNext = parent.ChainNext?.Select(Moved).ToArray(), SealStone = parent.SealStone, NeedsSpirit = parent.NeedsSpirit,
+                Damage = InheritLevelGroups(own.Damage, parent.Damage),
+                CooldownLevels = own.CooldownLevels ?? parent.CooldownLevels,
+                EndMs = own.EndMs ?? parent.EndMs,
                 NeedsPeace = parent.NeedsPeace, NeedsResource = parent.NeedsResource, UseConditionSource = parent.UseConditionSource,
                 SkillCond = parent.SkillCond, SkillCondSource = parent.SkillCondSource, SkillCondGrant = parent.SkillCondGrant,
                 SkillCondGrantSource = parent.SkillCondGrantSource, StaggerGauge = parent.StaggerGauge, StaggerGaugeSource = parent.StaggerGaugeSource,
@@ -773,9 +827,53 @@ public sealed class GameData
         return skillCastRanges.Value.GetValueOrDefault(key);
     }
 
-    /// <summary>Skill.dat GroupCoolTimeId; falls back to the skill id when unset in the export.</summary>
+    /// <summary>
+    /// Skill.dat GroupCoolTimeId: the cooldown a cast starts and waits for. Charge levels and specialised variants name their base
+    /// skill; 0 or a missing export falls back to the skill id.
+    /// </summary>
     public int CooldownGroup(int skillId) =>
         Skill(skillId) is { GroupCooldownId: > 0 } definition ? definition.GroupCooldownId : skillId;
+
+    /// <summary>Whether SkillEffectLv.dat listed flat values for this group (levels 2+).</summary>
+    public bool HasEffectLevel(string? group) =>
+        group is not null && classes.EffectLevels?.GetValueOrDefault(group) is { Length: > 0 };
+
+    /// <summary>
+    /// A Damage row's flat damage at a skill level: SkillEffectLv.dat [0]/[1] (PvP [21]/[22]) for levels 2+ (level N uses row N,
+    /// CANDIDATE). The row's own values at level 1, or when the group or that level is missing (the highest listed level above it).
+    /// </summary>
+    public int?[] LevelFlat(DamageRow row, int skillLevel, bool pvp)
+    {
+        var own = pvp && row.Pvp is { } p ? p.Flat : row.Flat;
+        if (skillLevel <= 1 || row.LevelGroup is null || classes.EffectLevels?.GetValueOrDefault(row.LevelGroup) is not { Length: > 0 } levels)
+            return own;
+        var values = levels[Math.Min(skillLevel - 2, levels.Length - 1)];
+        return values.Length < 4 ? own : pvp ? [values[2], values[3]] : [values[0], values[1]];
+    }
+
+    /// <summary>
+    /// A specialisation child's rows keep the parent's SkillEffectLv group when the level-1 flats match (the child export does not
+    /// carry SkillEffectLvGroupId). Different flats stay on the candidate per-level scale.
+    /// </summary>
+    static DamageRow[] InheritLevelGroups(DamageRow[] child, DamageRow[] parent)
+    {
+        if (child.Length == 0 || child.Length != parent.Length) return child;
+        static int Flat0(int?[] pair) => pair.Length > 0 ? pair[0] ?? 0 : 0;
+        var copy = new DamageRow[child.Length];
+        var changed = false;
+        for (var i = 0; i < child.Length; i++)
+        {
+            var row = child[i];
+            var fromParent = parent[i];
+            if (row.LevelGroup is null && fromParent.LevelGroup is not null && Flat0(row.Flat) == Flat0(fromParent.Flat))
+            {
+                copy[i] = row with { LevelGroup = fromParent.LevelGroup };
+                changed = true;
+            }
+            else copy[i] = row;
+        }
+        return changed ? copy : child;
+    }
 
     /// <summary>The four hotbar context ids: E-key combo stack, bar ContextChangeSkillList, else chain_next (Q and other FixSlot chains).</summary>
     public IReadOnlyList<int> DefaultContextSkills(int skillId, int masteryLevel = 0) => DefaultContextSkillsCore(skillId);
@@ -879,7 +977,7 @@ public sealed class GameData
                 x.t.Skills, x.t.Height, x.t.NoRotation,
                 x.s.Length > 6 ? (uint)x.s[6].GetInt64() : 0, x.s.Length > 7 ? x.s[7].GetInt32() : 0,
                 x.s.Length > 8 && x.s[8].GetInt32() is >= 0 and var route && npcs.Routes?.GetValueOrDefault(id.ToString(System.Globalization.CultureInfo.InvariantCulture)) is { } routes
-                    && route < routes.Length ? routes[route] : null, x.t.SubType, x.t.Grade, x.t.Air, x.t.HpMax, x.t.GroggyGuardMax)).ToList());
+                    && route < routes.Length ? routes[route] : null, x.t.SubType, x.t.Grade, x.t.Air, x.t.HpMax, x.t.GroggyGuardMax, x.t.Untouchable, x.t.HitCount)).ToList());
 
     readonly System.Collections.Concurrent.ConcurrentDictionary<int, IReadOnlyList<NpcSpawn>> spawnsByMap = new();
 
@@ -903,7 +1001,7 @@ public sealed class GameData
     /// <summary>An NPC the server places itself (no MapData spawn), from its template: null when the template is unknown.</summary>
     public NpcSpawn? NpcFromTemplate(int npcId, string name, double[] position, double yaw) =>
         npcs.Templates.TryGetValue(npcId.ToString(System.Globalization.CultureInfo.InvariantCulture), out var t)
-            ? new NpcSpawn(name, npcId, t.Level, t.Relationship, t.Aggressive, t.WalkSpeed, t.RunSpeed, t.Radius, t.Function, position, yaw, t.AggroType, t.Aggro, t.Skills, t.Height, t.NoRotation, SubType: t.SubType, Grade: t.Grade, Air: t.Air, HpMax: t.HpMax, GroggyGuardMax: t.GroggyGuardMax)
+            ? new NpcSpawn(name, npcId, t.Level, t.Relationship, t.Aggressive, t.WalkSpeed, t.RunSpeed, t.Radius, t.Function, position, yaw, t.AggroType, t.Aggro, t.Skills, t.Height, t.NoRotation, SubType: t.SubType, Grade: t.Grade, Air: t.Air, HpMax: t.HpMax, GroggyGuardMax: t.GroggyGuardMax, Untouchable: t.Untouchable, HitCount: t.HitCount)
             : null;
 
     /// <summary>A placed spawn of the NPC (its template and name), preferring <paramref name="mapId"/>; null when it is never placed.</summary>

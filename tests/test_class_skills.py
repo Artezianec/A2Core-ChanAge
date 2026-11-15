@@ -121,8 +121,58 @@ class NativeLevelTests(unittest.TestCase):
         self.assertEqual(state['learned_skills'], set(starter_profile(1, 1)['skills']))
 
 
-if __name__ == '__main__':
-    unittest.main()
+class SkillBuild26262663Tests(unittest.TestCase):
+    def test_live_export_carries_level_cooldown_damage_and_end(self):
+        keen = class_skills.skill(11020000)
+        self.assertEqual(keen['end_ms'], 474.0)
+        self.assertEqual(keen['damage'][0]['level_group'], 'Gladiator_Skill002_LvUp')
+        defiance = class_skills.skill(11260000)
+        self.assertEqual(defiance['cooldown_ms'], 60000)
+        self.assertEqual(defiance['cooldown_levels'][0], 59000)
+        self.assertEqual(defiance['cooldown_levels'][-1], 21000)
+        self.assertEqual(len(defiance['cooldown_levels']), 39)
+        self.assertEqual(len(class_skills.data()['effect_levels']), 238)
+        self.assertEqual(class_skills.data()['effect_levels']['Gladiator_Skill002_LvUp'][0], [70, 70, 66, 66])
+
+    def test_generators_skip_missing_tables_and_read_a_temp_export(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        self.assertEqual(class_skills.cooldown_levels(
+            {'raw': {'SkillLvGroupId': 'G'}, 'facts': {'NeedCoolTime': 60000}}, table='/tmp/aion-missing-skill-lv.json'), {})
+        self.assertEqual(class_skills.effect_levels({'G'}, table='/tmp/aion-missing-effect-lv.json'), {})
+        self.assertEqual(class_skills.end_fields({'raw': {'AnimationName': 'NoSuchAct'}}), {})
+        self.assertEqual(class_skills.end_fields({'raw': {}}), {'end_ms': 0})
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            table = root / 'levels.json'
+            table.write_text(json.dumps({'Properties': {'Data': [
+                {'SkillLvGroupId': 'G', 'SkillLv': 2, 'NeedCoolTime': 59000},
+                {'SkillLvGroupId': 'G', 'SkillLv': 3, 'NeedCoolTime': 58000},
+            ]}}), encoding='utf-8')
+            self.assertEqual(class_skills.cooldown_levels(
+                {'raw': {'SkillLvGroupId': 'G'}, 'facts': {'NeedCoolTime': 60000}}, table=table),
+                {'cooldown_levels': [59000, 58000]})
+            effects = root / 'effects.json'
+            values = ['0'] * 25
+            values[0], values[1], values[21], values[22] = '70', '70', '66', '66'
+            effects.write_text(json.dumps({'Properties': {'Data': [
+                {'SkillEffectLvGroupId': 'G', 'SkillEffectLv': 2, 'EffectValueList': values},
+            ]}}), encoding='utf-8')
+            self.assertEqual(class_skills.effect_levels({'G'}, table=effects), {'G': [[70, 70, 66, 66]]})
+            acts = root / 'acts'
+            (acts / 'acts').mkdir(parents=True)
+            (acts / 'containers').mkdir()
+            (acts / 'acts' / 'Sample_Design.json').write_text(json.dumps([{
+                'Properties': {'Sections': [{'TaskLinks': [{
+                    'bEnabled': True, 'ActivationTime': 0.474,
+                    'TaskBase': {'ObjectName': "AionActTask_EndureEnd'"},
+                }]}]},
+            }]), encoding='utf-8')
+            (acts / 'containers' / 'Sample.json').write_text(json.dumps([
+                {'Type': 'AionActContainer', 'Properties': {'PlayRate': 1.0}},
+            ]), encoding='utf-8')
+            self.assertEqual(class_skills.end_fields({'raw': {'AnimationName': 'Sample'}}, acts=acts), {'end_ms': 474.0})
 
 
 class ChainVariantTests(unittest.TestCase):
@@ -139,3 +189,7 @@ class ChainVariantTests(unittest.TestCase):
         self.assertEqual(cast['14020010']['chain_next'], [14030010])
         self.assertEqual(cast['14030010']['name'], 'Rapid Fire II')
         self.assertNotIn('14200010', cast)
+
+
+if __name__ == '__main__':
+    unittest.main()
