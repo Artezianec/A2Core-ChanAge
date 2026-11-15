@@ -68,6 +68,46 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         return Task.FromResult(("ok", next));
     }
 
+    public Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendCharacterStorageByGoldAsync(Guid character, int costIdx, CancellationToken ct)
+    {
+        const int maxGoldExt = 31;
+        long[] costs =
+        [
+            1_000, 1_000, 1_500, 2_000, 2_500, 3_500, 5_000, 6_500, 9_000, 15_000, 20_000, 25_000, 35_000, 45_000, 60_000,
+            80_000, 150_000, 150_000, 200_000, 300_000, 400_000, 550_000, 700_000, 950_000, 1_300_000, 1_800_000, 2_500_000,
+            3_300_000, 4_500_000, 6_200_000, 8_400_000,
+        ];
+        var cur = ContainerExtends.GetValueOrDefault(character, ContainerSlotExtendCounts.Zero);
+        if (costIdx is < 0 or >= maxGoldExt || cur.CharacterStorageByGold != costIdx) return Task.FromResult(("count", cur));
+        if (!DeductKina(costs[costIdx])) return Task.FromResult(("kina", cur));
+        var next = cur with { CharacterStorageByGold = cur.CharacterStorageByGold + 1 };
+        ContainerExtends[character] = next;
+        return Task.FromResult(("ok", next));
+    }
+
+    public Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendContainerByItemAsync(Guid character, int container, Guid voucher, long revision, int maxExtensions, CancellationToken ct)
+    {
+        var cur = ContainerExtends.GetValueOrDefault(character, ContainerSlotExtendCounts.Zero);
+        var total = container switch
+        {
+            1 => cur.InventoryByGold + cur.InventoryByItem,
+            2 => cur.Storage + cur.StorageByItem,
+            15 => cur.CharacterStorageByGold + cur.CharacterStorageByItem,
+            _ => -1,
+        };
+        if (total < 0) return Task.FromResult(("none", ContainerSlotExtendCounts.Zero));
+        if (total >= maxExtensions) return Task.FromResult(("count", cur));
+        if (!Consume(voucher, revision, 1)) return Task.FromResult(("item", cur));
+        var next = container switch
+        {
+            1 => cur with { InventoryByItem = cur.InventoryByItem + 1 },
+            2 => cur with { StorageByItem = cur.StorageByItem + 1 },
+            _ => cur with { CharacterStorageByItem = cur.CharacterStorageByItem + 1 },
+        };
+        ContainerExtends[character] = next;
+        return Task.FromResult(("ok", next));
+    }
+
     bool DeductKina(long amount)
     {
         var kina = Items.Where(i => i.TemplateId == GameSession.KinaItemId && i.Location == "bag").Sum(i => i.Quantity);

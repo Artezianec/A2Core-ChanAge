@@ -26,11 +26,12 @@ public static class SkillCooldown
 
     public static bool IsFixSlot(SkillDefinition skill) => string.Equals(skill.ContextRegister, "FixSlot", StringComparison.Ordinal);
 
-    /// <summary>Cooltime field on SkillStart_NT (what the client UI counts down).</summary>
-    public static int EffectiveMs(SkillDefinition? skill)
+    /// <summary>Cooltime field on SkillStart_NT (what the client UI counts down). <paramref name="skillLevel"/> picks SkillLv.dat when it differs.</summary>
+    public static int EffectiveMs(SkillDefinition? skill, int skillLevel = 1)
     {
         if (skill is null) return 0;
-        if (skill.CooldownMs > 0) return skill.CooldownMs;
+        var cooldown = skill.CooldownAt(skillLevel);
+        if (cooldown > 0) return cooldown;
         if (skill.Type != "Active" || skill.Damage.Length == 0) return 0;
         if (skill.Cost.Mp > 0 || skill.Cost.Sp > 0 || skill.Cost.Hp > 0) return 0;
         if (string.Equals(skill.Target, "MainSelf", StringComparison.Ordinal) || IsBasicAutoAttack(skill)) return BasicAttackGcdMs;
@@ -55,19 +56,20 @@ public static class SkillCooldown
     /// </summary>
     public const int ProjectileRecastMs = 200;
 
-    public static int LockoutMs(SkillDefinition skill, bool projectile)
+    public static int LockoutMs(SkillDefinition skill, bool projectile, int skillLevel = 1)
     {
-        if (projectile && skill.CooldownMs == 0 && !IsBasicAutoAttack(skill)) return ProjectileRecastMs;
-        return LockoutMs(skill);
+        if (projectile && skill.CooldownAt(skillLevel) == 0 && !IsBasicAutoAttack(skill)) return ProjectileRecastMs;
+        return LockoutMs(skill, skillLevel);
     }
 
-    public static int LockoutMs(SkillDefinition skill)
+    public static int LockoutMs(SkillDefinition skill, int skillLevel = 1)
     {
         var swingEnd = SwingEndMs(skill);
-        if (skill.CooldownMs > 0) return Math.Max(skill.CooldownMs, swingEnd);
+        var cooldown = skill.CooldownAt(skillLevel);
+        if (cooldown > 0) return Math.Max(cooldown, swingEnd);
         if (IsBasicAutoAttack(skill)) return Math.Max(BasicAttackGcdMs, swingEnd);
-        if (skill.Damage.Length > 1) return Math.Max(EffectiveMs(skill), swingEnd);
-        return EffectiveMs(skill);
+        if (skill.Damage.Length > 1) return Math.Max(EffectiveMs(skill, skillLevel), swingEnd);
+        return EffectiveMs(skill, skillLevel);
     }
 
     public static bool CooldownReady(long now, IReadOnlyDictionary<int, long> cooldowns, int cooldownKey, bool noCool)

@@ -35,7 +35,18 @@ public sealed partial class GameSession
         public AbnormalCombat.BuffCombat? Combat { get; set; }
         public Dictionary<string, int> Stats { get; } = [];
         public List<HealOverTime> Heals { get; } = [];
+        /// <summary>An NPC skill put this on: the NPC is the wire caster and its position is the range base.</summary>
+        public int? CasterKey { get; set; }
+        public Vector3d? RangeBase { get; set; }
+        public bool FromNpc { get; set; }
+        /// <summary>KnockdownInstant effect id: 0x3816 at the player's feet when an NPC applied it.</summary>
+        public int? KnockdownEffect { get; set; }
+        /// <summary>The hit that put an NPC abnormal on, for Dot_NormalCalc (a share of that hit).</summary>
+        public int HitDamage { get; set; }
     }
+
+    /// <summary>Who put a buff on the player (an NPC skill) and the hit it rode in on.</summary>
+    readonly record struct BuffCaster(int Key, byte Level, Vector3d At, int HitDamage);
 
     /// <summary>A heal-over-time row: interval, amount per tick, what is left of the total.</summary>
     sealed class HealOverTime
@@ -98,7 +109,7 @@ public sealed partial class GameSession
         return AbnormalIds(effects).Any();
     }
 
-    AbnormalWire Wire(Buff b) => WireBuff(b, playerKey);
+    AbnormalWire Wire(Buff b) => WireBuff(b, b.CasterKey ?? playerKey, b.RangeBase);
 
     static AbnormalWire WireBuff(Buff b, int casterKey, Vector3d? range = null) =>
         new(b.Uid, b.AbnormalId, b.DurationMs, b.ExpireAt, CasterKey: casterKey, Level: (byte)Math.Clamp(b.Level, 1, 255), SkillId: b.SkillId == 0 ? null : b.SkillId, RangeBase: range ?? Vector3d.Zero);
@@ -148,7 +159,7 @@ public sealed partial class GameSession
     /// an abnormal the tables do not know only shows its icon. The caller refreshes the stats.
     /// </summary>
     Buff? AddBuff(int abnormalId, int durationMs, int skillId, long now, List<byte[]> replies, bool scripted = false,
-        SelfAbnormalPath path = SelfAbnormalPath.Unrestricted)
+        SelfAbnormalPath path = SelfAbnormalPath.Unrestricted, BuffCaster? appliedBy = null)
     {
         if (resources is null) return null;
         if (!SkillSelfAbnormalPolicy.TryAllowPlayerBuff(data, abnormalId, skillId, path, out var denyReason))
@@ -172,6 +183,7 @@ public sealed partial class GameSession
                 : rule.OverlapTime == "Longer" ? Math.Max(existing.ExpireAt, now + durationMs) : now + durationMs;
             existing.ExpireAt = refreshedExpire;
             existing.DurationMs = permanent ? -1 : (int)Math.Max(0, existing.ExpireAt - now);
+            NoteBuffCaster(existing, appliedBy);
             RefreshBuffEffects(existing, durationMs, now, replies);
             MarkBuffSettingsDirty();
             replies.Add(PlayerPackets.AbnormalChange(playerKey, Wire(existing)));
@@ -182,6 +194,7 @@ public sealed partial class GameSession
             var existing = existingSame[0];
             existing.ExpireAt = permanent ? PassiveExpireTime : now + durationMs;
             existing.DurationMs = permanent ? -1 : duration;
+            NoteBuffCaster(existing, appliedBy);
             RefreshBuffEffects(existing, durationMs, now, replies);
             MarkBuffSettingsDirty();
             replies.Add(PlayerPackets.AbnormalChange(playerKey, Wire(existing)));
@@ -195,6 +208,7 @@ public sealed partial class GameSession
             Uid = ++buffUid, AbnormalId = abnormalId, SkillId = skillId, Group = group, DurationMs = permanent ? -1 : durationMs,
             ExpireAt = permanent ? PassiveExpireTime : now + durationMs, Scripted = scripted,
         };
+        NoteBuffCaster(buff, appliedBy);
         PopulateBuffEffects(buff, durationMs, now);
         if (buff.Combat is { BarrierAmount: > 0 })
             replies.Add(GamePackets.CharBarrierInfo(playerKey, [(buff.Uid, buff.Combat.BarrierAmount)]));
@@ -203,11 +217,23 @@ public sealed partial class GameSession
         var packets = new List<byte[]> { PlayerPackets.AbnormalAdd(playerKey, [Wire(buff)]) };
         if (buff.Polymorph) packets.Add(RidePackets.PolymorphUpdate(playerKey, buff.Uid));
         if (buff.Relationship is { } shown) packets.Add(GamePackets.RelationshipUpdate(playerKey, shown));
+        if (buff.KnockdownEffect is int knock && buff.CasterKey is int knocker && knocker != playerKey)
+            packets.Add(PlayerPackets.AbnormalMoveInstant(playerKey, knocker, knock, position ?? Vector3d.Zero, PlayerPackets.MoveKnockdownInstant));
         worldPlayer?.Map?.Broadcast(worldPlayer, packets);
         replies.Add(packets[0]);
         foreach (var h in buff.Heals) replies.Add(RidePackets.AbnormalEffect(playerKey, playerKey, buff.Uid, h.EffectId, h.Remaining, null, skillId));
         replies.AddRange(packets.Skip(1));
         return buff;
+    }
+
+    static void NoteBuffCaster(Buff buff, BuffCaster? appliedBy)
+    {
+        if (appliedBy is not { } by) return;
+        buff.CasterKey = by.Key;
+        buff.Level = by.Level;
+        buff.RangeBase = by.At;
+        buff.FromNpc = true;
+        buff.HitDamage = by.HitDamage;
     }
 
     /// <summary>AddAbnormal on the player from a map event script (duration in ms, -1 for the run).</summary>
@@ -282,6 +308,7 @@ public sealed partial class GameSession
         var info = AbnormalSpecs.Info(buff.AbnormalId);
         buff.Rebirth = buff.Polymorph = false;
         buff.Relationship = null;
+        buff.KnockdownEffect = null;
         buff.Stats.Clear();
         buff.Heals.Clear();
         buff.Combat = info is not null ? new AbnormalCombat.BuffCombat() : null;
@@ -311,6 +338,25 @@ public sealed partial class GameSession
                 case "ChangeRelationshipEntity" when values.Count >= 2 && MapEventTables.Relationship(values[1]) is { } relation:
                     buff.Relationship = relation;
                     break;
+                case "Dot_NormalCalc" when buff.FromNpc && V(0) > 0:
+                    buff.Combat!.Dots.Add(new AbnormalCombat.DotRow
+                    {
+                        EffectId = id, IntervalMs = V(0),
+                        PerTick = Math.Max(1, (int)Math.Round(buff.HitDamage * NpcDotShareOfHit)),
+                        Remaining = int.MaxValue / 4, NextAt = now + V(0), DamagePacket = true,
+                    });
+                    break;
+                case "Dot_TargetMaxHP" when buff.FromNpc && values.Count >= 6 && V(0) > 0:
+                    buff.Combat!.Dots.Add(new AbnormalCombat.DotRow
+                    {
+                        EffectId = id, IntervalMs = V(0), PerTick = 0, Remaining = int.MaxValue / 4,
+                        NextAt = now + V(0), DamagePacket = true, RatioOfMaxHp = true, RatioMin = V(1), RatioMax = V(2),
+                    });
+                    break;
+                case "KnockdownInstant" when buff.FromNpc:
+                    buff.KnockdownEffect = id;
+                    buff.Combat!.Held = true;
+                    break;
                 default:
                     if (buff.Combat is not null) AbnormalCombat.ApplyRow(id, type, values, buff.Combat, duration, now, rng, resources.HpMax);
                     break;
@@ -329,7 +375,7 @@ public sealed partial class GameSession
             replies.Add(RidePackets.AbnormalEffect(playerKey, playerKey, buff.Uid, h.EffectId, h.Remaining, null, buff.SkillId));
         if (buff.Combat is { BarrierAmount: > 0 })
             replies.Add(GamePackets.CharBarrierInfo(playerKey, [(buff.Uid, buff.Combat.BarrierAmount)]));
-        replies.AddRange(BuffStatsChanged(speedBefore));
+        replies.AddRange(BuffStatsChanged(speedBefore, buff.FromNpc && buff.Stats.ContainsKey("MoveSpeed")));
     }
 
     /// <summary>Heal ticks and expiries due now.</summary>
@@ -345,11 +391,22 @@ public sealed partial class GameSession
                 foreach (var d in dots)
                     while (now >= d.NextAt && d.NextAt <= b.ExpireAt && d.Remaining > 0)
                     {
-                        var amount = Math.Min(d.PerTick, d.Remaining);
-                        d.Remaining -= amount;
+                        int amount;
+                        if (d.RatioOfMaxHp)
+                        {
+                            var roll = rng.Next(Math.Min(d.RatioMin, d.RatioMax), Math.Max(d.RatioMin, d.RatioMax) + 1);
+                            amount = Math.Max(1, (int)Math.Round(r.HpMax * roll / 10_000.0));
+                        }
+                        else
+                        {
+                            amount = Math.Min(d.PerTick, d.Remaining);
+                            d.Remaining -= amount;
+                        }
                         d.NextAt += d.IntervalMs;
                         if (!invincible.Hp) r.Hp = Math.Max(0, r.Hp - amount);
-                        replies.Add(RidePackets.AbnormalEffect(playerKey, playerKey, b.Uid, d.EffectId, d.Remaining, amount, b.SkillId));
+                        replies.Add(d.DamagePacket
+                            ? RidePackets.AbnormalDamage(playerKey, b.CasterKey ?? playerKey, b.Uid, d.EffectId, amount, b.SkillId)
+                            : RidePackets.AbnormalEffect(playerKey, playerKey, b.Uid, d.EffectId, d.Remaining, amount, b.SkillId));
                         damaged = true;
                     }
             foreach (var h in b.Heals)
@@ -363,14 +420,23 @@ public sealed partial class GameSession
                     healed = true;
                 }
             if (healed || damaged) replies.Add(GamePackets.NpcHp(playerKey, r.Hp));
-            if (damaged && r.Hp == 0) replies.AddRange(Die(0, now));
+            if (damaged && r.Hp == 0)
+            {
+                if (b.FromNpc && b.SkillId > 0) lastNpcHitSkill = b.SkillId;
+                replies.AddRange(Die(b.FromNpc ? b.CasterKey ?? 0 : 0, now));
+                if (b.FromNpc) return replies;
+            }
         }
-        var speedBefore = BuffStat("MoveSpeed");
         var expired = buffs.Where(b => now >= b.ExpireAt).ToList();
         if (expired.Count > 0)
         {
+            // BuffStat already drops rows with ExpireAt <= lastNow, and TickAsync sets lastNow before this runs.
+            // A monster slow's 0x364a has to see the speed those rows still contribute.
+            var npcMove = expired.Any(b => b.FromNpc && b.Stats.ContainsKey("MoveSpeed"));
+            // Include rows this tick is about to remove. BuffStat hides them once lastNow has passed their expire time.
+            var speedBefore = buffs.Sum(b => b.Stats.GetValueOrDefault("MoveSpeed"));
             replies.AddRange(RemoveBuffs(expired, ExpireTimeout));
-            replies.AddRange(BuffStatsChanged(speedBefore));
+            replies.AddRange(BuffStatsChanged(speedBefore, npcMove));
         }
         return replies;
     }
@@ -422,13 +488,23 @@ public sealed partial class GameSession
         Boxes.Use(itemId) is { Effect: "Skill", Values: [var skill, ..] } && int.TryParse(skill, out var skillId)
         && AbnormalIds(Boxes.SkillEffects(skillId)).Any(id => Boxes.Abnormal(id)?.Effects.Any(e => e.Type == "UseRebirth") == true);
 
-    /// <summary>The stat sheet with the buffs (when they change stats) and 0x364b when the move speed changed.</summary>
-    List<byte[]> BuffStatsChanged(int speedBefore)
+    /// <summary>
+    /// The stat sheet with the buffs (when they change stats). An item scroll's speed is 0x364b.
+    /// A monster slow is 0x364a stat 205 with the signed sum (OBSERVED: −3000 on a +1190 base went out as −1810; the end sends 0).
+    /// </summary>
+    List<byte[]> BuffStatsChanged(int speedBefore, bool npcMoveSpeed = false)
     {
         var replies = RefreshStats();
+        if (npcMoveSpeed)
+        {
+            var nowSpeed = BuffStat("MoveSpeed");
+            if (nowSpeed != speedBefore)
+                replies.Add(GamePackets.CharStatsUpdate(playerKey, [(MoveSpeedStat, nowSpeed)], resources?.HpMax ?? 0));
+            return replies;
+        }
         var wire = WireMoveSpeedPermille();
-        var wireBefore = Math.Max(0, speedBefore + (builderSpeedMultiplier <= 1 ? 0 : (int)Math.Round((builderSpeedMultiplier - 1) * 10_000)));
-        if (wire != wireBefore) replies.Add(PlayerPackets.MoveSpeedUpdate(playerKey, [(MoveSpeedStat, wire)]));
+        var bonus = builderSpeedMultiplier <= 1 ? 0 : (int)Math.Round((builderSpeedMultiplier - 1) * 10_000);
+        if (wire != speedBefore + bonus) replies.Add(PlayerPackets.MoveSpeedUpdate(playerKey, [(MoveSpeedStat, wire)]));
         return replies;
     }
 

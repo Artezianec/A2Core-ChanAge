@@ -367,6 +367,18 @@ await using(var source=NpgsqlDataSource.Create(connectionString))
     Check((await game.InventoryAsync(first, id))!.ContainerExtends!.Storage == 1
           && (await game.InventoryAsync(first, id))!.Items.Where(x => x.TemplateId == kinaTemplate).Sum(x => x.Quantity) == 54_000,
         "warehouse extend deducts 1000 kinah");
+    var charStorageExtend = await game.ExtendCharacterStorageByGoldAsync(first, id, 0);
+    Check(charStorageExtend.Result == "ok" && charStorageExtend.Counts.CharacterStorageByGold == 1
+          && (await game.InventoryAsync(first, id))!.Items.Where(x => x.TemplateId == kinaTemplate).Sum(x => x.Quantity) == 53_000,
+        "gold character warehouse extend persists character_storage_slot_extend_by_gold and deducts 1000 kinah");
+    var voucherGrant = await game.AdminAsync(second, new AdminCommand(Guid.NewGuid(), id, "grant", "test", 101));
+    var voucherRow = (await game.InventoryAsync(first, id))!.Items.First(x => x.InstanceId == voucherGrant.GetProperty("instanceId").GetGuid());
+    var voucherExtend = await game.ExtendContainerByItemAsync(first, id, 1, voucherRow.InstanceId, voucherRow.Revision, 72);
+    Check(voucherExtend.Result == "ok" && voucherExtend.Counts.InventoryByItem == 1
+          && (await game.InventoryAsync(first, id))!.Items.All(x => x.InstanceId != voucherRow.InstanceId),
+        "voucher bag extend persists inventory_slot_extend_by_item and uses the voucher up");
+    Check((await game.ExtendContainerByItemAsync(first, id, 1, voucherRow.InstanceId, voucherRow.Revision, 72)).Result == "item",
+        "a used voucher cannot extend again");
     await game.AdminAsync(second,new AdminCommand(Guid.NewGuid(),staffChar,"grant","test",kinaTemplate,Quantity:50_000));
     var listGrant=await game.AdminAsync(second,new AdminCommand(Guid.NewGuid(),id,"grant","test",101));
     var tradeItem=listGrant.GetProperty("instanceId").GetGuid();

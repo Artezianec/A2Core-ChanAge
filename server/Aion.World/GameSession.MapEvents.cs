@@ -1283,6 +1283,9 @@ public sealed partial class GameSession : IMapEventHost
         public required int EffectId, IntervalMs, PerTick;
         public required int Remaining;
         public required long NextAt;
+        /// <summary>Dot_NormalCalc scaled from the caster's attack (0x3805 mask 0x0a). Remaining is not a pool.</summary>
+        public bool Scaled;
+        public int FlatMin, FlatMax, RatioMin, RatioMax;
     }
 
     readonly Dictionary<int, List<NpcBuff>> npcBuffs = [];
@@ -1388,14 +1391,23 @@ public sealed partial class GameSession : IMapEventHost
     {
         foreach (var b in list.ToList())
             foreach (var d in b.Dots)
-                while (!t.Dead && now >= d.NextAt && d.NextAt <= b.ExpireAt && d.Remaining > 0)
+                while (!t.Dead && now >= d.NextAt && d.NextAt <= b.ExpireAt && (d.Scaled || d.Remaining > 0))
                 {
-                    var amount = Math.Min(d.PerTick, d.Remaining);
-                    d.Remaining -= amount;
+                    int amount;
+                    if (d.Scaled)
+                        amount = Combat.DotTick(data, className, level, equippedWeapon, t.Defense, rng, d.FlatMin, d.FlatMax, d.RatioMin, d.RatioMax);
+                    else
+                    {
+                        amount = Math.Min(d.PerTick, d.Remaining);
+                        d.Remaining -= amount;
+                    }
                     d.NextAt += d.IntervalMs;
+                    amount = t.Landed(amount);
                     if (t.Immune) amount = 0;
                     t.Hp = Math.Max(0, t.Hp - amount);
-                    mapEventOut.Add(RidePackets.AbnormalEffect(t.Key, playerKey, b.Uid, d.EffectId, d.Remaining, amount, b.SkillId));
+                    mapEventOut.Add(d.Scaled
+                        ? RidePackets.AbnormalDamage(t.Key, playerKey, b.Uid, d.EffectId, amount, b.SkillId)
+                        : RidePackets.AbnormalEffect(t.Key, playerKey, b.Uid, d.EffectId, d.Remaining, amount, b.SkillId));
                     mapEventOut.Add(GamePackets.NpcHp(t.Key, t.Hp));
                     mapEventOut.AddRange(MapEventHp(t, now));
                     if (t.Dead) mapEventOut.AddRange(PlayerKilledNpc(t, b.SkillId, playerKey, now));

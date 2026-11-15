@@ -164,6 +164,8 @@ public sealed partial class NpcAi
             var damage = Math.Max(1, (int)Math.Round(raw * 1000.0 / (1000 + Math.Max(0, DefenseOf?.Invoke(key) ?? 0))));
             LastAttacker = target.Key;
             LastHitSkill = slam.Skill;
+            LastHitSeq = 1;
+            LastAttackerAt = target.Position;
             replies.Add(GamePackets.NpcSkillHit(key, target.Key, slam.Skill, seq, skill.Effect, damage));
             replies.AddRange(hitPlayer(key, damage));
         }

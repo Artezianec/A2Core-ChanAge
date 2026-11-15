@@ -126,7 +126,7 @@ public sealed partial class GameSession
         return changed.Count == 0 ? [] : await Stored(() => QuestChangesAsync(changed, ct));
     }
 
-    /// <summary>CollectItem objectives follow bag counts; called after inventory reloads.</summary>
+    /// <summary>CollectItem objectives follow bag counts; called after inventory reloads and quest moves.</summary>
     async Task<List<byte[]>> SyncQuestCollectItemsAsync(CancellationToken ct)
     {
         if (questLog is null) return [];
@@ -135,20 +135,26 @@ public sealed partial class GameSession
             Note("SyncQuestCollectItems skipped: character or store not loaded");
             return [];
         }
-        var itemIds = questLog.All.Where(q => q.Status == QuestLog.Incomplete).SelectMany(q =>
-            questLog.CurrentStep(q) is { } step
-                ? step.Objectives.Take(6).Where(o => o.Type == "CollectItem" && o.Item is { }).Select(o => o.Item!.Value)
-                : []).Distinct().ToList();
-        if (itemIds.Count == 0) return [];
         var changed = new Dictionary<string, QuestRecord>();
-        foreach (var itemId in itemIds)
+        for (var round = 0; round < 4; round++)
         {
-            var held = inventory.Values.Where(i => i.ItemId == itemId).Sum(i => i.Count);
-            foreach (var record in questLog.Holding(itemId, held, level))
+            var itemIds = questLog.All.Where(q => q.Status == QuestLog.Incomplete).SelectMany(q =>
+                questLog.CurrentStep(q) is { } step
+                    ? step.Objectives.Take(6).Where(o => o.Type == "CollectItem" && o.Item is { }).Select(o => o.Item!.Value)
+                    : []).Distinct().ToList();
+            if (itemIds.Count == 0) break;
+            var moved = new List<QuestRecord>();
+            foreach (var itemId in itemIds)
             {
-                Note($"SyncQuestCollectItems item={itemId} held={held} quest={record.Code} step={record.Step} goals=[{string.Join(',', record.Goals)}]");
-                changed[record.Code] = record;
+                var held = inventory.Values.Where(i => i.ItemId == itemId && i.Container == InventoryItem.Bag).Sum(i => i.Count);
+                foreach (var record in questLog.Holding(itemId, held, level))
+                {
+                    Note($"SyncQuestCollectItems item={itemId} held={held} quest={record.Code} step={record.Step} goals=[{string.Join(',', record.Goals)}]");
+                    moved.Add(record);
+                }
             }
+            if (moved.Count == 0) break;
+            foreach (var record in moved) changed[record.Code] = record;
         }
         return changed.Count == 0 ? [] : await Stored(() => QuestChangesAsync(changed.Values, ct));
     }

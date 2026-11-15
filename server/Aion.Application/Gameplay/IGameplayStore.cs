@@ -316,6 +316,16 @@ public interface IGameplayStore
     Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendInventoryByGoldAsync(VerifiedAccount account, Guid character, int costIdx, CancellationToken ct = default);
     /// <summary>Gold-paid personal warehouse row extension (ItemContainerSlotExtend, kStorage): same result codes as bag.</summary>
     Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendStorageByGoldAsync(VerifiedAccount account, Guid character, int costIdx, CancellationToken ct = default);
+    /// <summary>Gold-paid character warehouse row extension (ItemContainerSlotExtend, kCharacterStorage 15): same result codes as bag.</summary>
+    Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendCharacterStorageByGoldAsync(VerifiedAccount account, Guid character, int costIdx, CancellationToken ct = default) =>
+        Task.FromResult(("none", ContainerSlotExtendCounts.Zero));
+    /// <summary>
+    /// Voucher row extension (ItemContainerSlotExtend with an item uid): one voucher from the bag (at its revision) opens one
+    /// row of EItemContainerType 1, 2 or 15 while gold + item extensions stay below <paramref name="maxExtensions"/>.
+    /// "ok", "none" (not owned / unknown container), "count" (at the maximum) or "item" (voucher gone or changed).
+    /// </summary>
+    Task<(string Result, ContainerSlotExtendCounts Counts)> ExtendContainerByItemAsync(VerifiedAccount account, Guid character, int container, Guid voucher, long revision,
+        int maxExtensions, CancellationToken ct = default) => Task.FromResult(("none", ContainerSlotExtendCounts.Zero));
     /// <summary>Moves a bag item to a bag slot; an item already there takes the moved item's old slot.</summary>
     Task<bool> MoveBagItemAsync(VerifiedAccount account, Guid character, Guid item, long revision, int slot, CancellationToken ct = default);
     /// <summary>Moves a bag or warehouse item to a slot of 'bag' or 'storage' (the item on that slot takes the old one).</summary>

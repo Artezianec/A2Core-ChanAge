@@ -18,10 +18,41 @@ partial class GameSession
     /// </summary>
     void ScheduleSkillEnd(int skill, byte action, SkillDefinition definition, long now)
     {
-        var at = now + Math.Max(MinSkillEndMs, SkillCooldown.SwingEndMs(definition));
-        foreach (var hit in pendingCombatHits)
-            if (hit.SkillId == skill && hit.ActionUid == action && hit.DueMs > at) at = hit.DueMs;
+        // Act time when class-skills.json has it (EndureEnd / PlayRate). Otherwise the swing end, at least MinSkillEndMs,
+        // which is what dodges and skills without an exported act already use.
+        var delay = definition.EndMs is { } endMs
+            ? Combat.SkillEndMs(endMs, AttackSpeed)
+            : Math.Max(MinSkillEndMs, SkillCooldown.SwingEndMs(definition));
+        var at = now + delay;
+        // A projectile still must not end while its last arrow is in the air (live Marking Shot).
+        if (CastArea(skill) is { Projectile: > 0 })
+        {
+            foreach (var hit in pendingCombatHits)
+                if (hit.SkillId == skill && hit.ActionUid == action && hit.DueMs > at) at = hit.DueMs;
+        }
         pendingSkillEnds.Add((skill, action, at));
+    }
+
+    /// <summary>Ends every running skill. Reason 0 when its time was already due, 0x0c when the next cast cuts it.</summary>
+    List<byte[]> TakePendingSkillEnds(long now)
+    {
+        if (pendingSkillEnds.Count == 0) return [];
+        var ended = new List<byte[]>();
+        foreach (var (skill, action, at) in pendingSkillEnds)
+        {
+            var reason = now >= at ? GamePackets.SkillEndNatural : GamePackets.SkillEndByNextCast;
+            ended.Add(GamePackets.SkillEnd(playerKey, skill, action, reason));
+        }
+        pendingSkillEnds.Clear();
+        return ended;
+    }
+
+    /// <summary>The skill still running ends before the next cast's 0x3802. In-flight hits stay scheduled.</summary>
+    List<byte[]> CutRunningSkill(long now)
+    {
+        var ended = TakePendingSkillEnds(now);
+        if (ended.Count > 0) worldPlayer?.Map?.Broadcast(worldPlayer, ended);
+        return ended;
     }
 
     List<byte[]> SkillEndTick(long now)
@@ -31,7 +62,7 @@ partial class GameSession
         pendingSkillEnds.RemoveAll(e =>
         {
             if (now < e.At) return false;
-            ended.Add(GamePackets.SkillEnd(playerKey, e.Skill, e.Action));
+            ended.Add(GamePackets.SkillEnd(playerKey, e.Skill, e.Action, GamePackets.SkillEndNatural));
             return true;
         });
         if (ended.Count > 0) worldPlayer?.Map?.Broadcast(worldPlayer, ended);
@@ -69,13 +100,8 @@ partial class GameSession
         if (pendingSkillEnds.Count == 0 && pendingCombatHits.Count == 0 && pendingProjectiles.Count == 0 && now >= nextCastAcceptAtMs)
             return [];
         var ended = new List<byte[]>();
-        var cancelled = new HashSet<(int Skill, byte Action)>();
-        foreach (var (skill, action, _) in pendingSkillEnds.ToList())
-        {
-            cancelled.Add((skill, action));
-            ended.Add(GamePackets.SkillEnd(playerKey, skill, action));
-        }
-        pendingSkillEnds.Clear();
+        var cancelled = pendingSkillEnds.Select(e => (e.Skill, e.Action)).ToHashSet();
+        ended.AddRange(TakePendingSkillEnds(now));
         if (cancelled.Count > 0)
         {
             if (dropScheduledHits)

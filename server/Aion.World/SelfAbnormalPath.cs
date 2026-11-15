@@ -23,4 +23,6 @@ public enum SelfAbnormalPath
     CombatHit,
     /// <summary>Chain parent cast accept before 0x3818 (export caster_debuffs only).</summary>
     ChainAccept,
+    /// <summary>Class self-buff from a Self filter (Dash, Defiance) on cast accept. Attack skills are not on this path.</summary>
+    ClassSelfBuff,
 }

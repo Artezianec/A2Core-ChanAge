@@ -11,6 +11,11 @@ static class AbnormalCombat
         public required int EffectId, IntervalMs, PerTick;
         public required int Remaining;
         public required long NextAt;
+        /// <summary>0x3805 mask 0x0a (a damage tick) instead of the heal-over-time remain/amount mask.</summary>
+        public bool DamagePacket;
+        /// <summary>Monster Dot_TargetMaxHP with the long client row: each tick rolls RatioMin..RatioMax of 10000 of max HP.</summary>
+        public bool RatioOfMaxHp;
+        public int RatioMin, RatioMax;
     }
 
     /// <summary>Per-buff combat state derived from abnormal effect rows.</summary>

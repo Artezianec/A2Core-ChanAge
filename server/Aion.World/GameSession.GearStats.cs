@@ -189,7 +189,7 @@ public sealed partial class GameSession
             extraFixing: ExtraFixing, weaponOverride: PlayerWeaponStats(), amplifyAllBp: PlayerAmplifyAllBp(),
             defensePierceBp: PlayerDefensePierceBp(), attackAmplifyBp: PlayerAttackAmplifyBp(),
             extraCritical: PlayerExtraCritical(), extraAccuracy: PlayerExtraAccuracy(),
-            skillLevel: SkillLevel(skillId), victimLevel: victimLevel, critDamageBp: PlayerCritDamageBp());
+            skillLevel: CastSkillLevel(skillId), victimLevel: victimLevel, critDamageBp: PlayerCritDamageBp());
 
     IReadOnlyList<Hit> PlayerRowHits(IEnumerable<DamageRow> rows, int targetDefense, bool pvp = false, int victimLevel = 0, int skillLevel = 1) =>
         Combat.RowHits(data, rows, className, level, equippedWeapon, targetDefense, rng, pvp,

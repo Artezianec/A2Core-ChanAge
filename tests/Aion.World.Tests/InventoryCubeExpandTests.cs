@@ -106,7 +106,7 @@ public sealed class InventoryCubeExpandTests
 
         var rq = new PacketWriter().U16(GameSession.ItemContainerSlotExtendRq).I32(0).U8(InventoryItem.Bag).I64(0).U8(0).ToArray();
         var rs = (await session.HandleAsync(rq, Now + 1)).First(p => GameSessionTestHelpers.Op(p) == GameSession.ItemContainerSlotExtendRs);
-        Assert.Equal(3, BitConverter.ToInt32(rs, 2));
+        Assert.Equal(GameSession.SlotExtendFail, BitConverter.ToInt32(rs, 2));
         Assert.Equal(100, store.Items.Where(i => i.TemplateId == GameSession.KinaItemId).Sum(i => i.Quantity));
     }
 

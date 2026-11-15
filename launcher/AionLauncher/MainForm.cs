@@ -276,7 +276,8 @@ sealed class MainForm : Form
         install.Click += async (_, _) =>
         {
             string? installed = null;
-            var ok = await RunAsync(async _ => { SetStatus(LauncherLoc.StatusInstalling); installed = await Task.Run(Install.Run); }, install);
+            var installConfig = settings.Current!.Config;
+            var ok = await RunAsync(async _ => { SetStatus(LauncherLoc.StatusInstalling); installed = await Task.Run(() => Install.Run(installConfig)); }, install);
             if (!ok) return;
             handingOver = true;
             var start = new ProcessStartInfo(installed!) { UseShellExecute = true, WorkingDirectory = Install.Folder };

@@ -220,6 +220,13 @@ public static class RidePackets
         return w.I32(skillId).ToArray();
     }
 
+    /// <summary>
+    /// 0x3805 mask 0x0a, a damage-over-time tick: key | 0x0a | caster | abnormal uid | effect id i32 | amount varint | skill i32.
+    /// OBSERVED for monster and player DoT ticks (Addiboii/A2Core 5754e6fb, 74fed9b4; community recordings 2026-11).
+    /// </summary>
+    public static byte[] AbnormalDamage(int key, int casterKey, int uid, int effectId, int amount, int skillId) =>
+        PacketWriter.Opcode(0x3805).Varint(key).U8(0x0a).Varint(casterKey).Varint(uid).I32(effectId).Varint(Math.Max(0, amount)).I32(skillId).ToArray();
+
     /// <summary>0x5613 ItemUse_RS: result | item uid i64 | item id i32.</summary>
     public static byte[] ItemUseReply(int result, long uid, int itemId) => PacketWriter.Opcode(ItemUseRs).U16(result).I64(uid).I32(itemId).ToArray();
 

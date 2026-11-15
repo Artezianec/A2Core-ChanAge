@@ -68,6 +68,9 @@ public sealed partial class GameSession
         ? SkillLevel(ChainRoot(parent))   // a specialisation child is at its parent's level (GameSession.Specialization.cs)
         : StigmaLevelOf(skillId) ?? BoughtSkillLevel(skillId) + DaevanionSkillBonus(skillId);
 
+    /// <summary>The level a cast uses for damage and cooldown: the learned level of its root (a variant's parent, a chain step's root).</summary>
+    int CastSkillLevel(int skill) => SkillLevel(ChainRoot(Specialized.ParentOf(skill) ?? skill));
+
     /// <summary>The learned kit with persisted and in-session mastery on top of the level-based ones.</summary>
     List<(int SkillId, int Level)> WithLevels(IReadOnlyList<(int SkillId, int Level)> kit) =>
         kit.Select(k => (k.SkillId, Math.Max(k.Level, MasteryLevel(k.SkillId)))).ToList();

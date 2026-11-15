@@ -245,7 +245,7 @@ public sealed partial class GameSession
             if (godstoneCooldowns.TryGetValue(stoneId, out var due) && now < due) continue;
             if (rng.Next(100) >= stone.Proc.Chance) continue;
             godstoneCooldowns[stoneId] = now + stone.Proc.CooldownMs;
-            var damage = Godstones.ProcDamage(stone);
+            var damage = target.Landed(Godstones.ProcDamage(stone));
             if (damage > 0 && !target.Dead && !target.Immune)
             {
                 target.Hp = Math.Max(0, target.Hp - damage);

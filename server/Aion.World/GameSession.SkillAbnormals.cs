@@ -16,10 +16,10 @@ partial class GameSession
     {
         if (definition.Damage.Length > 0 || targets is null || SkillEffects.IsFriendly(skill) || PcTraps.For(skill) is not null || PcZones.For(skill) is not null || PcSummons.For(skill) is not null
             || CastArea(skill) is not { } area || (!area.TargetDebuffRows.Any() && !area.CasterDebuffRows.Any())) return [];
-        List<Target> chosen = area.IsGround ? GroundTargets(area, request)
+        List<Target> chosen = area.IsGround ? GroundTargets(area, request, skill)
             : request.TargetKey is >= Combat.FirstNpcKey and < SharedWorld.FirstPlayerKey && targets.TryGetValue(request.TargetKey, out var locked)
                 ? AreaTargets(area, request, locked)
-            : request.TargetKey == playerKey && area.IsArea ? SelfCastTargets(request, area)
+            : request.TargetKey == playerKey && area.IsArea ? SelfCastTargets(request, area, skill)
             : [];
         var due = now + definition.CastingMs + NpcAi.HitDelayMs;
         var enemies = chosen.Where(t => !t.Dead && t.Hostile && PlayerMayDamageNpc(t)).ToList();

@@ -26,7 +26,7 @@ public static class AbnormalStackRules
     {
         if (file.Value.Abnormals?.TryGetValue(abnormalId.ToString(System.Globalization.CultureInfo.InvariantCulture), out var rule) == true)
             return rule;
-        var group = RewardBoxes.Embedded.Abnormal(abnormalId)?.Group ?? abnormalId;
+        var group = RewardBoxes.Embedded.Abnormal(abnormalId)?.Group ?? PortedSkillAbnormals.GroupOf(abnormalId) ?? abnormalId;
         return new Rule(group, 1, "Renew", "Replace");
     }
 

@@ -2085,6 +2085,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         }
         var cancelActiveCast = ShouldInterruptActiveCast(now, dodging, chainSkill, chainAllowed, heldDuplicate)
             ? InterruptActiveSkillCasts(now, dropScheduledHits: !basicChainAdvance) : [];
+        // A cast that does not cancel in-flight hits still ends the animation that is running (0x3806 reason 0x0c).
+        var cutRunning = cancelActiveCast.Count == 0 ? CutRunningSkill(now) : [];
         List<byte[]> Finish(List<byte[]> replies) => cancelActiveCast.Count == 0 ? replies : [..cancelActiveCast, ..replies];
         // The accepted wire answers its own silently queued copy (held resend that fired before the drain).
         if (queuedCastWire is { } sameQueued && ParseCast(sameQueued) is { } sameRequest
@@ -2097,9 +2099,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         if (DestructibleEnvObjIndex(request.TargetKey) is null) dismount.AddRange(CarrySkillStarted(skill));
         if (!dodging) lastAcceptedCastMs = now;
         skillMoveGraceUntil = now + SkillMoveGraceMs;
-        var cooldown = noCool ? 0 : SkillCooldown.Reduced(SkillCooldown.EffectiveMs(definition), CoolTimeDecrease);
+        var castLevel = CastSkillLevel(skill);
+        var cooldown = noCool ? 0 : SkillCooldown.Reduced(SkillCooldown.EffectiveMs(definition, castLevel), CoolTimeDecrease);
         var lockout = PlayerCastLockoutMs(definition!, skill);
-        if (definition!.CooldownMs > 0 && lockout == definition.CooldownMs) lockout = cooldown;
+        var baseCooldown = definition!.CooldownAt(castLevel);
+        if (baseCooldown > 0 && lockout == baseCooldown) lockout = cooldown;
         // FixSlot combo steps share the root group in dat but only use swing lockout between accepts, not per-step cooldown rows.
         if (!noCool && lockout > 0 && !staggerReactiveCast && !data.IsBasicAttackChainSkill(skill))
             cooldowns[cooldownKey] = now + lockout;
@@ -2174,12 +2178,14 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         var replies = new List<byte[]> { CastStartPacket(skill, (byte)actionUid, request, cooldown) };
         replies.AddRange(ApplySkillCondGrant(skill, definition!, now, request));
         replies.AddRange(ChainCasterAbnormalReplies(skill, now));
+        replies.AddRange(ClassSelfBuffs(skill, definition!, (byte)actionUid, now));
         replies.AddRange(ChainCastReplies(skill, now));
         replies.Add(GamePackets.RequestAck(0x383a));
         replies.Add(CastReplyFor(request, true));
         replies.AddRange(EnterCombat(now));
         replies.Add(resources!.Update());
         replies.InsertRange(0, dismount);   // a cast takes the player off its ride before the skill starts
+        replies.InsertRange(0, cutRunning);   // the skill still running ends before this 0x3802
         if (targets?.ContainsKey(request.TargetKey) == true) lastAttack = (request.TargetKey, now);   // what playerbots assist (GameSession.Bots.cs)
         replies.AddRange(ScheduleCombatHits(skill, request, now, (byte)actionUid));
         replies.AddRange(CasterMoveReplies(skill, request, definition!, now));
@@ -2187,6 +2193,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         replies.AddRange(SkillEffectReplies(skill, request, definition!, now));
         replies.AddRange(DimensionalControlCastReplies(skill, now));
         ScheduleSkillEnd(skill, (byte)actionUid, definition!, now);
+        replies.AddRange(SkillEndTick(now));   // no animation: 0x3806 in this batch
         replies.AddRange(SummonFromSkill(skill, request, now));
         replies.AddRange(JointStrike(definition!, request, now));
         replies.AddRange(DismissFromSkill(skill, now));
@@ -2311,7 +2318,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     /// An NPC hit lands on the player: combat starts, HP drops (official 0x8d00 for the player's key).
     /// At HP 0 the player dies (see Die); invincible HP holds.
     /// </summary>
-    internal List<byte[]> NpcHitsPlayer(int damage, long now, int killerKey = 0, int killerSkill = 0)
+    internal List<byte[]> NpcHitsPlayer(int damage, long now, int killerKey = 0, int killerSkill = 0, int hitSeq = 1, Vector3d? casterAt = null)
     {
         if (resources is null || dead) return [];
         if (killerSkill > 0) lastNpcHitSkill = killerSkill;
@@ -2324,6 +2331,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         }
         combatUntil = now + CombatTimeoutMs;
         replies.AddRange(PlayerDamageReplies(damage, killerKey, now));
+        if (!dead && killerSkill > 0)
+            replies.AddRange(NpcSkillAbnormals(killerKey, killerSkill, casterAt, now, damage, hitSeq));
         return replies;
     }
 
@@ -3104,7 +3113,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 aiMap.Ai.BossRules = bossRules;
                 aiMap.BroadcastAll(aiMap.Ai.Tick(aiMap.Targets, aiMap.NpcVictims(), now, (key, damage) =>
                 {
-                    if (aiMap.Players.TryGetValue(key, out var victim)) victim.Send(victim.Session.NpcHitsPlayer(damage, now, aiMap.Ai.LastAttacker, aiMap.Ai.LastHitSkill));
+                    if (aiMap.Players.TryGetValue(key, out var victim))
+                        victim.Send(victim.Session.NpcHitsPlayer(damage, now, aiMap.Ai.LastAttacker, aiMap.Ai.LastHitSkill, aiMap.Ai.LastHitSeq, aiMap.Ai.LastAttackerAt));
                     return [];
                 }));
                 ClearMapEventNpcCombatHooks(aiMap.Ai);
@@ -3124,7 +3134,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             WireMapEventNpcCombatHooks(ai, now);
             WireRecoveryOrbHooks(ai);
             ai.BossRules = bossRules;
-            replies.AddRange(Visible(ai.Tick(targets, invisible || dead || FriendlyToAll ? null : position, now, damage => NpcHitsPlayer(damage, now, ai.LastAttacker, ai.LastHitSkill))));
+            replies.AddRange(Visible(ai.Tick(targets, invisible || dead || FriendlyToAll ? null : position, now,
+                damage => NpcHitsPlayer(damage, now, ai.LastAttacker, ai.LastHitSkill, ai.LastHitSeq, ai.LastAttackerAt))));
             ClearRecoveryOrbHooks(ai);
             ClearMapEventNpcCombatHooks(ai);
             replies.AddRange(TickRecoveryOrbs(now));

@@ -9,6 +9,15 @@ public sealed class MonsterCombatTests
     static ushort Op(byte[] p) => p.Length >= 2 ? (ushort)(p[0] | (p[1] << 8)) : (ushort)0;
 
     [Fact]
+    public void Monster_hit_first_skips_first_aggro_and_target_packets()
+    {
+        var target = new Target { Key = 2003, Name = "sheep", Hp = 100, HpMax = 100, Position = Vector3d.Zero, WalkSpeed = 100, RunSpeed = 400, Radius = 50 };
+        var struck = new NpcAi(new Random(1)).Engage(new Dictionary<int, Target> { [target.Key] = target }, target, 0);
+        Assert.Contains(struck, b => b.SequenceEqual(GamePackets.CombatState(2003, true)));
+        Assert.DoesNotContain(struck, b => Op(b) is 0x8d52 or 0x3835);
+    }
+
+    [Fact]
     public void Npc_skill_effect_matches_usmap_presence_mask()
     {
         var built = PlayerPackets.NpcSkillEffect(5646, 47494, 1220560, 1, 122056011, 1, 0x36);

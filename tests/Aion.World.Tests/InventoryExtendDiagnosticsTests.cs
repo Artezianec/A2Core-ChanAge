@@ -39,11 +39,11 @@ public sealed class InventoryExtendDiagnosticsTests
             Assert.Equal(6, unhandled.Fields["length"]);
             Assert.Equal("FE7F44332211", unhandled.Fields["hex"]);
 
-            // Item path (uid != 0) is not implemented: the reject is logged with its reason.
+            // An unknown voucher uid is refused and the reject is logged with its reason.
             var rq = new PacketWriter().U16(GameSession.ItemContainerSlotExtendRq).I32(0).U8(InventoryItem.Bag).I64(42).U8(0).ToArray();
             await session.HandleAsync(rq, Now + 2);
             var reject = Assert.Single(capture.Logged, a => a.Kind == "container_slot_extend");
-            Assert.StartsWith("item_path_unsupported", (string)reject.Fields["reason"]!);
+            Assert.StartsWith("voucher_invalid", (string)reject.Fields["reason"]!);
         }
         finally
         {
