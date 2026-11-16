@@ -77,4 +77,31 @@ public sealed class SealStoneTests
         await HitAsync(session, target, at);
         Assert.Equal(1000, store.Items.Single(i => i.TemplateId == Shard).Quantity);
     }
+
+    [Fact]
+    public async Task Teleport_resends_the_slotted_stack_and_the_toggle()
+    {
+        var (session, _, _, at) = await FieldAsync(1000, slot: true);
+        session.Teleport(1010, at, Now + 10);
+        var load = await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 10);
+        var change = load.Single(p => GameSessionTestHelpers.Op(p) == GameSession.SealStoneBroadcastNt);
+        Assert.Equal(Shard, BitConverter.ToInt32(change, change.Length - 4));
+        var status = load.Single(p => GameSessionTestHelpers.Op(p) == GameSession.SealStoneStatusNt);
+        Assert.Equal(1, status[^1]);
+
+        await session.HandleAsync(new PacketWriter().U16(GameSession.SealStoneDeactivateRq).ToArray(), Now + 20);
+        session.Teleport(1010, at, Now + 30);
+        load = await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 30);
+        Assert.Equal(0, load.Single(p => GameSessionTestHelpers.Op(p) == GameSession.SealStoneStatusNt)[^1]);
+        Assert.Contains(load, p => GameSessionTestHelpers.Op(p) == GameSession.SealStoneBroadcastNt);
+    }
+
+    [Fact]
+    public async Task Load_without_a_slot_says_nothing()
+    {
+        var (session, _, _, at) = await FieldAsync(1000, slot: false);
+        session.Teleport(1010, at, Now + 10);
+        var load = await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 10);
+        Assert.DoesNotContain(load, p => GameSessionTestHelpers.Op(p) is GameSession.SealStoneBroadcastNt or GameSession.SealStoneStatusNt);
+    }
 }

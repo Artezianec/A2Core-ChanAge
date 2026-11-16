@@ -176,6 +176,30 @@ public sealed class ExpeditionRoomMatchmakingTests
     }
 
     [Fact]
+    public async Task Create_and_list_accept_the_build_26262663_leading_byte()
+    {
+        // 2026-11-15 player log: "room-create refused: content 153600512" = bytes 00 c2 27 09, i.e. 600002 one byte later.
+        var world = new SharedWorld(GameData.Embedded);
+        var store = new FakeCharacterStore();
+        FakeCharacterStore.SeedExpeditionItemLevel(store);
+        var lead = await EnterExpeditionHero(world, store, "Shifted", 16);
+        await GameSessionTestHelpers.LoadInventoryAsync(lead, Now);
+        Assert.Equal(153600512, BitConverter.ToInt32(new PacketWriter().U16(GameSession.DungeonRoomCreateRq).U8(0).I32(600002).ToArray(), 2));
+
+        var create = await lead.HandleAsync(new PacketWriter().U16(GameSession.DungeonRoomCreateRq).U8(0).I32(600002).U8(0).U8(0).String("open").Bool(true).U8(PartyOptions.JoinFree).Varint(0).Bool(false).Varint(0).ToArray(), Now + 1);
+        Assert.Equal(0, BitConverter.ToInt32(create.First(b => GameSessionTestHelpers.Op(b) == GameSession.DungeonRoomCreateRs), 2));
+        var room = world.Social.DungeonRoomOf(lead.WorldPlayer!)!;
+        Assert.Equal(600002, room.ContentDungeonId);
+        Assert.Equal("open", room.Desc);
+        Assert.True(room.Public);
+
+        var list = await lead.HandleAsync(new PacketWriter().U16(GameSession.DungeonRoomListRq).U8(0).I32(600002).U8(0).ToArray(), Now + 2);
+        var reply = list.First(b => GameSessionTestHelpers.Op(b) == GameSession.DungeonRoomListRs);
+        Assert.Equal(0, BitConverter.ToInt32(reply, 2));
+        Assert.Equal(600002, BitConverter.ToInt32(reply, 6));
+    }
+
+    [Fact]
     public void Resolve_dungeon_level_picks_tier_from_expedition_catalog()
     {
         var tables = ExpeditionTables.Embedded;

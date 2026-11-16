@@ -88,6 +88,23 @@ public sealed partial class GameSession
         return SealStoneSlotShown(itemId);
     }
 
+    /// <summary>
+    /// After every map load (the world entry and each teleport): BroadcastSealStoneChange_NT with the slotted stack and
+    /// SealStoneStatusChange_NT with the toggle. The own appearance (0x3633) carries only the toggle flag, so without these the
+    /// HUD slot came back empty after a teleport and the client could no longer slot or clear it (2026-11-15 player report).
+    /// INFERRED: the official load order of these two (no capture with a slotted stack).
+    /// </summary>
+    List<byte[]> SealStoneAtLoad()
+    {
+        var itemId = SealStoneItemId;
+        if (itemId == 0 && SealStoneRow() is { } next) itemId = next.TemplateId;   // the used-up stack's refill
+        List<byte[]> shown = [];
+        // Item 0 would clear the slot; before the bag is loaded the stored stack is unknown, so nothing is said then.
+        if (itemId != 0) shown.Add(PacketWriter.Opcode(SealStoneBroadcastNt).Varint(playerKey).I32(itemId).ToArray());
+        if (sealStoneOn || itemId != 0) shown.Add(PacketWriter.Opcode(SealStoneStatusNt).Varint(playerKey).Bool(sealStoneOn).ToArray());
+        return shown;
+    }
+
     List<byte[]> SealStoneSlotShown(int itemId)
     {
         var change = PlayerPackets.SealstoneChange(playerKey, itemId);

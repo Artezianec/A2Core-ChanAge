@@ -75,12 +75,25 @@ public sealed partial class GameSession
         catch (ProtocolException) { return null; }
     }
 
+    /// <summary>
+    /// Where the request's dungeon id starts. The 2.0.6 usmap puts it right after the opcode, but build 26262663 clients were
+    /// seen sending one extra byte first (2026-11-15 player log: create content 153600512 = bytes 00 c2 27 09, i.e. 600002
+    /// KraoCave_Easy one byte later). INFERRED: the extra byte's meaning is unknown, so the id is taken from the offset that
+    /// names a known dungeon or expedition group.
+    /// </summary>
+    static int DungeonIdOffset(byte[] plain)
+    {
+        static bool Known(int id) => id > 0 && (Expeditions.GroupForContent(id) is not null || MapEventData.Dungeon(id) is not null);
+        if (plain.Length < 6 || Known(BitConverter.ToInt32(plain, 2))) return 2;
+        return plain.Length >= 7 && Known(BitConverter.ToInt32(plain, 3)) ? 3 : 2;
+    }
+
     (int ContentDungeonId, byte DungeonLevel, byte Race)? ParseInstantJoin(byte[] plain)
     {
         if (plain.Length < 7) return null;
         try
         {
-            var reader = new PacketReader(plain) { Offset = 2 };
+            var reader = new PacketReader(plain) { Offset = DungeonIdOffset(plain) };
             var dungeonId = reader.I32();
             if (reader.Remaining > 0) SkipWantedRole(reader);
             var level = reader.Remaining > 0 ? reader.U8() : (byte)0;
@@ -95,7 +108,7 @@ public sealed partial class GameSession
         if (plain.Length < 7) return null;
         try
         {
-            var reader = new PacketReader(plain) { Offset = 2 };
+            var reader = new PacketReader(plain) { Offset = DungeonIdOffset(plain) };
             var dungeonId = reader.I32();
             var level = reader.Remaining > 0 ? reader.U8() : (byte)0;
             var race = reader.Remaining > 0 ? reader.U8() : (byte)0;
@@ -161,8 +174,9 @@ public sealed partial class GameSession
     List<byte[]> DungeonRoomList(byte[] plain)
     {
         if (plain.Length < 7) return [];
-        var contentId = BitConverter.ToInt32(plain, 2);
-        var level = plain.Length > 6 ? plain[6] : (byte)0;
+        var at = DungeonIdOffset(plain);
+        var contentId = BitConverter.ToInt32(plain, at);
+        var level = plain.Length > at + 4 ? plain[at + 4] : (byte)0;
         var resolved = Expeditions.ResolveDungeonId(contentId, level);
         if (MapEventData.Dungeon(resolved) is not { Type: "Party" })
             return [DungeonRoomListReply(RoomFailed, contentId, null, [])];
