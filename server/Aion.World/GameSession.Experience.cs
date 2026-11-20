@@ -25,6 +25,8 @@ public sealed partial class GameSession
 {
     long experience;
     public long Experience => experience;
+    /// <summary>The host's base rates (Aion:Rates) this session applies.</summary>
+    public ServerRates Rates => options.Rates;
     /// <summary>The first level at which kills pay (CANDIDATE, see above).</summary>
     public const int KillExperienceLevel = 10;
     /// <summary>The grade-3 reward at monster level L: KillExperienceBase x KillExperienceGrowth^L (CANDIDATE fit).</summary>
@@ -54,8 +56,8 @@ public sealed partial class GameSession
     async Task<List<byte[]>> KillExperienceAsync(CancellationToken ct)
     {
         if (killedLevels.Count == 0) return [];
-        // Scheduled experience events (SharedWorld.ExpRate) multiply kill experience.
-        var gained = (long)Math.Round(killedLevels.Sum(k => KillReward(level, k.Level, k.Grade, k.Instance)) * (options.World?.ExpRate ?? 1));
+        // The host's base rate (Aion:Rates:Experience) times the scheduled experience event (SharedWorld.ExpRate).
+        var gained = options.Rates.KillExperience(killedLevels.Sum(k => KillReward(level, k.Level, k.Grade, k.Instance)), options.World?.ExpRate ?? 1);
         killedLevels.Clear();
         if (gained <= 0) return [];
         // Party members nearby share it evenly (no party bonus); each applies its share on its own loop.
@@ -71,12 +73,6 @@ public sealed partial class GameSession
     /// </summary>
     async Task<List<byte[]>> GainExperienceAsync(long total, long gained, byte reason, CancellationToken ct)
     {
-        if (reason == ExpReasonQuest && gained > 0)
-        {
-            var scaled = (long)Math.Round(gained * (options.World?.ExpRate ?? 1));
-            total += scaled - gained;
-            gained = scaled;
-        }
         var before = level;
         var newLevel = level;
         while (newLevel < data.MaxLevel && data.NeedExp(newLevel) is > 0 and var need && total >= need)

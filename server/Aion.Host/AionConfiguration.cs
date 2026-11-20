@@ -15,6 +15,8 @@ public static class AionConfiguration
     public const string Debug = Section + ":Debug";
     public const string Shop = Section + ":Shop";
     public const string World = Section + ":World";
+    public const string Rates = Section + ":Rates";
+    public const string Rules = Section + ":Rules";
     public const string ServerLog = Section + ":ServerLog";
     public const string ConnectionAion = "ConnectionStrings:Aion";
     public const string ConnectionAuth = "ConnectionStrings:Auth";

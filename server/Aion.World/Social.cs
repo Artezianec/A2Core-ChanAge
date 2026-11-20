@@ -19,6 +19,24 @@ public sealed class Party(long key, WorldPlayer leader)
     public int SequenceIndex { get; set; }
     /// <summary>When set, this party belongs to a raid/alliance force.</summary>
     public long? ForceKey { get; set; }
+
+    int lootTurn;
+    /// <summary>
+    /// Aion:Rules:PartyLoot roundrobin (OURS): the next member in join order, from the one after the last looter, who is
+    /// among <paramref name="eligible"/>; it takes the turn. The first eligible one when none is a member.
+    /// </summary>
+    public WorldPlayer NextLooter(IReadOnlyCollection<WorldPlayer> eligible)
+    {
+        for (var i = 0; i < Members.Count; i++)
+        {
+            var index = (lootTurn + i) % Members.Count;
+            if (!eligible.Contains(Members[index])) continue;
+            lootTurn = index + 1;
+            return Members[index];
+        }
+        return eligible.First();
+    }
+
     public IEnumerable<WorldPlayer> Others(WorldPlayer of) => Members.Where(m => m != of);
 }
 
