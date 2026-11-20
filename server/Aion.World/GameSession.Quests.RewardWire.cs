@@ -33,12 +33,6 @@ public sealed partial class GameSession
         long total, long gained, CancellationToken ct)
     {
         var before = level;
-        if (gained > 0)
-        {
-            var scaled = (long)Math.Round(gained * (options.World?.ExpRate ?? 1));
-            total += scaled - gained;
-            gained = scaled;
-        }
         var newLevel = level;
         while (newLevel < data.MaxLevel && data.NeedExp(newLevel) is > 0 and var need && total >= need)
         {

@@ -75,11 +75,10 @@ public sealed partial class GameSession
     internal async Task<List<byte[]>> FieldBossRewardAsync(Target target, long now)
     {
         _ = now;
-        var rate = options.World?.DropRate ?? 1;
-        var fraction = rate - Math.Floor(rate);
-        var rolls = (int)Math.Floor(rate) + (fraction > 0 && rng.NextDouble() < fraction ? 1 : 0);
+        var rolls = options.Rates.LootRolls(options.World?.DropRate ?? 1, rng);
         var rolled = new List<(int, long)>();
         for (var i = 0; i < rolls; i++) rolled.AddRange(LootTables.Embedded.RollParticipant(target.NpcId, profileRace, rng));
+        rolled = options.Rates.WithKinah(rolled);
         FieldBossShares++;
         FieldBossItemsRolled += rolled.Count;
         var replies = new List<byte[]>();

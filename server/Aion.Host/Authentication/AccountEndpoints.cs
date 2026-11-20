@@ -52,14 +52,24 @@ public static class AccountEndpoints
             return Results.Json(new { created = true }, statusCode: 201);
         }).RequireRateLimiting("admin");
 
-        app.MapPost("/api/accounts/login", async (Credentials input, IAccountAuthentication auth, ITotpAuthentication totp, CancellationToken ct) =>
+        app.MapPost("/api/accounts/login", async (Credentials input, HttpContext context, IAccountAuthentication auth, ITotpAuthentication totp, CancellationToken ct) =>
         {
-            if (input.Username is null || input.Password is null) return Results.Unauthorized();
+            var diagnostics = context.RequestServices.GetService<Aion.Host.Diagnostics.HostDiagnostics>();
+            if (input.Username is null || input.Password is null)
+            {
+                diagnostics?.Login(Aion.Host.Diagnostics.HostDiagnostics.WebLogin, Aion.Host.Diagnostics.HostDiagnostics.Outcome.Failed);
+                return Results.Unauthorized();
+            }
             // "Keep me signed in": a 30-day session instead of the standard 8 hours (kept through the TOTP step).
             var session = input.Remember == true
                 ? await auth.SignInAsync(input.Username, input.Password, TimeSpan.FromDays(30), ct)
                 : await auth.SignInAsync(input.Username, input.Password, ct);
-            if (session is null) return Results.Unauthorized();
+            if (session is null)
+            {
+                diagnostics?.Login(Aion.Host.Diagnostics.HostDiagnostics.WebLogin, Aion.Host.Diagnostics.HostDiagnostics.Outcome.Failed);
+                return Results.Unauthorized();
+            }
+            diagnostics?.Login(Aion.Host.Diagnostics.HostDiagnostics.WebLogin, Aion.Host.Diagnostics.HostDiagnostics.Outcome.Succeeded);
             if (!await totp.IsEnabledAsync(session.AccountId, ct)) return Results.Ok(session);
             await auth.SignOutAsync(session.Token, ct);
             TimeSpan? lifetime = input.Remember == true ? TimeSpan.FromDays(30) : null;

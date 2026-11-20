@@ -21,6 +21,10 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
+// Counters for the staff diagnostics API (docs/DIAGNOSTICS.md); also counts logged errors per category.
+var diagnostics = new Aion.Host.Diagnostics.HostDiagnostics();
+builder.Services.AddSingleton(diagnostics);
+builder.Logging.AddProvider(diagnostics);
 builder.Logging.AddServerFileLog(builder.Configuration);
 // Multi-world: a host in world role (Aion:Role=world) runs one world's game port only: no login port, account site,
 // platform bootstrap, NCGuard or chat port. The primary host starts managed ones (Aion.Host.Worlds.WorldSupervisor);
@@ -60,7 +64,14 @@ Aion.World.GameSession.ConfigureBosses(builder.Configuration.GetSection("Aion:Bo
 Aion.World.FieldBosses.Configure(builder.Configuration.GetSection("Aion:FieldBosses").Get<Aion.World.FieldBossOptions>() ?? Aion.World.FieldBossOptions.Default);
 // Aion:Stigmas (docs/STIGMAS.md): off by default; Enabled, Slots, ShardRate, MaxLevel, ResetKinah, RequireSlot, ShardUpdateSendsSpent.
 Aion.World.GameSession.ConfigureStigmas(builder.Configuration.GetSection("Aion:Stigmas").Get<Aion.World.StigmaOptions>() ?? Aion.World.StigmaOptions.Default);
+// Base rates (OURS; from ckrealm/A2Core): Aion:Rates (Profile official|accelerated, Experience, Kinah, Drop, QuestExperience).
+// Scheduled dashboard events multiply on top (SharedWorld.ExpRate / DropRate, each clamped 0.1–10).
+var serverRates = (builder.Configuration.GetSection(AionConfiguration.Rates).Get<Aion.World.RatesOptions>() ?? new Aion.World.RatesOptions()).Resolve();
+builder.Services.AddSingleton(serverRates);
 Aion.World.GameSession.ConfigureMembership(builder.Configuration.GetValue("Aion:World:MembershipByDefault", true));
+// Aion:Rules (OURS; ported from ckrealm/A2Core): PartyLoot off|freeforall|roundrobin|killer, FallbackLoot, MonsterKinahDrops (all off by default).
+Aion.World.GameSession.ConfigureWorldRules(
+    (builder.Configuration.GetSection(AionConfiguration.Rules).Get<Aion.World.WorldRules>() ?? Aion.World.WorldRules.Default).Validated());
 var connectionString = builder.Configuration.GetConnectionString("Aion");
 var authConnectionString = builder.Configuration.GetConnectionString("Auth");
 if (!string.IsNullOrWhiteSpace(connectionString))
@@ -193,6 +204,29 @@ if (native.LoginPort is not null || native.GamePort is not null)
             provider.GetRequiredService<Aion.World.SharedWorld>(), presence: provider.GetRequiredService<Aion.World.WorldPresence>()));
         builder.Services.AddHostedService<PlayerBotsService>();
     }
+    // Market (OURS, docs/MARKET.md): //ah and optional seller/buyer bots; off unless Aion:Market:Enabled.
+    var market = (builder.Configuration.GetSection("Aion:Market").Get<Aion.World.MarketOptions>() ?? new Aion.World.MarketOptions()).Validated();
+    var marketReferences = market.Enabled
+        ? market.PriceFile is { Length: > 0 } priceFile ? Aion.World.MarketReferencePrices.Load(priceFile)
+            : market.BundledPrices ? Aion.World.MarketReferencePrices.Embedded()
+            : ((Dictionary<int, long> ById, Dictionary<string, long> ByName)?)null
+        : null;
+    if (market.Enabled && native.GamePort is not null && !string.IsNullOrWhiteSpace(connectionString))
+    {
+        builder.Services.AddSingleton(market);
+        builder.Services.AddSingleton<Aion.Application.Market.IMarketStore, PostgresMarketStore>();
+        builder.Services.AddSingleton(provider => new Aion.World.MarketCommands(provider.GetRequiredService<Aion.Application.Market.IMarketStore>(), market,
+            Aion.World.MarketPricing.Embedded, provider.GetRequiredService<Aion.World.SharedWorld>()));
+        builder.Services.AddSingleton(provider =>
+        {
+            var world = provider.GetRequiredService<Aion.World.SharedWorld>();
+            var log = provider.GetRequiredService<ILoggerFactory>().CreateLogger("Aion.Market");
+            return new Aion.World.MarketBot(provider.GetRequiredService<Aion.Application.Market.IMarketStore>(), market, Aion.World.MarketPricing.Embedded,
+                mailed: (seller, post) => world.FindOnline(seller)?.Send(Aion.World.GameSession.PostReceived(post)),
+                log: message => log.LogInformation("{Message}", message), references: marketReferences);
+        });
+        builder.Services.AddHostedService<MarketBotService>();
+    }
     // The race of the world each account picks on the login port, for the game port's lobby.
     builder.Services.AddSingleton<Aion.World.WorldChoices>();
     builder.Services.AddSingleton(provider =>
@@ -206,6 +240,7 @@ if (native.LoginPort is not null || native.GamePort is not null)
         new Aion.World.GmCommands(provider.GetRequiredService<Aion.World.WorldPresence>(), provider.GetRequiredService<Aion.World.BuilderCommands>())
         {
             Bots = provider.GetService<Aion.World.PlayerBots>(),
+            Market = provider.GetService<Aion.World.MarketCommands>(),
             // "//report <text>" opens a ticket for the staff dashboard (accounts only).
             Report = provider.GetService<IStaffTools>() is { } staffTools ? async (sender, name, text, ct) =>
             {
@@ -360,6 +395,8 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddSingleton<WardrobeAccess>();
 var app = builder.Build();
 app.Logger.LogInformation("Bosses: {Bosses}; field bosses: {FieldBosses}", Aion.World.GameSession.BossRules, Aion.World.FieldBosses.Options);
+if (native.LoginPort is not null || native.GamePort is not null)
+    app.Logger.LogInformation("World rates: {Rates} (scheduled events multiply on top, each 0.1–10).", serverRates);
 if (app.Services.GetService<Aion.World.SharedWorld>() is { } sharedWorld)
 {
     Aion.World.CustomNpcWorld.Configure(app.Services.GetService<ICustomNpcCatalog>(), sharedWorld,

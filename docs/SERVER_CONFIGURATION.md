@@ -89,6 +89,31 @@ GM builder commands: `Membership on|off` (per account until the host restarts) a
 |-----|---------|-------------|
 | `LevelCap` | `45` | Maximum character level (Global live cap on build **25767555**). Exp.dat / PcStatLevel tables and GM validation still load through level **100**; XP and `SetLevel` stop at this cap. Quests with `UnlockLevel` above the cap are marked `unavailable` in `tools/data/quests.json`. |
 
+## `Aion:Rates`
+
+Host multipliers for experience, quest experience, Kinah rewards, and loot-table rolls (defaults **1.0** — unchanged official pacing). Scheduled dashboard events (`SharedWorld.ExpRate` / `DropRate`, each clamped 0.1–10) multiply on top of these base rates. Idea and formulas from the community fork [ckrealm/A2Core](https://github.com/ckrealm/A2Core).
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `Profile` | `official` | Preset: `official` (all 1.0) or `accelerated` (experience 5, Kinah 3, drops 3, quest experience 5). Any explicit rate below overrides the preset. |
+| `Experience` | from profile | Kill experience multiplier (with event boosts). |
+| `QuestExperience` | same as `Experience` | Quest turn-in experience (not boosted by experience events). |
+| `Kinah` | from profile | Kinah lines in loot, quests, boxes, achievements, dungeons, etc. |
+| `Drop` | from profile | Extra loot-table rolls per kill (capped at 100 rolls). |
+
+Example (`appsettings.json` or env `Aion__Rates__Experience=2`):
+
+```json
+"Aion": {
+  "Rates": {
+    "Profile": "official",
+    "Experience": 2,
+    "Kinah": 1.5,
+    "Drop": 2
+  }
+}
+```
+
 ## `Aion:Native`
 
 Native login/game ports (optional; both off unless ports are set).

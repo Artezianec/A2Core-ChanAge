@@ -315,7 +315,7 @@ public sealed partial class GameSession
     {
         var batches = pendingRewards.ToList();
         pendingRewards.Clear();
-        var items = batches.SelectMany(b => b).ToList();
+        var items = options.Rates.WithKinah(batches.SelectMany(b => b));
         if (items.Count == 0) return [];
         if (Store is { } store && CharacterId is { } character)
         {

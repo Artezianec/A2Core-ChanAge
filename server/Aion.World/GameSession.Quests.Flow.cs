@@ -143,20 +143,22 @@ public sealed partial class GameSession
             var (randomItems, randomPaid) = DutyRandomPaid(record);
             items.AddRange(randomItems);
             if (rewards.Kina > 0) items.Insert(0, (KinaItemId, rewards.Kina));
+            items = options.Rates.WithKinah(items);
+            var questExp = options.Rates.QuestReward(rewards.Exp);
             var replies = new List<byte[]>();
             var levelBeforeReward = level;
             List<byte[]> inventoryReplies = [];
             long totalExp = experience;
             if (Store is { } store && CharacterId is { } character)
             {
-                if (await store.RewardQuestAsync(character, record.Code, rewards.Exp, items, ct) is not long total)
+                if (await store.RewardQuestAsync(character, record.Code, questExp, items, ct) is not long total)
                     return [GamePackets.QuestTakeRewardReply(uid, 1)];
                 totalExp = total;
                 inventoryReplies = await InventoryChangesAsync(ct);
                 replies.AddRange(await AutoUseAcquiredItemsAsync(items.Select(i => i.Item1), now, ct));
             }
             var (expBeforeTake, expAfterTake, levelBefore, levelAfter) =
-                await QuestRewardExperienceAsync(totalExp, rewards.Exp, ct);
+                await QuestRewardExperienceAsync(totalExp, questExp, ct);
             var achieveAll = new List<byte[]>();
             if (levelAfter > levelBefore) achieveAll.AddRange(AchieveSet("PCLevel", levelAfter));
             achieveAll.AddRange(AchieveQuest(record.Code, quest.Type));

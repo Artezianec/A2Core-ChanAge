@@ -177,9 +177,9 @@ public sealed partial class GameSession
         if (state.Registered >= list.Target)
         {
             state = (state.Registered, true);
-            var rewards = list.Rewards.Where(r => r.Length >= 2).Select(r => ((int)r[0], r[1])).ToList();
+            var rewards = options.Rates.WithKinah(list.Rewards.Where(r => r.Length >= 2).Select(r => ((int)r[0], r[1])));
             if (rewards.Count > 0) await Stored(async () => await store.GrantLootAsync(character, rewards, ct) ? [[]] : []);
-            var nt = PacketWriter.Opcode(TakePeriodCollectionRewardNt).I32(collectionId).I32(listId).I32(list.Exp).Varint((uint)rewards.Count);
+            var nt = PacketWriter.Opcode(TakePeriodCollectionRewardNt).I32(collectionId).I32(listId).I32((int)options.Rates.QuestReward(list.Exp)).Varint((uint)rewards.Count);
             foreach (var (item, count) in rewards) nt.I32(item).I32((int)Math.Min(count, int.MaxValue));
             replies.Add(nt.ToArray());
             replies.AddRange(await InventoryChangesAsync(ct, IncreaseCollectionReward, 0));

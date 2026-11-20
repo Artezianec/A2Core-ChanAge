@@ -97,6 +97,9 @@ public sealed class GmCommands(WorldPresence presence, BuilderCommands builder) 
     /// <summary>Playerbots (docs/PLAYERBOTS.md) for "//bot"; null when Aion:Bots:Enabled is off.</summary>
     public PlayerBots? Bots { get; init; }
 
+    /// <summary>"//ah ..." (docs/MARKET.md): chat auction house; null when Aion:Market:Enabled is off or there is no game database.</summary>
+    public MarketCommands? Market { get; init; }
+
     static bool IsBotCommand(string line) =>
         line.StartsWith("bot", StringComparison.OrdinalIgnoreCase) && (line.Length == 3 || char.IsWhiteSpace(line[3]));
 
@@ -167,10 +170,20 @@ public sealed class GmCommands(WorldPresence presence, BuilderCommands builder) 
                 return await actor.Session.InvokeAsync(async now => (await Bots.CommandAsync(actor.Session, rest, now, ct), new List<byte[]>()))
                     .WaitAsync(TimeSpan.FromSeconds(30), ct);
             }
+            if (line.StartsWith("ah", StringComparison.OrdinalIgnoreCase) && (line.Length == 2 || char.IsWhiteSpace(line[2])))
+                return Market is { } market
+                    ? await market.HandleAsync(actor.Session, line[2..].Trim(), ct)
+                    : "The market is not available on this server (enable Aion:Market:Enabled).";
             if (line.Length == 0 || line.Equals("help", StringComparison.OrdinalIgnoreCase))
+            {
+                var marketHint = Market is { Options.Enabled: true } ? " //ah for the auction house." : "";
+                var botHint = Bots is { Options.Enabled: true, Options.PlayersMayUse: true } ? " //bot add <character> summons one of your characters as a bot." : "";
                 return await builder.AllowedAsync(actor.Session, ct)
                     ? "Builder commands (in chat: //<command>; console: s <command>): " + string.Join(", ", BuilderCommands.Supported)
-                    : "Commands: //report <text> sends a report to the staff. /stigma shows your Stigma Shards and slots. Staff: //stigma grant <count>.";
+                        + (Bots is { Options.Enabled: true } ? "; //bot for playerbots" : "")
+                    : "Commands: //report <text> sends a report to the staff. /stigma shows your Stigma Shards and slots." + marketHint + botHint
+                        + " Staff: //stigma grant <count>." + (Bots is { Options.Enabled: true } ? " //bot for playerbots." : "");
+            }
             return await actor.Session.InvokeAsync(async now =>
             {
                 var outcome = await builder.RunAsync(actor.Session, line, now, ct);

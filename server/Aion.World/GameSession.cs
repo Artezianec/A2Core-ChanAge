@@ -53,6 +53,10 @@ public sealed record GameSessionOptions
     public ShopOptions? Shop { get; init; }
     /// <summary>Aion:Stigmas for this connection (docs/STIGMAS.md); null uses the host default from <see cref="GameSession.ConfigureStigmas"/> (off).</summary>
     public StigmaOptions? Stigmas { get; init; }
+    /// <summary>The host's base rates (Aion:Rates); they multiply with the scheduled event boosts of <see cref="World"/>.</summary>
+    public ServerRates Rates { get; init; } = ServerRates.Official;
+    /// <summary>Aion:Rules for this connection; null uses the host default from <see cref="GameSession.ConfigureWorldRules"/>.</summary>
+    public WorldRules? Rules { get; init; }
 }
 
 /// <summary>

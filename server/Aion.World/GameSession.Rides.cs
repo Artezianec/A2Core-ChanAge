@@ -173,7 +173,8 @@ public sealed partial class GameSession
         var boxCooldown = Boxes.Cooldown(row.TemplateId);
         if (boxCooldown.Group != "None" && now < itemCooldowns.GetValueOrDefault(boxCooldown.Group)) return Fail();
         count = (int)Math.Min(Math.Clamp(count, 1, Math.Max(1, Boxes.MaxOpen(group))), row.Quantity);
-        if (count < 1 || Boxes.Roll(group, select, count, rng) is not { } rewards) return Fail();
+        if (count < 1 || Boxes.Roll(group, select, count, rng) is not { } rolled) return Fail();
+        var rewards = options.Rates.WithKinah(rolled);
         var done = await Stored(async () => await store.ConsumeAndGrantAsync(character, row.InstanceId, row.Revision, count, rewards, ct) ? [[]] : []);
         if (done.Count == 0) return Fail();
         if (boxCooldown.Group != "None")
@@ -519,7 +520,8 @@ public sealed partial class GameSession
     /// <summary>Kina chests [amount] × count: the chests are consumed and the Kina currency item granted in one step.</summary>
     async Task<List<byte[]>?> UseKinaItemAsync(INativeCharacterStore store, Guid character, ItemState row, long kina, int count, bool reply, CancellationToken ct)
     {
-        var done = await Stored(async () => await store.ConsumeAndGrantAsync(character, row.InstanceId, row.Revision, count, [(KinaItemId, checked(kina * count))], ct) ? [[]] : []);
+        var amount = Math.Max(1, options.Rates.KinahAmount(checked(kina * count)));
+        var done = await Stored(async () => await store.ConsumeAndGrantAsync(character, row.InstanceId, row.Revision, count, [(KinaItemId, amount)], ct) ? [[]] : []);
         if (done.Count == 0) return null;
         usedCountApplied = true;
         return [.. Used(row, reply), .. await InventoryChangesAsync(ct, IncreaseItemUse, DecreaseItemUse)];
