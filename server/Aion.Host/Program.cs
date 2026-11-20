@@ -289,6 +289,7 @@ if (native.LoginPort is not null || native.GamePort is not null)
             },
         };
     });
+    builder.Services.AddSingleton<NativePortReadiness>();
     if (native.LoginPort is not null) builder.Services.AddHostedService<NativeLoginListener>();
     // Multi-world (primary host, Aion:Worlds:Enabled): the world registry's list for the login port and the managed child worlds.
     if (native.MultiWorld && native.LoginPort is not null && !native.Development && worldProcess is null && !string.IsNullOrWhiteSpace(connectionString))
@@ -541,8 +542,12 @@ downloads?.Map(app, launcherEndpoints is null ? null
     : request => LauncherEndpoints.LauncherJson(request, app.Configuration, SiteName(app.Configuration), network.PublicAddress, platform.Port!.Value));
 launcherEndpoints?.Map(app, () => SiteName(app.Configuration), network.PublicAddress, platform.Port!.Value);
 var registrationOpen = builder.Configuration.GetValue<bool?>("Aion:Accounts:Registration") ?? true;
-app.MapGet("/api/status", () => Results.Ok(new { accountsConfigured = accountsReady, registrationOpen = accountsReady && registrationOpen,
-    launcherAvailable = downloads?.LauncherAvailable ?? false, gameReady = false }));
+app.MapGet("/api/status", async (IServiceProvider services, CancellationToken ct) =>
+{
+    var gameReady = services.GetService<NativePortReadiness>() is { } readiness && await readiness.GameReadyAsync(ct);
+    return Results.Ok(new { accountsConfigured = accountsReady, registrationOpen = accountsReady && registrationOpen,
+        launcherAvailable = downloads?.LauncherAvailable ?? false, gameReady });
+});
 if (accountsReady)
 {
     app.MapAccountEndpoints(registrationOpen);
