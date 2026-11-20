@@ -381,7 +381,7 @@ static void HookSteamExports(HMODULE steam)
     if (!steam) return;
     auto hookExport = [steam](LPCSTR name, LPVOID detour, LPVOID* original) {
         if (*original) return;
-        LPVOID target = GetProcAddress(steam, name);
+        LPVOID target = reinterpret_cast<LPVOID>(GetProcAddress(steam, name));
         if (!target)
         {
             TraceLog("steam export missing %s", name);
