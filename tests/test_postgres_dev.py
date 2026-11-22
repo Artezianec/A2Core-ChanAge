@@ -384,3 +384,67 @@ class AuthCharactersGrantTests(unittest.TestCase):
         self.scalar(body)
         self.assertEqual(self.scalar(
             f"SELECT name FROM game.characters WHERE character_id='{self.character}';", role='aion_auth'), 'GrantHero')
+
+
+@unittest.skipUnless(os.environ.get('AION_POSTGRES_TESTS') == '1', 'Requires local PostgreSQL')
+class QaBotPostgresSqlTests(unittest.TestCase):
+    """Migrations 133-136: aion_app provisions QA accounts via definer, writes QA tables, and retention deletes."""
+
+    NS = uuid.UUID('a9f4e6c2-7b3d-41e1-9c8a-000000000101')
+
+    @classmethod
+    def setUpClass(cls):
+        cls.db = 'aion_qa_bots_' + secrets.token_hex(6)
+        sql(f'CREATE DATABASE {cls.db} OWNER aion_owner;', database='postgres')
+        sql(f'REVOKE ALL ON DATABASE {cls.db} FROM PUBLIC; GRANT CONNECT ON DATABASE {cls.db} TO aion_app,aion_auth;', database=cls.db)
+        sql(migration_script(sorted((ROOT / 'database' / 'migrations').glob('*.sql'))), database=cls.db)
+
+    @classmethod
+    def tearDownClass(cls):
+        sql(f'DROP DATABASE {cls.db} WITH (FORCE);', database='postgres')
+
+    def scalar(self, text, role='aion_app', check=True):
+        result = sql(text, role=role, database=self.db, check=check)
+        return result.stdout.strip() if check else result
+
+    def test_ensure_internal_account_and_no_direct_auth_insert(self):
+        account = uuid.uuid5(self.NS, 'qa-bot-slot-v1:0')
+        self.scalar(f"SELECT game.qa_ensure_internal_account(0, '{account}', 'qa-bot-slot-0');")
+        self.assertEqual(self.scalar(f"SELECT slot_index FROM game.qa_internal_accounts WHERE account_id='{account}';"), '0')
+        self.assertEqual(self.scalar(f"SELECT provider FROM auth.accounts WHERE account_id='{account}';"), 'qa-bot')
+        rogue = str(uuid.uuid4())
+        self.assertNotEqual(self.scalar(
+            f"INSERT INTO auth.accounts(account_id,provider,subject) VALUES('{rogue}','qa-bot','nope');",
+            check=False).returncode, 0)
+
+    def test_finish_stale_running_qa_runs(self):
+        run_id = self.scalar(
+            "INSERT INTO game.qa_runs (class_name, level_from, level_to, bot_count, status, started_by) "
+            "VALUES ('auto',1,45,1,'running','auto') RETURNING run_id;")
+        self.scalar(
+            "UPDATE game.qa_runs SET finished_at=NULL, status='running' "
+            "WHERE run_id=$1".replace('$1', run_id))
+        self.scalar("""
+            UPDATE game.qa_runs
+            SET finished_at = COALESCE(finished_at, now()), status = 'failed', note = COALESCE(note, 'stale running row closed')
+            WHERE status = 'running';
+        """)
+        self.assertEqual(self.scalar(f"SELECT status FROM game.qa_runs WHERE run_id={run_id};"), 'failed')
+        self.assertTrue(self.scalar(f"SELECT finished_at IS NOT NULL FROM game.qa_runs WHERE run_id={run_id};") == 't')
+
+    def test_qa_tables_and_retention_as_aion_app(self):
+        run_id = self.scalar(
+            "INSERT INTO game.qa_runs (class_name, level_from, level_to, bot_count, started_by) "
+            "VALUES ('auto',1,45,5,'auto') RETURNING run_id;")
+        self.assertTrue(run_id.isdigit())
+        bucket = self.scalar(
+            "INSERT INTO game.qa_stuck_buckets (quest_code, quest_step, reason_code, quest_title, hit_count) "
+            "VALUES ('Q1',1,'step_timeout','Quest',1) ON CONFLICT (quest_code, quest_step, reason_code) "
+            "DO UPDATE SET hit_count = game.qa_stuck_buckets.hit_count + 1 RETURNING bucket_id;")
+        self.scalar(
+            f"INSERT INTO game.qa_stuck_samples (bucket_id, run_id, bot_index, class_name, character_level, last_actions) "
+            f"VALUES ({bucket}, {run_id}, 0, 'Gladiator', 5, '[]'::jsonb);")
+        self.scalar(f"UPDATE game.qa_runs SET finished_at=now() - interval '120 days', status='completed' WHERE run_id={run_id};")
+        self.scalar(
+            "DELETE FROM game.qa_runs WHERE finished_at IS NOT NULL AND finished_at < now() - make_interval(days => 90);")
+        self.assertEqual(self.scalar(f"SELECT count(*) FROM game.qa_runs WHERE run_id={run_id};"), '0')

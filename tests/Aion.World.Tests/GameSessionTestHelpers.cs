@@ -60,13 +60,13 @@ public static class GameSessionTestHelpers
     }
 
     /// <summary>Shared-world session (map events, instance layers) for quest E2E.</summary>
-    public static async Task<GameSession> EnterSharedWorldAsync(FakeCharacterStore store, long now, int level = 55, Random? rng = null)
+    public static async Task<GameSession> EnterSharedWorldAsync(FakeCharacterStore store, long now, int level = 55, Random? rng = null, bool qaBot = false)
     {
         var shared = new SharedWorld(GameData.Embedded);
         var session = new GameSession(GameData.Embedded,
             new GameSessionOptions { World = shared, CharacterLevel = level, WorldId = store.WorldId, TrainingDummy = true },
             rng ?? new Random(19))
-        { Store = store };
+        { Store = store, Bot = qaBot, QaBot = qaBot };
         await session.HandleAsync(Login(), now);
         await session.HandleAsync(LightCreate(), now);
         var wireId = store.States[0].WireId;

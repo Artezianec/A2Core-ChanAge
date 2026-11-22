@@ -71,7 +71,9 @@ def main():
     parser.add_argument('--build-id')
     args = parser.parse_args()
     builds = sql('SELECT build_id FROM catalog.builds ORDER BY build_id;').stdout.splitlines()
-    build = args.build_id or (builds[-1] if builds else None)
+    build = args.build_id or sql('SELECT build_id FROM catalog.builds ORDER BY imported_at DESC, build_id LIMIT 1;').stdout.strip()
+    if not build and builds:
+        build = builds[-1]
     if build not in builds:
         raise ValueError('Choose an imported catalogue with --build-id')
     out = sql("SELECT template_id||chr(9)||(definition->'raw')::text FROM catalog.items "

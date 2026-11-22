@@ -21,6 +21,9 @@ public sealed class WorldPresence
     /// <summary>Everyone in the world now (staff overview).</summary>
     public IReadOnlyList<Entry> All => [.. byName.Values];
 
+    /// <summary>Characters in the world that are not server-side playerbots (public player count).</summary>
+    public int RealPlayers => All.Count(e => !e.Session.Bot);
+
     public void Leave(string name, GameSession session)
     {
         if (byName.TryGetValue(name, out var entry) && entry.Session == session) byName.TryRemove(new KeyValuePair<string, Entry>(name, entry));
@@ -97,11 +100,17 @@ public sealed class GmCommands(WorldPresence presence, BuilderCommands builder) 
     /// <summary>Playerbots (docs/PLAYERBOTS.md) for "//bot"; null when Aion:Bots:Enabled is off.</summary>
     public PlayerBots? Bots { get; init; }
 
+    /// <summary>QA quest bots (docs/QA_BOTS.md) for "//qa"; null when Aion:QaBots:Enabled is off.</summary>
+    public QaBots? QaBots { get; init; }
+
     /// <summary>"//ah ..." (docs/MARKET.md): chat auction house; null when Aion:Market:Enabled is off or there is no game database.</summary>
     public MarketCommands? Market { get; init; }
 
     static bool IsBotCommand(string line) =>
         line.StartsWith("bot", StringComparison.OrdinalIgnoreCase) && (line.Length == 3 || char.IsWhiteSpace(line[3]));
+
+    static bool IsQaCommand(string line) =>
+        line.StartsWith("qa", StringComparison.OrdinalIgnoreCase) && (line.Length == 2 || char.IsWhiteSpace(line[2]));
 
     public async Task<string> HandleAsync(ChatIdentity sender, string userName, string content, CancellationToken ct)
     {
@@ -161,6 +170,12 @@ public sealed class GmCommands(WorldPresence presence, BuilderCommands builder) 
                     ? "GM panel: press F10 (client dev helper; Ctrl+~ dev test UI). It needs the lobby admin flag: re-login after a staff change. "
                       + "Builder commands (in chat: //<command>; console: s <command>): " + string.Join(", ", BuilderCommands.Supported)
                     : "GM permission required.";
+            if (IsQaCommand(line))
+            {
+                if (QaBots is null) return "QA bots are off on this server.";
+                if (!await builder.AllowedAsync(actor.Session, ct)) return "QA bots are staff-only.";
+                return await QaBots.CommandAsync(line[2..].Trim(), actor.Session.CharacterName, ct);
+            }
             // "//bot ...": staff only unless Aion:Bots:PlayersMayUse; runs on the summoner's loop (it reads the lobby).
             if (IsBotCommand(line))
             {

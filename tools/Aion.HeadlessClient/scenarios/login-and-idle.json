@@ -1,0 +1,7 @@
+{
+  "name": "login-and-idle",
+  "mode": "development",
+  "steps": [
+    { "action": "login-and-idle", "seconds": 5 }
+  ]
+}

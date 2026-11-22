@@ -68,6 +68,27 @@ public sealed class QuestGatingPacketTests
     }
 
     [Fact]
+    public async Task HQ1101011_supply_chest_credits_after_interact_channel_not_spam()
+    {
+        var session = await LightWorldAsync();
+        await AdvanceToStepAsync(session, "HQ1101011", 3);
+        var mapId = 1000;
+        var index = WorldObjects.ObjectsOn(mapId).ToList().FindIndex(o => o.Env == 1200530);
+        Assert.True(index >= 0);
+        var obj = WorldObjects.ObjectsOn(mapId).ToList()[index];
+        session.Teleport(mapId, obj.At, Now);
+        var wireKey = WorldObjects.FirstKey + index;
+        var use = BotRequests.UseObject(wireKey, obj.Env);
+        await session.HandleAsync(use, Now);
+        for (var i = 0; i < 8; i++)
+            await session.HandleAsync(use, Now + 50 + i * 40);
+        _ = await session.TickAsync(Now + 2600, default);
+        var rec = session.Quests!.Get("HQ1101011")!;
+        Assert.True(rec.Goals[0] >= 1 || rec.Step > 3 || rec.Status >= QuestLog.Complete,
+            $"supply chest UseEnvObj should credit step 3 (goal={rec.Goals[0]}, step={rec.Step})");
+    }
+
+    [Fact]
     public async Task HQ1101011_supply_chest_refused_before_step_3()
     {
         var session = await LightWorldAsync();

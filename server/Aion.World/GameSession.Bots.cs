@@ -21,6 +21,9 @@ public sealed partial class GameSession
     /// <summary>Set for a playerbot's session (no connection; driven by <see cref="BotBrain"/>).</summary>
     public bool Bot { get; init; }
 
+    /// <summary>QA quest bot: invisible, not counted in <see cref="WorldPresence"/>, driven by <see cref="QaQuestBrain"/>.</summary>
+    public bool QaBot { get; init; }
+
     /// <summary>Whether the character knows the skill now (its class kit at its level).</summary>
     public bool Knows(int skillId) => learned.Contains(skillId) || StigmaCastable(skillId);
 
@@ -28,6 +31,20 @@ public sealed partial class GameSession
     public long CooldownUntil(int skillId) => noCool ? 0 : cooldowns.GetValueOrDefault(data.CooldownGroup(skillId));
 
     public bool InCombat => inCombat;
+
+    /// <summary>QA bots: solo/party dungeon layer copy (blocks re-entry until left).</summary>
+    public bool QaInInstance => instanceKey != 0;
+
+    /// <summary>A 0x3621 map load is in flight until the connection answers with 0x3622.</summary>
+    public bool MapLoadPending => reloading;
+
+    /// <summary>QA bots: drop a stuck reload so EnterDungeon/Teleport can retry.</summary>
+    internal void AbandonPendingMapLoadForQa(long now)
+    {
+        if (!reloading) return;
+        reloading = false;
+        Note($"QA abandoned stuck map load (map={worldMap}, ticket={loadTicket}) at {now}");
+    }
 
     /// <summary>A hit of this player's landed on an NPC: it is the target bots assist, and a critical opens the crit-only window.</summary>
     void NoteNpcHit(int npcKey, bool critical, long now)
@@ -59,6 +76,32 @@ public sealed partial class GameSession
 
     /// <summary>Where this player entered its instance copy from (field map, position); null outside a copy.</summary>
     public (int Map, Vector3d At)? InstanceReturn => instanceKey != 0 ? instanceReturn : null;
+
+    (int TargetKey, string Reason)? qaCastRefusal;
+    int? qaCastAcceptedTarget;
+
+    internal void NoteQaCastRefusal(int targetKey, string reason) => qaCastRefusal = (targetKey, reason);
+
+    internal void NoteQaCastAccepted(int targetKey)
+    {
+        qaCastRefusal = null;
+        qaCastAcceptedTarget = targetKey;
+    }
+
+    /// <summary>QA bots: the last refused cast on this tick (skill handler or 0x3801).</summary>
+    public (int TargetKey, string Reason)? ConsumeQaCastRefusal()
+    {
+        var refusal = qaCastRefusal;
+        qaCastRefusal = null;
+        return refusal;
+    }
+
+    public int? ConsumeQaCastAcceptedTarget()
+    {
+        var key = qaCastAcceptedTarget;
+        qaCastAcceptedTarget = null;
+        return key;
+    }
 
     /// <summary>Where the character stands: its last accepted position report, else where it entered (a fresh entry has sent none yet).</summary>
     public Vector3d? WorldPosition => position ?? (worldPlayer?.Map is not null ? worldPlayer.Position : spawn?.Position);

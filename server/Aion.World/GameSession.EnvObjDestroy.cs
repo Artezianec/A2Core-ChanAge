@@ -16,7 +16,7 @@ partial class GameSession
     /// <summary>Broken objects: index on the map -> when it comes back.</summary>
     readonly Dictionary<int, long> brokenEnvObjs = [];
     /// <summary>Breaks whose use credit (quests, map events, achievements) is still to be paid.</summary>
-    readonly List<(int Map, int Index, WorldObject Object, long At)> brokenEnvObjCredit = [];
+    readonly List<(int Map, int Index, WorldObject Object, long At, Vector3d? PlantAt)> brokenEnvObjCredit = [];
 
     bool Broken(int index, long now)
     {
@@ -72,11 +72,12 @@ partial class GameSession
     /// <summary>The object breaks: gone for <see cref="BrokenEnvObjRespawnMs"/>, its use credit still to be paid (QuestKillsAsync); 0x3940 and 0x3635 state Dead.</summary>
     List<byte[]> BreakEnvObj(int index, WorldObject o, long now)
     {
+        if (CarriedGroup is not null && !BombPlantMapEventCreditAllowed(o)) return [];
         var key = WorldObjects.FirstKey + index;
         envObjHits.Remove(index);
         brokenEnvObjs[index] = now + BrokenEnvObjRespawnMs;
         shownObjects.Remove(index);
-        brokenEnvObjCredit.Add((worldMap, index, o, now));
+        brokenEnvObjCredit.Add((worldMap, index, o, now, position));
         return [GamePackets.EnvObjDie(key), GamePackets.EnvObjDespawn(key, 4, 3)];
     }
 
@@ -87,12 +88,13 @@ partial class GameSession
         var broken = brokenEnvObjCredit.ToList();
         brokenEnvObjCredit.Clear();
         var replies = new List<byte[]>();
-        foreach (var (map, index, o, at) in broken)
+        foreach (var (map, index, o, at, plantAt) in broken)
         {
             if (questLog is not null)
                 replies.AddRange(await Stored(() => QuestChangesAsync(questLog.UsedObject(o.Env, level), ct)));
             if (map == worldMap && (CopyOwner ?? this).mapEventRuns.Any(r => r.WantsObject(EventName(o)))) usedObjects.Add(index);
-            replies.AddRange(MapEventUsedObject(EventName(o), at));
+            if (BombPlantMapEventCreditAllowed(o, plantAt))
+                replies.AddRange(MapEventUsedObject(EventName(o), at));
             replies.AddRange(Achieve("UseEnvObjSpawnerName", 1, e => e.Has(o.Name), at));
             replies.AddRange(Achieve("UseEnvObj", 1, e => e.Envs?.Contains(o.Env) == true, at));
         }

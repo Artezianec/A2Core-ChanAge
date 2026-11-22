@@ -20,6 +20,7 @@ import { Home } from './Home';
 import { AccountList } from './Accounts';
 import { Worlds } from './Worlds';
 import { CustomNpcs } from './CustomNpcs';
+import { QaBots } from './QaBots';
 import { ERRORS, ROLE_LABEL, can, type StaffProfile } from './types';
 
 export function describe(error: unknown): string {
@@ -31,7 +32,7 @@ export function describe(error: unknown): string {
 
 export interface Session { token: string; username: string; profile: StaffProfile }
 export type Call = <T>(path: string, options?: { method?: string; body?: unknown }) => Promise<T>;
-type View = 'dashboard' | 'overview' | 'accounts' | 'characters' | 'moderation' | 'broadcast' | 'rewards' | 'economy' | 'npcs' | 'activity' | 'worlds' | 'server' | 'staff';
+type View = 'dashboard' | 'overview' | 'accounts' | 'characters' | 'moderation' | 'broadcast' | 'rewards' | 'economy' | 'npcs' | 'activity' | 'worlds' | 'server' | 'staff' | 'qa';
 
 const STORE_KEY = 'aion-staff-session';
 interface Saved { token: string; username: string }
@@ -73,6 +74,7 @@ const NAV: { name: string; items: NavEntry[] }[] = [
     { id: 'rewards', label: 'Rewards', icon: 'gift', permission: 'rewardCharacters' },
     { id: 'economy', label: 'Economy', icon: 'coins', permission: 'viewEconomy' },
     { id: 'npcs', label: 'NPCs', icon: 'pin', permission: 'viewCustomNpcs' },
+    { id: 'qa', label: 'QA bots', icon: 'activity', permission: 'viewDashboard' },
   ] },
   { name: 'System', items: [
     { id: 'worlds', label: 'Worlds', icon: 'globe', permission: 'viewDashboard' },
@@ -186,6 +188,7 @@ export function AdminApp() {
         </div>
         <div className="view" hidden={current !== 'npcs'}><CustomNpcs call={call} active={current === 'npcs'} isAdmin={allowed('editCustomNpcs')} /></div>
         <div className="view" hidden={current !== 'worlds'}><Worlds call={call} active={current === 'worlds'} /></div>
+        <div className="view" hidden={current !== 'qa'}><QaBots call={call} token={session.token} /></div>
       </div>
       <NewAccountDialog open={creating} call={call} onClose={() => setCreating(false)} />
     </div>

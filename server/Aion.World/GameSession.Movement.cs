@@ -76,6 +76,11 @@ public sealed partial class GameSession
             var anchored = op switch { 0x3700 => MoveStartReject, 0x3718 => MoveStopReject, _ => MoveUpdateReject };
             return [PlayerPackets.MoveReject(anchored, playerKey, held)];
         }
+        if (!IsAdmin && (position ?? moveAnchor) is { } from && CombatAi().FireWallBlocksMove(from, reported, now))
+        {
+            var anchored = op switch { 0x3700 => MoveStartReject, 0x3718 => MoveStopReject, _ => MoveUpdateReject };
+            return [PlayerPackets.MoveReject(anchored, playerKey, from)];
+        }
         if (op is 0x3706 or 0x3707 or 0x370a or 0x370b or 0x3712 or 0x3713 || IsAdmin || moveAnchor is not { } anchor || now < skillMoveGraceUntil)
         {
             ResetMovementCheck(reported, now);

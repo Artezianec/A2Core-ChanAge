@@ -1,3 +1,4 @@
+using Aion.Application.Gameplay;
 using Aion.Protocol.Native;
 using Aion.World;
 using Xunit;
@@ -122,7 +123,7 @@ public sealed class BombBoxCarryTests
                 Assert.Equal(uid, (int)removeReader.Varint());
             }
             else if (n == 1)
-                used = await MapEventScenarioHelpers.CombatCastAsync(session, MapEventScenarioHelpers.BasicAttackSkill(session), towerKey, tower.o.At, t + 1_100);
+                used = await session.HandleAsync(GroundReady(5003), t + 1_100);
             else
                 used = await session.HandleAsync(Use(towerKey), t + 1_100);
             Assert.True(Despawned(used, towerKey), $"tower {n} destroyed");
@@ -195,4 +196,97 @@ public sealed class BombBoxCarryTests
     }
 
     static double Distance(Vector3d a, Vector3d b) => Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2));
+
+    [Fact]
+    public async Task Far_bomb_probe_sequence_does_not_credit_map_event()
+    {
+        var store = new FakeCharacterStore();
+        store.Quests.Add(new QuestRecord("HQ1101040", 1101040, 100, QuestLog.Rewarded, 1, new int[6]));
+        store.Quests.Add(new QuestRecord("HQ1101050", 1101050, 101, QuestLog.Rewarded, 1, new int[6]));
+        var session = await GameSessionTestHelpers.EnterFreshSharedWorldAsync(store, Now, race: 1, level: 10);
+        await session.QuestCommandAsync("QuestAdd", "HQ1101070", default);
+        var inst = InstanceTables.Embedded.Of(100002)!;
+        var center = new Vector3d(inst.Entry.Center[0], inst.Entry.Center[1], inst.Entry.Center[2]);
+        session.Teleport(100002, center, Now + 10);
+        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 20);
+        var run = await MapEventScenarioHelpers.WaitForMapEventRunAsync(session, "World_L_Starter_InstanceLayer_2_MapEvent", Now + 500, attempts: 24);
+        Assert.NotNull(run);
+        var objects = WorldObjects.ObjectsOn(100002);
+        var tower = objects.Select((o, i) => (o, i)).First(x => x.o.Env == 1400824);
+        var box = objects.Select((o, i) => (o, i)).First(x => x.o.Carry is not null);
+        var t = Now + 20_000;
+        await MapEventScenarioHelpers.SyncPositionAsync(session, box.o.At, t);
+        await session.HandleAsync(Use(WorldObjects.FirstKey + box.i), t + 100);
+        await session.TickAsync(t + 100 + GameSession.CarryPickupMs);
+        Assert.Equal(1196, session.CarriedGroup);
+        var far = tower.o.At with { X = tower.o.At.X + GameSession.BombPlantReach(tower.o) + 2500, Y = tower.o.At.Y + 2500 };
+        await MapEventScenarioHelpers.SyncPositionAsync(session, far, t + 5000);
+        var goalsBefore = run!.Goals.ToArray();
+        await session.HandleAsync(GroundReady(5003), t + 5200);
+        await session.TickAsync(t + 6000);
+        Assert.Equal(goalsBefore, run.Goals);
+    }
+
+    [Fact]
+    public async Task Bot_style_move_then_bomb_same_tick_does_not_credit_map_event()
+    {
+        var store = new FakeCharacterStore();
+        store.Quests.Add(new QuestRecord("HQ1101040", 1101040, 100, QuestLog.Rewarded, 1, new int[6]));
+        store.Quests.Add(new QuestRecord("HQ1101050", 1101050, 101, QuestLog.Rewarded, 1, new int[6]));
+        var session = await GameSessionTestHelpers.EnterFreshSharedWorldAsync(store, Now, race: 1, level: 10);
+        await session.QuestCommandAsync("QuestAdd", "HQ1101070", default);
+        var inst = InstanceTables.Embedded.Of(100002)!;
+        var center = new Vector3d(inst.Entry.Center[0], inst.Entry.Center[1], inst.Entry.Center[2]);
+        session.Teleport(100002, center, Now + 10);
+        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 20);
+        var run = await MapEventScenarioHelpers.WaitForMapEventRunAsync(session, "World_L_Starter_InstanceLayer_2_MapEvent", Now + 500, attempts: 24);
+        Assert.NotNull(run);
+        var objects = WorldObjects.ObjectsOn(100002);
+        var tower = objects.Select((o, i) => (o, i)).First(x => x.o.Env == 1400824);
+        var box = objects.Select((o, i) => (o, i)).First(x => x.o.Carry is not null);
+        var t = Now + 20_000;
+        await MapEventScenarioHelpers.SyncPositionAsync(session, box.o.At, t);
+        await session.HandleAsync(Use(WorldObjects.FirstKey + box.i), t + 100);
+        await session.TickAsync(t + 100 + GameSession.CarryPickupMs);
+        var plantReach = GameSession.BombPlantReach(tower.o);
+        var far = tower.o.At with { X = tower.o.At.X + plantReach + 2000, Y = tower.o.At.Y + 2000 };
+        await MapEventScenarioHelpers.SyncPositionAsync(session, tower.o.At, t + 3000);
+        var goalsBefore = run!.Goals.ToArray();
+        await session.HandleAsync(new PacketWriter().U16(0x3701).U8(2).Vec3(far).U16(0).F32(0).U8(1).U64(1).ToArray(), t + 4000);
+        await session.HandleAsync(GroundReady(5003), t + 4010);
+        await session.TickAsync(t + 4500);
+        Assert.Equal(goalsBefore, run.Goals);
+    }
+
+    [Fact]
+    public async Task Ground_bomb_refused_far_from_tower()
+    {
+        var store = new FakeCharacterStore();
+        var session = await GameSessionTestHelpers.EnterFreshSharedWorldAsync(store, Now, race: 1, level: 10);
+        await session.QuestCommandAsync("QuestAdd", "HQ1101070", default);
+        var inst = InstanceTables.Embedded.Of(100002)!;
+        var center = new Vector3d(inst.Entry.Center[0], inst.Entry.Center[1], inst.Entry.Center[2]);
+        session.Teleport(1000, center with { Y = center.Y - 300 }, Now + 10);
+        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 20);
+        await session.HandleAsync(MapEventScenarioHelpers.MoveUpdate(center), Now + 5000);
+        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 5100);
+        Assert.Equal(100002, session.MapId);
+
+        var objects = WorldObjects.ObjectsOn(100002);
+        var box = objects.Select((o, i) => (o, i)).First(x => x.o.Env == 1400823);
+        var tower = objects.Select((o, i) => (o, i)).First(x => x.o.Env == 1400824);
+        var t = Now + 20_000;
+        await MapEventScenarioHelpers.SyncPositionAsync(session, box.o.At, t);
+        await session.HandleAsync(Use(WorldObjects.FirstKey + box.i), t + 100);
+        await session.TickAsync(t + 100 + GameSession.CarryPickupMs);
+        Assert.Equal(1196, session.CarriedGroup);
+
+        var far = tower.o.At with { X = tower.o.At.X + GameSession.BombPlantReach(tower.o) + 2000 };
+        await MapEventScenarioHelpers.SyncPositionAsync(session, far, t + 5000);
+        var towerKey = WorldObjects.FirstKey + tower.i;
+        var used = await session.HandleAsync(GroundReady(5003), t + 5100);
+        Assert.Equal((1, 5003), GroundResult(used, GameSession.SkillGroundReadyRs));
+        Assert.False(Despawned(used, towerKey));
+        Assert.Equal(1196, session.CarriedGroup);
+    }
 }

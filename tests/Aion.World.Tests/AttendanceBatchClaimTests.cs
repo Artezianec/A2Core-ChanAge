@@ -26,8 +26,8 @@ public sealed class AttendanceBatchClaimTests
         var rsIndex = batch.FindIndex(p => Op(p) == GameSession.TakeAchievementRewardBatchRs);
         Assert.True(rsIndex >= 0);
         Assert.Equal(0, BitConverter.ToInt32(batch[rsIndex], 2));
-        // Capture 001158: no per-step 0x5684 / 0x5683 after the batch reply (they empty the Rewards Collected popup).
-        Assert.DoesNotContain(batch, p => Op(p) == GameSession.AchievementCountUpdateNt);
+        var updateIndex = batch.FindIndex(p => Op(p) == GameSession.AchievementCountUpdateNt);
+        Assert.True(updateIndex >= 0 && updateIndex < rsIndex, "0x5684 clears red dots before TakeAchievementRewardBatch_RS");
         Assert.DoesNotContain(batch, p => Op(p) == GameSession.AchievementListNt);
 
         var again = await session.HandleAsync(

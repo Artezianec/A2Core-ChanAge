@@ -40,9 +40,21 @@
         {
           "at": 75,
           "name": "wave_of_fury",
+          "telegraph": {
+            "skill": 1800050,
+            "every_ms": 999999,
+            "wind_up_ms": 6000,
+            "radius": 4500,
+            "damage": 1.0,
+            "once": true,
+            "land": true,
+            "mechanic": "berk_pillar_cover",
+            "warning": "Wave of Fury — hide behind the stone pillar!",
+            "warning_ru": "Волна ярости — спрячьтесь за каменным столбом!"
+          },
           "notice": "Wave of Fury — hide behind a stone pillar!",
           "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!",
-          "note": "Skill 1800050 (6 s, 100k, circle 4500) is the closest client match. Official counter is cover behind a summoned pillar; we do not have pillar collision, so this is a notice only. Guides: ~75% and ~25% (some say 35%)."
+          "note": "Skill 1800050 (6 s client, circle 4500). Engine spawns CANDIDATE cover wedge (expedition-boss-mechanics.json)."
         },
         {
           "at": 50,
@@ -64,6 +76,18 @@
         {
           "at": 25,
           "name": "wave_of_fury",
+          "telegraph": {
+            "skill": 1800050,
+            "every_ms": 999999,
+            "wind_up_ms": 6000,
+            "radius": 4500,
+            "damage": 1.0,
+            "once": true,
+            "land": true,
+            "mechanic": "berk_pillar_cover",
+            "warning": "Wave of Fury — hide behind the stone pillar!",
+            "warning_ru": "Волна ярости — спрячьтесь за каменным столбом!"
+          },
           "notice": "Wave of Fury — hide behind a stone pillar!",
           "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!"
         }
@@ -133,11 +157,12 @@
             "once": true,
             "warning": "Tempest Strike — stack on the marked player!",
             "warning_ru": "Удар бури — встаньте вместе на отмеченного игрока!",
-            "land": false
+            "land": false,
+            "mechanic": "auldor_tempest_soak"
           },
           "notice": "Tempest Strike — stack on the marked player to split the hit!",
           "notice_ru": "Удар бури — встаньте вместе на отмеченного игрока, чтобы разделить удар!",
-          "note": "Skill 1601030 is a 9.57 s client cast (guides: ~10 s). Official damage is split by the number of players in a marked circle; the engine cannot mark a player or split the hit yet. Skill.dat lists 0 damage, so the landed hit is not a true wipe."
+          "note": "Skill 1601030 (9.57 s). Engine marks victim and splits damage in stack radius (CANDIDATE). Outer arena DoT below 30% via phase at."
         },
         {
           "at": 30,
@@ -151,7 +176,8 @@
             "once": true,
             "warning": "Tempest Strike — stack on the marked player! Stay near the centre.",
             "warning_ru": "Удар бури — встаньте вместе на отмеченного. Держитесь ближе к центру.",
-            "land": false
+            "land": false,
+            "mechanic": "auldor_tempest_soak"
           },
           "notice": "Tempest Strike — stack on the marked player! Below 30% the outer arena is dangerous.",
           "notice_ru": "Удар бури — встаньте вместе на отмеченного. Ниже 30% край арены опасен."
@@ -227,11 +253,12 @@
             "once": true,
             "warning": "Find the gap!",
             "warning_ru": "Ищите проход!",
-            "land": false
+            "land": false,
+            "mechanic": "fire_wall_grid"
           },
           "notice": "I will crush you! Find the gap in the fire walls!",
           "notice_ru": "Я вас раздавлю! Ищите проход в стенах огня!",
-          "note": "Skill 1801185 is the 16.5 s client cast (aion2data: Find the gap). Official walls have gaps; the engine has no moving-wall collision, and Skill.dat lists 0 damage."
+          "note": "Skill 1801185 is the 16.5 s client cast (aion2data: Find the gap). Engine runs fire_wall_grid (tools/data/kromede-fire-walls.json, CANDIDATE spacing)."
         },
         {
           "at": 50,
@@ -251,7 +278,8 @@
             "once": true,
             "warning": "Find the gap!",
             "warning_ru": "Ищите проход!",
-            "land": false
+            "land": false,
+            "mechanic": "fire_wall_grid"
           },
           "notice": "Find the gap! Clones also fire lines across the arena.",
           "notice_ru": "Ищите проход! Клоны тоже бьют линиями по арене."
@@ -326,12 +354,13 @@
             "damage": 1.0,
             "once": true,
             "stagger_check": true,
+            "mechanic": "bakarma_jump_rings",
             "warning": "Wave of Death — jump the rings and break the stagger gauge!",
             "warning_ru": "Волна смерти — перепрыгивайте кольца и сбейте шкалу стаггера!"
           },
           "notice": "Wretched worm, begone! Jump the waves and break the stagger gauge!",
           "notice_ru": "Жалкий червь, прочь! Перепрыгивайте волны и сбейте шкалу стаггера!",
-          "note": "Skill 1800655 is an 18 s client cast (guides: 16-18 s stagger check at ~70% and ~30%). Official wipe damage is not in Skill.dat (0-0); failing the check currently lands the skill's area for at most the engine minimum. Jump-rope rings and the inner safe ring need engine work."
+          "note": "Skill 1800655 (18 s stagger). Engine runs CANDIDATE jump-ring pulses during wind-up; stagger break still cancels."
         },
         {
           "at": 30,
@@ -344,6 +373,7 @@
             "damage": 1.0,
             "once": true,
             "stagger_check": true,
+            "mechanic": "bakarma_jump_rings",
             "warning": "Wave of Death — route around whirlpools, jump the rings, break the gauge!",
             "warning_ru": "Волна смерти — обходите воронки, перепрыгивайте кольца, сбейте шкалу!"
           },

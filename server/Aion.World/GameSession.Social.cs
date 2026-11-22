@@ -243,6 +243,7 @@ public sealed partial class GameSession
         if (SocialRequests.ParsePartyInvite(plain) is not { } target) return [];
         byte[] Fail() => SocialPackets.PartyInviteReply(Failed, ServerId, target.Name);
         if (Social is not { } s || worldPlayer is null || World?.FindOnline(CharacterNames.Stored(target.Name)) is not { } invitee || invitee == worldPlayer) return [Fail()];
+        if (QaBot || invitee.Session.QaBot) return [Fail()];
         if (invitee.Session.CharacterId is { } other && await SocialBlockedWithAsync(other, ct)) return [Fail()];
         if (s.PartyOf(invitee) is not null) return [Fail()];
         var replies = new List<byte[]>();

@@ -793,7 +793,9 @@ def main(argv=None):
     except ImportError:
         from postgres_dev import sql, literal
     builds = sql('SELECT build_id FROM catalog.builds ORDER BY build_id;').stdout.split()
-    build_id = args.build_id or (builds[0] if len(builds) == 1 else None)
+    build_id = args.build_id or sql('SELECT build_id FROM catalog.builds ORDER BY imported_at DESC, build_id LIMIT 1;').stdout.strip()
+    if not build_id and len(builds) == 1:
+        build_id = builds[0]
     if build_id not in builds:
         raise SystemExit('Choose an imported catalogue with --build-id')
     rows = unlock_rows()

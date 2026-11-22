@@ -155,7 +155,7 @@ def platform_quna_prices(platform: dict) -> dict[int, int]:
 
 
 def blocked(goods_id: int, item_ids: list[int], categories: set[str], group: str | None,
-            box_quna: set[int]) -> bool:
+            box_quna: set[int], uses: dict | None = None) -> bool:
     if group == GROUP_261:
         return True
     if categories & BLOCKED_CATEGORIES:
@@ -164,6 +164,12 @@ def blocked(goods_id: int, item_ids: list[int], categories: set[str], group: str
         return True
     if any(i in box_quna for i in item_ids):
         return True
+    if uses is not None and item_ids:
+        shop_usable = lambda i: i is not None and (
+            503_700_000 <= i < 504_000_000 or 534_760_000 <= i < 535_000_000
+            or 535_510_000 <= i < 536_500_000 or 553_710_000 <= i < 554_000_000)
+        if any(shop_usable(int_or_none(i)) and str(int(i)) not in uses for i in item_ids):
+            return True
     return False
 
 
@@ -269,6 +275,7 @@ def build():
     platform = load(PLATFORM)
     boxes = load(BOXES) if BOXES.is_file() else {}
     box_quna = build_box_quna_ids(boxes)
+    uses = boxes.get('uses') or {}
     plat_prices = platform_quna_prices(platform)
 
     official_by_id = {int(g["goods_id"]): g for g in official["goods"]}
@@ -300,7 +307,7 @@ def build():
         items = goods_items(g)
         pols = g.get("goods_basic_price_policies") or []
         group = str(pols[0]["currency_group_id"]) if pols else None
-        if blocked(gid, items, cats, group, box_quna):
+        if blocked(gid, items, cats, group, box_quna, uses):
             hidden.append(("official", gid))
             continue
         row = deepcopy(g)
@@ -320,7 +327,7 @@ def build():
             continue
         cats = {bm.get("category_light") or "", bm.get("category_dark") or ""}
         group = CURRENCY_TO_GROUP.get(bm.get("currency"))
-        if blocked(gid, [item_id], cats, group, box_quna):
+        if blocked(gid, [item_id], cats, group, box_quna, uses):
             hidden.append(("bm-block", gid))
             continue
         tmpl = (templates.get(bm.get("category_light") or "") or [sample])[0]
@@ -343,7 +350,7 @@ def build():
         items = goods_items(g)
         pols = g.get("goods_basic_price_policies") or []
         group = str(pols[0]["currency_group_id"]) if pols else None
-        if blocked(gid, items, cats, group, box_quna):
+        if blocked(gid, items, cats, group, box_quna, uses):
             continue
         row = deepcopy(g)
         if not apply_price_policies(row, gid, plat_prices):

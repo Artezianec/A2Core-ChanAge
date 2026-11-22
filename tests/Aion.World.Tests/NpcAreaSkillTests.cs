@@ -16,7 +16,7 @@ public sealed class NpcAreaSkillTests
     static bool Hits(IEnumerable<byte[]> packets, int targetKey) =>
         packets.Any(p => p.AsSpan().StartsWith(HitPrefix(targetKey, CircleSkill)));
 
-    static (NpcAi Ai, Dictionary<int, Target> Map) Monster()
+    internal static (NpcAi Ai, Dictionary<int, Target> Map) Monster()
     {
         Assert.True(SkillAreas.For(CircleSkill) is { IsArea: true, OnTarget: false });
         Assert.NotNull(GameData.Embedded.NpcSkill(CircleSkill));
@@ -26,6 +26,16 @@ public sealed class NpcAreaSkillTests
             Radius = 50, Skills = [CircleSkill],
         };
         return (new NpcAi(new Random(7), GameData.Embedded), new Dictionary<int, Target> { [MonsterKey] = monster });
+    }
+
+    [Fact]
+    public void Area_cast_emits_SkillRangeNotice_when_ground_markers_are_on()
+    {
+        GameSession.ConfigureCombatTelegraphs(CombatTelegraphOptions.Default);
+        var (ai, map) = Monster();
+        ai.Engage(map, map[MonsterKey], 0, attackerKey: 100001);
+        var cast = ai.Tick(map, [(100001, new Vector3d(300, 0, 0))], 100, (_, _) => []);
+        Assert.Contains(cast, p => GameSessionTestHelpers.Op(p) == MechanicTelegraphs.RangeNoticeFilterLocationNt);
     }
 
     [Fact]

@@ -1853,12 +1853,17 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         shownObjects.Clear();
         ClearRecoveryOrbs();
         shownTriggers.Clear();
-        usedObjects.Clear();
-        ResetEnvObjHits();
+        // Short layer reloads (0x3622) keep the same instance script: clearing used/broken env state made towers look fresh while goals still counted plants (HQ1101070).
+        if (!shortLoad)
+        {
+            usedObjects.Clear();
+            ResetEnvObjHits();
+        }
         pendingUse = null;
         pendingGatherLoss = null;
         replies.AddRange(ObjectVisibility(at, now));
         replies.AddRange(MapEventsStart(now, resendExistingJoins: shortLoad));   // the layer's events join (0x922e) and run their first directives
+        if (shortLoad) SyncMapEventBombTowerCredits(now);
         replies.AddRange(ApplyQuestWorldGating(now));
         CharacterName = name;
         EnterSharedWorld(mapId, at);
@@ -2075,7 +2080,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 return QueueBasicChainCastSilently(body, request, skill, Math.Max(nextCastAcceptAtMs, lastAcceptedCastMs + EffectiveMinCastGapMs()), now);
             var queued = MaybeQueueEarlyChainCast(body, request, chainSkill, chainAllowed, castGapOk, now, nextCastAcceptAtMs);
             if (queued.Count > 0) return queued;
-            LogSkillCastRefusal(request, skill, definition, meetsCastRules, chainAllowed, cooldownReady, castGapOk, cost, weapons);
+            LogSkillCastRefusal(request, skill, definition, meetsCastRules, chainAllowed, cooldownReady, castGapOk, cost, weapons, now);
             // A sprint dash refused for cost or cooldown stays on the 9-byte form. The mask-first reply drops the sprint.
             if (dodging) return [.. DodgeRefusalRelease(now), .. (sprinting && variant is 7 or 8 or 9
                 ? DeliverDash(DodgeUnlockRefusal(combatDodge), variant)
@@ -2181,6 +2186,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         // Official order (2026-10-30): 0x3802 start, 0x3818/0x3819 chain, the 0x3801 accept, 0x8d21 when it starts combat,
         // then the 0x3803 arrows.
         var replies = new List<byte[]> { CastStartPacket(skill, (byte)actionUid, request, cooldown) };
+        replies.AddRange(PlayerGroundTelegraph(skill, (byte)actionUid, request, definition!));
         replies.AddRange(ApplySkillCondGrant(skill, definition!, now, request));
         replies.AddRange(ChainCasterAbnormalReplies(skill, now));
         replies.AddRange(ClassSelfBuffs(skill, definition!, (byte)actionUid, now));
@@ -2546,6 +2552,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         BroadcastWarpLeave(effect, cutscene.Length > 0);
         // An instance layer or dungeon is a private copy (the entry set it; a staff move gets one too); elsewhere the shared map.
         var previousInstance = instanceKey;
+        var leavingInstanceLayer = mapId != worldMap && IsInstanceMap(worldMap) && previousInstance != 0;
         instanceKey = !IsInstanceMap(mapId) ? 0 : instanceKey != 0 ? instanceKey : playerKey;
         if (!IsInstanceMap(mapId)) { instanceExitAt = null; instanceReturn = null; clearExit = null; ResetWalkInLayerState(); ForgetPersistedInstanceReturn(); }
         else if (mapId != worldMap) ResetWalkInLayerState();
@@ -2556,6 +2563,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         if (mapId != worldMap || instanceKey != previousInstance) ending.AddRange(DropCarried(ExpireEventFunction));
         if (mapId != worldMap)
         {
+            if (leavingInstanceLayer && mapEventRuns.Count > 0)
+                StashVacatedMapEventRuns(now, previousInstance);
             HandOverCopy();   // a party copy's scripts stay with the players still inside
             if (!IsInstanceMap(mapId)) copy = null;
             activeChallenge = default;
@@ -2647,7 +2656,18 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         }
         var previous = worldPlayer.Map;
         world.Map(mapId, instanceKey).Join(worldPlayer);
-        if (previous is not null && previous != worldPlayer.Map) world.Drop(previous);
+        if (previous is not null && previous != worldPlayer.Map && !ShouldRetainVacatedInstance(previous))
+            world.Drop(previous);
+    }
+
+    bool ShouldRetainVacatedInstance(MapInstance map)
+    {
+        if (map.Instance == 0 || map.DanglingMapEventRuns is not { Count: > 0 }) return false;
+        if (map.DanglingForPlayerKey != playerKey) return false;
+        var holdSec = MapEventData.DungeonOfMap(map.MapId)?.Hold ?? (Instances.Of(map.MapId) is not null ? 600 : 0);
+        if (holdSec <= 0) holdSec = 600;
+        var now = options.World?.Clock() ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        return now - map.VacatedAtMs < holdSec * 1000L;
     }
 
     /// <summary>Leaves the shared map (lobby, disconnect): others see this player disappear. Call under the world gate.</summary>
@@ -3115,6 +3135,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 // This session's map-event packets (its own instance script) go to this player only, not into the broadcast.
                 var ownMapEvents = new List<byte[]>();
                 WireMapEventNpcCombatHooks(aiMap.Ai, now, ownMapEvents);
+                WireBossMechanicHooks(aiMap.Ai);
                 aiMap.Ai.BossRules = bossRules;
                 aiMap.BroadcastAll(aiMap.Ai.Tick(aiMap.Targets, aiMap.NpcVictims(), now, (key, damage) =>
                 {
@@ -3123,9 +3144,12 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                     return [];
                 }));
                 ClearMapEventNpcCombatHooks(aiMap.Ai);
+                ClearBossMechanicHooks(aiMap.Ai);
                 replies.AddRange(ownMapEvents);
                 var npcKills = NpcKillsByNpcs(aiMap.Ai, now);
                 npcKills.AddRange(BossAdds(aiMap.Ai, aiMap.Targets, now));
+                var mechanicHits = TickBossMechanics(aiMap.Ai, now);
+                aiMap.BroadcastAll(mechanicHits, worldPlayer);
                 aiMap.BroadcastAll(npcKills, worldPlayer);
                 replies.AddRange(npcKills);
             }
@@ -3138,11 +3162,14 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             if (ai.SkipLeashHealNpcIds.Count == 0) ai.SkipLeashHealNpcIds = null;
             WireMapEventNpcCombatHooks(ai, now);
             WireRecoveryOrbHooks(ai);
+            WireBossMechanicHooks(ai);
             ai.BossRules = bossRules;
             replies.AddRange(Visible(ai.Tick(targets, invisible || dead || FriendlyToAll ? null : position, now,
                 damage => NpcHitsPlayer(damage, now, ai.LastAttacker, ai.LastHitSkill, ai.LastHitSeq, ai.LastAttackerAt))));
             ClearRecoveryOrbHooks(ai);
             ClearMapEventNpcCombatHooks(ai);
+            ClearBossMechanicHooks(ai);
+            replies.AddRange(TickBossMechanics(ai, now));
             replies.AddRange(TickRecoveryOrbs(now));
             replies.AddRange(NpcKillsByNpcs(ai, now));
             replies.AddRange(BossAdds(ai, targets, now));

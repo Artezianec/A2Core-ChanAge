@@ -147,6 +147,16 @@ public sealed class FakeCharacterStore : INativeCharacterStore
             store.Items.Add(EquippedItem(templateId, 4000 + slot, slot));
     }
 
+    /// <summary>Enough equipped item levels to enter high-gate Party dungeons (e.g. Fire Temple Normal 2100).</summary>
+    public static void SeedPartyDungeonItemLevel(FakeCharacterStore store, int minTotal, int templateId = 110120003, int level = 60)
+    {
+        store.Progress = (level, 0);
+        var per = GameData.Embedded.ItemLevel(templateId);
+        var slots = Math.Min(22, (minTotal + per - 1) / Math.Max(1, per));
+        for (var slot = 1; slot <= slots; slot++)
+            store.Items.Add(EquippedItem(templateId, 5000 + slot, slot));
+    }
+
     bool Consume(Guid item, long revision, int count)
     {
         var index = Items.FindIndex(i => i.InstanceId == item && i.Revision == revision && i.Location == "bag" && i.Quantity >= count);

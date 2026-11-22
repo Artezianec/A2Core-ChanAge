@@ -33,33 +33,44 @@ Internal spawn names in parentheses; nameplates are from guides and datamines, n
 | Easy MapEvents spawn HP/MP/SP recovery orbs at **70% and 30%**. Normal/Hard boss-room scripts have no HP branches (mechanics live in AI). | Invented trash **adds at 70%** (and Hard 40%) on every final. | **Removed** invented adds on these five. Easy orbs already come from MapEvents. |
 | Named HP beats (Berk 75/50/25, Auldor 75/30, Kromede 75/50/25, Bakarma 70/30, Nuakum 75/55/30), with on-screen cast names. | Generic 70 call / 40 fury / 20 enrage, generic "gathers power" warning. | **Replaced** with official thresholds and named notices. No invented damage/haste on those beats. |
 | Berk **Extinction for Eternity** at 50%: 8–9 s room-wide stagger check; fail = wipe. Client skill **1800140** (8 s, 100k, circle 9000). | 1800140 was a **repeating** slam every 18–30 s. | **Once-only stagger check** at 50%. Breaking the gauge (already sets `Held`) cancels the landing and does not retry. Fail uses the skill's own damage and area. |
-| Berk **Wave of Fury** at ~75% and ~25% (some guides 35%): hide behind a summoned stone pillar. Closest skill **1800050** (6 s, 100k, circle 4500). | Not scripted (except the wrong repeating 1800140). | **Notice only.** We have no pillar/cover collision, so landing this as a room slam would wipe every group. |
-| Auldor **Tempest Strike** at ~75% and ~30%: ~10 s cast, stack on a marked player to split the hit. Client **1601030** (9.57 s; Easy variant **1601035**). Skill.dat damage is 0. | Repeating slam was basic attack **1600870** (no area, invented 3 s wind-up). | Filler rotation uses real area skills (lane 1600970, slam 1600960, front arc 1600930). Tempest is a **once, no-land** 9.57 s cast plus a stack notice. Marked-player soak and damage split need engine work. Below 30% the outer arena becomes a DoT — also missing. |
-| Kromede **Find the gap** fire walls at 75% and 25%: 16.5 s untargetable walls with gaps. Client **1801185** (16.5 s; Hard **1801191**, 15.1 s, circle 5000). Official lines: "I will crush you!", "Find the gap!". Clones from ~50% (Hard earlier). | Repeating frontal **1801080** only, plus invented adds. | 1801080/1801050/1801060 stay as a **filler rotation**. Fire walls are a **once, no-land** long cast plus the official line. Moving-wall gaps, burns, and clones need engine work. |
-| Bakarma **Wave of Death** at ~70% and ~30%: screen darkens, jump outward rings, break an 18 s stagger or wipe. Client **1800655** (18 s, circle 6500) but Skill.dat damage is **0-0**. Quote: "Wretched worm, begone." | Repeating room skill **1800554**. Invented adds. | **Once-only stagger check** at 70% and 30% with 1800655. Fail currently lands the area for at most the engine minimum (not a true wipe — no damage row). Jump-rope rings, the inner safe ring, player teleport to the edge, and second-phase whirlpools need engine work. |
-| Nuakum hunt at ~75% and ~55% (block a clone, then stack or spread by circle size); **Blue Light of Destruction** at ~30% (redirect four throws into a central orb, three hits). | Repeating telegraph was basic swipe **1802000** (cast 0, invented 3 s wind-up). Invented adds. | Filler rotation uses real area skills (1802090 / 1802060 / 1802100). Hunt and Blue Light are **notices only**. No 34 s cast is in this boss's skill list (longest damaging cast is 1.3 s); the orb skill id needs a live capture. |
+| Berk **Wave of Fury** at ~75% and ~25% (some guides 35%): hide behind a summoned stone pillar. Closest skill **1800050** (6 s, 100k, circle 4500). | Not scripted (except the wrong repeating 1800140). | **Implemented** `berk_pillar_cover`: CANDIDATE cover wedge; slam skips players in cover. **CANDIDATE** pillar env **1400623** via `OnMechanicTelegraphStarted` (Krao barrier proxy). |
+| Auldor **Tempest Strike** at ~75% and ~30%: ~10 s cast, stack on a marked player to split the hit. Client **1601030** (9.57 s; Easy variant **1601035**). Skill.dat damage is 0. | Repeating slam was basic attack **1600870** (no area, invented 3 s wind-up). | **Implemented** `auldor_tempest_soak`: victim mark, stack split on `land: false` tempest (CANDIDATE). Outer arena DoT below 30% (CANDIDATE). No visible mark packet. |
+| Kromede **Find the gap** fire walls at 75% and 25%: 16.5 s untargetable walls with gaps. Client **1801185** (16.5 s; Hard **1801191**, 15.1 s, circle 5000). Official lines: "I will crush you!", "Find the gap!". Clones from ~50% (Hard earlier). | Repeating frontal **1801080** only, plus invented adds. | **Implemented** `fire_wall_grid` + wall env **1400533** on telegraph hook; ground decals on boss slams (#550). **Clones** at 50% with periodic **1801050** lines (CANDIDATE). |
+| Bakarma **Wave of Death** at ~70% and ~30%: screen darkens, jump outward rings, break an 18 s stagger or wipe. Client **1800655** (18 s, circle 6500) but Skill.dat damage is **0-0**. Quote: "Wretched worm, begone." | Repeating room skill **1800554**. Invented adds. | **Stagger check** + **CANDIDATE** `bakarma_jump_rings`, edge snap, and 30% whirlpool DoT. Official wipe damage row still missing. |
+| Nuakum hunt at ~75% and ~55% (block a clone, then stack or spread by circle size); **Blue Light of Destruction** at ~30% (redirect four throws into a central orb, three hits). | Repeating telegraph was basic swipe **1802000** (cast 0, invented 3 s wind-up). Invented adds. | **Partial:** hunt clone summon; **blue_light** orb proximity counter (CANDIDATE). Stack/spread circles and throw skill id still missing. |
 | Conquest (Normal) **frenzy at 5:00**, Easy none, Hard 4:00 on some dungeons (patch notice; Urugugu/Vakron Hard already applied in `Patch20261028`). aion2data: frenzy is +100% move/cast/combat speed and +200%? / 100% damage boost — we take **damage ×2**, haste 0.5. | Frenzy only on Hard, 4:00, damage ×3 (OURS). | **Normal 5:00, damage ×2** on these five. Hard stays 4:00, now ×2 so it does not overshoot the guide figure; Urugugu Hard still skips the script frenzy so it does not stack with the patch. Easy remains without frenzy. Multipliers stay marked: the client table for the buff is not in our export. |
-| Ground telegraph markers under AoEs. | Cast bar + our warning; no ground decal packets on record. | **Still missing.** Documented, not invented. |
+| Ground telegraph markers under AoEs. | Cast bar + our warning; no ground decal packets on record. | **Partial:** `0x3848` SkillRangeNoticeFilterLocation_NT (CANDIDATE); `Aion:Combat:GroundMarkers`. Donut shapes still wrong. |
 | Donut (Ring) safe-inside hits. | `SkillAreas` treats Ring as a filled circle (outer extent only). | **Still missing** engine support. |
 
 ## What the engine does now
 
 - A script may list `telegraphs` (a rotation of real area skills) instead of one slam.
 - A phase telegraph may be `once` (fires at the HP threshold, then the filler rotation resumes) and `stagger_check` (a hold or stagger-gauge break cancels it and does not retry).
-- `land: false` plays the wind-up and skill start/end but deals no damage (fire walls, soaks whose official hit we cannot yet reproduce).
+- `land: false` plays the wind-up and skill start/end but deals no slam damage; optional `mechanic` (e.g. `fire_wall_grid`) runs the matching engine script after the cast.
+- Boss slams and `GameSession.OnMechanicTelegraphStarted` emit **0x3848** ground decals when `Aion:Combat:GroundMarkers` is on (`docs/GROUND-TELEGRAPHS.md`).
 - Easy Auldor remaps Tempest to **1601035**; Hard Kromede remaps the long cast to **1801191**.
 
 Mid-bosses, other finals (Vakron / EleKing, Transcendence, Ludra Lagta/Kashapa/Durbati) and invented adds there are **not** in this pass.
 
 ## Still needs a live capture or engine work
 
-- Ground telegraph effect messages (ids unknown).
-- Pillar/cover collision (Berk Wave of Fury).
-- Moving fire walls with gaps, clone NPCs (Kromede).
-- Player mark + shared/split soak damage, tornado binds, outer-arena DoT (Auldor).
-- Expanding jump-rope rings, edge teleport, whirlpools; wipe damage for 1800655 (Bakarma).
-- Clone intercept, stack/spread circles, central orb redirect; Blue Light skill id (Nuakum).
+- Ground telegraph wire verified on live client (needs pcap; see `docs/GROUND-TELEGRAPHS.md`).
+- Berk: official summoned pillar asset id; despawn after Wave of Fury.
+- Kromede: client wall VFX motion sync; Hard earlier clone timing.
+- Auldor: visible mark packet; tornado binds; official split formula.
+- Bakarma: screen darken VFX; official wipe damage for failed 1800655.
+- Nuakum: stack/spread circle telegraphs; Blue Light throw skill id; hunt intercept AI.
+- Fire Temple: bot-driven mirror `UseEnvObj` E2E (MapEvent objective present; cube/mid-boss kill path tested).
 - Official L10N skill names (warnings use guide names; wording of some notices is OURS).
 - Frenzy buff values from a client table, if one exists.
+
+## Expedition instance audit (Krao, Urugugu, Draupnir, Fire Temple)
+
+| Instance | Easy / Normal / Hard (`expedition.json`) | Entry / timer / cube | Boss phases | Remaining gaps |
+|---|---|---|---|---|
+| **Krao Cave** | 600002 / 600001, 600004 | IL gate, timer, cube | Berk pillar cover + extinction stagger + frenzy | Official pillar mesh; env despawn |
+| **Urugugu Canyon** | `600071`–`600073` | Party flow; Hard patch frenzy | Auldor soak split + outer DoT &lt;30% | Mark packet; tornado |
+| **Draupnir** | Normal/Hard groups | Scripts + cube | Bakarma stagger + rings + edge snap + whirlpools (CANDIDATE) | Wipe damage row |
+| **Fire Temple** | 600021 / 600022–600023 (`IL` 2100 Normal) | **E2E:** IL gate, mid-boss cube arm, `CubeRewardRq` (`ExpeditionMechanicsTests`) | Kromede grid; mirror objective in dat | Scripted mirror step bot run |
 
 Nothing here is deployed. Next free migration number remains **126** (no schema change).

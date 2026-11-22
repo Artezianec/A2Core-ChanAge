@@ -193,12 +193,13 @@ public sealed partial class GameSession
         or "GetSkin" or "GetSkinSet" or "GetSocialAction" or "AscensionGrade" or "GetStigmaShard" } or { Effect: "GetDaevanionPoint" };
 
     /// <summary>Pet souls and Daevanion crystals apply on acquire (Item.dat AutoUseWhenAcquire; morph crystals drip points).</summary>
-    async Task<List<byte[]>> AutoUseAcquiredItemsAsync(IEnumerable<int> templateIds, long now, CancellationToken ct)
+    async Task<List<byte[]>> AutoUseAcquiredItemsAsync(IEnumerable<int> templateIds, long now, CancellationToken ct, bool deferAutoUseTitles = false)
     {
         var replies = new List<byte[]>();
         foreach (var tid in templateIds.Distinct())
         {
             if (Boxes.Use(tid) is not { } use) continue;
+            if (deferAutoUseTitles && use is { AutoUse: true, Effect: "GetTitle" }) continue;
             if (!AutoUsed(use)) continue;
             foreach (var key in storedItems.Where(s => s.Value.TemplateId == tid && s.Value.Location == "bag").Select(s => s.Key).ToList())
             {

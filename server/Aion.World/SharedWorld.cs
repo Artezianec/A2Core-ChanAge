@@ -161,6 +161,10 @@ public sealed partial class MapInstance(int mapId, Dictionary<int, Target> targe
     public bool GeometryApplied { get; set; }
     /// <summary>A dungeon copy's shared run state (host, timer, clear, reward cube); null on the shared maps.</summary>
     public DungeonCopy? Dungeon { get; set; }
+    /// <summary>Solo instance left briefly: map-event runs kept on the vacated copy until hold expires (re-entry reuse).</summary>
+    internal List<MapEventRun>? DanglingMapEventRuns;
+    internal int DanglingForPlayerKey;
+    internal long VacatedAtMs;
 
     static double Distance(Vector3d a, Vector3d b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
 

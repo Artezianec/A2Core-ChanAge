@@ -10,10 +10,7 @@ export default defineConfig({
     colorScheme: 'dark',
     browserName: 'chromium',
   },
-  projects: [
-    { name: 'mobile', use: { viewport: { width: 375, height: 812 } } },
-    { name: 'desktop', use: { viewport: { width: 1280, height: 900 } } },
-  ],
+  projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: {
     command: 'npm run preview',
     url: 'http://127.0.0.1:4173/',

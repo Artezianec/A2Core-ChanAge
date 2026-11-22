@@ -17,7 +17,7 @@ public sealed partial class PostgresGameplayStore
             SELECT c.character_id,c.wire_id,c.name,c.level,c.creation_id,c.gender,p.point,p.extra,p.best_point,coalesce(g.name,''),coalesce(g.emblem_id,0)
             FROM game.season_ranking_points p JOIN game.characters c USING(character_id)
             LEFT JOIN game.guild_members m ON m.character_id=c.character_id LEFT JOIN game.guilds g ON g.guild_id=m.guild_id
-            WHERE p.contents_type=$1 AND p.season_no=$2 AND p.point>0 AND NOT c.staff AND c.pending_delete_at IS NULL
+            WHERE p.contents_type=$1 AND p.season_no=$2 AND p.point>0 AND NOT c.staff AND NOT COALESCE(c.qa_bot,false) AND c.pending_delete_at IS NULL
             ORDER BY p.best_point DESC, p.point DESC, c.wire_id LIMIT $3
             """;
         var rows = new List<SeasonRankingRow>();

@@ -31,6 +31,7 @@ class BoxDataTests(unittest.TestCase):
         self.assertEqual(DATA['uses']['502530001'][:3], ['GetTitle', 0, '19033001'])
         self.assertEqual(DATA['uses']['515810008'][:3], ['GetSkin', 0, 'AR_0067_T05_Torso'])
         self.assertEqual(DATA['uses']['535510001'][:3], ['GetSkinSet', 1, 'AR_0001_T04'])
+        self.assertEqual(DATA['uses']['535510221'][:3], ['GetSkinSet', 1, 'AR_221'])
         root = Path(__file__).resolve().parents[1]
         titles = json.loads((root / 'tools/data/titles.json').read_text(encoding='utf-8'))['titles']
         self.assertEqual(titles['11010002'], [1, 3, [['HPMax', 300]], [['Critical', 5]]])

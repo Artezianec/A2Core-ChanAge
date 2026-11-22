@@ -15,6 +15,18 @@ public sealed class PlaytestDebugTests
     }
 
     [Fact]
+    public async Task Sink_writes_bootstrap_line_on_open()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "a2core-debug-" + Guid.NewGuid().ToString("N"));
+        var options = new DebugOptions { Enabled = true, LogDirectory = dir };
+        var sink = new PlaytestDebugSink(options, OpcodeCatalog.Load(), NullLogger<PlaytestDebugSink>.Instance);
+        await Task.Delay(50);
+        await sink.DisposeAsync();
+        var text = await File.ReadAllTextAsync(Directory.GetFiles(dir, "debug-*.log").Single());
+        Assert.Contains("\"kind\":\"playtest_debug\"", text);
+    }
+
+    [Fact]
     public async Task Sink_writes_packet_and_action_lines()
     {
         var dir = Path.Combine(Path.GetTempPath(), "a2core-debug-" + Guid.NewGuid().ToString("N"));
@@ -25,6 +37,7 @@ public sealed class PlaytestDebugTests
         sink.Packet(new PlaytestPacketRecord("game", false, 0x361f, body, body.Length, 42, 1000));
         sink.Action("skill_cast", new Dictionary<string, object?> { ["skillId"] = 11010000, ["accepted"] = true });
         PlaytestDebug.Sink = null;
+        await Task.Delay(200);
         await sink.DisposeAsync();
         var file = Directory.GetFiles(dir, "debug-*.log").Single();
         var text = await File.ReadAllTextAsync(file);
@@ -46,13 +59,15 @@ public sealed class PlaytestDebugTests
         sink.Packet(new PlaytestPacketRecord("game", true, 0x5100, list, list.Length, 1, 1));
         sink.Packet(new PlaytestPacketRecord("game", true, 0x5600, list, list.Length, 1, 1));
         sink.Packet(new PlaytestPacketRecord("game", true, 0x361f, other, other.Length, 1, 1));
+        await Task.Delay(200);
         await sink.DisposeAsync();
         var lines = (await File.ReadAllTextAsync(Directory.GetFiles(dir, "debug-*.log").Single())).Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        Assert.Equal(3, lines.Length);
-        Assert.Contains(new string('0', 8) + "AB\"", lines[0]);
-        Assert.DoesNotContain("hexTruncated", lines[0]);
+        Assert.Equal(4, lines.Length);
+        Assert.Contains("playtest_debug", lines[0]);
+        Assert.Contains(new string('0', 8) + "AB\"", lines[1]);
         Assert.DoesNotContain("hexTruncated", lines[1]);
-        Assert.Contains("hexTruncated", lines[2]);
+        Assert.DoesNotContain("hexTruncated", lines[2]);
+        Assert.Contains("hexTruncated", lines[3]);
     }
 
     [Fact]

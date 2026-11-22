@@ -11,10 +11,11 @@ from tools.postgres_dev import MISSING_CATALOG_MESSAGE, NO_STARTERS_MESSAGE, ens
 
 
 class FakeSql:
-    def __init__(self, *, builds=0, enabled=0, build_id='build-1'):
+    def __init__(self, *, builds=0, enabled=0, build_id='build-1', rule_count=None):
         self.builds = builds
         self.enabled = enabled
         self.build_id = build_id
+        self.rule_count = 100 if rule_count is None and enabled else (rule_count or 0)
         self.queries = []
 
     def __call__(self, text, **kwargs):
@@ -25,6 +26,8 @@ class FakeSql:
             return SimpleNamespace(stdout=f'{self.enabled}\n')
         if 'FROM catalog.builds ORDER BY imported_at' in text:
             return SimpleNamespace(stdout=f'{self.build_id}\n')
+        if 'FROM game.equipment_rules WHERE build_id' in text and 'count(*)' in text:
+            return SimpleNamespace(stdout=f'{self.rule_count}\n')
         raise AssertionError(f'unexpected sql: {text}')
 
 
@@ -102,6 +105,16 @@ class EnsureGameDataTests(unittest.TestCase):
         self.assertTrue(result['configured'])
         self.assertFalse(result['imported'])
         self.assertEqual(result['enabled'], 4)
+
+    def test_latest_build_missing_equipment_rules_reconfigures(self):
+        sql = FakeSql(builds=1, enabled=8, rule_count=0)
+        runner = mock.Mock(return_value=SimpleNamespace(returncode=0, stdout='', stderr=''))
+        with tempfile.TemporaryDirectory() as temp, mock.patch.object(postgres_dev, 'sql', sql), \
+                mock.patch.object(postgres_dev, 'import_catalog') as imported:
+            result = ensure_game_data(catalog_dir(temp), log=lambda *_: None, runner=runner)
+        imported.assert_not_called()
+        self.assertTrue(result['configured'])
+        self.assertEqual(runner.call_count, 3)
 
     def test_existing_profiles_skipped_unless_forced(self):
         sql = FakeSql(builds=1, enabled=8)

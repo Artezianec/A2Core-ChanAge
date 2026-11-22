@@ -220,6 +220,16 @@ def patch_committed_boxes(path=DATA):
     data = json.loads(path.read_text(encoding='utf-8'))
     uses = data.setdefault('uses', {})
     cool = data.setdefault('cool', {})
+    try:
+        from .bmshop_item_uses import merge_bmshop_uses
+    except ImportError:
+        from bmshop_item_uses import merge_bmshop_uses
+    merge_bmshop_uses(uses, data.get('rides') or {})
+    boxes = data.setdefault('boxes', {})
+    for row in uses.values():
+        if row and row[0] == 'RewardBox' and len(row) > 2:
+            group = row[2]
+            boxes.setdefault(group, {'items': [], 'select': [], 'packages': [], 'max': 100})
     before = set(uses)
     _finalize_uses(uses, cool)
     if before - set(uses):

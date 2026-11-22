@@ -123,6 +123,22 @@ public sealed class ShopPacketTests
         Assert.Contains(store.Items, i => i.TemplateId == template && i.Location == "storage");
     }
     [Fact]
+    [Fact]
+    public async Task NP_shop_quna_purchase_refreshes_wallet_packets()
+    {
+        const int QunaSkinSetGoods = 100106;
+        GameSession.ConfigureShopOptions(new ShopOptions { PremiumMode = ShopPremiumMode.Quna });
+        var store = new FakeCharacterStore(Guid.NewGuid());
+        store.Quna.Seed(store.AccountId, 100_000);
+        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
+        var buy = await session.HandleAsync(new PacketWriter().U16(GameSession.NPShopPurchaseRq).I32(QunaSkinSetGoods).I32(1).ToArray(), Now);
+        Assert.Equal(GameSession.NPShopPurchaseRs, GameSessionTestHelpers.Op(buy[0]));
+        Assert.Equal(0, BitConverter.ToUInt16(buy[0], 2));
+        Assert.Contains(buy, p => GameSessionTestHelpers.Op(p) == 0x561b);
+        Assert.Contains(buy, p => GameSessionTestHelpers.Op(p) == GameSession.RefreshCurrencyNt);
+    }
+
+    [Fact]
     public async Task NP_shop_purchase_buys_quna_official_catalog_goods_missing_from_platform_goods()
     {
         const int OfficialOnlyQunaGoods = 1252, OfficialOnlyQunaItem = 534200002;

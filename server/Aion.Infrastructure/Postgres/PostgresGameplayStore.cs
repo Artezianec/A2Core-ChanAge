@@ -144,14 +144,15 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
         }
         if(input.WorldId is int requiredWorld && p.GetProperty("worldId").GetInt32()!=requiredWorld)
             throw new GameplayException("wrong_world");
+        var qaBot = await Scalar(c,t,"SELECT 1 FROM game.qa_internal_accounts WHERE account_id=$1",ct,account.AccountId) is not null;
         Guid character;
         try
         {
             character=(Guid)(await Scalar(c,t,"""
-                INSERT INTO game.characters(account_id,world_id,name,creation_id,race,gender,appearance,map_id,position,resources,voice_type,lobby_slot)
-                VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,-1)) RETURNING character_id
+                INSERT INTO game.characters(account_id,world_id,name,creation_id,race,gender,appearance,map_id,position,resources,voice_type,lobby_slot,qa_bot)
+                VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,-1),$13) RETURNING character_id
                 """,ct,account.AccountId,p.GetProperty("worldId").GetInt32(),input.Name,creation,race,gender,input.Appearance,
-                p.GetProperty("mapId").GetInt32(),p.GetProperty("position"),p.GetProperty("resources"),input.VoiceType,input.LobbySlot??-1))!;
+                p.GetProperty("mapId").GetInt32(),p.GetProperty("position"),p.GetProperty("resources"),input.VoiceType,input.LobbySlot??-1,qaBot))!;
         }
         catch(PostgresException e) when(e.SqlState==PostgresErrorCodes.UniqueViolation)
         { throw new GameplayException(e.ConstraintName=="character_lobby_slot_idx"?"slot_unavailable":"name_unavailable"); }
@@ -2468,7 +2469,7 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
         await using var c=await source.OpenConnectionAsync(ct);
         var owners=new List<AirspaceOwnerRecord>();
         await using(var q=Query(c,null,"""
-            SELECT o.airspace_id,o.guild_id,g.name,g.emblem,COALESCE(m.name,'')
+            SELECT o.airspace_id,o.guild_id,g.name,g.emblem_id,COALESCE(m.name,'')
             FROM game.airspace_owner o
             JOIN game.guilds g ON g.guild_id=o.guild_id
             LEFT JOIN game.guild_members gm ON gm.guild_id=g.guild_id AND gm.grade=0
@@ -3056,9 +3057,14 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
         {
             if(await Scalar(c,t,"""
                 SELECT i.instance_id FROM game.item_instances i JOIN game.characters c USING(character_id)
-                JOIN game.equipment_rules r USING(build_id,template_id)
+                JOIN LATERAL (
+                  SELECT er.* FROM game.equipment_rules er
+                  WHERE er.template_id=i.template_id AND er.slot=$4
+                    AND c.level>=er.minimum_level AND c.creation_id=ANY(er.creation_ids)
+                  ORDER BY (er.build_id=i.build_id) DESC, er.build_id DESC
+                  LIMIT 1
+                ) r ON true
                 WHERE i.instance_id=$1 AND i.character_id=$2 AND i.revision=$3 AND i.quantity=1 AND i.location IN ('bag','equipment')
-                  AND r.slot=$4 AND c.level>=r.minimum_level AND c.creation_id=ANY(r.creation_ids)
                 """,ct,item,character,revision,slot) is not Guid) return false;
             // Atomic swap: old equipment returns to an unassigned bag slot.
             await Execute(c,t,"UPDATE game.item_instances SET location='bag',slot=NULL WHERE character_id=$1 AND location='equipment' AND slot=$2 AND instance_id<>$3",ct,character,slot,item);

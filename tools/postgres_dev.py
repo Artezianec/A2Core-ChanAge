@@ -231,7 +231,28 @@ def import_catalog(directory, allow_shrink=False):
         run('psql', ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-f', path], timeout=1800)
     finally:
         path.unlink(missing_ok=True)
-    return {'build_id': build_id, 'counts': counts}
+    result = {'build_id': build_id, 'counts': counts}
+    latest = sql('SELECT build_id FROM catalog.builds ORDER BY imported_at DESC, build_id LIMIT 1;').stdout.strip()
+    if latest == build_id:
+        for script, output in run_starter_tools(build_id):
+            if output:
+                print(output)
+    return result
+
+
+def latest_build_id():
+    """The catalogue build new item grants use (ORDER BY imported_at DESC)."""
+    return sql('SELECT build_id FROM catalog.builds ORDER BY imported_at DESC, build_id LIMIT 1;').stdout.strip() or None
+
+
+def starter_data_complete(build_id=None):
+    """True when game.equipment_rules and enabled starter_profiles exist for the build."""
+    build_id = build_id or latest_build_id()
+    if not build_id:
+        return False
+    rules = int(sql(f"SELECT count(*) FROM game.equipment_rules WHERE build_id={literal(build_id)};").stdout.strip() or '0')
+    profiles = int(sql('SELECT count(*) FROM game.starter_profiles WHERE enabled;').stdout.strip() or '0')
+    return rules > 0 and profiles > 0
 
 
 DEFAULT_CATALOG = ROOT / 'research/local/game-catalog-v2'
@@ -304,9 +325,10 @@ def ensure_game_data(directory=None, *, log=print, runner=None, force=False):
             log(MISSING_CATALOG_MESSAGE)
             return {'imported': False, 'configured': False, 'enabled': 0, 'build_id': None}
     enabled = int(sql('SELECT count(*) FROM game.starter_profiles WHERE enabled;').stdout.strip() or '0')
-    build_id = sql('SELECT build_id FROM catalog.builds ORDER BY imported_at DESC, build_id LIMIT 1;').stdout.strip() or None
+    build_id = latest_build_id()
     configured = False
-    if imported or force or enabled == 0:
+    needs_starters = imported or force or enabled == 0 or (build_id and not starter_data_complete(build_id))
+    if needs_starters:
         log('Configuring starter profiles, class skills and equipment rules')
         for script, output in run_starter_tools(build_id, runner=runner):
             if output:

@@ -209,7 +209,7 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
 }
 
 /// <summary>The login port (port of tools/login_server.py), answering in plaintext after the handshake.</summary>
-public sealed class NativeLoginListener(NativeOptions options, IServiceProvider services, ILogger<NativeLoginListener> logger)
+public sealed class NativeLoginListener(NativeOptions options, IServiceProvider services, HeadlessClientAuth headless, ILogger<NativeLoginListener> logger)
     : NativeListener(options.LoginPort ?? 0, NativeHandshake.LoginGreeting, options, logger)
 {
     protected override string Name => "Native login";
@@ -232,7 +232,7 @@ public sealed class NativeLoginListener(NativeOptions options, IServiceProvider 
                 ? [LoginPackets.PreGeneratedIntro(LoginPackets.DefaultWorlds[0].Id, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())] : [],
             WorldPicked = services.GetService<WorldChoices>() is { } choices ? choices.Pick : null,
             LastPickedRace = services.GetService<WorldChoices>() is { } picks ? picks.Race : null,
-        }, Options.Development ? null : AuthenticateAsync);
+        }, Options.Development ? null : (identity, token) => AuthenticateAsync(identity, clientAddress, token));
         var chunk = new byte[8192];
         var diagnostics = services.GetService<HostDiagnostics>();
         diagnostics?.LoginConnected();
@@ -266,8 +266,13 @@ public sealed class NativeLoginListener(NativeOptions options, IServiceProvider 
     }
 
     /// <summary>The ticket check with its outcome counted for the diagnostics API (the check itself is unchanged).</summary>
-    async Task<LoginGrant?> AuthenticateAsync(ClientIdentity identity, CancellationToken ct)
+    async Task<LoginGrant?> AuthenticateAsync(ClientIdentity identity, IPAddress? clientAddress, CancellationToken ct)
     {
+        if (headless.TryLoginGrant(identity, clientAddress, out var synthetic) && synthetic is not null)
+        {
+            services.GetService<HostDiagnostics>()?.Login(HostDiagnostics.NativeLogin, HostDiagnostics.Outcome.Succeeded);
+            return synthetic;
+        }
         var (grant, outcome) = await CheckTicketAsync(identity, ct);
         services.GetService<HostDiagnostics>()?.Login(HostDiagnostics.NativeLogin, outcome);
         return grant;
@@ -300,7 +305,7 @@ public sealed class NativeLoginListener(NativeOptions options, IServiceProvider 
 /// NPCs. Between client bodies it runs the session's timers every 50 ms and, like the Python
 /// server, sends the 0x3600 clock whenever no client data arrived in that window.
 /// </summary>
-public sealed class NativeGameListener(NativeOptions options, IServiceProvider services, WorldPresence presence, ILogger<NativeGameListener> logger)
+public sealed class NativeGameListener(NativeOptions options, IServiceProvider services, HeadlessClientAuth headless, WorldPresence presence, ILogger<NativeGameListener> logger)
     : NativeListener(options.GamePort ?? 0, NativeHandshake.GameGreeting, options, logger)
 {
     static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(50);
@@ -421,14 +426,25 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
                         if (header == 0x3613)
                         {
                             if (authenticated) { Logger.LogInformation("Native game closed: replay_rejected"); return; }
-                            session.Store = await AuthenticateAsync(plain, ct);
-                            if (session.Store is { } opened && turn is not null) session.Store = TurnStore.Wrap(opened, turn);
-                            if (session.Store is null) { Logger.LogInformation("Native game closed: rejected"); return; }
+                            ClientIdentity identity;
+                            try { identity = ClientIdentity.Parse(plain, game: true); }
+                            catch (ProtocolException) { Logger.LogInformation("Native game closed: rejected"); return; }
+                            if (headless.TryGameSession(identity, clientAddress))
+                            {
+                                authenticated = true;
+                                services.GetService<HostDiagnostics>()?.Login(HostDiagnostics.NativeGame, HostDiagnostics.Outcome.Succeeded);
+                            }
+                            else
+                            {
+                                session.Store = await AuthenticateAsync(plain, ct);
+                                if (session.Store is { } opened && turn is not null) session.Store = TurnStore.Wrap(opened, turn);
+                                if (session.Store is null) { Logger.LogInformation("Native game closed: rejected"); return; }
                             // Keep the address on the platform account lookup (auth.platform_client_context lasts 15 minutes)
                             // for the whole session: later balances calls (the client's Quna counter) still name this account.
-                            if (clientAddress is not null && services.GetService<IPlatformSecondaryAuth>() is { } platformAuth)
-                                _ = KeepClientAddressAsync(platformAuth, clientAddress, session.Store.AccountId, ct);
-                            authenticated = true;
+                                if (clientAddress is not null && services.GetService<IPlatformSecondaryAuth>() is { } platformAuth)
+                                    _ = KeepClientAddressAsync(platformAuth, clientAddress, session.Store.AccountId, ct);
+                                authenticated = true;
+                            }
                         }
                         else if (!authenticated && header != 0x3602) { Logger.LogInformation("Native game closed: required"); return; }
                     }

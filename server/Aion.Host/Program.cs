@@ -59,6 +59,8 @@ Aion.World.GameSession.ConfigureShopOptions(new Aion.World.ShopOptions
 });
 // Dungeon waves and boss phases (docs/BOSSES.md): Aion:Bosses (Phases, Frenzy, FrenzySeconds, DamageScale, Waves, WavePartSeconds).
 Aion.World.GameSession.ConfigureBosses(builder.Configuration.GetSection("Aion:Bosses").Get<Aion.World.BossOptions>() ?? Aion.World.BossOptions.Default);
+Aion.World.GameSession.ConfigureCombatTelegraphs(
+    builder.Configuration.GetSection("Aion:Combat").Get<Aion.World.CombatTelegraphOptions>() ?? Aion.World.CombatTelegraphOptions.Default);
 // Open-world field bosses (docs/FIELD-BOSSES.md): Aion:FieldBosses (Enabled, Boss/Named respawn windows, RespawnMinutesByName,
 // Announcements, SharedLoot). Official CANDIDATE ranges by default (named 1.5-6 h, bosses 6-12 h).
 Aion.World.FieldBosses.Configure(builder.Configuration.GetSection("Aion:FieldBosses").Get<Aion.World.FieldBossOptions>() ?? Aion.World.FieldBossOptions.Default);
@@ -105,6 +107,8 @@ if (!string.IsNullOrWhiteSpace(connectionString))
         provider.GetService<NativeOptions>()?.WorldId ?? Aion.World.DevelopmentDefaults.WorldId));
 }
 var accountsReady = !string.IsNullOrWhiteSpace(connectionString) && !string.IsNullOrWhiteSpace(authConnectionString);
+if (!accountsReady)
+    builder.Services.AddSingleton<IPlatformSecondaryAuth, Aion.Host.Platform.NullPlatformSecondaryAuth>();
 if (accountsReady)
 {
     builder.Services.AddSingleton<PostgresAccountAuthentication>(provider =>
@@ -159,6 +163,9 @@ else
 var worldOptions = builder.Configuration.GetSection(AionConfiguration.World).Get<WorldOptions>() ?? new WorldOptions();
 builder.Services.AddSingleton(worldOptions);
 var askNpcFallback = worldOptions.ResolveMapEventAskNpcProximityFallback(debugOptions);
+var headlessClients = builder.Configuration.GetSection(AionConfiguration.HeadlessClients).Get<HeadlessClientOptions>() ?? new HeadlessClientOptions();
+builder.Services.AddSingleton(headlessClients);
+builder.Services.AddSingleton<HeadlessClientAuth>();
 var native = (builder.Configuration.GetSection(AionConfiguration.Native).Get<NativeOptions>() ?? new NativeOptions()) with
 {
     Network = network,
@@ -192,7 +199,10 @@ if (native.LoginPort is not null || native.GamePort is not null)
     }
     // Builder (GM) commands: client console "s <command>" (0x362e) and "//<command>" in chat.
     builder.Services.AddSingleton<Aion.World.WorldPresence>();
-    builder.Services.AddSingleton<ShopQunaBalanceService>();
+    builder.Services.AddSingleton(sp => new ShopQunaBalanceService(
+        sp.GetRequiredService<Aion.World.WorldPresence>(),
+        sp.GetService<IPlatformSecondaryAuth>(),
+        sp.GetService<IQunaWallet>()));
     builder.Services.AddSingleton<Aion.Host.Authentication.ScheduledRestart>();
     // Multiplayer: one shared world (maps, NPCs, players) for every game connection on this host.
     builder.Services.AddSingleton(provider => new Aion.World.SharedWorld(provider.GetRequiredService<Aion.World.GameData>()));
@@ -203,6 +213,54 @@ if (native.LoginPort is not null || native.GamePort is not null)
         builder.Services.AddSingleton(provider => new Aion.World.PlayerBots(provider.GetRequiredService<Aion.World.GameData>(), botOptions,
             provider.GetRequiredService<Aion.World.SharedWorld>(), presence: provider.GetRequiredService<Aion.World.WorldPresence>()));
         builder.Services.AddHostedService<PlayerBotsService>();
+    }
+    // QA quest bots (docs/QA_BOTS.md): off unless Aion:QaBots:Enabled.
+    var qaOptions = (builder.Configuration.GetSection("Aion:QaBots").Get<Aion.World.QaBotOptions>() ?? new Aion.World.QaBotOptions()).Validated();
+    if (qaOptions.Enabled && native.GamePort is not null)
+    {
+        builder.Services.AddSingleton(qaOptions);
+        if (!string.IsNullOrWhiteSpace(connectionString))
+        {
+            builder.Services.AddSingleton<IQaBotStore, PostgresQaBotStore>();
+            builder.Services.AddSingleton<QaInternalWorldSessions>();
+            builder.Services.AddSingleton<IQaBotDiagnostics, QaBotDiagnostics>();
+            builder.Services.AddSingleton(provider =>
+            {
+                var nativeOpts = provider.GetRequiredService<NativeOptions>();
+                var game = provider.GetRequiredService<IGameplayStore>();
+                Func<Guid, CancellationToken, Task<string?>> staffRole = async (account, ct) =>
+                {
+                    try
+                    {
+                        return Aion.Core.Characters.CharacterNames.DisplayRole(
+                            (await game.AdminProfileAsync(new Aion.Core.Accounts.VerifiedAccount(account), ct)).Roles);
+                    }
+                    catch (GameplayException) { return null; }
+                };
+                return new QaBotSessionFactory(
+                    nativeOpts.WorldId,
+                    provider.GetRequiredService<QaInternalWorldSessions>(),
+                    provider.GetRequiredService<IWireCharacterRepository>(),
+                    game,
+                    provider.GetRequiredService<CharacterPersistenceService>(),
+                    provider.GetService<IQunaWallet>(),
+                    staffRole);
+            });
+        }
+        builder.Services.AddSingleton(provider =>
+        {
+            var factory = provider.GetService<QaBotSessionFactory>();
+            Func<QaBotSpawnContext, QaBotSpawnBinding?>? spawn = factory is null ? null : factory.Bind;
+            return new QaBots(
+                provider.GetRequiredService<GameData>(),
+                qaOptions,
+                provider.GetRequiredService<SharedWorld>(),
+                provider.GetService<IQaBotStore>(),
+                provider.GetService<NativeOptions>()?.WorldId,
+                spawn,
+                provider.GetService<IQaBotDiagnostics>());
+        });
+        builder.Services.AddHostedService<QaBotService>();
     }
     // Market (OURS, docs/MARKET.md): //ah and optional seller/buyer bots; off unless Aion:Market:Enabled.
     var market = (builder.Configuration.GetSection("Aion:Market").Get<Aion.World.MarketOptions>() ?? new Aion.World.MarketOptions()).Validated();
@@ -240,6 +298,7 @@ if (native.LoginPort is not null || native.GamePort is not null)
         new Aion.World.GmCommands(provider.GetRequiredService<Aion.World.WorldPresence>(), provider.GetRequiredService<Aion.World.BuilderCommands>())
         {
             Bots = provider.GetService<Aion.World.PlayerBots>(),
+            QaBots = provider.GetService<Aion.World.QaBots>(),
             Market = provider.GetService<Aion.World.MarketCommands>(),
             // "//report <text>" opens a ticket for the staff dashboard (accounts only).
             Report = provider.GetService<IStaffTools>() is { } staffTools ? async (sender, name, text, ct) =>
@@ -290,6 +349,7 @@ if (native.LoginPort is not null || native.GamePort is not null)
         };
     });
     builder.Services.AddSingleton<NativePortReadiness>();
+    builder.Services.AddSingleton(provider => new PublicPlayerCount(provider.GetService<WorldPresence>(), provider.GetService<QaBots>(), provider.GetRequiredService<TimeProvider>()));
     if (native.LoginPort is not null) builder.Services.AddHostedService<NativeLoginListener>();
     // Multi-world (primary host, Aion:Worlds:Enabled): the world registry's list for the login port and the managed child worlds.
     if (native.MultiWorld && native.LoginPort is not null && !native.Development && worldProcess is null && !string.IsNullOrWhiteSpace(connectionString))
@@ -395,7 +455,8 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 builder.Services.AddSingleton<WardrobeAccess>();
 var app = builder.Build();
-app.Logger.LogInformation("Bosses: {Bosses}; field bosses: {FieldBosses}", Aion.World.GameSession.BossRules, Aion.World.FieldBosses.Options);
+app.Logger.LogInformation("Bosses: {Bosses}; field bosses: {FieldBosses}; combat: {CombatTelegraphs}",
+    Aion.World.GameSession.BossRules, Aion.World.FieldBosses.Options, Aion.World.GameSession.CombatTelegraphRules);
 if (native.LoginPort is not null || native.GamePort is not null)
     app.Logger.LogInformation("World rates: {Rates} (scheduled events multiply on top, each 0.1–10).", serverRates);
 if (app.Services.GetService<Aion.World.SharedWorld>() is { } sharedWorld)
@@ -417,6 +478,7 @@ if (worldProcess is not null)
 if (debugOptions.Enabled && app.Services.GetService<PlaytestDebugSink>() is { } playtestDebug)
 {
     PlaytestDebug.Sink = playtestDebug;
+    app.Logger.LogInformation("Playtest debug log: {Path}", playtestDebug.LogPath);
     app.Lifetime.ApplicationStopping.Register(() => playtestDebug.DisposeAsync().AsTask().GetAwaiter().GetResult());
 }
 if (app.Services.GetService<ServerFileLoggerProvider>() is { } serverLog)
@@ -545,8 +607,16 @@ var registrationOpen = builder.Configuration.GetValue<bool?>("Aion:Accounts:Regi
 app.MapGet("/api/status", async (IServiceProvider services, CancellationToken ct) =>
 {
     var gameReady = services.GetService<NativePortReadiness>() is { } readiness && await readiness.GameReadyAsync(ct);
+    var online = 0;
+    var onlineBots = 0;
+    if (services.GetService<PublicPlayerCount>() is { } players)
+    {
+        var snap = await players.SnapshotAsync(ct);
+        online = snap.Online;
+        onlineBots = snap.OnlineBots;
+    }
     return Results.Ok(new { accountsConfigured = accountsReady, registrationOpen = accountsReady && registrationOpen,
-        launcherAvailable = downloads?.LauncherAvailable ?? false, gameReady });
+        launcherAvailable = downloads?.LauncherAvailable ?? false, gameReady, online, onlineBots });
 });
 if (accountsReady)
 {
@@ -558,6 +628,8 @@ if (accountsReady)
     Aion.Host.Authentication.StaffEndpoints.MapStaffEndpoints(app);
     Aion.Host.Authentication.StaffToolsEndpoints.MapStaffToolsEndpoints(app);
     Aion.Host.Authentication.StaffToolsEndpoints.MapTicketEndpoints(app);
+    if (app.Services.GetService<IQaBotStore>() is not null)
+        Aion.Host.Authentication.QaBotEndpoints.MapQaBotEndpoints(app);
     Aion.Host.Worlds.WorldEndpoints.MapWorldEndpoints(app);
     var bridgeSecret = builder.Configuration["Aion:BridgeSecret"];
     if (bridgeSecret is { Length: >= 64 })

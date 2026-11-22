@@ -13,6 +13,7 @@ public sealed class ChannelFileLogWriter : IAsyncDisposable
 {
     const int OpenAttempts = 6;
     static readonly TimeSpan OpenRetry = TimeSpan.FromSeconds(5);
+    static readonly TimeSpan FlushInterval = TimeSpan.FromSeconds(3);
 
     readonly Channel<string> queue;
     readonly Task writerTask;
@@ -49,12 +50,26 @@ public sealed class ChannelFileLogWriter : IAsyncDisposable
 
     async Task WriteLoopAsync()
     {
+        var lastFlush = DateTime.UtcNow;
         try
         {
-            while (await queue.Reader.WaitToReadAsync().ConfigureAwait(false))
+            while (true)
             {
-                while (queue.Reader.TryRead(out var line)) WriteLine(line);
-                Flush();
+                var wrote = false;
+                while (queue.Reader.TryRead(out var line)) { WriteLine(line); wrote = true; }
+                if (wrote || DateTime.UtcNow - lastFlush >= FlushInterval)
+                {
+                    Flush();
+                    lastFlush = DateTime.UtcNow;
+                }
+                if (queue.Reader.Completion.IsCompleted) break;
+                var waitTask = queue.Reader.WaitToReadAsync().AsTask();
+                var delay = Task.Delay(FlushInterval);
+                var done = await Task.WhenAny(waitTask, delay).ConfigureAwait(false);
+                if (done == delay && !wrote)
+                    Flush();
+                if (done == waitTask && !await waitTask.ConfigureAwait(false))
+                    break;
             }
         }
         catch (Exception ex)

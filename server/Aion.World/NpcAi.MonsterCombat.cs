@@ -75,15 +75,23 @@ public sealed partial class NpcAi
             if (shot.Kind == ShotKind.CastingStart)
             {
                 if (current.TryGetValue(victimKey, out var v))
-                    replies.Add(PlayerPackets.SkillCastingStart(target.Key, shot.SkillId, victimKey, brain.Heading, target.Position,
-                        data!.NpcSkill(shot.SkillId)?.Cast ?? 0));
+                {
+                    var castMs = data!.NpcSkill(shot.SkillId)?.Cast ?? 0;
+                    var at = CastLocation(target, brain, shot.SkillId, brain.Heading);
+                    replies.Add(PlayerPackets.SkillCastingStart(target.Key, shot.SkillId, victimKey, brain.Heading, at, castMs));
+                    replies.AddRange(TelegraphForArea(target, shot.SkillId, (byte)shot.ActionSeq, at, brain.Heading, castMs + HitDelayMs, now));
+                }
                 continue;
             }
             if (shot.Kind == ShotKind.SkillStart)
             {
                 var sk = data!.NpcSkill(shot.SkillId);
-                replies.Add(GamePackets.SkillStart(shot.SkillId, shot.ActionSeq, brain.Heading, target.Position, targetKey: victimKey,
+                var yaw = brain.Heading;
+                var at = CastLocation(target, brain, shot.SkillId, yaw);
+                replies.Add(GamePackets.SkillStart(shot.SkillId, shot.ActionSeq, yaw, at, targetKey: victimKey,
                     actorKey: target.Key, cooldown: sk?.Cooldown ?? 0));
+                if (sk is { Cast: 0 })
+                    replies.AddRange(TelegraphForArea(target, shot.SkillId, (byte)shot.ActionSeq, at, yaw, MechanicTelegraphs.NpcLandMs(sk), now));
                 if (MonsterSkillStartHook is { } hook) replies.AddRange(hook(target, shot.SkillId, now));
                 continue;
             }

@@ -71,8 +71,7 @@ Those scripts no longer use invented adds or a repeating "longest-cast" slam. Ev
 
 ## Not done
 
-- There is no ground marker under a slam. The client shows the cast animation and our warning, but the official telegraph
-  effect messages aren't recorded.
+- Ground markers under slams use `SkillRangeNoticeFilterLocation_NT` when `Aion:Combat:GroundMarkers` is on (see `docs/GROUND-TELEGRAPHS.md`; opcode/fields CANDIDATE).
 - The waves on other maps keep the timer (see above).
 
 ## Brigade Base (HQ1101070, layer 100002)

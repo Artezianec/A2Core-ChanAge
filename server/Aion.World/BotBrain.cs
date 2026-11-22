@@ -60,6 +60,9 @@ public static class BotRequests
     /// </summary>
     public static byte[] UseObject(int objectKey, int env) => new PacketWriter().U16(0x3636).U8(1).Varint(objectKey).I64(0).I32(env).ToArray();
 
+    /// <summary>Carried bomb at a Communication Tower (live client F uses 0x384a SkillGroundReady, not InteractEnvObj).</summary>
+    public static byte[] BombGroundReady(int skill) => new PacketWriter().U16(GameSession.SkillGroundReadyRq).I32(skill).ToArray();
+
     /// <summary>0x4004 the client's request to leave an instance copy (answered 0x4005).</summary>
     public static byte[] LeaveInstance() => [0x04, 0x40];
 

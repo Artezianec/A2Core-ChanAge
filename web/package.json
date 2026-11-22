@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
     "screenshots": "playwright test",
+    "test:e2e": "playwright test e2e/viewport-overflow.spec.ts",
     "prebuild": "node -e \"require('fs').rmSync('../server/Aion.Host/wwwroot/assets',{recursive:true,force:true})\""
   },
   "dependencies": {

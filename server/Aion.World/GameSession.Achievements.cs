@@ -483,16 +483,17 @@ public sealed partial class GameSession
             : [];
         var takeResults = results.Select(r => (r.Group, (IReadOnlyList<byte>)r.GroupSteps, (IReadOnlyDictionary<int, int>)r.Steps)).ToList();
         var batchResult = takeResults.Count > 0 ? 0 : 1;
+        var claimedAchievementIds = results.SelectMany(r => r.Steps.Keys).Distinct().ToList();
         if (takeResults.Count > 0) await FlushAchievementsAsync(now, ct, force: true);
-        // Official claim-all (capture 001158): 0x561b inventory deltas, then TakeAchievementRewardBatch_RS only.
-        // The take_result map already carries every claimed step; trailing 0x5684 per-step NTs or a 0x5683 list resend
-        // make the client rebuild the window and the "Rewards Collected" popup comes up empty.
+        // Official claim-all (capture 001158): 0x561b inventory deltas, one 0x5684 for claimed steps, then TakeAchievementRewardBatch_RS.
+        // Trailing 0x5683 after the batch reply still empties the "Rewards Collected" popup; do not resend the full list.
         var batch = new List<byte[]>();
         if (inventoryChanges.Count > 0) batch.AddRange(inventoryChanges);
+        if (claimedAchievementIds.Count > 0) batch.Add(AchievementUpdate(claimedAchievementIds));
         batch.Add(RewardBatchReply(category, groupId, only, takeResults, batchResult));
         if (grantedItems)
         {
-            batch.AddRange(await AutoUseAcquiredItemsAsync(rewardItems, now, ct));
+            batch.AddRange(await AutoUseAcquiredItemsAsync(rewardItems, now, ct, deferAutoUseTitles: true));
             batch.AddRange(await AutoPresentGrantedTitlesAsync(rewardItems, ct));
         }
         if (refreshAccountContents) batch.Add(AccountContentsInfoList(now));

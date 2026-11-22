@@ -104,6 +104,7 @@ public sealed partial class GameSession
         if (to is null && hand is null && volume is { } overlay && overlay.Base == map && string.Equals(mode, "CurrentPosition", StringComparison.OrdinalIgnoreCase) && position is { } here)
             exit = here;
         var leaving = (CopyOwner ?? this).mapEventRuns.Select(r => GamePackets.MapEventLeave(r.Id)).ToList();
+        StashVacatedMapEventRuns(now);
         HandOverCopy();
         mapEventRuns.Clear();
         pendingExit = null;

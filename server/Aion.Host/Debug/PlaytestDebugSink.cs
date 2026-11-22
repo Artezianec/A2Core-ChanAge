@@ -51,6 +51,7 @@ public sealed class PlaytestDebugSink : IPlaytestDebugSink, IAsyncDisposable
         var directory = DebugOptions.ResolveLogDirectory(options.LogDirectory, AppContext.BaseDirectory);
         var logPath = Path.Combine(directory, PlaytestLogPaths.DebugFileName(DateTime.Now));
         file = new ChannelFileLogWriter(logPath);
+        file.Enqueue($"{{\"t\":\"bootstrap\",\"utc\":\"{DateTimeOffset.UtcNow:O}\",\"kind\":\"playtest_debug\",\"fields\":{{\"path\":\"{logPath.Replace('\\', '/')}\"}}}}");
     }
 
     public void Packet(in PlaytestPacketRecord record)

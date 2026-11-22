@@ -193,6 +193,7 @@ public sealed partial class GameSession
     /// <summary>Session tick and logout: changed season points saved.</summary>
     async Task FlushSeasonPointsAsync(CancellationToken ct)
     {
+        if (QaBot) return;
         if (seasonPointsDirty.Count == 0 || Store is not { } store || CharacterId is not { } character) return;
         var rows = seasonPointsDirty.Values.ToList();
         seasonPointsDirty.Clear();

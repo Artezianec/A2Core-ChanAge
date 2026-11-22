@@ -8,6 +8,9 @@ namespace Aion.World;
 // Live opcodes: Coin/Guild share the 0x8c run (CoinShopOpen dev 0x3934 -> 0x8c06); random shop uses the 0x37 run as in the usmap.
 public sealed partial class GameSession
 {
+    /// <summary>BM / skin-shop deliverables that must have a boxes.json UseEffect before purchase.</summary>
+    static bool ShopDeliverableNeedsUseData(int templateId) => templateId is
+        >= 503_700_000 and < 504_000_000 or >= 534_760_000 and < 535_000_000 or >= 535_510_000 and < 536_500_000 or >= 553_710_000 and < 554_000_000;
     public const ushort CoinShopBuyRq = 0x8c08, CoinShopBuyRs = 0x8c09,
         GuildShopOpenNt = 0x8c0a, GuildShopBuyRq = 0x8c0b, GuildShopBuyRs = 0x8c0c,
         RandomShopInfoNt = 0x37d3, RandomShopInfoRq = 0x37d4, RandomShopInfoRs = 0x37d5,
@@ -141,6 +144,11 @@ public sealed partial class GameSession
             prices[priced.Value.Currency] = sum;
             if (g.Limit > 0) limits.Add((g.LimitTarget, goodsId, ShopTables.Period(g.LimitPeriod, at), count, g.Limit));
         }
+        foreach (var (itemId, _) in rewards)
+        {
+            if (ShopDeliverableNeedsUseData(itemId) && Boxes.Use(itemId) is null)
+                return [reply(1)];
+        }
         if (PurchaseCosts(prices.Select(p => (p.Key, p.Value))) is not { } paid) return [reply(2)];
         var pay = await PayQunaAsync(paid.Quna, new { kind, goods = entries.Select(e => new[] { e.Goods, e.Count }).ToArray() },
             request => StoredOk(() => store.ShopBuyAsync(character, paid.Costs, rewards, limits, orders, ct, request)), ct);
@@ -149,6 +157,7 @@ public sealed partial class GameSession
         var replies = new List<byte[]> { reply(0) };
         replies.AddRange(await InventoryChangesAsync(ct, IncreaseShopBuy, DecreaseShopBuy));
         replies.AddRange(await AutoUseAcquiredItemsAsync(rewards.Select(r => r.Item1), now, ct));
+        if (paid.Quna > 0) replies.AddRange(QunaRefreshIfChanged());
         return replies;
     }
 

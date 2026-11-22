@@ -97,6 +97,8 @@ public sealed partial class GameSession
 
     bool CanPickupDrop(GroundDrop drop)
     {
+        if (QaBot)
+            return drop.OwnerType == DropOwnerPlayer && drop.Owner != 0 && (selected?.WireId ?? playerKey) == drop.Owner;
         if (drop.OwnerType == DropOwnerParty)
             return Social?.PartyOf(worldPlayer!) is { } party && party.Key == drop.Owner && party.Distribution == PartyOptions.DistributionManual;
         if (drop.OwnerType == DropOwnerForce)

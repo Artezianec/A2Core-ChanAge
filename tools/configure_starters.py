@@ -62,7 +62,9 @@ def main():
     parser.add_argument('--build-id')
     args = parser.parse_args()
     builds = sql('SELECT build_id FROM catalog.builds ORDER BY build_id;').stdout.splitlines()
-    build = args.build_id or (builds[0] if len(builds) == 1 else None)
+    build = args.build_id or sql('SELECT build_id FROM catalog.builds ORDER BY imported_at DESC, build_id LIMIT 1;').stdout.strip()
+    if not build and len(builds) == 1:
+        build = builds[0]
     if build not in builds:
         raise ValueError('Choose an imported catalogue with --build-id')
     profiles = json.loads((ROOT / 'tools/data/starter-skills.json').read_text())

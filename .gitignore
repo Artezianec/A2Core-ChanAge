@@ -25,6 +25,10 @@ tools/WardrobeExport/bin/
 tools/WardrobeExport/obj/
 tools/MapImageExport/bin/
 tools/MapImageExport/obj/
+tools/Aion.HeadlessClient/bin/
+tools/Aion.HeadlessClient/obj/
+tools/Aion.HeadlessClient.Protocol/bin/
+tools/Aion.HeadlessClient.Protocol/obj/
 
 # React pages (web/) build into the host wwwroot; wardrobe-viewer.js there stays hand-written.
 web/node_modules/

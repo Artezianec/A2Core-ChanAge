@@ -4,6 +4,7 @@ body { background: var(--aion-bg-deep); }
 
 .landing {
   --pad-x: clamp(20px, 6vw, 112px);
+  --landing-mobile-bar-h: calc(68px + env(safe-area-inset-bottom));
   position: relative;
   color: var(--aion-text);
   font-family: var(--aion-font-body);
@@ -17,6 +18,8 @@ body { background: var(--aion-bg-deep); }
 .landing h1, .landing h2, .landing h3 { margin: 0; font-weight: 600; }
 .landing p { margin: 0; }
 .landing a { color: inherit; }
+.landing img { max-width: 100%; height: auto; }
+.landing-class-portrait img { height: 100%; max-width: none; }
 .landing [tabindex="-1"]:focus { outline: none; }
 
 .landing--snap { height: 100vh; overflow: hidden; overscroll-behavior: none; }
@@ -179,7 +182,16 @@ body { background: var(--aion-bg-deep); }
   height: calc(var(--aion-header-h) + 24px + env(safe-area-inset-top));
   padding: env(safe-area-inset-top) clamp(16px, 2.4vw, 40px) 0;
   background: linear-gradient(180deg, rgba(3, 6, 13, 0.75), transparent);
-  transition: background-color 0.4s ease;
+  transition: background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease, -webkit-backdrop-filter 0.35s ease, backdrop-filter 0.35s ease;
+}
+
+/* Flow / mobile: opaque bar so section headings do not show through the centred logo. */
+.landing-header.is-opaque {
+  background: rgba(3, 6, 13, 0.94);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(201, 161, 90, 0.28);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.5);
 }
 
 
@@ -234,9 +246,11 @@ body { background: var(--aion-bg-deep); }
 .landing-menu-toggle {
   display: none;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  height: 40px;
-  padding: 0 4px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
   border: 0;
   background: none;
   color: var(--aion-cream);
@@ -633,53 +647,143 @@ body { background: var(--aion-bg-deep); }
 .landing-faction-body { color: var(--aion-text-body); }
 
 /* ---------- Lore ---------- */
-.landing-split { display: grid; grid-template-columns: minmax(260px, 400px) minmax(0, 1fr); gap: clamp(32px, 6vw, 96px); align-items: center; }
-
-.landing-timeline { position: relative; display: flex; flex-direction: column; padding-left: 20px; }
-
-.landing-timeline::before {
-  content: "";
-  position: absolute;
-  inset: 8px auto 8px 0;
-  width: 1px;
-  background: linear-gradient(180deg, transparent, var(--aion-gold-line) 10%, var(--aion-gold-line) 90%, transparent);
+.landing-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
 }
+
+.landing-split > * { min-width: 0; }
+
+@media (min-width: 900px) {
+  .landing-split {
+    grid-template-columns: minmax(260px, 400px) minmax(0, 1fr);
+    gap: clamp(32px, 6vw, 96px);
+    align-items: center;
+  }
+}
+
+/* Narrow phones/tablets: horizontal era tabs with scroll-snap; desktop: vertical timeline. */
+.landing-timeline {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0;
+  margin: 0 calc(var(--pad-x) * -1);
+  padding: 0 var(--pad-x) 6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--pad-x);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 161, 90, 0.45) transparent;
+  mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 32px), transparent 100%);
+}
+
+.landing-timeline::-webkit-scrollbar { height: 4px; }
+.landing-timeline::-webkit-scrollbar-thumb { background: rgba(201, 161, 90, 0.45); border-radius: 4px; }
+
+.landing-timeline::before,
+.landing-timeline button::before { display: none; }
 
 .landing-timeline button {
   position: relative;
   display: flex;
   align-items: baseline;
   gap: 16px;
-  padding: 12px 0 12px 16px;
-  border: 0;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  padding: 12px 14px;
+  border: 1px solid var(--aion-line);
+  margin-right: 8px;
   background: none;
   color: var(--aion-text-muted);
-  font: 500 16px/1.4 var(--aion-font-body);
+  font: 500 14px/1.4 var(--aion-font-body);
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
   transition: color var(--aion-hover);
 }
 
-.landing-timeline button::before {
-  content: "";
-  position: absolute;
-  left: -24px;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  border: 1px solid var(--aion-gold-dim);
-  background: var(--aion-bg-deep);
-  transform: translateY(-50%) rotate(45deg);
-  transition: background-color 0.3s, box-shadow 0.3s;
-}
+.landing-timeline button:hover,
+.landing-timeline button.is-active { color: var(--aion-cream); }
 
-.landing-timeline button:hover, .landing-timeline button.is-active { color: var(--aion-cream); }
-.landing-timeline button.is-active::before { background: var(--aion-brass); box-shadow: 0 0 12px var(--aion-brass); }
-
-.landing-timeline-num { width: 28px; font: 600 14px/1 var(--aion-font-display); color: var(--aion-gold-dim); }
+.landing-timeline-num { width: auto; font: 600 14px/1 var(--aion-font-display); color: var(--aion-gold-dim); }
 .landing-timeline button.is-active .landing-timeline-num { color: var(--aion-brass); }
 
-.landing-lore-panel { overflow: hidden; padding: clamp(32px, 5vw, 64px); animation: landing-rise 0.6s var(--aion-ease-out) both; }
+.landing-timeline button.is-active {
+  border-color: var(--aion-brass);
+  background: rgba(201, 161, 90, 0.1);
+}
+
+@media (min-width: 900px) {
+  .landing-timeline {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    margin: 0;
+    padding: 0 0 0 20px;
+    overflow: visible;
+    scroll-snap-type: none;
+    scrollbar-width: auto;
+    mask-image: none;
+  }
+
+  .landing-timeline::before {
+    display: block;
+    content: "";
+    position: absolute;
+    inset: 8px auto 8px 0;
+    width: 1px;
+    background: linear-gradient(180deg, transparent, var(--aion-gold-line) 10%, var(--aion-gold-line) 90%, transparent);
+  }
+
+  .landing-timeline button {
+    flex: none;
+    scroll-snap-align: none;
+    margin-right: 0;
+    padding: 12px 0 12px 16px;
+    border: 0;
+    background: none;
+    font-size: 16px;
+    white-space: normal;
+  }
+
+  .landing-timeline button::before {
+    display: block;
+    content: "";
+    position: absolute;
+    left: -24px;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    border: 1px solid var(--aion-gold-dim);
+    background: var(--aion-bg-deep);
+    transform: translateY(-50%) rotate(45deg);
+    transition: background-color 0.3s, box-shadow 0.3s;
+  }
+
+  .landing-timeline button.is-active {
+    border-color: transparent;
+    background: none;
+  }
+
+  .landing-timeline button.is-active::before { background: var(--aion-brass); box-shadow: 0 0 12px var(--aion-brass); }
+
+  .landing-timeline-num { width: 28px; }
+}
+
+.landing-lore-panel {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: visible;
+  padding: clamp(24px, 5vw, 64px);
+  animation: landing-rise 0.6s var(--aion-ease-out) both;
+}
 
 .landing-lore-numeral {
   position: absolute;
@@ -699,7 +803,14 @@ body { background: var(--aion-bg-deep); }
   color: var(--aion-cream);
 }
 
-.landing-lore-panel p { position: relative; max-width: 40rem; font-size: 1.1rem; line-height: 1.8; color: var(--aion-text-body); }
+.landing-lore-panel p {
+  position: relative;
+  max-width: 40rem;
+  font-size: clamp(0.9375rem, 2.5vw, 1.1rem);
+  line-height: 1.8;
+  color: var(--aion-text-body);
+  overflow-wrap: anywhere;
+}
 
 /* ---------- Features ---------- */
 .landing-features { max-width: 600px; }
@@ -826,11 +937,12 @@ body { background: var(--aion-bg-deep); }
 .landing-segmented { display: inline-flex; gap: 6px; margin-bottom: 24px; }
 
 .landing-segmented button {
+  min-height: 44px;
   height: 44px;
   padding: 0 24px;
   border: 0;
   background: none;
-  color: #918d80;
+  color: #c5c0b4;
   font: 600 15px/1 var(--aion-font-display);
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -898,19 +1010,33 @@ body { background: var(--aion-bg-deep); }
   border-top: 1px solid var(--aion-gold-line);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
+  transition: transform 0.32s var(--aion-ease-out), opacity 0.28s ease, visibility 0.32s;
 }
 
 .landing-mobile-bar .landing-btn { height: 48px; padding: 0 12px; }
 
+.landing-mobile-bar.is-hidden {
+  transform: translateY(100%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* ---------- Scrolling layout (phones, short windows) ---------- */
-.landing--flow { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
-.landing--flow .landing-slide { min-height: auto; padding-top: 104px; padding-bottom: 88px; content-visibility: auto; contain-intrinsic-size: auto 900px; }
-.landing--flow .landing-slide--hero { min-height: 100svh; padding-bottom: 72px; content-visibility: visible; }
+.landing--flow { padding-bottom: var(--landing-mobile-bar-h); }
+.landing--flow .landing-slide {
+  min-height: auto;
+  padding-top: 104px;
+  padding-bottom: calc(48px + var(--landing-mobile-bar-h));
+  content-visibility: auto;
+  contain-intrinsic-size: auto 900px;
+}
+.landing--flow .landing-slide--hero { min-height: 100svh; padding-bottom: calc(32px + var(--landing-mobile-bar-h)); content-visibility: visible; }
 .landing--flow .landing-slide--bleed { padding: 0; }
 .landing--flow .landing-slide--bleed .landing-section-head { position: relative; inset: auto; padding: 104px var(--pad-x) 0; }
 .landing--flow .landing-factions { min-height: 0; }
 .landing--flow .landing-faction { min-height: 72svh; }
-.landing--flow .landing-faction-copy { padding-bottom: 56px; }
+.landing--flow .landing-faction-copy { padding-bottom: calc(32px + var(--landing-mobile-bar-h)); }
 .landing--flow .landing-slide-bg .landing-art { transform: none; }
 
 /* ---------- Breakpoints ---------- */
@@ -949,31 +1075,37 @@ body { background: var(--aion-bg-deep); }
   .landing-faction:hover { flex-grow: 1; }
   .landing-faction--asmo::before { inset: 0 0 auto; width: auto; height: 1px; background: linear-gradient(90deg, transparent, var(--aion-brass), transparent); }
 
-  .landing-split { grid-template-columns: 1fr; gap: 24px; }
-  .landing-timeline { flex-direction: row; overflow-x: auto; padding: 0 0 4px; scrollbar-width: none; }
-  .landing-timeline::before, .landing-timeline button::before { display: none; }
-  .landing-timeline button { flex: 0 0 auto; padding: 10px 14px; border: 1px solid var(--aion-line); margin-right: 8px; font-size: 14px; }
-  .landing-timeline button.is-active { border-color: var(--aion-brass); background: rgba(201, 161, 90, 0.1); }
-  .landing-timeline-num { width: auto; }
-
-  .landing-feature-tabs { gap: 20px; overflow-x: auto; }
+  .landing-feature-tabs { gap: 20px; overflow-x: auto; scroll-snap-type: x mandatory; }
+  .landing-feature-tabs button { scroll-snap-align: start; flex: 0 0 auto; }
 
   .landing-classes { grid-template-columns: 1fr; }
   .landing-class-portrait { order: -1; height: 54vw; min-height: 260px; max-height: 420px; margin: 0 calc(var(--pad-x) * -1); }
   .landing-class-portrait img { object-position: 50% 100%; }
   .landing-class-detail { min-height: 0; }
-  .landing-class-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .landing-class-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 12px; }
+  .landing-class-strip-name { white-space: normal; text-align: center; line-height: 1.25; }
+  .landing--flow #classes.landing-slide { padding-bottom: calc(64px + var(--landing-mobile-bar-h)); }
 
   .landing-steps { grid-template-columns: 1fr; }
   .landing-steps li { display: grid; grid-template-columns: 44px 1fr; column-gap: 12px; padding: 20px; }
   .landing-step-num { grid-row: span 2; margin: 0; font-size: 1.5rem; }
 }
 
+@media (max-width: 600px) and (orientation: landscape) {
+  .landing--flow .landing-slide--hero { min-height: auto; }
+  .landing-class-portrait { max-height: 280px; min-height: 180px; }
+}
+
 @media (max-width: 420px) {
-  .landing-class-strip-name { font-size: 10px; }
+  .landing-class-strip-name { font-size: 11px; }
   .landing-class-strip img { width: 52px; height: 52px; }
-  .landing-segmented { display: flex; }
+  .landing-segmented { display: flex; width: 100%; }
   .landing-segmented button { flex: 1; padding: 0 12px; }
+}
+
+@media (min-width: 600px) and (max-width: 899px) {
+  .landing-class-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .landing-class-strip-name { white-space: nowrap; }
 }
 
 @media (prefers-reduced-motion: reduce) {

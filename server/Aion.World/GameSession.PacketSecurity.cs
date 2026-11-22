@@ -41,12 +41,33 @@ public sealed partial class GameSession
         }
     }
 
+    static readonly HashSet<ushort> WireTraceOpcodes = ParseWireTraceOpcodes(Environment.GetEnvironmentVariable("AION_WIRE_TRACE_OPCODES"));
+
+    static HashSet<ushort> ParseWireTraceOpcodes(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return [];
+        var set = new HashSet<ushort>();
+        foreach (var part in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var text = part.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? part[2..] : part;
+            if (ushort.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out var opcode))
+                set.Add(opcode);
+        }
+        return set;
+    }
+
     public void RecordOutboundPackets(IEnumerable<byte[]> packets, long nowMs)
     {
         foreach (var packet in packets)
         {
             if (packet.Length < 2) continue;
             LogGamePacket(outbound: true, packet, nowMs);
+            if (WireTraceOpcodes.Count > 0)
+            {
+                var opcode = Opcode(packet);
+                if (WireTraceOpcodes.Contains(opcode))
+                    ConnectionLog?.Invoke($"wire-out 0x{opcode:x4} len={packet.Length} body={Convert.ToHexString(packet)}");
+            }
             PacketTrace.RecordServer(Opcode(packet), packet.Length, nowMs);
         }
     }

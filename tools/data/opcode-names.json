@@ -73,6 +73,7 @@
   "0x383f": "SkillLevelUp_RQ",
   "0x3841": "SkillLevelDown_RQ",
   "0x3843": "SkillLevelReset_RQ",
+  "0x3848": "SkillRangeNoticeFilterLocation_NT",
   "0x39cd": "RelationshipEntityUpdate_NT",
   "0x4001": "MapEnvState_NT",
   "0x4002": "MapEnvSetting_NT",

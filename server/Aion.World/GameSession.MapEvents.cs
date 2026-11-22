@@ -314,11 +314,18 @@ public sealed partial class GameSession : IMapEventHost
         var at = position ?? spawn?.Position ?? default;
         // A walk-in layer that overlays this map keeps the player's spot; a door (HQ003's Guard Storage Door, 2026-10-30: the
         // spot outside the closed door left the player unable to reach the storage's first trigger) puts them inside.
-        var arrival = !throughDoor && MapEventData.Volume(room.Map) is { } volume && volume.Base == worldMap ? at : ArrivalPoint(room) ?? at;
+        // Keep walk-in position only when standing inside the field overlay polygon; otherwise use the layer start (re-entry
+        // from the exit point on the base map must not spawn the player at the wrong spot in the layer, run 15).
+        var arrival = !throughDoor && MapEventData.Volume(room.Map) is { } volume && volume.Base == worldMap && volume.Contains(at)
+            ? at
+            : ArrivalPoint(room) ?? at;
         var targetCopy = copy != 0 ? copy : playerKey;
         var alreadyInCopy = instanceKey == targetCopy && worldMap == room.Map;
+        if (alreadyInCopy && !reloading && !throughDoor)
+            return MapEventsJoin(now, resendExistingJoins: true);
         if (worldMap == room.Map && instanceKey != targetCopy)
         {
+            StashVacatedMapEventRuns(now);
             HandOverCopy();
             mapEventRuns.Clear();
             this.copy = null;
@@ -464,6 +471,21 @@ public sealed partial class GameSession : IMapEventHost
         return replies;
     }
 
+    /// <summary>Keeps solo instance map-event progress on the vacated copy for re-entry (leave instance, death teleport to field).</summary>
+    internal bool LayerCopyHasDanglingRuns(int layerMap) =>
+        options.World?.Map(layerMap, instanceKey != 0 ? instanceKey : playerKey).DanglingMapEventRuns is { Count: > 0 };
+
+    internal void StashVacatedMapEventRuns(long now, int copyId = 0)
+    {
+        var inst = copyId != 0 ? copyId : instanceKey;
+        if (inst == 0 || mapEventRuns.Count == 0) return;
+        var vacated = options.World?.Map(worldMap, inst);
+        if (vacated is null || vacated.Instance != inst) return;
+        vacated.DanglingMapEventRuns = [.. mapEventRuns];
+        vacated.DanglingForPlayerKey = playerKey;
+        vacated.VacatedAtMs = now;
+    }
+
     /// <summary>Right after the map's targets are set: the deferred spawn entries go dormant, before the NPC list is sent.</summary>
     void MapEventsPrepare()
     {
@@ -522,8 +544,23 @@ public sealed partial class GameSession : IMapEventHost
         var leaves = DropMapEventRunsUnlessStartHolds(now);
         // A reload of the same map (a PCTeleport) keeps the runs and the client keeps its event state: the official boss-room
         // move in the 2026-10-19 recording sent no 0x922e after the load (the earlier re-join was a guess).
+        if (worldPlayer?.Map?.DanglingMapEventRuns is { Count: > 0 } dangling
+            && worldPlayer.Map.DanglingForPlayerKey == playerKey && mapEventRuns.Count == 0)
+        {
+            mapEventRuns.AddRange(dangling);
+            foreach (var run in mapEventRuns) run.Host = this;
+            worldPlayer.Map.DanglingMapEventRuns = null;
+            mapEventsMap = worldMap;
+            mapEventNow = now;
+            EnsureOpenKillSpawnersForRuns();
+            SyncMapEventBombTowerCredits(now);
+            return [.. leaves, .. mapEventRuns.Select(run => GamePackets.MapEventJoin(run.Id, run.Name, (byte)run.Status, run.StageOrder, run.WireStep, run.Goals, run.StartedMs, run.Variables))];
+        }
         if (mapEventsMap == worldMap && mapEventRuns.Count > 0)
         {
+            mapEventNow = now;
+            EnsureOpenKillSpawnersForRuns();
+            if (resendExistingJoins) SyncMapEventBombTowerCredits(now);
             if (!resendExistingJoins) return leaves;
             return [.. leaves, .. mapEventRuns.Select(run => GamePackets.MapEventJoin(run.Id, run.Name, (byte)run.Status, run.StageOrder, run.WireStep, run.Goals, run.StartedMs, run.Variables))];
         }
@@ -549,6 +586,7 @@ public sealed partial class GameSession : IMapEventHost
             run.Start(now);
         }
         replies.AddRange(SyncMapEventEnvInteractFlags());
+        EnsureOpenKillSpawnersForRuns();
         replies.AddRange(DrainMapEvents());
         return replies;
     }
@@ -622,6 +660,11 @@ public sealed partial class GameSession : IMapEventHost
     List<byte[]> MapEventUsedObject(string spawnName, long now)
     {
         if (ToCopyOwner(o => o.MapEventUsedObject(spawnName, now)) || mapEventRuns.Count == 0) return [];
+        if (MapEventObjectForName(spawnName) is { } credited && !BombPlantMapEventCreditAllowed(credited))
+        {
+            Note($"UseEnvObj {spawnName}: refused map-event credit (bomb plant out of range)");
+            return [];
+        }
         mapEventNow = now;
         foreach (var run in mapEventRuns.ToList())
         {
@@ -731,6 +774,7 @@ public sealed partial class GameSession : IMapEventHost
             if (targets?.GetValueOrDefault(key) is { } npc)
                 foreach (var run in mapEventRuns.ToList()) run.NpcArrived(npc.Name, route, now);
         WaveTick(now);
+        EnsureOpenKillSpawnersForRuns();
         foreach (var run in mapEventRuns.ToList()) run.Tick(now);
         MapEventAskNpcProximityFallback(now);
         mapEventOut.AddRange(FestivalTick(now));   // GameSession.FestivalGames.cs
@@ -811,7 +855,50 @@ public sealed partial class GameSession : IMapEventHost
                 foreach (var t in ready.Where(t => !t.Dead && !t.CorpseRemoved)) PrepareMapEventTalkNpc(t, o);
         }
         EnsureStepUseEnvObjects(step, goals);
+        EnsureStepKillSpawners(step, goals);
     }
+
+    /// <summary>Resumed dungeon/instance runs may already be on a boss step when the player reconnects; revive deferred spawners while objectives stay open.</summary>
+    void EnsureOpenKillSpawnersForRuns()
+    {
+        foreach (var run in mapEventRuns.Where(r => !r.Finished))
+        {
+            if (run.Step is not { } step) continue;
+            EnsureStepKillSpawners(step, run.Goals);
+        }
+    }
+
+    /// <summary>KillSpawner / HpRemaining: dormant bosses (deferred spawns) must live when the step opens even if the prior step's post did not run.</summary>
+    void EnsureStepKillSpawners(MapEventStep step, int[] goals)
+    {
+        if (targets is null) return;
+        for (var i = 0; i < step.Objectives.Length; i++)
+        {
+            var o = step.Objectives[i];
+            if (i < goals.Length && goals[i] >= o.Count) continue;
+            if (o.Type == "KillSpawner")
+            {
+                var spawner = o.Value(0);
+                if (string.IsNullOrEmpty(spawner) || SpawnerHasLivingNpc(spawner, o.Npcs)) continue;
+                DoSpawn(spawner);
+            }
+            else if (o.Type == "HpRemaining" && o.Npcs is { Length: > 0 } ids)
+            {
+                if (targets.Values.Any(t => ids.Contains(t.NpcId) && !t.Dead && !t.CorpseRemoved && t.Hp > 0))
+                    continue;
+                foreach (var id in ids)
+                {
+                    var place = data.Spawns(worldMap).FirstOrDefault(s => s.NpcId == id);
+                    if (place is null || SpawnerHasLivingNpc(place.Name, ids)) continue;
+                    DoSpawn(place.Name);
+                }
+            }
+        }
+    }
+
+    bool SpawnerHasLivingNpc(string spawner, int[]? npcIds) =>
+        SpawnerNpcs(spawner).Any(t => !t.Dead && !t.CorpseRemoved && t.Hp > 0
+            && (npcIds is null or { Length: 0 } || npcIds.Contains(t.NpcId)));
 
     /// <summary>UseEnvObj objectives: spawn and 0x363c as soon as the step opens (Valley of Hope layer props, CoastalCave barrierstone).</summary>
     void EnsureStepUseEnvObjects(MapEventStep step, int[] goals)
@@ -1037,6 +1124,12 @@ public sealed partial class GameSession : IMapEventHost
         };
     }
 
+    internal void QaStartMapEventSpawner(string spawner)
+    {
+        if (CopyOwner is { } owner) { owner.QaStartMapEventSpawner(spawner); return; }
+        DoSpawn(spawner);
+    }
+
     void DoSpawn(string spawner)
     {
         var wasDormant = dormantSpawners.Remove(spawner);
@@ -1058,8 +1151,10 @@ public sealed partial class GameSession : IMapEventHost
             ShowSpawned(t);
         }
         endedSpawners.Remove(spawner);
+        var copyTag = CopyOwner is not null ? " host-copy" : "";
+        Note($"StartSpawner {spawner}: matched {matched.Count}, revived {revived}, already-living {already}, was-dormant {wasDormant}, map {worldMap} instance {instanceKey}{copyTag}");
         DebugMapEvent($"StartSpawner {spawner}: matched {matched.Count}, revived {revived}, already-living {already}, was-dormant {wasDormant}, map {worldMap}");
-        if (matched.Count == 0) Note($"StartSpawner {spawner}: no NPC with that name on map {worldMap}");
+        if (matched.Count == 0) Note($"StartSpawner {spawner}: no NPC with that name on map {worldMap} instance {instanceKey}");
         foreach (var (index, o) in SpawnerObjects(spawner))
         {
             removedObjects.Remove(index);

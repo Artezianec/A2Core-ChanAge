@@ -79,12 +79,13 @@ public sealed partial class NpcAi
             fight.Haste = Math.Min(fight.Haste, phase.Haste * (fight.Frenzied ? fight.Script.Frenzy?.Haste ?? 1 : 1));
             if (phase.Telegraph is { } slam)
             {
-                if (fight.Winding is not null) BreakSlam(brain, now);
+                if (fight.Winding is not null) replies.AddRange(BreakSlam(target, brain, now));
                 fight.Filler ??= fight.Telegraph;
                 fight.Telegraph = slam;
                 fight.NextSlamMs = slam.Once ? now : Math.Min(fight.NextSlamMs, now + slam.EveryMs / 2);
             }
             if (phase.Notice is { Length: > 0 } notice) replies.Add(GameSession.Notice(notice, phase.NoticeRu, 22, "FFB040"));
+            replies.AddRange(OnBossPhase(target, brain, phase, now));
             if (phase.Adds is { Count: > 0 } adds) summonRequests.Add(new SummonRequest(target, fight, adds, Victim(brain)));
         }
         if (fight.Script.Frenzy is { } frenzy && BossRules.Frenzy && !fight.Frenzied && !OfficialFrenzy(fight.Script.Dungeon)
@@ -121,7 +122,10 @@ public sealed partial class NpcAi
             fight.Winding = (next, due, brain.ActionSeq, centre, yaw);
             fight.NextSlamMs = due + next.EveryMs;
             replies.Add(PlayerPackets.SkillCastingStart(target.Key, next.Skill, Victim(brain), yaw, centre, windUp));
+            replies.AddRange(TelegraphForArea(target, next.Skill, (byte)brain.ActionSeq, centre, yaw, windUp + HitDelayMs, now));
             if (next.Warning is { Length: > 0 } warning) replies.Add(GameSession.Notice(warning, next.WarningRu, 22, "FF8040"));
+            replies.AddRange(MaybeStartFireWall(target, next, centre, now));
+            replies.AddRange(StartWindUpMechanic(target, next, centre, now));
             return (replies, true);
         }
         return (replies, false);
@@ -155,9 +159,11 @@ public sealed partial class NpcAi
         brain.Volley.Add(new SummonShot(now + MonsterEndAfterLastHitMs, ShotKind.End, slam.Skill, seq, Victim(brain), 0));
         if (brain.Fight is { } fight) fight.Slams++;
         SlamsLanded++;
-        if (!slam.Land || currentHitPlayer is not { } hitPlayer) return replies;
+        if (!slam.Land)
+            return replies.Concat(SlamMechanicLand(target, brain, slam, centre, yaw, now)).ToList();
+        if (currentHitPlayer is not { } hitPlayer) return replies;
         var max = SkillAreas.For(slam.Skill) is { IsArea: true } area ? area.Max : int.MaxValue;
-        foreach (var (key, _) in currentPlayers.Where(p => InSlam(target, slam, centre, yaw, p.Position))
+        foreach (var (key, _) in currentPlayers.Where(p => InSlam(target, slam, centre, yaw, p.Position) && !SlamSkipsPlayer(target, slam, p.Position))
                      .OrderBy(p => p.Position.DistanceSquared(centre)).ThenBy(p => p.Key).Take(max).ToList())
         {
             var raw = Damage(target, skill, PlayerLevelOf?.Invoke(key) ?? 1) * slam.Damage;
@@ -196,18 +202,23 @@ public sealed partial class NpcAi
     }
 
     /// <summary>A hold or stun (including a stagger-gauge break) breaks the slam's wind-up. A once-only or stagger-check slam is not retried; otherwise the boss tries again <see cref="SlamRetryMs"/> later.</summary>
-    static void BreakSlam(Brain brain, long now)
+    List<byte[]> BreakSlam(Target target, Brain brain, long now)
     {
-        if (brain.Fight is not { Winding: { } winding } fight) return;
+        if (brain.Fight is not { Winding: { } winding } fight) return [];
         fight.Winding = null;
+        var clear = MechanicTelegraphs.Clear(GameSession.CombatTelegraphRules, target.Key, winding.Slam.Skill, (byte)winding.Seq,
+            winding.Centre, winding.Yaw);
         if (winding.Slam.Once || winding.Slam.StaggerCheck) FinishSlam(fight, winding.Slam, now);
         else fight.NextSlamMs = now + SlamRetryMs;
+        return clear is null ? [] : [clear];
     }
 
     /// <summary>A boss's fight ends (a wipe sent it home, or it died): its living adds vanish (0x3642 flag 7) and the phases start over.</summary>
     List<byte[]> EndFight(Brain brain)
     {
         if (brain.Fight is not { } fight) return [];
+        ClearFireWall();
+        ClearExpeditionMechanics();
         brain.Fight = null;
         var replies = new List<byte[]>();
         foreach (var key in fight.Adds)

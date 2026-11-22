@@ -37,7 +37,9 @@ public sealed class ServerFileLoggerProvider : ILoggerProvider, IAsyncDisposable
     public static ServerFileLoggerProvider? TryCreate(IConfiguration configuration)
     {
         var options = configuration.GetSection(AionConfiguration.ServerLog).Get<ServerLogOptions>() ?? new ServerLogOptions();
-        if (!options.Enabled) return null;
+        var debugEnabled = configuration.GetSection(AionConfiguration.Debug).GetValue<bool?>("Enabled") == true;
+        if (!options.Enabled && !debugEnabled) return null;
+        options = options with { Enabled = true };
         var debugDir = configuration.GetSection(AionConfiguration.Debug)["LogDirectory"];
         var directory = DebugOptions.ResolveLogDirectory(options.LogDirectory ?? debugDir, AppContext.BaseDirectory);
         var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
@@ -52,7 +54,7 @@ public sealed class ServerFileLoggerProvider : ILoggerProvider, IAsyncDisposable
     public static string UniquePath(string directory, string timestamp)
     {
         var path = System.IO.Path.Combine(directory, $"server-{timestamp}.log");
-        for (var n = 1; File.Exists(path); n++)
+        for (var n = 1; File.Exists(path) && new FileInfo(path).Length > 0; n++)
             path = System.IO.Path.Combine(directory, n == 1 ? $"server-{timestamp}-host.log" : $"server-{timestamp}-host-{n}.log");
         return path;
     }

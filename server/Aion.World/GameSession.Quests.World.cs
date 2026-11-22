@@ -50,6 +50,10 @@ public sealed partial class GameSession
     /// <summary>A timed interaction in progress: object index, key, when it completes.</summary>
     (int Index, int Key, long DueMs)? pendingUse;
 
+    internal bool EnvObjAvailableForUse(int index, WorldObject o, long now) =>
+        !usedObjects.Contains(index) && !Gathered(index, now) && !Broken(index, now) && !CarryBoxGone(index, now)
+        && PlayerMayUseEnvObj(index, o);
+
     byte[] EnvObjSpawnPacket(int index, WorldObject o, long now)
     {
         var key = WorldObjects.FirstKey + index;
@@ -208,13 +212,16 @@ public sealed partial class GameSession
         if (o.Gather is not null && GatherFailReason(o) is { } gatherFail) return GatherRefusedPackets(key2, gatherFail);
         if (position is { } at && Math.Sqrt(Math.Pow(at.X - o.Position[0], 2) + Math.Pow(at.Y - o.Position[1], 2)) > o.InteractRange + WorldObjects.InteractSlack)
             return [GamePackets.InteractEnvObjReply(key2, 1)];
-        var replies = new List<byte[]> { GamePackets.InteractEnvObjStarted(key2, playerKey) };
         var interactTime = o.InteractTime > 0 ? o.InteractTime : o.Carry is not null ? CarryPickupMs : 0;
         if (interactTime > 0)
         {
+            // A second InteractEnvObj_RQ while the channel runs must not push DueMs (the QA bot spams 0x3636 each tick).
+            if (pendingUse is { } active && active.Index == found && now < active.DueMs)
+                return [GamePackets.InteractEnvObjStarted(key2, playerKey)];
             pendingUse = (found, key2, now + interactTime);
-            return replies;
+            return [GamePackets.InteractEnvObjStarted(key2, playerKey)];
         }
+        var replies = new List<byte[]> { GamePackets.InteractEnvObjStarted(key2, playerKey) };
         replies.AddRange(await CompleteUseAsync(found, ct, now));
         return replies;
     }
@@ -295,7 +302,8 @@ public sealed partial class GameSession
         // A carried-item box comes back after its FinishDuration even when a map event counts it (FierceHornCave BombBox_02).
         var consumed = objects[index].Carry is null && lootTables.Length == 0
             && (CopyOwner ?? this).mapEventRuns.Any(r => r.WantsObject(EventName(objects[index])));
-        replies.AddRange(MapEventUsedObject(EventName(objects[index]), now));
+        if (BombPlantMapEventCreditAllowed(objects[index]))
+            replies.AddRange(MapEventUsedObject(EventName(objects[index]), now));
         if (consumed || destroyed)
         {
             usedObjects.Add(index);

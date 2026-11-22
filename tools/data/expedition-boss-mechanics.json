@@ -1,0 +1,44 @@
+{
+  "source": "CANDIDATE tuning for five Expedition finals (docs/BOSS-MECHANICS.md). Client skills/areas from Skill.dat and skill-areas.json; env ids from tools/data/world-objects.json.",
+  "berk_pillar_cover": {
+    "skill": 1800050,
+    "cover_depth": 900,
+    "cover_half_width": 700,
+    "pillar_offset_from_boss": 1200,
+    "pillar_env_obj_id": 1400623
+  },
+  "auldor_tempest_soak": {
+    "stack_radius": 500,
+    "outer_arena_inner_radius": 4000,
+    "outer_dot_interval_ms": 1000,
+    "outer_dot_damage_min": 6000,
+    "outer_dot_damage_max": 9000
+  },
+  "bakarma_jump_rings": {
+    "skill": 1800655,
+    "pulse_ms": 2000,
+    "rings": [
+      { "safe_inner": 0, "safe_outer": 1200 },
+      { "safe_inner": 1200, "safe_outer": 2800 },
+      { "safe_inner": 2800, "safe_outer": 4500 }
+    ],
+    "dot_damage_min": 15000,
+    "dot_damage_max": 25000,
+    "arena_radius": 5000,
+    "edge_snap_radius": 4800,
+    "whirlpool_radius": 450,
+    "whirlpool_interval_ms": 1500,
+    "whirlpool_damage_min": 8000,
+    "whirlpool_damage_max": 14000
+  },
+  "nuakum_blue_light": {
+    "orb_radius": 450,
+    "hits_required": 3,
+    "window_ms": 34000
+  },
+  "nuakum_hunt_clone_npc": 2300910,
+  "kromede_clone_line": {
+    "skill": 1801050,
+    "every_ms": 8000
+  }
+}

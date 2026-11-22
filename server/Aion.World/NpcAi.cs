@@ -729,8 +729,10 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         brain.Cooldowns[skill.Id] = now + Math.Max(Hasted(brain, skill.Skill.Cooldown), skill.Skill.Cast + HitDelayMs);
         brain.NextAttackMs = lands;
         var yaw = target.NoRotation ? brain.Heading : facing;
-        replies.Add(GamePackets.SkillStart(skill.Id, brain.ActionSeq, yaw, CastLocation(target, brain, skill.Id, yaw),
-            targetKey: Victim(brain), actorKey: target.Key, cooldown: skill.Skill.Cooldown));
+        var at = CastLocation(target, brain, skill.Id, yaw);
+        replies.Add(GamePackets.SkillStart(skill.Id, brain.ActionSeq, yaw, at, targetKey: Victim(brain), actorKey: target.Key,
+            cooldown: skill.Skill.Cooldown));
+        replies.AddRange(TelegraphForArea(target, skill.Id, (byte)brain.ActionSeq, at, yaw, MechanicTelegraphs.NpcLandMs(skill.Skill), now));
         return replies;
     }
 
@@ -815,7 +817,8 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         {
             brain.Pending = null;
             brain.Volley.Clear();
-            BreakSlam(brain, now);   // a hold or stun breaks a slam's wind-up (an interrupt does not)
+            var broken = BreakSlam(target, brain, now);   // a hold or stun breaks a slam's wind-up (an interrupt does not)
+            if (broken.Count > 0) replies.AddRange(broken);
             return brain.Moving ? Stop(target, brain, brain.Heading, now) : replies;
         }
         if (DialogPaused.Contains(target.Key))

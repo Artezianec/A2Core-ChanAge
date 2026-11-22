@@ -29,6 +29,8 @@ public sealed partial class GameSession
 
     public int? CarriedGroup => CarriedBuff?.Group;
 
+    internal int? CarriedSkillId => CarriedSkill;
+
     /// <summary>The skill the carried item's ActivateSkill row gives (the bomb's 5003): castable while it lasts.</summary>
     int? CarriedSkill => CarriedBuff is { } buff
         ? Boxes.Abnormal(buff.AbnormalId)?.Effects.Where(e => e.Type == "ActivateSkill" && e.Values.Count > 0)
@@ -103,6 +105,7 @@ public sealed partial class GameSession
             return false;
         }
         if (!o.Destructible || !WorldObjects.HasCarryBoxes(worldMap) || CarriedGroup is null) return false;
+        if (position is not { } useAt || !InBombPlantRange(useAt, o)) return false;
         replies.AddRange(DropCarried(ExpireEtc));
         return true;
     }

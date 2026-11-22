@@ -1,0 +1,12 @@
+name: walk-route
+mode: development
+steps:
+  - action: walk-route
+    speed: 500
+    reportRate: 4
+    points:
+      - [0, 0, 22404]
+      - [200, 100, 22404]
+      - [0, 0, 22404]
+  - action: idle
+    seconds: 2

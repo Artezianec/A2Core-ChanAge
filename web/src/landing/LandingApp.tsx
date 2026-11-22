@@ -41,6 +41,7 @@ interface StatusState {
   launcherAvailable: boolean;
   launcherVersion: string | null;
   gameReady: boolean;
+  playersOnline: number | null;
 }
 
 type WorldSide = 'elyos' | 'asmo';
@@ -78,6 +79,37 @@ export function LandingApp() {
   const { activeIndex, goTo, scrollerRef, snapMode, trackStyle, animating } =
     useSectionPager(SECTION_IDS, { disabled: menuOpen });
   const status = useServerStatus();
+
+  const [headerOpaque, setHeaderOpaque] = useState(false);
+  const [mobileBarHidden, setMobileBarHidden] = useState(false);
+  const lastScrollY = useRef(0);
+
+  // Flow layout: solid header on phones; on short wide windows, solid after a small scroll.
+  // Hide the bottom action bar while scrolling down to free space over the class grid.
+  useEffect(() => {
+    if (snapMode) {
+      setHeaderOpaque(false);
+      setMobileBarHidden(false);
+      return;
+    }
+    const mobileMq = window.matchMedia('(max-width: 899px)');
+    const onScroll = () => {
+      const y = window.scrollY;
+      setHeaderOpaque(mobileMq.matches || y > 16);
+      if (y <= 40) setMobileBarHidden(false);
+      else if (y - lastScrollY.current > 10) setMobileBarHidden(true);
+      else if (lastScrollY.current - y > 10) setMobileBarHidden(false);
+      lastScrollY.current = y;
+    };
+    const onMq = () => onScroll();
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    mobileMq.addEventListener('change', onMq);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      mobileMq.removeEventListener('change', onMq);
+    };
+  }, [snapMode]);
 
   // Snap mode: after a page change, move focus to the new section heading so keyboard and
   // screen-reader users land where the eye does (inactive slides are inert).
@@ -133,7 +165,7 @@ export function LandingApp() {
           </div>
         )}
 
-        <header className="landing-header">
+        <header className={`landing-header${!snapMode && headerOpaque ? ' is-opaque' : ''}`}>
           <button
             type="button"
             className="landing-menu-toggle"
@@ -222,7 +254,7 @@ export function LandingApp() {
         )}
 
         {!snapMode && (
-          <div className="landing-mobile-bar">
+          <div className={`landing-mobile-bar${mobileBarHidden ? ' is-hidden' : ''}`} aria-hidden={mobileBarHidden}>
             <a className="landing-btn landing-btn--primary" href={PLAY_HREF}>{t.ctaPlay}</a>
             <a className="landing-btn landing-btn--ghost" href={DISCORD} target="_blank" rel="noopener noreferrer">Discord</a>
           </div>
@@ -383,12 +415,15 @@ export function LandingApp() {
 function useServerStatus(): StatusState {
   const [status, setStatus] = useState<StatusState>({
     loading: true, online: false, registrationOpen: false, launcherAvailable: false, launcherVersion: null, gameReady: false,
+    playersOnline: null,
   });
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const s = await api<{ accountsConfigured: boolean; registrationOpen?: boolean; launcherAvailable?: boolean; gameReady?: boolean }>('/api/status');
+        const s = await api<{
+          accountsConfigured: boolean; registrationOpen?: boolean; launcherAvailable?: boolean; gameReady?: boolean; online?: number;
+        }>('/api/status');
         let version: string | null = null;
         if (s.launcherAvailable) {
           try {
@@ -396,17 +431,19 @@ function useServerStatus(): StatusState {
           } catch { /* the version is optional */ }
         }
         if (!cancelled) {
+          const gameReady = Boolean(s.gameReady);
           setStatus({
             loading: false,
             online: Boolean(s.accountsConfigured),
             registrationOpen: Boolean(s.registrationOpen),
             launcherAvailable: Boolean(s.launcherAvailable),
             launcherVersion: version,
-            gameReady: Boolean(s.gameReady),
+            gameReady,
+            playersOnline: gameReady && typeof s.online === 'number' ? s.online : null,
           });
         }
       } catch {
-        if (!cancelled) setStatus(prev => ({ ...prev, loading: false, online: false, gameReady: false }));
+        if (!cancelled) setStatus(prev => ({ ...prev, loading: false, online: false, gameReady: false, playersOnline: null }));
       }
     }
     load();
@@ -598,6 +635,13 @@ function StatusList({ status }: { status: StatusState }) {
     },
     { label: t.statusGame, value: status.gameReady ? t.online : t.offline, ok: status.gameReady },
   ];
+  if (status.playersOnline !== null) {
+    rows.push({
+      label: t.statusPlayers,
+      value: String(status.playersOnline),
+      ok: true,
+    });
+  }
   return (
     <section className="landing-status" aria-label={t.statusTitle}>
       <dl>

@@ -108,6 +108,20 @@
         {
           "at": 75,
           "name": "wave_of_fury",
+          "telegraph": {
+            "skill": 1800050,
+            "every_ms": 999999,
+            "wind_up_ms": 6000,
+            "radius": 4500,
+            "damage": 1.0,
+            "once": true,
+            "land": true,
+            "mechanic": "berk_pillar_cover",
+            "warning": "Wave of Fury — hide behind the stone pillar!",
+            "warning_ru": "Волна ярости — спрячьтесь за каменным столбом!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
           "notice": "Wave of Fury — hide behind a stone pillar!",
           "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!"
         },
@@ -134,6 +148,20 @@
         {
           "at": 25,
           "name": "wave_of_fury",
+          "telegraph": {
+            "skill": 1800050,
+            "every_ms": 999999,
+            "wind_up_ms": 6000,
+            "radius": 4500,
+            "damage": 1.0,
+            "once": true,
+            "land": true,
+            "mechanic": "berk_pillar_cover",
+            "warning": "Wave of Fury — hide behind the stone pillar!",
+            "warning_ru": "Волна ярости — спрячьтесь за каменным столбом!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
           "notice": "Wave of Fury — hide behind a stone pillar!",
           "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!"
         }
@@ -263,6 +291,7 @@
             "warning": "Tempest Strike — stack on the marked player!",
             "warning_ru": "Удар бури — встаньте вместе на отмеченного игрока!",
             "land": false,
+            "mechanic": "auldor_tempest_soak",
             "radius_from": "skill-areas",
             "wind_up_from": "client cast"
           },
@@ -282,6 +311,7 @@
             "warning": "Tempest Strike — stack on the marked player! Stay near the centre.",
             "warning_ru": "Удар бури — встаньте вместе на отмеченного. Держитесь ближе к центру.",
             "land": false,
+            "mechanic": "auldor_tempest_soak",
             "radius_from": "skill-areas",
             "wind_up_from": "client cast"
           },
@@ -437,6 +467,7 @@
             "warning": "Find the gap!",
             "warning_ru": "Ищите проход!",
             "land": false,
+            "mechanic": "fire_wall_grid",
             "radius_from": "OURS",
             "wind_up_from": "client cast"
           },
@@ -462,6 +493,7 @@
             "warning": "Find the gap!",
             "warning_ru": "Ищите проход!",
             "land": false,
+            "mechanic": "fire_wall_grid",
             "radius_from": "OURS",
             "wind_up_from": "client cast"
           },
@@ -592,6 +624,7 @@
             "damage": 1.0,
             "once": true,
             "stagger_check": true,
+            "mechanic": "bakarma_jump_rings",
             "warning": "Wave of Death — jump the rings and break the stagger gauge!",
             "warning_ru": "Волна смерти — перепрыгивайте кольца и сбейте шкалу стаггера!",
             "land": true,
@@ -612,6 +645,7 @@
             "damage": 1.0,
             "once": true,
             "stagger_check": true,
+            "mechanic": "bakarma_jump_rings",
             "warning": "Wave of Death — route around whirlpools, jump the rings, break the gauge!",
             "warning_ru": "Волна смерти — обходите воронки, перепрыгивайте кольца, сбейте шкалу!",
             "land": true,
@@ -1103,6 +1137,20 @@
         {
           "at": 75,
           "name": "wave_of_fury",
+          "telegraph": {
+            "skill": 1800050,
+            "every_ms": 999999,
+            "wind_up_ms": 6000,
+            "radius": 4500,
+            "damage": 1.0,
+            "once": true,
+            "land": true,
+            "mechanic": "berk_pillar_cover",
+            "warning": "Wave of Fury — hide behind the stone pillar!",
+            "warning_ru": "Волна ярости — спрячьтесь за каменным столбом!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
           "notice": "Wave of Fury — hide behind a stone pillar!",
           "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!"
         },
@@ -1129,6 +1177,20 @@
         {
           "at": 25,
           "name": "wave_of_fury",
+          "telegraph": {
+            "skill": 1800050,
+            "every_ms": 999999,
+            "wind_up_ms": 6000,
+            "radius": 4500,
+            "damage": 1.0,
+            "once": true,
+            "land": true,
+            "mechanic": "berk_pillar_cover",
+            "warning": "Wave of Fury — hide behind the stone pillar!",
+            "warning_ru": "Волна ярости — спрячьтесь за каменным столбом!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
           "notice": "Wave of Fury — hide behind a stone pillar!",
           "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!"
         }
@@ -1251,6 +1313,7 @@
             "warning": "Tempest Strike — stack on the marked player!",
             "warning_ru": "Удар бури — встаньте вместе на отмеченного игрока!",
             "land": false,
+            "mechanic": "auldor_tempest_soak",
             "radius_from": "skill-areas",
             "wind_up_from": "client cast"
           },
@@ -1270,6 +1333,7 @@
             "warning": "Tempest Strike — stack on the marked player! Stay near the centre.",
             "warning_ru": "Удар бури — встаньте вместе на отмеченного. Держитесь ближе к центру.",
             "land": false,
+            "mechanic": "auldor_tempest_soak",
             "radius_from": "skill-areas",
             "wind_up_from": "client cast"
           },
@@ -1418,6 +1482,7 @@
             "warning": "Find the gap!",
             "warning_ru": "Ищите проход!",
             "land": false,
+            "mechanic": "fire_wall_grid",
             "radius_from": "OURS",
             "wind_up_from": "client cast"
           },
@@ -1443,6 +1508,7 @@
             "warning": "Find the gap!",
             "warning_ru": "Ищите проход!",
             "land": false,
+            "mechanic": "fire_wall_grid",
             "radius_from": "OURS",
             "wind_up_from": "client cast"
           },
@@ -1566,6 +1632,7 @@
             "damage": 1.0,
             "once": true,
             "stagger_check": true,
+            "mechanic": "bakarma_jump_rings",
             "warning": "Wave of Death — jump the rings and break the stagger gauge!",
             "warning_ru": "Волна смерти — перепрыгивайте кольца и сбейте шкалу стаггера!",
             "land": true,
@@ -1586,6 +1653,7 @@
             "damage": 1.0,
             "once": true,
             "stagger_check": true,
+            "mechanic": "bakarma_jump_rings",
             "warning": "Wave of Death — route around whirlpools, jump the rings, break the gauge!",
             "warning_ru": "Волна смерти — обходите воронки, перепрыгивайте кольца, сбейте шкалу!",
             "land": true,
@@ -1921,6 +1989,20 @@
         {
           "at": 75,
           "name": "wave_of_fury",
+          "telegraph": {
+            "skill": 1800050,
+            "every_ms": 999999,
+            "wind_up_ms": 6000,
+            "radius": 4500,
+            "damage": 1.0,
+            "once": true,
+            "land": true,
+            "mechanic": "berk_pillar_cover",
+            "warning": "Wave of Fury — hide behind the stone pillar!",
+            "warning_ru": "Волна ярости — спрячьтесь за каменным столбом!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
           "notice": "Wave of Fury — hide behind a stone pillar!",
           "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!"
         },
@@ -1947,6 +2029,20 @@
         {
           "at": 25,
           "name": "wave_of_fury",
+          "telegraph": {
+            "skill": 1800050,
+            "every_ms": 999999,
+            "wind_up_ms": 6000,
+            "radius": 4500,
+            "damage": 1.0,
+            "once": true,
+            "land": true,
+            "mechanic": "berk_pillar_cover",
+            "warning": "Wave of Fury — hide behind the stone pillar!",
+            "warning_ru": "Волна ярости — спрячьтесь за каменным столбом!",
+            "radius_from": "skill-areas",
+            "wind_up_from": "client cast"
+          },
           "notice": "Wave of Fury — hide behind a stone pillar!",
           "notice_ru": "Волна ярости — спрячьтесь за каменным столбом!"
         }
@@ -2076,6 +2172,7 @@
             "warning": "Tempest Strike — stack on the marked player!",
             "warning_ru": "Удар бури — встаньте вместе на отмеченного игрока!",
             "land": false,
+            "mechanic": "auldor_tempest_soak",
             "radius_from": "skill-areas",
             "wind_up_from": "client cast"
           },
@@ -2095,6 +2192,7 @@
             "warning": "Tempest Strike — stack on the marked player! Stay near the centre.",
             "warning_ru": "Удар бури — встаньте вместе на отмеченного. Держитесь ближе к центру.",
             "land": false,
+            "mechanic": "auldor_tempest_soak",
             "radius_from": "skill-areas",
             "wind_up_from": "client cast"
           },
@@ -2250,6 +2348,7 @@
             "warning": "Find the gap!",
             "warning_ru": "Ищите проход!",
             "land": false,
+            "mechanic": "fire_wall_grid",
             "radius_from": "skill-areas",
             "wind_up_from": "client cast"
           },
@@ -2275,6 +2374,7 @@
             "warning": "Find the gap!",
             "warning_ru": "Ищите проход!",
             "land": false,
+            "mechanic": "fire_wall_grid",
             "radius_from": "skill-areas",
             "wind_up_from": "client cast"
           },
@@ -2405,6 +2505,7 @@
             "damage": 1.0,
             "once": true,
             "stagger_check": true,
+            "mechanic": "bakarma_jump_rings",
             "warning": "Wave of Death — jump the rings and break the stagger gauge!",
             "warning_ru": "Волна смерти — перепрыгивайте кольца и сбейте шкалу стаггера!",
             "land": true,
@@ -2425,6 +2526,7 @@
             "damage": 1.0,
             "once": true,
             "stagger_check": true,
+            "mechanic": "bakarma_jump_rings",
             "warning": "Wave of Death — route around whirlpools, jump the rings, break the gauge!",
             "warning_ru": "Волна смерти — обходите воронки, перепрыгивайте кольца, сбейте шкалу!",
             "land": true,

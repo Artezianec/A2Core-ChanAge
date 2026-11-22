@@ -59,6 +59,8 @@ public static class QuestTeleportResolver
             yield return d => ForMapEvent(o.Target!, d);
         foreach (var o in objectives.Where(o => o is { Type: "EnterSubZone", Target: not null }))
             yield return d => ForSubzone(o.Target!, d);
+        foreach (var o in objectives.Where(o => o is { Type: "EnterVolumePC", Target: not null }))
+            yield return d => ForTriggerVolume(o.Target!, o.Map ?? stepMap, d, "enter-volume");
         foreach (var o in objectives.Where(o => o.MovePoint is not null))
             yield return d => ForNamedPoint(o.MovePoint!, o.Map ?? stepMap, d, "move-point");
         foreach (var map in objectives.Select(o => o.Map).Where(m => m is not null).Select(m => m!.Value).Distinct())
@@ -87,6 +89,17 @@ public static class QuestTeleportResolver
     static int MapRank(int map) =>
         Events.DungeonOfMap(map) is { Type: "Quest" } && InstanceTables.Embedded.Of(map) is null ? 0
         : GameSession.IsInstanceMapId(map) ? 2 : 1;
+
+    static QuestTeleportDestination? ForTriggerVolume(string name, int map, GameData data, string source)
+    {
+        if (map > 0)
+        {
+            foreach (var trigger in WorldObjects.TriggersOn(map))
+                if (string.Equals(trigger.Name, name, StringComparison.OrdinalIgnoreCase))
+                    return Destination(map, trigger.At, data, source, detail: name);
+        }
+        return ForNamedPoint(name, map, data, source);
+    }
 
     static QuestTeleportDestination? ForSubzone(string name, GameData data)
     {

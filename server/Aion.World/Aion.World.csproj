@@ -96,12 +96,15 @@
     <EmbeddedResource Include="../../tools/data/skill-effect-conditions.json" LogicalName="skill-effect-conditions.json" />
     <EmbeddedResource Include="../../tools/data/abnormal-stack-rules.json" LogicalName="abnormal-stack-rules.json" />
     <EmbeddedResource Include="../../tools/data/recovery-orbs.json" LogicalName="recovery-orbs.json" />
+    <EmbeddedResource Include="../../tools/data/kromede-fire-walls.json" LogicalName="kromede-fire-walls.json" />
+    <EmbeddedResource Include="../../tools/data/expedition-boss-mechanics.json" LogicalName="expedition-boss-mechanics.json" />
     <EmbeddedResource Include="../../tools/data/stigmas.json" LogicalName="stigmas.json" />
     <EmbeddedResource Include="../../tools/data/specialized-skills.json" LogicalName="specialized-skills.json" />
     <!-- tools/soulbind_data.py (Item.dat, build 26262663; from Addiboii/A2Core): soul-bind stat pools. -->
     <EmbeddedResource Include="../../tools/data/soulbind.json" LogicalName="soulbind.json" />
     <EmbeddedResource Include="../../tools/data/manastones.json" LogicalName="manastones.json" />
     <EmbeddedResource Include="../../tools/data/bot-rotations.json" LogicalName="bot-rotations.json" />
+    <EmbeddedResource Include="../../tools/data/hero-chains.json" LogicalName="hero-chains.json" />
     <EmbeddedResource Include="../../tools/data/market-prices.csv" LogicalName="market-prices.csv" />
   </ItemGroup>
 </Project>

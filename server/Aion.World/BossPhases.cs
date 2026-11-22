@@ -29,7 +29,8 @@ public sealed record BossTelegraph(
     [property: JsonPropertyName("wind_up_from")] string? WindUpFrom = null,
     [property: JsonPropertyName("once")] bool Once = false,
     [property: JsonPropertyName("stagger_check")] bool StaggerCheck = false,
-    [property: JsonPropertyName("land")] bool Land = true);
+    [property: JsonPropertyName("land")] bool Land = true,
+    [property: JsonPropertyName("mechanic")] string? Mechanic = null);
 
 /// <summary>Adds summoned around the boss: copies of a monster of the same dungeon, sent at the boss's victim.</summary>
 public sealed record BossAdds(

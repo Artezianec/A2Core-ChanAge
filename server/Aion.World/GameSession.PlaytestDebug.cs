@@ -54,13 +54,14 @@ public sealed partial class GameSession
         var accepted = outcome.Accepted ?? false;
         if (!accepted)
         {
-            PlaytestDebug.Action("skill_cast",
-                ("wire", wire),
-                ("skillId", skillId),
-                ("skill", skillName),
-                ("targetKey", targetKey),
-                ("accepted", false),
-                ("reason", reason ?? "cast_rejected"));
+        PlaytestDebug.Action("skill_cast",
+            ("wire", wire),
+            ("skillId", skillId),
+            ("skill", skillName),
+            ("targetKey", targetKey),
+            ("accepted", false),
+            ("reason", reason ?? "cast_rejected"));
+            if (QaBot) NoteQaCastRefusal(targetKey, reason ?? "cast_rejected");
             return;
         }
         PlaytestDebug.Action("skill_cast",
@@ -69,6 +70,36 @@ public sealed partial class GameSession
             ("skill", skillName),
             ("targetKey", targetKey),
             ("accepted", true));
+        if (QaBot) NoteQaCastAccepted(targetKey);
+    }
+
+    string CastTargetRefusalReason(SkillDefinition definition, int skillId, CastRequest request)
+    {
+        if (request.TargetKey != playerKey && request.TargetKey < SharedWorld.FirstPlayerKey)
+        {
+            if (targets?.TryGetValue(request.TargetKey, out var npc) != true || npc is null) return "no_target";
+            if (npc.Dead) return "target_dead";
+            if (npc.Immune) return "target_invulnerable";
+            if (!npc.Hostile) return "target_not_hostile";
+        }
+        var range = data.SkillUseRangeCm(skillId);
+        if (range > 0)
+        {
+            var caster = position ?? request.Location;
+            if (request.TargetKey == playerKey) return "out_of_range";
+            if (request.TargetKey >= SharedWorld.FirstPlayerKey)
+            {
+                if (worldPlayer?.Map?.Players.GetValueOrDefault(request.TargetKey) is not { } victim) return "no_target";
+                if (HorizontalDistance(caster, victim.Position) > range + CastRangeToleranceCm) return "out_of_range";
+                if (Math.Abs(caster.Z - victim.Position.Z) > CastHeightToleranceCm) return "height";
+                return "out_of_range";
+            }
+            if (targets?.TryGetValue(request.TargetKey, out var npc) != true || npc is null) return "no_target";
+            var max = range + CastRangeToleranceCm + npc.Radius;
+            if (HorizontalDistance(caster, npc.Position) > max) return "out_of_range";
+            if (Math.Abs(caster.Z - npc.Position.Z) > CastHeightToleranceCm) return "height";
+        }
+        return "out_of_range";
     }
 
     (bool? Accepted, bool ResendAck) CastOutcomeFromReplies(List<byte[]> replies)
@@ -104,7 +135,7 @@ public sealed partial class GameSession
     }
 
     void LogSkillCastRefusal(CastRequest request, int skillId, SkillDefinition? definition, bool meetsCastRules,
-        bool chainAllowed, bool cooldownReady, bool castGapOk, SkillCost cost, IReadOnlyList<string> weapons)
+        bool chainAllowed, bool cooldownReady, bool castGapOk, SkillCost cost, IReadOnlyList<string> weapons, long now)
     {
         string reason;
         if (definition is null) reason = "unknown_skill";
@@ -124,9 +155,13 @@ public sealed partial class GameSession
         else if (!SkillCondMet(definition, 0, request.TargetKey)) reason = "skill_cond_required";
         else if (!cooldownReady) reason = "cooldown";
         else if (!castGapOk) reason = "cast_gap";
+        else if (!CastTargetReachValid(definition, skillId, request)) reason = CastTargetRefusalReason(definition, skillId, request);
+        else if (!SpecializedCastAllowed(skillId)) reason = "specialization";
+        else if (!UseConditionMet(definition, now, request.TargetKey, skillId)) reason = "use_condition";
         else reason = "cast_rules";
 
         pendingSkillCastRefusalReason = reason;
+        if (QaBot) NoteQaCastRefusal(request.TargetKey, reason);
         PlaytestDebug.Action("skill_cast",
             ("skillId", skillId),
             ("skill", definition?.Name ?? skillId.ToString()),

@@ -598,6 +598,16 @@ public static class PlayerPackets
     }
 
     /// <summary>
+    /// 0x3848 SkillRangeNoticeFilterLocation_NT (CANDIDATE: dev 0x36F1 + 0x157; usmap layout, no official capture yet).
+    /// Ground AoE decal until <paramref name="effectTimeMs"/> elapses: key i32, skill i32, action uid u8, effect seq i32,
+    /// process uid i32, effect_pos Vec3, effect_dir f32 (degrees), effect_time_ms i32. Matches tools/packet_structs.py builder.
+    /// </summary>
+    public static byte[] SkillRangeNoticeFilterLocation(int key, int skillId, byte actionUid, int effectSeq, int processUid,
+        Vector3d effectPos, float effectDirDegrees, int effectTimeMs) =>
+        PacketWriter.Opcode(0x3848).I32(key).I32(skillId).U8(actionUid).I32(effectSeq).I32(processUid)
+            .F32((float)effectPos.X).F32((float)effectPos.Y).F32((float)effectPos.Z).F32(effectDirDegrees).I32(effectTimeMs).ToArray();
+
+    /// <summary>
     /// 0x380e SkillProjectileCollision_NT (dev 0x36B8 + 0x156): projectile destroyed on the victim (mask 02 destroyed).
     /// </summary>
     public static byte[] SkillProjectileCollision(int casterKey, int targetKey, int skillId, byte actionUid, int projectileId, Vector3d position,

@@ -51,6 +51,8 @@ Per-category env examples: `Aion__Debug__Packets=false`, `Aion__Debug__Actions=t
 | `Aion:Debug:ExcludeOpcodes` | Extra opcodes to skip (indexed: `ExcludeOpcodes__0=0x1234`, …) |
 | `Aion:Debug:IncludeOpcodes` | When set, only these opcodes are logged (indexed list) |
 
+| `AION_WIRE_TRACE_OPCODES` | Comma-separated wire opcodes (hex, optional `0x` prefix) logged on outbound game packets as `wire-out` lines on the connection log (e.g. `568b,568c,5689,568a,561b,e247,5685,5687,568c`) |
+
 Login ticket bodies (`0x3905` / `0x3613`) never include hex dumps (credentials).
 
 Opcode names come from embedded `tools/data/opcode-names.json`.
