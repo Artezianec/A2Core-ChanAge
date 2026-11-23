@@ -1,5 +1,6 @@
 using Aion.Application.Gameplay;
 using Aion.Host.Native;
+using Aion.Protocol.Native;
 using Aion.World;
 
 namespace Aion.Host.Worlds;
@@ -47,6 +48,16 @@ public sealed class LoginWorldList(IWorldRegistry registry, NativeOptions native
         if (worlds.Count == 0) return null;
         return Directory(worlds, native, supervisor is null ? _ => WorldRuntime.None : supervisor.Runtime);
     }
+
+    /// <summary>
+    /// Single-world login rows (multi-world off): the built-in Light and Dark rows with the name the dashboard gave the primary
+    /// world. Ids, status and load stay as they are, so only the displayed name follows the registry.
+    /// </summary>
+    public async Task<IReadOnlyList<WorldRow>> SingleWorldRowsAsync(CancellationToken ct) =>
+        WithPrimaryName(LoginPackets.DefaultWorlds, await WorldsAsync(ct));
+
+    public static IReadOnlyList<WorldRow> WithPrimaryName(IReadOnlyList<WorldRow> rows, IReadOnlyList<WorldRecord> worlds) =>
+        worlds.FirstOrDefault(w => w.IsPrimary) is { Name: { Length: > 0 } name } ? [.. rows.Select(row => row with { Name = name })] : rows;
 
     /// <summary>The listed worlds, primary first (its world id is this host's, whatever the primary row says).</summary>
     public static IReadOnlyList<LoginWorld> Directory(IReadOnlyList<WorldRecord> worlds, NativeOptions native, Func<int, WorldRuntime> runtime)

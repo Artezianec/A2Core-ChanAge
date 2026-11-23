@@ -9,6 +9,28 @@ namespace Aion.World;
 // Stop 0x384f-0x3851. No official sample of the replies exists: the answers below are OURS.
 partial class GameSession
 {
+    /// <summary>Max bomb-tower env spend this instance has seen (survives death/rejoin; blocks false stage&gt;1 reconcile restarts).</summary>
+    int bombTowerPeakSpent;
+
+    internal void ResetBombTowerPeakSpent() => bombTowerPeakSpent = 0;
+
+    internal int BombTowerEnvPeak => bombTowerPeakSpent;
+
+    void RecordBombTowerPeak(int envSpent, int goalCredits) =>
+        bombTowerPeakSpent = Math.Max(bombTowerPeakSpent, envSpent);
+
+    internal void BumpBombTowerProgress(MapEventRun run, int envSpent, int goalCredits)
+    {
+        if (envSpent > 0 || goalCredits > 0) run.EverTowerCredited = true;
+        run.BombTowerPeakEver = Math.Max(run.BombTowerPeakEver, Math.Max(envSpent, goalCredits));
+        if (run.BombTowerPeakEver >= 3) run.BombProbeDue = true;
+        bombTowerPeakSpent = Math.Max(bombTowerPeakSpent, Math.Max(envSpent, run.BombTowerPeakEver));
+    }
+
+    /// <summary>Stage&gt;1 with no tower goals on the current step: stale only when this instance never recorded tower progress before this join.</summary>
+    bool StaleBombTowerStageSkip(MapEventRun run, int goalCredits, int peakBeforeJoin) =>
+        run.StageOrder > 1 && goalCredits == 0
+        && peakBeforeJoin == 0 && !run.EverTowerCredited && run.BombTowerPeakEver == 0 && run.MaxStageOrderReached <= 1;
     public const ushort SkillGroundReadyRq = 0x384a, SkillGroundReadyRs = 0x384b, SkillGroundStartRq = 0x384d, SkillGroundStartRs = 0x384e,
         SkillGroundStopRq = 0x384f, SkillGroundStopRs = 0x3850;
 
@@ -29,6 +51,31 @@ partial class GameSession
         var here = plantAt ?? position;
         return here is { } at && InBombPlantRange(at, o);
     }
+
+    /// <summary>Tower UseEnvObj credit when the break/plant position is in range (even after bomb drop).</summary>
+    internal bool BombTowerMapEventCreditAllowed(WorldObject o, Vector3d? plantAt)
+    {
+        if (!WorldObjects.HasCarryBoxes(worldMap) || !IsBombTower(o)) return true;
+        var here = plantAt ?? position;
+        return here is { } at && InBombPlantRange(at, o);
+    }
+
+    bool MapEventBombCreditAllowed(WorldObject o, Vector3d? creditAt) =>
+        IsBombTower(o) ? BombTowerMapEventCreditAllowed(o, creditAt) : BombPlantMapEventCreditAllowed(o, creditAt);
+
+    internal long QaLastBombTowerCreditMs { get; private set; }
+    internal bool QaLastBombTowerCreditInRange { get; private set; }
+    internal Vector3d? QaLastBombTowerCreditPos { get; private set; }
+
+    internal void RecordQaBombTowerCredit(WorldObject o, Vector3d? creditAt, long now)
+    {
+        if (!QaBot || !IsBombTower(o)) return;
+        QaLastBombTowerCreditMs = now;
+        QaLastBombTowerCreditPos = creditAt ?? position;
+        QaLastBombTowerCreditInRange = BombTowerMapEventCreditAllowed(o, creditAt);
+    }
+
+    internal void ClearQaBombTowerCreditWatch() => QaLastBombTowerCreditMs = 0;
 
     WorldObject? MapEventObjectForName(string spawnName)
     {
@@ -74,16 +121,42 @@ partial class GameSession
         return credited;
     }
 
-    /// <summary>After a short load or dangling join, align broken/used tower state with map-event goals so bots walk to the next tower.</summary>
+    internal const int BombTowerEnvId = 1400824;
+
+    static bool IsBombTower(WorldObject o) => o.Env == BombTowerEnvId;
+
+    IEnumerable<int> BombTowerIndices() =>
+        WorldObjects.ObjectsOn(worldMap).Select((o, i) => (o, i)).Where(x => IsBombTower(x.o)).Select(x => x.i);
+
+    /// <summary>Clears communication-tower spent state for this player on the current layer map.</summary>
+    internal void ClearBombTowerEnvState()
+    {
+        foreach (var i in BombTowerIndices().ToList())
+        {
+            usedObjects.Remove(i);
+            brokenEnvObjs.Remove(i);
+            envObjHits.Remove(i);
+        }
+    }
+
+    internal int CountSpentBombTowers(long now)
+    {
+        if (!WorldObjects.HasCarryBoxes(worldMap)) return 0;
+        return BombTowerIndices().Count(i => Broken(i, now) || usedObjects.Contains(i));
+    }
+
+    /// <summary>After a short load, mirror already-spent towers into used/broken sets (never invent breaks from goals alone).</summary>
     internal void SyncMapEventBombTowerCredits(long now)
     {
         if (mapEventRuns.Count == 0 || !WorldObjects.HasCarryBoxes(worldMap)) return;
+        var envSpent = CountSpentBombTowers(now);
+        if (envSpent == 0) return;
         var objects = WorldObjects.ObjectsOn(worldMap);
         foreach (var run in mapEventRuns)
         {
-            var credited = BombTowerCreditsFromRun(run);
+            var credited = Math.Min(BombTowerCreditsFromRun(run), envSpent);
             if (credited <= 0) continue;
-            foreach (var (o, index) in objects.Select((o, i) => (o, i)).Where(x => x.o.Destructible)
+            foreach (var (o, index) in objects.Select((o, i) => (o, i)).Where(x => IsBombTower(x.o))
                          .OrderBy(x => x.o.Name, StringComparer.Ordinal).Take(credited))
             {
                 usedObjects.Add(index);
@@ -91,6 +164,94 @@ partial class GameSession
                 shownObjects.Remove(index);
             }
         }
+    }
+
+    /// <summary>Dangling joins and short loads: goals must not skip towers when every destructible is still up.</summary>
+    internal void ReconcileMapEventBombRuns(long now, string joinSource = "reconcile")
+    {
+        if (mapEventRuns.Count == 0 || !WorldObjects.HasCarryBoxes(worldMap)) return;
+        foreach (var run in mapEventRuns)
+        {
+            if (run.Finished) continue;
+            var envSpent = CountSpentBombTowers(now);
+            var goalCredits = BombTowerCreditsFromRun(run);
+            var peakBefore = bombTowerPeakSpent;
+            LogMapEventJoin(run, joinSource, now, envSpent, goalCredits);
+            if (StaleBombTowerStageSkip(run, goalCredits, peakBefore))
+            {
+                Note($"map_event:reconcile:restart {run.Name} (stage {run.StageOrder} goal_towers=0 env_spent={envSpent} tower_peak={bombTowerPeakSpent})");
+                if (envSpent > 0) ClearBombTowerEnvState();
+                if (!run.EverTowerCredited) ResetBombTowerPeakSpent();
+                run.RestartScript(now);
+                ((IMapEventHost)this).Progress(run);
+                continue;
+            }
+            RecordBombTowerPeak(envSpent, goalCredits);
+            BumpBombTowerProgress(run, envSpent, goalCredits);
+            if (run.BombTowerPeakEver >= 3 || bombTowerPeakSpent >= 3) run.BombProbeDue = true;
+            if (goalCredits == 0 && envSpent > 0 && run.StageOrder == 1)
+            {
+                Note($"map_event:reconcile:clear_stale_towers {run.Name} (env_spent={envSpent} without goal credit)");
+                ClearBombTowerEnvState();
+                envSpent = 0;
+            }
+            if (goalCredits > envSpent)
+            {
+                run.ClampBombTowerGoals(envSpent);
+                ((IMapEventHost)this).Progress(run);
+            }
+        }
+        SyncMapEventBombTowerCredits(now);
+        SyncVacatedMapEventRuns(now);
+    }
+
+    internal void SanitizeBombMapEventRuns(long now, string reason)
+    {
+        if (!WorldObjects.HasCarryBoxes(worldMap)) return;
+        foreach (var run in mapEventRuns)
+        {
+            if (run.Finished) continue;
+            var envSpent = CountSpentBombTowers(now);
+            var goalCredits = BombTowerCreditsFromRun(run);
+            var peakBefore = bombTowerPeakSpent;
+            if (!StaleBombTowerStageSkip(run, goalCredits, peakBefore)) continue;
+            Note($"map_event:sanitize:{reason} {run.Name} run={run.Id} stage={run.StageOrder} goal_towers={goalCredits} env_spent={envSpent} peak={run.BombTowerPeakEver} max_stage={run.MaxStageOrderReached}");
+            if (envSpent > 0) ClearBombTowerEnvState();
+            if (!run.EverTowerCredited) ResetBombTowerPeakSpent();
+            run.RestartScript(now);
+            ((IMapEventHost)this).Progress(run);
+            continue;
+        }
+        foreach (var run in mapEventRuns.Where(r => !r.Finished))
+        {
+            var env = CountSpentBombTowers(now);
+            var goals = BombTowerCreditsFromRun(run);
+            RecordBombTowerPeak(env, goals);
+            BumpBombTowerProgress(run, env, goals);
+        }
+        SyncVacatedMapEventRuns(now);
+    }
+
+    internal void LogMapEventJoin(MapEventRun run, string source, long now, int? envSpent = null, int? goalTowers = null)
+    {
+        var towerMap = WorldObjects.HasCarryBoxes(worldMap);
+        var env = envSpent ?? (towerMap ? CountSpentBombTowers(now) : 0);
+        var towers = goalTowers ?? (towerMap ? BombTowerCreditsFromRun(run) : 0);
+        var bot = CharacterName ?? character?.Name ?? "?";
+        var towerPart = towerMap
+            ? $":env_spent={env}:goal_towers={towers}:tower_peak={bombTowerPeakSpent}:run_peak={run.BombTowerPeakEver}:max_stage={run.MaxStageOrderReached}"
+            : "";
+        Note($"map_event:join:bot={bot}:inst={instanceKey}:run={run.Id}:src={source}:event={run.Name}:stage={run.StageOrder}:step={run.StepOrder}:wire={run.WireStep}:goals=[{string.Join(',', run.Goals)}]{towerPart}");
+        PlaytestDebug.Action("map_event_join",
+            ("bot", bot), ("instance", instanceKey), ("runId", run.Id), ("source", source),
+            ("event", run.Name), ("stage", run.StageOrder), ("step", run.StepOrder), ("goals", string.Join(',', run.Goals)),
+            ("envSpent", env), ("goalTowers", towers), ("towerPeak", bombTowerPeakSpent), ("map", worldMap));
+    }
+
+    internal void LogAllMapEventJoins(string source, long now)
+    {
+        foreach (var run in mapEventRuns.Where(r => !r.Finished))
+            LogMapEventJoin(run, source, now);
     }
 
     /// <summary>QA/bots: in plant range and <see cref="EnvObjBombTowerRemaining"/>.</summary>
@@ -175,8 +336,14 @@ partial class GameSession
         // plant here at once, as the env-object use does. Only the reply and the plant's own packets go out: no Stop_NT. Start
         // (the client really aimed and clicked) is answered with success.
         var aimed = header == SkillGroundStartRq;
+        var tower = objects[index];
+        Note($"map_event:bomb_plant:env={tower.Env} idx={index} skill={skill} map={worldMap} at=({at.X:F0},{at.Y:F0},{at.Z:F0})");
+        PlaytestDebug.Action("bomb_plant", ("env", tower.Env), ("index", index), ("skill", skill), ("map", worldMap));
+        RecordQaBombTowerCredit(tower, at, now);
         var replies = new List<byte[]> { GroundReply(reply, aimed ? 0 : GroundSkillRefused, skill) };
-        replies.AddRange(BreakEnvObj(index, objects[index], now));
+        replies.AddRange(BreakEnvObj(index, tower, now));
+        foreach (var run in mapEventRuns.Where(r => !r.Finished))
+            BumpBombTowerProgress(run, CountSpentBombTowers(now), BombTowerCreditsFromRun(run));
         replies.AddRange(DropCarried(ExpireEtc));
         replies.AddRange(await QuestKillsAsync(ct));
         return await WithMapEventClearsFlushedAsync(replies, ct);

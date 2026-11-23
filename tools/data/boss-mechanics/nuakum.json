@@ -1,0 +1,144 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "horn_cave_nuakum",
+  "display": "Ferocious Horn Nuakum",
+  "display_ru": "Нуакум",
+  "dungeon": "HornCave",
+  "source": "official-overlay (boss-phases.json rotation and phases) + CANDIDATE mechanics from expedition-boss-mechanics.json",
+  "note": "The hunt at 75% and 55%: a clone hunts the target. Blue Light of Destruction at 30%: the central orb needs three hits within 34 s (each tick a player stands in it counts one).",
+  "npcs": {
+    "Easy": [2310910],
+    "Normal": [2300910],
+    "Hard": [2320910]
+  },
+  "vars": {
+    "frenzy_ms": 300000,
+    "orb_radius": 450,
+    "orb_window": 34000
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1802090,
+      "every_ms": 25000,
+      "wind_up_ms": 1300,
+      "radius": 900,
+      "warning": "Ferocious Horn Nuakum claws a wide arc: get behind him!",
+      "warning_ru": "Нуакум бьёт широкой дугой: зайдите за спину!"
+    },
+    {
+      "type": "cast",
+      "skill": 1802060,
+      "every_ms": 42000,
+      "wind_up_ms": 1000,
+      "radius": 3000,
+      "warning": "Ferocious Horn Nuakum slams a lane: step off the strip!",
+      "warning_ru": "Нуакум бьёт полосой: отойдите в сторону!"
+    },
+    {
+      "type": "cast",
+      "skill": 1802100,
+      "every_ms": 10000,
+      "wind_up_ms": 850,
+      "radius": 750,
+      "warning": "Ferocious Horn Nuakum slams the ground: walk out of the circle!",
+      "warning_ru": "Нуакум бьёт по земле: выйдите из круга!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "hunt_75",
+      "when": {
+        "type": "hp_below",
+        "pct": 75
+      },
+      "do": [
+        {
+          "type": "notice",
+          "text": "The hunt — an unmarked player blocks the clone; then stack or spread with the circle!",
+          "text_ru": "Охота — не отмеченный игрок перехватывает клона; затем соберитесь или разойдитесь по кругу!"
+        },
+        {
+          "type": "summon",
+          "npc": 2300910,
+          "count": 1,
+          "radius": 800,
+          "group": "hunter",
+          "target": "victim"
+        }
+      ]
+    },
+    {
+      "id": "hunt_55",
+      "when": {
+        "type": "hp_below",
+        "pct": 55
+      },
+      "do": [
+        {
+          "type": "notice",
+          "text": "The hunt again — rotate blockers; read the circle (in = stack, out = spread)!",
+          "text_ru": "Охота снова — меняйте тех, кто перехватывает; читайте круг (внутрь — вместе, наружу — врозь)!"
+        },
+        {
+          "type": "summon",
+          "npc": 2300910,
+          "count": 1,
+          "radius": 800,
+          "group": "hunter",
+          "target": "victim"
+        }
+      ]
+    },
+    {
+      "id": "blue_light_30",
+      "when": {
+        "type": "hp_below",
+        "pct": 30
+      },
+      "do": [
+        {
+          "type": "notice",
+          "text": "Blue Light of Destruction — stand so his throw hits the central orb (three hits)!",
+          "text_ru": "Синий свет разрушения — встаньте так, чтобы бросок попал в сферу в центре (три попадания)!"
+        },
+        {
+          "type": "orb",
+          "id": "blue_light",
+          "at": "boss",
+          "radius": "$orb_radius",
+          "required": 3,
+          "count_mode": "per_tick",
+          "window_ms": "$orb_window"
+        }
+      ]
+    },
+    {
+      "id": "frenzy",
+      "when": {
+        "type": "enrage_timer",
+        "after_ms": "$frenzy_ms"
+      },
+      "difficulty": ["Normal", "Hard"],
+      "do": [
+        {
+          "type": "enrage",
+          "damage_mul": 2.0,
+          "haste_mul": 0.5,
+          "text": "Ferocious Horn Nuakum goes into a frenzy!",
+          "text_ru": "Нуакум впадает в неистовство!"
+        }
+      ]
+    }
+  ],
+  "difficulty": {
+    "Easy": {
+      "note": "Exploration: no enrage timer."
+    },
+    "Hard": {
+      "vars": {
+        "frenzy_ms": 240000
+      }
+    }
+  }
+}

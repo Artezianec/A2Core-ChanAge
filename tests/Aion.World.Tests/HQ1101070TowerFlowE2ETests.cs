@@ -66,7 +66,7 @@ public sealed class HQ1101070TowerFlowE2ETests
         Assert.True(Flat2d(me, atTower1Site) < 300);
         var objects = WorldObjects.ObjectsOn(100002).Select((o, i) => (o, i)).ToList();
         bool MatchTower(WorldObject o) => o.Env == 1400824;
-        session.SyncMapEventBombTowerCredits(t + 4100);
+        Assert.Equal(1, session.CountSpentBombTowers(t + 4100));
         Assert.False(session.EnvObjBombTowerRemaining(tower0.i, tower0.o, t + 4100));
         var remaining = QaMapEventRunner.RemainingBombTowersForTests(session, t + 4100, me, objects, MatchTower, run);
         Assert.NotEmpty(remaining);

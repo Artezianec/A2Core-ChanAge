@@ -87,8 +87,10 @@ public interface INativeCharacterStore : IAsyncDisposable
     /// <summary>A shop purchase with its ledger lines (game.shop_orders, written in the purchase's transaction).</summary>
     Task<bool> ShopBuyAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
         IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, IReadOnlyList<ShopOrderLine> orders, CancellationToken ct,
-        Aion.Application.Gameplay.QunaRequest? qunaSpend = null) =>
-        qunaSpend is null ? ShopBuyAsync(character, costs, goods, limits, ct) : Task.FromResult(false);
+        Aion.Application.Gameplay.QunaRequest? qunaSpend = null, Aion.Application.Gameplay.ShopBuyContext? context = null) =>
+        qunaSpend is null && context is null ? ShopBuyAsync(character, costs, goods, limits, ct) : Task.FromResult(false);
+    Task<string> ResolveShopPurchaseRequestIdAsync(string fingerprint, long nowMs, CancellationToken ct) =>
+        Task.FromResult(Aion.Application.Gameplay.ShopPurchaseRequest.Allocate(fingerprint, nowMs, null, null, null));
     Task<StoredMembership?> MembershipAsync(CancellationToken ct) => Task.FromResult<StoredMembership?>(null);
     Task<bool> SaveMembershipAsync(StoredMembership membership, CancellationToken ct) => Task.FromResult(false);
     Task<IReadOnlyList<(int Target, int RecipeId, string Period, int Count)>> ConversionCountsAsync(Guid character, CancellationToken ct) =>
@@ -128,6 +130,7 @@ public interface INativeCharacterStore : IAsyncDisposable
     Task<IReadOnlyList<TradeDeliveryRecord>> TradeDeliveriesAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<TradeDeliveryRecord>>([]);
     Task<bool> TradeCompleteDeliveryAsync(Guid character, long deliveryId, int tradeServerId, CancellationToken ct) => Task.FromResult(false);
     Task<Guid?> CharacterByNameAsync(string name, CancellationToken ct) => Task.FromResult<Guid?>(null);
+    Task<int?> CharacterWorldIdAsync(Guid characterId, CancellationToken ct) => Task.FromResult<int?>(null);
     Task<IReadOnlyList<CollectionRecord>> CollectionsAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<CollectionRecord>>([]);
     Task<DaevanionProgress?> DaevanionAsync(Guid character, CancellationToken ct) => Task.FromResult<DaevanionProgress?>(null);
     Task<bool> SaveDaevanionAsync(Guid character, DaevanionProgress progress, CancellationToken ct) => Task.FromResult(false);
@@ -234,6 +237,8 @@ public interface INativeCharacterStore : IAsyncDisposable
         Task.FromResult(("none", ContainerSlotExtendCounts.Zero));
     /// <summary>The account's Quna wallet in the realm (server/DATABASES.md); null without one (Quna then cannot be spent).</summary>
     Aion.Application.Gameplay.IQunaWallet? QunaWallet => null;
+    /// <summary>The account's Mileage wallet (migration 137); null without one.</summary>
+    Aion.Application.Gameplay.IMileageWallet? MileageWallet => null;
     /// <summary>
     /// Moves a Quna item stack in this character's bag into the account wallet: credited ("stack:&lt;instance&gt;", reason
     /// grant) and deleted in one transaction. Null when this store cannot (the stack then stays an item).

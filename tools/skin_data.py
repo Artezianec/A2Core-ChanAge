@@ -13,10 +13,41 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'tools/data/skins.json'
 TABLES = ROOT / 'research/local/skin-tables/out'
+CLIENT_EXPORT = ROOT / 'research' / 'client-export' / '2026-11-22'
 
 
 def _rows(path):
     return json.loads(Path(path).read_text(encoding='utf-8'))['Properties']['Data']
+
+
+def build_client_export(export_dir: Path | None = None):
+    try:
+        from .client_export import load_rows
+        from .client_export_dat import cell_id, export_available, export_version, short
+    except ImportError:
+        from client_export import load_rows
+        from client_export_dat import cell_id, export_available, export_version, short
+
+    export_dir = export_dir or CLIENT_EXPORT
+    if not export_available(export_dir):
+        raise FileNotFoundError(f'client export missing under {export_dir}')
+    skins, categories = {}, {}
+    for row in load_rows('Skin', export_dir):
+        skin_id = cell_id(row['ID'])
+        skins[row['Name']] = skin_id
+        categories[str(skin_id)] = short(row.get('SkinCategory'))
+    sets = {}
+    for row in load_rows('SkinSet', export_dir):
+        ids = [skins[name] for name in row.get('Skins') or [] if name in skins]
+        if ids:
+            sets[row['Name']] = ids
+    ver = export_version('Skin', export_dir)
+    return {
+        'source': f'Skin.dat v{ver} + SkinSet.dat (client export 2026-11-22, tools/skin_data.py)',
+        'skins': skins,
+        'sets': sets,
+        'categories': categories,
+    }
 
 
 def build(tables=TABLES):
@@ -36,8 +67,17 @@ def build(tables=TABLES):
 
 
 def main():
-    data = build()
-    DATA.write_text(json.dumps(data, separators=(',', ':')) + '\n', encoding='utf-8')
+    try:
+        from .client_export_dat import export_available
+    except ImportError:
+        from client_export_dat import export_available
+
+    data = build_client_export() if export_available(CLIENT_EXPORT) else build()
+    try:
+        from .data_json import write_data_json
+    except ImportError:
+        from data_json import write_data_json
+    write_data_json(DATA, data)
     print(f"{len(data['skins'])} skins, {len(data['sets'])} sets -> {DATA.relative_to(ROOT)}")
 
 

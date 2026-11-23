@@ -14,7 +14,7 @@ public sealed class SkillEffectTests
     static byte[] Cast(int skillId, int targetKey, Vector3d at) =>
         new PacketWriter().U16(0x3800).U16(16).I32(skillId).U8(2).Varint(targetKey).F32(0).Vec3(at).U8(9).ToArray();
 
-    static async Task<(GameSession Session, Target Mob)> Setup(string className)
+    internal static async Task<(GameSession Session, Target Mob)> Setup(string className)
     {
         var data = GameData.Embedded;
         var store = new FakeCharacterStore { Progress = (55, 0) };

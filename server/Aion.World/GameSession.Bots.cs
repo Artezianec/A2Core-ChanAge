@@ -103,8 +103,10 @@ public sealed partial class GameSession
         return key;
     }
 
-    /// <summary>Where the character stands: its last accepted position report, else where it entered (a fresh entry has sent none yet).</summary>
-    public Vector3d? WorldPosition => position ?? (worldPlayer?.Map is not null ? worldPlayer.Position : spawn?.Position);
+    /// <summary>Where the character stands. QA bots author movement via accepted 0x3701 (<see cref="position"/>); players use shared-world sync.</summary>
+    public Vector3d? WorldPosition => QaBot
+        ? position ?? worldPlayer?.Position ?? spawn?.Position
+        : worldPlayer?.Map is not null ? worldPlayer.Position : position ?? spawn?.Position;
 
     /// <summary>
     /// The living hostile NPC this player is fighting: the target of its last cast within <see cref="AssistMemoryMs"/>, while it is

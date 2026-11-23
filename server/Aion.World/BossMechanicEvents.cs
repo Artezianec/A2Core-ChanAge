@@ -11,4 +11,7 @@ public sealed record BossMechanicTelegraphEventArgs(
     Vector3d Centre,
     long StartedMs,
     long EndsMs,
-    int[]? EnvObjIds = null);
+    int[]? EnvObjIds = null,
+    bool SpawnEnv = false,
+    bool Despawn = false,
+    int EnvSlot = 0);

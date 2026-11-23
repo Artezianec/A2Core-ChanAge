@@ -1,5 +1,5 @@
 {
-  "source": "client BMShopGoods.dat / BMShopCategory.dat (Steam build 26262663, table version 13)",
+  "source": "client BMShopGoods.dat v13 / BMShopCategory.dat (export 2026-11-22, tools/bmshop_data.py)",
   "goods": [
     {
       "goods_id": 1062,

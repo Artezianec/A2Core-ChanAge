@@ -8,6 +8,7 @@ public sealed partial class GameSession
     public const ushort RewardLimitResetNt = 0x3C05, RewardLimitUpdateNt = 0x3C04, DungeonCoolTimesNt = 0x3A60;
     long characterDailyResetMs;
     long characterWeeklyResetMs;
+    long characterMonthlyResetMs;
     readonly Dictionary<int, (string Period, int Count)> rewardLimits = [];
     readonly Dictionary<int, long> dungeonCoolUntilMs = [];
     bool rewardLimitsLoaded;
@@ -73,6 +74,13 @@ public sealed partial class GameSession
             replies.AddRange(ResetWeeklyAchievementStates(now));
             if (notifyClient) replies.Add(RewardLimitResetPacket([2]));
         }
+        var monthly = ContentResetSchedule.PeriodStartMs(3, now);
+        if (monthly > characterMonthlyResetMs)
+        {
+            characterMonthlyResetMs = monthly;
+            replies.AddRange(ResetMonthlyAchievementStates(now));
+            if (notifyClient) replies.Add(RewardLimitResetPacket([3]));
+        }
         PruneExpiredDungeonCooltimes(now);
         return replies;
     }
@@ -88,6 +96,7 @@ public sealed partial class GameSession
             achievementDirty.Add(id);
             touched.Add(id);
         }
+        if (touched.Count > 0) ClearGroupRewardsForCycledAchievements(touched);
         return touched.Count == 0 ? [] : [AchievementUpdate(touched)];
     }
 
@@ -102,7 +111,30 @@ public sealed partial class GameSession
             achievementDirty.Add(id);
             touched.Add(id);
         }
+        if (touched.Count > 0) ClearGroupRewardsForCycledAchievements(touched);
         return touched.Count == 0 ? [] : [AchievementUpdate(touched)];
+    }
+
+    List<byte[]> ResetMonthlyAchievementStates(long now)
+    {
+        var touched = new List<int>();
+        foreach (var (id, state) in achievements.ToList())
+        {
+            if (Achievements.Of(id) is not { Reset: 3 or 4 }) continue;
+            if (ContentResetSchedule.AchievementCycleStartMs(Achievements.Of(id)!.Reset, now) <= state.UpdatedMs) continue;
+            achievements[id] = new AchievementState { UpdatedMs = now };
+            achievementDirty.Add(id);
+            touched.Add(id);
+        }
+        if (touched.Count > 0) ClearGroupRewardsForCycledAchievements(touched);
+        return touched.Count == 0 ? [] : [AchievementUpdate(touched)];
+    }
+
+    void ClearGroupRewardsForCycledAchievements(IReadOnlyList<int> achievementIds)
+    {
+        var groupIds = achievementIds.Select(id => Achievements.Of(id)).OfType<AchievementTables.Entry>()
+            .Select(e => Achievements.GroupOf(e)?.Id ?? 0).Where(id => id != 0);
+        ClearGroupRewardsForGroups(groupIds);
     }
 
     internal void PruneExpiredDungeonCooltimes(long now)

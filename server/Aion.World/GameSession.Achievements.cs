@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aion.Application.Gameplay;
@@ -143,6 +144,7 @@ public sealed partial class GameSession
     readonly Dictionary<int, AchievementState> achievements = [];
     readonly HashSet<int> achievementDirty = [];
     readonly HashSet<(int Group, int Step)> groupRewardsTaken = [];
+    readonly HashSet<int> closedNpcAchievementKeys = [];
     long achievementFlushAt;
 
     public int AchievementCount(int id) => achievements.GetValueOrDefault(id)?.Count ?? 0;
@@ -161,8 +163,8 @@ public sealed partial class GameSession
             var state = new AchievementState { Count = record.Count, CompletedMs = record.CompletedAt?.ToUnixTimeMilliseconds() ?? 0, RewardedStep = record.RewardedStep, UpdatedMs = record.UpdatedAt.ToUnixTimeMilliseconds() };
             if (Achievements.Of(record.Id) is { Type: "Attendance" })
                 state.Count = Math.Max(state.Count, state.RewardedStep);
-            // Daily and weekly missions start over after their cycle (UTC days; weeks from Monday).
-            if (Achievements.Of(record.Id) is { Reset: 1 or 2 } entry && ContentResetSchedule.AchievementCycleStartMs(entry.Reset, now) > state.UpdatedMs)
+            // Daily / weekly / monthly missions start over after their cycle (game day 07:00 UTC; weekly Wednesday 07:00 UTC; monthly day 1 07:00 UTC).
+            if (Achievements.Of(record.Id) is { Reset: 1 or 2 or 3 or 4 } entry && ContentResetSchedule.AchievementCycleStartMs(entry.Reset, now) > state.UpdatedMs)
                 state = new AchievementState { UpdatedMs = now };
             achievements[record.Id] = state;
         }
@@ -249,13 +251,34 @@ public sealed partial class GameSession
     IReadOnlyList<int> AchievementUpdateIds(int id, long now) =>
         Achievements.Boards.Any(b => b.Achievement == id) ? AttendanceAchievementIds(now) : [id];
 
+    /// <summary>Domain gameplay emits achievement progress through the typed bus (matchers in <see cref="AchievementEmitters"/>).</summary>
+    public List<byte[]> Emit(AchievementEvent evt, long now = 0)
+    {
+        AchievementEmitters.Register(evt.Type);
+        var match = AchievementEmitters.Matcher(evt);
+        return evt.SetValue is int value
+            ? AchieveSet(evt.Type, value, match, now)
+            : Achieve(evt.Type, evt.Add, match, now);
+    }
+
     /// <summary>Counts <paramref name="add"/> on every listed achievement of the type that <paramref name="match"/> accepts (null: all of the type).</summary>
-    List<byte[]> Achieve(string type, int add = 1, Func<AchievementTables.Entry, bool>? match = null, long now = 0) =>
-        Progress(type, match, state => state.Count + add, now);
+    List<byte[]> Achieve(string type, int add = 1, Func<AchievementTables.Entry, bool>? match = null, long now = 0)
+    {
+        AchievementEmitters.Register(type);
+        return Progress(type, match, state => SaturatingAdd(state.Count, add), now);
+    }
+
+    static int SaturatingAdd(int count, int add) =>
+        add > 0 ? count > int.MaxValue - add ? int.MaxValue : count + add
+        : add < 0 ? count < int.MinValue - add ? int.MinValue : count + add
+        : count;
 
     /// <summary>Sets a value (level, item level): the count becomes the value when higher.</summary>
-    List<byte[]> AchieveSet(string type, int value, Func<AchievementTables.Entry, bool>? match = null, long now = 0) =>
-        Progress(type, match, state => Math.Max(state.Count, value), now);
+    List<byte[]> AchieveSet(string type, int value, Func<AchievementTables.Entry, bool>? match = null, long now = 0)
+    {
+        AchievementEmitters.Register(type);
+        return Progress(type, match, state => Math.Max(state.Count, value), now);
+    }
 
     List<byte[]> Progress(string type, Func<AchievementTables.Entry, bool>? match, Func<AchievementState, int> next, long now, int depth = 0)
     {
@@ -270,11 +293,12 @@ public sealed partial class GameSession
             if (entry.Unlock != 0 && (achievements.GetValueOrDefault(entry.Unlock)?.CompletedMs ?? 0) == 0) continue;
             if (!achievements.TryGetValue(entry.Id, out var state)) achievements[entry.Id] = state = new AchievementState();
             if (state.CompletedMs != 0 && state.Count >= entry.Target) continue;
+            var priorCount = state.Count;
             var value = Math.Min(entry.Target, next(state));
             if (value == state.Count) continue;
             state.Count = value;
             state.UpdatedMs = now;
-            var stepsBefore = entry.Steps.Count(st => st[1] <= state.Count);
+            var stepsBefore = entry.Steps.Count(st => st[1] <= priorCount);
             if (value >= entry.Target) { state.CompletedMs = now; completed.Add(entry.Id); }
             achievementDirty.Add(entry.Id);
             changed.Add(entry.Id);
@@ -283,17 +307,46 @@ public sealed partial class GameSession
                 passExp.AddRange(BattlePassExp(entry, entry.Steps[step - 1][0], now));
         }
         if (changed.Count == 0) return [];
-        var replies = new List<byte[]> { AchievementUpdate(changed) };
+        var replies = new List<byte[]>();
+        if (batchAchievementCountUpdates) achievementCountBatch.UnionWith(changed);
+        else replies.Add(AchievementUpdate(changed));
         replies.AddRange(passExp);
-        // Completing one counts for the ClearAchievement objectives naming it (one level deep).
-        if (depth == 0 && completed.Count > 0)
-            replies.AddRange(Progress("ClearAchievement", e => completed.Any(id => e.Has(id.ToString(System.Globalization.CultureInfo.InvariantCulture))), s => s.Count + 1, now, 1));
+        if (depth == 0 && !string.Equals(type, "ClearAchievement", StringComparison.OrdinalIgnoreCase) && completed.Count > 0)
+        {
+            var keys = completed.Select(id => id.ToString(CultureInfo.InvariantCulture)).ToList();
+            replies.AddRange(Emit(new AchievementEvent("ClearAchievement", Keys: keys), now));
+        }
         return replies;
     }
 
     // ---------- The hooks ----------
 
-    List<byte[]> AchieveKill(int npcId) => [.. Achieve("KillNpc", 1, e => e.Npcs?.Contains(npcId) == true), .. Achieve("KillNpcAll")];
+    static string GodstoneGradeName(int grade) => grade switch
+    {
+        1 => "Rare",
+        2 => "Legend",
+        3 => "Unique",
+        4 => "Epic",
+        _ => "Common",
+    };
+
+    List<byte[]> AchieveKill(Target target, bool killingBlowCritical)
+    {
+        var npcKey = target.NpcId.ToString(CultureInfo.InvariantCulture);
+        var subtype = target.SubType;
+        var replies = new List<byte[]>();
+        replies.AddRange(Emit(new AchievementEvent("KillNpc", Keys: [npcKey])));
+        replies.AddRange(Achieve("KillNpcAll"));
+        if (!string.IsNullOrEmpty(subtype))
+        {
+            replies.AddRange(Emit(new AchievementEvent("KillNpcSubtype", Keys: [subtype])));
+            if (killingBlowCritical)
+                replies.AddRange(Emit(new AchievementEvent("KillNpcByCritical", Keys: [subtype])));
+        }
+        if (instanceKey != 0 && MapEventData.DungeonOfMap(worldMap) is { } room && room.Type is { Length: > 0 } dungeonType)
+            replies.AddRange(Emit(new AchievementEvent("KillNpcDungeonType", Keys: [dungeonType])));
+        return replies;
+    }
 
     List<byte[]> AchieveQuest(string code, string? type) =>
         [.. Achieve("ClearQuest", 1, e => e.Has(code)), .. Achieve("ClearQuestType", 1, e => e.Values.Length == 0 || (type is not null && e.Has(type)))];
@@ -314,8 +367,18 @@ public sealed partial class GameSession
     List<byte[]> AchieveItemUse(int itemId, string effect) =>
         [.. Achieve("UseItem", 1, e => e.Items?.Contains(itemId) == true), .. Achieve("UseUsableItemType", 1, e => e.Has(effect))];
 
-    List<byte[]> AchieveCraft(string worktable, int masteryLevel) =>
-        [.. Achieve("CraftCategorySuccess", 1, e => e.Values.Length == 0 || e.Has(worktable)), .. AchieveSet("CraftMasteryLevel", masteryLevel)];
+    List<byte[]> AchieveCraft(string worktable, int masteryLevel, int recipeId = 0)
+    {
+        var replies = new List<byte[]>();
+        replies.AddRange(Emit(new AchievementEvent("CraftCategorySuccess", Keys: [worktable])));
+        replies.AddRange(AchieveSet("CraftMasteryLevel", masteryLevel));
+        if (recipeId > 0)
+        {
+            var recipeKey = Crafts.RecipeAchievementName(recipeId);
+            replies.AddRange(Emit(new AchievementEvent("CraftSuccess", Keys: [recipeKey ?? recipeId.ToString(CultureInfo.InvariantCulture)])));
+        }
+        return replies;
+    }
 
     long elapsedAchieveAt;
 
@@ -347,7 +410,124 @@ public sealed partial class GameSession
 
     /// <summary>VehicleCollect: count of distinct rides owned (capture 001158 step 2 at 10 mounts).</summary>
     internal List<byte[]> SyncVehicleCollectAchievements(long now) =>
-        AchieveSet("VehicleCollect", rides.Values.Count(r => r.Owned), now: now);
+        Emit(new AchievementEvent("VehicleCollect", SetValue: rides.Values.Count(r => r.Owned)), now);
+
+    bool batchAchievementCountUpdates;
+
+    /// <summary>Merges multiple 0x5684 packets in a tick reply list into one batch update.</summary>
+    internal void CoalesceAchievementCountUpdates(List<byte[]> replies)
+    {
+        if (achievementCountBatch.Count > 0)
+        {
+            replies.Add(AchievementUpdate(achievementCountBatch.OrderBy(i => i).ToList()));
+            achievementCountBatch.Clear();
+        }
+        var ids = new HashSet<int>();
+        for (var i = replies.Count - 1; i >= 0; i--)
+        {
+            if (!TryParseAchievementCountUpdate(replies[i], out var found)) continue;
+            ids.UnionWith(found);
+            replies.RemoveAt(i);
+        }
+        if (ids.Count > 0) replies.Add(AchievementUpdate(ids.OrderBy(i => i).ToList()));
+    }
+
+    static bool TryParseAchievementCountUpdate(byte[] packet, out List<int> ids)
+    {
+        ids = [];
+        if (packet.Length < 3 || BitConverter.ToUInt16(packet, 0) != AchievementCountUpdateNt) return false;
+        try
+        {
+            var reader = new PacketReader(packet) { Offset = 2 };
+            var count = (int)reader.Varint();
+            for (var i = 0; i < count; i++)
+            {
+                ids.Add(reader.I32());
+                reader.I32();
+                reader.I64();
+                reader.U8();
+            }
+            return reader.End;
+        }
+        catch (ProtocolException) { return false; }
+    }
+
+    readonly HashSet<int> achievementCountBatch = [];
+
+    /// <summary>Recomputes every state objective type after login or when related data changes (idempotent max).</summary>
+    internal List<byte[]> SyncStateAchievementProgress(long now)
+    {
+        var replies = new List<byte[]>();
+        replies.AddRange(Emit(new AchievementEvent("PCLevel", SetValue: Level), now));
+        replies.AddRange(Emit(new AchievementEvent("EquipItemLevel", SetValue: EquipItemLevel()), now));
+        replies.AddRange(SyncVehicleCollectAchievements(now));
+        if (gatherLevel > 0) replies.AddRange(Emit(new AchievementEvent("GatherMasteryLevel", SetValue: gatherLevel), now));
+        foreach (var (worktable, _) in CraftCategories)
+            if (CraftLevelOf(worktable) > 0)
+                replies.AddRange(Emit(new AchievementEvent("CraftMasteryLevel", SetValue: CraftLevelOf(worktable), Keys: [worktable]), now));
+        foreach (var (name, type) in CreatureTypeNames)
+        {
+            if (boards.TryGetValue((byte)type, out var board) && board.Level > 0)
+                replies.AddRange(Emit(new AchievementEvent("VehicleCreatureBoardLevel", SetValue: board.Level, Keys: [name]), now));
+            var maxRide = rides.Values.Where(r => r.Owned && (Boxes.Ride(r.RideId)?.Type ?? 0) == type).Select(r => r.Level).DefaultIfEmpty(0).Max();
+            if (maxRide > 0) replies.AddRange(Emit(new AchievementEvent("VehicleTypeLevel", SetValue: maxRide, Keys: [name]), now));
+        }
+        var maxBind = storedItems.Values.Count > 0 ? storedItems.Values.Max(i => SoulBindCount(i)) : 0;
+        if (maxBind > 0) replies.AddRange(Emit(new AchievementEvent("SoulbindMax", SetValue: maxBind), now));
+        if (skins.Count > 0) replies.AddRange(Emit(new AchievementEvent("SkinFirstCollectAny", SetValue: 1), now));
+        foreach (var row in MonolithTables.Embedded.AllRows)
+        {
+            var count = MonolithResonateCount(row.Id);
+            if (count > 0) replies.AddRange(Emit(new AchievementEvent("MonolithLevel", SetValue: count, Keys: [row.Name]), now));
+        }
+        return replies;
+    }
+
+    List<byte[]> AchieveArenaCombat(bool kill, bool assist, bool died, int matchingId, long now)
+    {
+        var mode = matchingId == 1 ? "SingleCombat" : "TeamCombat";
+        var replies = new List<byte[]>();
+        if (kill) replies.AddRange(Emit(new AchievementEvent("ArenaKill", Keys: [mode]), now));
+        if (assist) replies.AddRange(Emit(new AchievementEvent("ArenaAssist", Keys: [mode]), now));
+        if (died) replies.AddRange(Emit(new AchievementEvent("ArenaDie", Keys: [mode]), now));
+        return replies;
+    }
+
+    /// <summary>Awaken dungeon cube/clear rewards (OURS: floor index + 7 → Reward_Awaken_* tier suffix in achievements.json).</summary>
+    internal static string[]? DungeonRewardKeys(DungeonInfo room, int race)
+    {
+        if (!room.Name.StartsWith("Dungeon_Awaken_", StringComparison.Ordinal))
+        {
+            if (room.RewardLight is not { Length: > 0 } && room.RewardDark is not { Length: > 0 }) return null;
+            var prefix = race == 2 ? "Reward_Awaken_Dark" : "Reward_Awaken_Light";
+            return [prefix];
+        }
+        var parts = room.Name.Split('_');
+        if (parts.Length >= 4 && int.TryParse(parts[^1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var floor))
+        {
+            var tier = floor + 7;
+            var prefix = race == 2 ? "Reward_Awaken_Dark" : "Reward_Awaken_Light";
+            return [prefix, $"{prefix}_{tier}"];
+        }
+        if (room.RewardLight is { Length: > 0 })
+        {
+            var prefix = race == 2 ? "Reward_Awaken_Dark" : "Reward_Awaken_Light";
+            return [prefix];
+        }
+        return null;
+    }
+
+    List<byte[]> AchieveDungeonReward(DungeonInfo room, long now)
+    {
+        var keys = DungeonRewardKeys(room, profileRace);
+        return keys is null ? [] : Emit(new AchievementEvent("GetDungeonReward", Keys: keys), now);
+    }
+
+    List<byte[]> AchieveFieldEventComplete(string eventKind, long now) =>
+        Emit(new AchievementEvent("CompleteFieldEvent", Keys: [eventKind]), now);
+
+    List<byte[]> AchieveFieldEventRanking(string rewardGroup, int rank, int band, long now) =>
+        Emit(new AchievementEvent("FieldEventRanking", Keys: [rewardGroup, rank.ToString(CultureInfo.InvariantCulture), band.ToString(CultureInfo.InvariantCulture)]), now);
 
     // ---------- Rewards ----------
 
@@ -371,9 +551,9 @@ public sealed partial class GameSession
         if (Achievements.Of(id) is not { } entry || !achievements.TryGetValue(id, out var state) || state.RewardedStep >= step || state.Count < entry.StepCount(step)) return null;
         if (PaidPassLocked(id)) return null;   // the paid pass's levels need a purchase (none is sold)
         var items = options.Rates.WithKinah(entry.StepRewards(step));
+        var priorRewarded = state.RewardedStep;
         if (Store is { } store && CharacterId is { } character)
         {
-            await FlushAchievementsAsync(now, ct, force: true);
             var ok = await Stored(async () => await store.TakeAchievementRewardAsync(character, id, step, state.Count, items, ct) ? [[]] : []);
             if (ok.Count == 0) return null;
         }
@@ -410,12 +590,16 @@ public sealed partial class GameSession
         var row = rewards[step - 1];
         if (row.Length < 3 || CompletedInGroup(groupId) < row[0]) return null;
         var items = options.Rates.WithKinah([((int)row[1], row[2])]);
+        if (!groupRewardsTaken.Add((groupId, step))) return null;
         if (Store is { } store && CharacterId is { } character)
         {
             var ok = await Stored(async () => await store.TakeGroupRewardAsync(character, groupId, step, items, ct) ? [[]] : []);
-            if (ok.Count == 0) return null;
+            if (ok.Count == 0)
+            {
+                groupRewardsTaken.Remove((groupId, step));
+                return null;
+            }
         }
-        groupRewardsTaken.Add((groupId, step));
         LogAchievementReward(logSource, step, items, groupId: groupId);
         var replies = new List<byte[]>();
         if (refreshGroupStates) replies.Add(AchievementList(now));
@@ -630,13 +814,16 @@ public sealed partial class GameSession
         {
             var id = board.Achievement;
             if (Achievements.Of(id) is not { } entry || !achievements.TryGetValue(id, out var state)) continue;
-            var step = state.RewardedStep + 1;
-            if (step > entry.Steps.Length || state.Count < entry.StepCount(step)) continue;
-            var taken = await TakeStepAsync(id, step, now, ct, syncInventory: false);
-            if (taken is null) { failedClaims++; continue; }
-            if (entry.StepRewards(step).Count > 0) grantedItems = true;
-            claimedSteps.Add((id, step));
-            rewardReplies.AddRange(taken);
+            while (true)
+            {
+                var step = state.RewardedStep + 1;
+                if (step > entry.Steps.Length || state.Count < entry.StepCount(step)) break;
+                var taken = await TakeStepAsync(id, step, now, ct, syncInventory: false);
+                if (taken is null) { failedClaims++; break; }
+                if (entry.StepRewards(step).Count > 0) grantedItems = true;
+                claimedSteps.Add((id, step));
+                rewardReplies.AddRange(taken);
+            }
         }
 
         if (claimedSteps.Count > 0) await FlushAchievementsAsync(now, ct, force: true);
@@ -661,8 +848,12 @@ public sealed partial class GameSession
     {
         if (plain.Length < 6) return [];
         var key = BitConverter.ToInt32(plain, 2);
-        var npcId = targets?.GetValueOrDefault(key)?.NpcId ?? 0;
-        return [PacketWriter.Opcode(CloseNpcAchievementRs).U16(0).I32(key).ToArray(), .. npcId == 0 ? [] : Achieve("CloseNPC", 1, e => e.Npcs?.Contains(npcId) == true)];
+        if (!closedNpcAchievementKeys.Add(key)) return [PacketWriter.Opcode(CloseNpcAchievementRs).U16(0).I32(key).ToArray()];
+        if (targets?.GetValueOrDefault(key) is not { } npc) return [PacketWriter.Opcode(CloseNpcAchievementRs).U16(0).I32(key).ToArray()];
+        if (position is not { } at) return [PacketWriter.Opcode(CloseNpcAchievementRs).U16(0).I32(key).ToArray()];
+        var reach = QuestStepDriver.TalkReach + CastRangeToleranceCm + npc.Radius;
+        if (HorizontalDistance(at, npc.Position) > reach) return [PacketWriter.Opcode(CloseNpcAchievementRs).U16(0).I32(key).ToArray()];
+        return [PacketWriter.Opcode(CloseNpcAchievementRs).U16(0).I32(key).ToArray(), .. Achieve("CloseNPC", 1, e => e.Npcs?.Contains(npc.NpcId) == true)];
     }
 
     List<byte[]> CloseEnvObjAchievement(byte[] plain)
@@ -671,9 +862,16 @@ public sealed partial class GameSession
         var key = BitConverter.ToInt32(plain, 2);
         var index = key - WorldObjects.FirstKey;
         var objects = WorldObjects.ObjectsOn(worldMap);
-        var name = index >= 0 && index < objects.Count ? objects[index].Name : null;
-        MarkClosedEnvObject(name);
-        return [PacketWriter.Opcode(CloseEnvObjAchievementRs).U16(0).I32(key).ToArray(), .. name is null ? [] : Achieve("CloseEnvObj", 1, e => e.Has(name))];
+        if (index < 0 || index >= objects.Count) return [PacketWriter.Opcode(CloseEnvObjAchievementRs).U16(0).I32(key).ToArray()];
+        var obj = objects[index];
+        if (!closedEnvObjectNames.Add(obj.Name)) return [PacketWriter.Opcode(CloseEnvObjAchievementRs).U16(0).I32(key).ToArray()];
+        if (position is { } at)
+        {
+            var reach = obj.InteractRange + WorldObjects.InteractSlack;
+            if (HorizontalDistance(at, obj.At) > reach) return [PacketWriter.Opcode(CloseEnvObjAchievementRs).U16(0).I32(key).ToArray()];
+        }
+        MarkClosedEnvObject(obj.Name);
+        return [PacketWriter.Opcode(CloseEnvObjAchievementRs).U16(0).I32(key).ToArray(), .. Achieve("CloseEnvObj", 1, e => e.Has(obj.Name))];
     }
 
     // ---------- Persistence ----------
@@ -683,10 +881,27 @@ public sealed partial class GameSession
     {
         if (achievementDirty.Count == 0 || Store is not { } store || CharacterId is not { } character || (!force && now < achievementFlushAt)) return;
         achievementFlushAt = now + 2000;
-        var records = achievementDirty.Select(id => achievements.TryGetValue(id, out var s)
+        var dirty = achievementDirty.ToList();
+        var records = dirty.Select(id => achievements.TryGetValue(id, out var s)
                 ? new AchievementRecord(id, s.Count, s.CompletedMs == 0 ? null : DateTimeOffset.FromUnixTimeMilliseconds(s.CompletedMs), s.RewardedStep, DateTimeOffset.FromUnixTimeMilliseconds(s.UpdatedMs == 0 ? now : s.UpdatedMs))
                 : null).OfType<AchievementRecord>().ToList();
-        achievementDirty.Clear();
-        await Stored(async () => await store.SaveAchievementsAsync(character, records, ct) ? [[]] : []);
+        achievementDirty.ExceptWith(dirty);
+        if ((await Stored(async () => await store.SaveAchievementsAsync(character, records, ct) ? [[]] : [])).Count == 0)
+            achievementDirty.UnionWith(dirty);
     }
+
+    void ClearGroupRewardsForGroups(IEnumerable<int> groupIds)
+    {
+        var ids = groupIds.ToHashSet();
+        foreach (var taken in groupRewardsTaken.Where(t => ids.Contains(t.Group)).ToList())
+            groupRewardsTaken.Remove(taken);
+    }
+
+    internal void SeedAchievementForTests(int id, int count, long updatedMs) =>
+        achievements[id] = new AchievementState { Count = count, UpdatedMs = updatedMs };
+
+    internal List<byte[]> AchieveForTests(string type, int add = 1, Func<AchievementTables.Entry, bool>? match = null, long now = 0) =>
+        Achieve(type, add, match, now);
+
+    internal static int SaturatingAddForTests(int count, int add) => SaturatingAdd(count, add);
 }

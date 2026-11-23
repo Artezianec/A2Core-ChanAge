@@ -38,6 +38,7 @@ partial class GameSession
         foreach (var pending in pendingSkillAbnormals.Where(p => now >= p.DueMs).ToList())
         {
             pendingSkillAbnormals.Remove(pending);
+            if (dead) continue;
             var area = CastArea(pending.SkillId);
             if (pending.TargetKey >= SharedWorld.FirstPlayerKey && pending.TargetKey != playerKey)
             {

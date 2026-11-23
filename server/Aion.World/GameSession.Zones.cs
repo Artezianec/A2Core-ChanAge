@@ -16,11 +16,13 @@ partial class GameSession
     List<byte[]> PlaceZone(int skillId, CastRequest request, byte actionUid, long now)
     {
         if (targets is null || PcZones.For(skillId) is not { } zone) return [];
+        PlaytestDebug.Action("zone_placed",
+            ("skillId", skillId), ("npc", zone.Npc), ("targetKey", request.TargetKey),
+            ("lifetimeMs", zone.LifetimeMs), ("tickMs", zone.TickMs), ("ticks", zone.Ticks));
         var group = $"zone{skillId}";
         zones.RemoveAll(z => z.Group == group);
         var replies = Dismiss(group, now);
-        var slot = Enumerable.Range(1, SummonSlots).Select(i => (lastSummonSlot + i) % SummonSlots).FirstOrDefault(s => !targets.ContainsKey(SummonKey(s)));
-        lastSummonSlot = slot;
+        var slot = Enumerable.Range(0, SummonSlots).FirstOrDefault(s => !targets.ContainsKey(SummonKey(s)));
         var key = SummonKey(slot);
         var centre = request.TargetKey != playerKey && targets.TryGetValue(request.TargetKey, out var locked) ? locked.Position : request.Location;
         var t = new Target

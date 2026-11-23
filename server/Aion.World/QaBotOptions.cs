@@ -53,6 +53,7 @@ public sealed record QaBotOptions
     public QaAutoRunOptions AutoRun { get; init; } = new();
     public QaCpuGuardOptions CpuGuard { get; init; } = new();
     public QaRetentionOptions Retention { get; init; } = new();
+    public QaBossProbeOptions BossProbe { get; init; } = new();
 
     public QaBotOptions Validated()
     {

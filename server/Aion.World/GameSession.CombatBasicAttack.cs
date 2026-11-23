@@ -46,7 +46,7 @@ public sealed partial class GameSession
     {
         if (PrimaryBasicAutoAttackSkill() is not { } root) return null;
         var comboRoot = ChainRoot(root);
-        var readyChain = activeChainSkills
+        var readyChain = activeChainSkills.ToList()
             .Where(p => now < p.Value && data.Skill(p.Key) is { ChainPrev: > 0 })
             .Select(p => p.Key)
             .Where(id => ChainRoot(id) == comboRoot)
@@ -89,16 +89,21 @@ public sealed partial class GameSession
     List<byte[]> HandleBasicAtkRequest(byte[] plain, long now)
     {
         if (plain.Length < 4 || plain[2] != 0) return [GamePackets.BasicAtkReply(1)];
-        int target;
-        try { target = (int)new PacketReader(plain) { Offset = 3 }.Varint(); }
+        uint targetRaw;
+        try { targetRaw = new PacketReader(plain) { Offset = 3 }.Varint(); }
         catch (ProtocolException) { return [GamePackets.BasicAtkReply(1)]; }
+        if (targetRaw > int.MaxValue) return [GamePackets.BasicAtkReply(1)];
+        var target = (int)targetRaw;
         if (ResolveBasicAutoAttackSkill(now) is not { } skill) return [GamePackets.BasicAtkReply(1)];
-        selectedTarget = target;
-        autoAttackSkill = skill;
         NoteHeldCastWireReceived(now);
         var at = position ?? Vector3d.Zero;
         var body = BuildSkillStartWire(skill, target, at, worldPlayer?.Heading ?? 0);
         var cast = CastReplies(body, now);
+        if (cast.Any(p => Opcode(p) == 0x3801 && CastResultCode(p) == 0))
+        {
+            selectedTarget = target;
+            autoAttackSkill = skill;
+        }
         LogBasicAtkCast(skill, target, cast);
         return ReplaceCastAckWithBasicAtk(cast);
     }

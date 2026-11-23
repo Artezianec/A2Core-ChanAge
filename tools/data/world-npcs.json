@@ -4,7 +4,8 @@
     "npcdata": "NpcData.dat level/type/relationship/aggro",
     "hp": "official 0x3641 HP by level, interpolated",
     "aggro": "NpcAggroData.dat by NpcData.AggroDetectRange",
-    "npc_skills": "Skill.dat + SkillEffect.dat for NpcData.ActiveSkillList"
+    "npc_skills": "Skill.dat + SkillEffect.dat for NpcData.ActiveSkillList",
+    "npc_skills_export": "research/client-export/2026-11-22 Skill + SkillEffect"
   },
   "maps": {
     "1000": [

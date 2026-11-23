@@ -34,9 +34,11 @@ public sealed class CraftTables
         [property: JsonPropertyName("conversion_recipes")] Dictionary<string, JsonElement[]>? ConversionRecipes = null,
         [property: JsonPropertyName("rate_curves")] int[][]? RateCurves = null,
         [property: JsonPropertyName("craft_mastery")] long[]? CraftMastery = null,
-        [property: JsonPropertyName("gather_mastery")] long[]? GatherMastery = null);
+        [property: JsonPropertyName("gather_mastery")] long[]? GatherMastery = null,
+        [property: JsonPropertyName("recipe_names")] Dictionary<string, string>? RecipeNames = null);
 
     readonly Dictionary<int, Recipe> recipes;
+    readonly Dictionary<int, string> recipeNames;
     readonly Dictionary<int, ConversionRecipe> conversionRecipes;
     readonly Dictionary<string, int[]> conversions;
     readonly int[][] rateCurves;
@@ -99,6 +101,8 @@ public sealed class CraftTables
                 r[7].GetInt64(), r[8].GetInt32(),
                 r.Length > 9 ? r[9].GetInt32() : 0, r.Length > 10 ? r[10].GetInt32() : 0);
         });
+        recipeNames = (file.RecipeNames ?? []).Where(p => int.TryParse(p.Key, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
+            .ToDictionary(p => int.Parse(p.Key, System.Globalization.CultureInfo.InvariantCulture), p => p.Value);
     }
 
     static readonly Lazy<CraftTables> embedded = new(() =>
@@ -109,6 +113,8 @@ public sealed class CraftTables
 
     public static CraftTables Embedded => embedded.Value;
     public Recipe? Of(int id) => recipes.GetValueOrDefault(id);
+    /// <summary>CraftRecipe.dat internal name for CraftSuccess objectives (tools/data/crafts.json recipe_names).</summary>
+    public string? RecipeAchievementName(int id) => recipeNames.GetValueOrDefault(id);
     public ConversionRecipe? Conversion(int id) => conversionRecipes.GetValueOrDefault(id);
 
     /// <summary>The recipes a character knows: automatic ones of its race up to its mastery of the recipe's worktable.</summary>
@@ -271,7 +277,7 @@ public sealed partial class GameSession
         var achieve = new List<byte[]>();
         if (outcome.GrantsProduct)
         {
-            achieve.AddRange(AchieveCraft(recipe.Worktable, CraftLevelOf(recipe.Worktable)));
+            achieve.AddRange(AchieveCraft(recipe.Worktable, CraftLevelOf(recipe.Worktable), recipeId));
             if (outcome.ComboSuccess) achieve.AddRange(Achieve("CraftComboSuccess", 1, e => e.Values.Length == 0 || e.Has(recipeId.ToString(System.Globalization.CultureInfo.InvariantCulture))));
         }
         return [Reply(0, outcome.Success, combo: outcome.ComboAttempt, comboSuccess: outcome.ComboSuccess), .. await InventoryChangesAsync(ct, IncreaseCraftItem, DecreaseCraftItem),

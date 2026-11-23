@@ -53,9 +53,10 @@ public static class QaMapEventRunner
                     : session.LayerCopyHasDanglingRuns(layerMap) ? "reuse_dangling_run"
                     : state.ActiveMapEventRunId is not null ? "resume_active_run"
                     : "field_volume_entry";
-                var packets = session.EnterDungeonById(dungeonId, now);
+                var copy = session.PreferredSoloDungeonCopy(layerMap);
+                var packets = session.EnterDungeonById(dungeonId, now, copy);
                 if (packets.Count > 0)
-                    return QuestDriverSlice.Act(packets, $"map_event:reenter_dungeon:{dungeonId}:reason={reason}");
+                    return QuestDriverSlice.Act(packets, $"map_event:reenter_dungeon:{dungeonId}:reason={reason}:copy={copy}");
                 return QuestDriverSlice.Wait($"map_event:reenter_dungeon:{dungeonId}:refused:{reason}");
             }
         }
@@ -95,9 +96,10 @@ public static class QaMapEventRunner
             }
             if (dungeonId > 0 && session.MapId != layerMap)
             {
-                var packets = session.EnterDungeonById(dungeonId, now);
+                var copy = session.PreferredSoloDungeonCopy(layerMap);
+                var packets = session.EnterDungeonById(dungeonId, now, copy);
                 if (packets.Count > 0)
-                    return QuestDriverSlice.Act(packets, $"map_event:enter_dungeon:{dungeonId}");
+                    return QuestDriverSlice.Act(packets, $"map_event:enter_dungeon:{dungeonId}:copy={copy}");
                 return QuestDriverSlice.Stuck("dungeon_entry_refused", $"map_event:{eventName}");
             }
             return QuestDriverSlice.Wait($"map_event:seek_entry:{npcId ?? 0}");
@@ -164,7 +166,7 @@ public static class QaMapEventRunner
                 var prey = cherubs[state.MapEventKillIndex];
                 var skill = QaBotCombat.BasicAttackSkill(driver.Data, session, now);
                 var reach = session.QaBot ? QaBotCombat.CastReach(driver.Data, skill) : QuestStepDriver.KillReach;
-                if (Flat(me, prey.Position) > reach)
+                if (!QaBotCombat.InCastRange(driver.Data, me, prey, skill))
                     return driver.MoveTowardPublic(session, me, prey.Position, reach * 0.9, now, state, "map_event:hq001_kill");
                 QaBotCombat.ScheduleSwing(state, driver.Data, session, skill, now);
                 var yaw = Math.Atan2(prey.Position.Y - me.Y, prey.Position.X - me.X) * 180 / Math.PI;
@@ -230,10 +232,66 @@ public static class QaMapEventRunner
     static bool DeferMapEventCombat(GameSession session, MapEventRun run, int mapId) =>
         BombMissionActive(session, run, mapId);
 
-    internal static int MapEventObjectivePriority(string type, int mapId = 0, bool deferCombat = false)
+    /// <summary>After bomb stage: walk to camp volumes instead of fighting every stray soldier on the way.</summary>
+    static bool VolumeProgressBlocksSelfDefense(MapEventRun run, GameSession session, Vector3d me)
+    {
+        if (run.StageOrder <= 1) return false;
+        if (!run.Open.Any(x => x.Objective.Type is "EnterVolumePC" or "EnterSubZone")) return false;
+        if (session.InCombat) return false;
+        var hpRatio = session.Resource.HpMax > 0 ? (double)session.Resource.Hp / session.Resource.HpMax : 1;
+        return hpRatio >= 0.45;
+    }
+
+    static int SpawnerLiving(GameSession session, string spawner) =>
+        session.Targets.Values.Count(t => !t.Dead && !t.CorpseRemoved && MapEventRun.NameMatches(spawner, t.Name));
+
+    static int OpenKillSpawnerLiving(GameSession session, MapEventRun run) =>
+        run.Open.Where(x => x.Objective.Type == "KillSpawner").Sum(x => SpawnerLiving(session, x.Objective.Value(0)));
+
+    static int ObjectiveSortKey(GameSession session, MapEventRun run, int objIndex, MapEventObjective objective, int mapId, bool deferCombat, int stageOrder)
+    {
+        var priority = MapEventObjectivePriority(objective.Type, mapId, deferCombat, stageOrder);
+        if (stageOrder >= 5 && mapId == 100002 && objective.Type is "EnterVolumePC" or "EnterSubZone"
+            && objIndex < run.Goals.Length && run.Goals[objIndex] < objective.Count)
+            return priority - 25;
+        if (objective.Type == "KillSpawner")
+        {
+            var spawner = objective.Value(0);
+            var living = session.Targets.Values.Count(t => !t.Dead && !t.CorpseRemoved && MapEventRun.NameMatches(spawner, t.Name));
+            if (living > 0) return priority - 10;
+        }
+        if (mapId == 220016 && run.StepOrder == 7 && objective.Type == "UseEnvObj"
+            && objIndex < run.Goals.Length && run.Goals[objIndex] < objective.Count)
+            return priority - 20;
+        if (mapId == 100002 && stageOrder == 5 && objective.Type == "HpRemaining"
+            && objIndex < run.Goals.Length && run.Goals[objIndex] < objective.Count)
+            return priority - 25;
+        if (mapId == 220016 && run.StepOrder == 8 && objective.Type is "CloseNpc" or "NpcArriveWaypoint"
+            && objIndex < run.Goals.Length && run.Goals[objIndex] < objective.Count)
+            return priority - 18;
+        if (objective.Type == "UpdateEnvObjState"
+            && objIndex < run.Goals.Length && run.Goals[objIndex] < objective.Count)
+            return priority - 15;
+        return priority;
+    }
+
+    internal static int MapEventObjectivePriority(string type, int mapId = 0, bool deferCombat = false, int stageOrder = 0)
     {
         if (WorldObjects.HasCarryBoxes(mapId))
         {
+            if (stageOrder >= 5)
+            {
+                return type switch
+                {
+                    "KillNpc" or "KillSpawner" or "PCCombatStart" or "KillNpcRelationshipEntity" or "KillNpcSubtype" or "KillNpcCreatureType" => 0,
+                    "EnterVolumePC" or "EnterSubZone" => 1,
+                    "HpRemaining" => 2,
+                    "NpcArriveWaypoint" => 3,
+                    "UseEnvObj" => 4,
+                    "AskNpc" or "CloseNpc" => 5,
+                    _ => 6,
+                };
+            }
             return type switch
             {
                 "UseEnvObj" => 0,
@@ -260,16 +318,50 @@ public static class QaMapEventRunner
     {
         var mapId = session.MapId ?? 0;
         var deferCombat = DeferMapEventCombat(session, run, mapId);
+        var pickupPending = BombPickupPending(session, run, mapId);
+        if (TryReturnFromLightCamp(driver, session, run, me, now, state) is { } fromCamp)
+            return fromCamp;
         if (TryBombMissionSlice(driver, session, run, me, now, state, mapId) is { } bombOnly)
             return bombOnly;
         if (driver.TryHeightRepositionSlice(session, state, me, now, "map_event") is { } heightFix)
             return heightFix;
-        if (TrySelfDefense(driver, session, me, now, state, deferCombat) is { } selfDefense)
-            return selfDefense;
-        foreach (var (_, objective) in run.Open.ToList().OrderBy(x => MapEventObjectivePriority(x.Objective.Type, mapId, deferCombat)))
+        var waveSpawnerDuty = OpenKillSpawnerLiving(session, run) > 0;
+        var orderedOpen = run.Open.ToList().OrderBy(x => ObjectiveSortKey(session, run, x.Index, x.Objective, mapId, deferCombat, run.StageOrder)).ToList();
+        if (session.QaBot && (mapId is 220016 or 101027 or 100002 || run.Open.Any(x => x.Objective.Type == "KillSpawner")))
+        {
+            var lead = orderedOpen.FirstOrDefault();
+            var openSummary = string.Join(';', run.Open.Select(x => $"{x.Index}:{x.Objective.Type}:{(x.Index < run.Goals.Length ? run.Goals[x.Index] : -1)}"));
+            var leadSig = lead.Objective is null ? "none" : $"{lead.Index}:{lead.Objective.Type}";
+            var sig = $"{mapId}:{run.StageOrder}:{run.StepOrder}:{leadSig}:{openSummary}:{deferCombat}:{waveSpawnerDuty}:{pickupPending}";
+            if (sig != state.LastSliceDecisionSig || now - state.LastSliceDecisionAt > 30_000)
+            {
+                PlaytestDebug.Action("map_event_slice_decision",
+                    ("map", mapId), ("stage", run.StageOrder), ("step", run.StepOrder),
+                    ("lead", leadSig),
+                    ("open", openSummary),
+                    ("deferCombat", deferCombat), ("waveDuty", waveSpawnerDuty), ("pickupPending", pickupPending));
+                state.LastSliceDecisionSig = sig;
+                state.LastSliceDecisionAt = now;
+            }
+        }
+        if (!pickupPending && !VolumeProgressBlocksSelfDefense(run, session, me))
+        {
+            if (!waveSpawnerDuty
+                && TrySelfDefense(driver, session, me, now, state, deferCombat, pickupPending) is { } selfDefense)
+                return selfDefense;
+            var hpRatioWave = session.Resource.HpMax > 0 ? (double)session.Resource.Hp / session.Resource.HpMax : 1;
+            if (waveSpawnerDuty && hpRatioWave < 0.40
+                && TrySelfDefense(driver, session, me, now, state, deferCombat, pickupPending, engageRadius: 350) is { } waveDefense)
+                return waveDefense;
+        }
+        foreach (var (objIndex, objective) in orderedOpen)
         {
             if (deferCombat && objective.Type is not ("UseEnvObj" or "AskNpc" or "CloseNpc" or "CompleteCutscene" or "NpcArriveWaypoint"))
+            {
+                if (session.QaBot && objective.Type == "KillSpawner")
+                    PlaytestDebug.Action("kill_spawner_skip", ("reason", "deferCombat"), ("spawner", objective.Value(0)), ("idx", objIndex));
                 continue;
+            }
             switch (objective.Type)
             {
                 case "NpcArriveWaypoint":
@@ -288,11 +380,14 @@ public static class QaMapEventRunner
                 }
                 case "EnterVolumePC" or "EnterSubZone":
                 {
-                    if (!TryTriggerOrSubzonePosition(session.MapId ?? 0, objective.Value(0), out var at))
+                    var triggerName = objective.Value(0);
+                    if (session.QaBot && triggerName.Contains("ToBattle", StringComparison.OrdinalIgnoreCase))
+                        LogEnterVolumeTrigger(session, me, triggerName);
+                    if (!TryTriggerOrSubzonePosition(session.MapId ?? 0, triggerName, out var at))
                         return QuestDriverSlice.Wait("map_event:seek_trigger");
                     if (Flat(me, at) > 300)
-                        return driver.MoveTowardPublic(session, me, at, 150, now, state, "map_event:enter_vol");
-                    return QuestDriverSlice.Act([MoveUpdate(at)], "map_event:enter_vol");
+                        return driver.MoveTowardPublic(session, me, at with { Z = me.Z }, 120, now, state, "map_event:enter_vol");
+                    return QuestDriverSlice.Act([MoveUpdate(at with { Z = Math.Max(me.Z, at.Z) })], "map_event:enter_vol");
                 }
                 case "HpRemaining":
                 {
@@ -304,19 +399,32 @@ public static class QaMapEventRunner
                         .OrderBy(t => Flat(me, t.Position))
                         .FirstOrDefault()
                         ?? session.Targets.Values.Where(MatchesHpTarget).OrderBy(t => Flat(me, t.Position)).FirstOrDefault();
+                    if (session.QaBot)
+                        LogHpRemainingTarget(session, state, objective, target, me, threshold, now);
                     if (target is null)
                     {
                         if (TryClearNearbyHostiles(driver, session, me, now, state, bossApproach: true) is { } walkHostile)
                             return walkHostile;
+                        foreach (var spawnName in names)
+                        {
+                            var kick = driver.Data.Spawns(session.MapId ?? 0).FirstOrDefault(s => NameMatches(spawnName, s.Name));
+                            if (kick is not null && !state.KickSpawnersAttempted.Contains(kick.Name))
+                            {
+                                state.KickSpawnersAttempted.Add(kick.Name);
+                                state.MapEventBossSeekSince = now;
+                                session.QaStartMapEventSpawner(kick.Name);
+                                return QuestDriverSlice.Wait("map_event:hp_remaining_spawn_kick");
+                            }
+                        }
                         if (objective.Npcs is { Length: > 0 } ids && driver.Data.NpcPlaced(ids[0], session.MapId ?? 0) is { } placed)
                         {
                             var spawnAt = new Vector3d(placed.Position[0], placed.Position[1], placed.Position[2]);
                             if (Flat(me, spawnAt) > 500)
-                                return driver.MoveTowardPublic(session, me, spawnAt, 400, now, state, "map_event:walk_boss_spawn");
+                                return driver.MoveTowardPublic(session, me, KillChaseGoal(me, spawnAt), 180, now, state, "map_event:hp_remaining_walk");
                         }
                         var bossSpawner = objective.Npcs is { Length: > 0 } bossIds
                             ? driver.Data.Spawns(session.MapId ?? 0).FirstOrDefault(s => bossIds.Contains(s.NpcId))?.Name
-                            : null;
+                            : names.FirstOrDefault(n => !string.IsNullOrEmpty(n));
                         if (bossSpawner is not null && !state.KickSpawnersAttempted.Contains(bossSpawner))
                         {
                             state.KickSpawnersAttempted.Add(bossSpawner);
@@ -333,8 +441,10 @@ public static class QaMapEventRunner
                     state.MapEventBossSeekSince = 0;
                     var skillHp = QaBotCombat.BasicAttackSkill(driver.Data, session, now);
                     var reachHp = session.QaBot ? QaBotCombat.CastReach(driver.Data, skillHp) : QuestStepDriver.KillReach;
-                    if (Flat(me, target.Position) > reachHp)
-                        return driver.MoveTowardPublic(session, me, target.Position, reachHp * 0.9, now, state, "map_event:hp_remaining_walk");
+                    state.CombatTargetKey = target.Key;
+                    var hpGoal = KillChaseGoal(me, target.Position);
+                    if (!QaBotCombat.InCastRange(driver.Data, me, target, skillHp))
+                        return driver.MoveTowardPublic(session, me, hpGoal, Math.Min(reachHp * 0.85, 180), now, state, "map_event:hp_remaining_walk");
                     QaBotCombat.ScheduleSwing(state, driver.Data, session, skillHp, now);
                     var yawHp = Math.Atan2(target.Position.Y - me.Y, target.Position.X - me.X) * 180 / Math.PI;
                     return QuestDriverSlice.Act(
@@ -347,10 +457,29 @@ public static class QaMapEventRunner
                 case "KillSpawner":
                 {
                     var spawner = objective.Value(0);
-                    var prey = session.Targets.Values.Where(t => !t.Dead && !t.CorpseRemoved)
+                    if (session.QaBot)
+                    {
+                        var sliceSig = $"{spawner}:{objIndex}:{SpawnerLiving(session, spawner)}";
+                        if (sliceSig != state.LastKillSpawnerSliceSig || now - state.LastKillSpawnerSliceAt > 30_000)
+                        {
+                            PlaytestDebug.Action("kill_spawner_slice", ("spawner", spawner), ("idx", objIndex), ("living", SpawnerLiving(session, spawner)));
+                            state.LastKillSpawnerSliceSig = sliceSig;
+                            state.LastKillSpawnerSliceAt = now;
+                        }
+                    }
+                    static bool KillSpawnerPrey(Target t, string spawner) =>
+                        t.Hostile || MapEventRun.NameMatches(spawner, t.Name);
+                    IEnumerable<Target> SpawnerPreyCandidates() => session.Targets.Values
+                        .Where(t => !t.Dead && !t.CorpseRemoved && KillSpawnerPrey(t, spawner))
+                        .Where(t => MapEventRun.NameMatches(spawner, t.Name)
+                            || (objective.Npcs is { Length: > 0 } spawnerNpcIds && spawnerNpcIds.Contains(t.NpcId)));
+                    var prey = SpawnerPreyCandidates()
                         .Where(t => state.CastHeightRepositionKey == t.Key || !state.CastRefusalBlacklisted.Contains(t.Key))
-                        .Where(t => string.Equals(t.Name, spawner, StringComparison.OrdinalIgnoreCase)
-                            || (objective.Npcs is { Length: > 0 } spawnerNpcIds && spawnerNpcIds.Contains(t.NpcId)))
+                        .OrderBy(t => Flat(me, t.Position)).FirstOrDefault();
+                    if (prey is null && SpawnerLiving(session, spawner) > 0)
+                        ClearSpawnerCastBlacklist(state, SpawnerPreyCandidates());
+                    prey ??= SpawnerPreyCandidates()
+                        .Where(t => state.CastHeightRepositionKey == t.Key || !state.CastRefusalBlacklisted.Contains(t.Key))
                         .OrderBy(t => Flat(me, t.Position)).FirstOrDefault();
                     if (prey is null && string.IsNullOrEmpty(spawner) == false
                         && driver.Data.Spawns(session.MapId ?? 0).FirstOrDefault(s => string.Equals(s.Name, spawner, StringComparison.OrdinalIgnoreCase)) is { } spot)
@@ -359,11 +488,23 @@ public static class QaMapEventRunner
                         if (Flat(me, spawnAt) > 500)
                             return driver.MoveTowardPublic(session, me, spawnAt, 400, now, state, "map_event:walk_boss_spawn");
                     }
-                    if (prey is null && string.IsNullOrEmpty(spawner) == false)
-                        prey = session.Targets.Values.Where(t => !t.Dead && t.Hostile && !MapEventSpawnerLabel(t.Name))
-                            .OrderBy(t => Flat(me, t.Position)).FirstOrDefault();
                     if (prey is null)
                     {
+                        if (session.QaBot && SpawnerLiving(session, spawner) > 0)
+                        {
+                            var sample = session.Targets.Values.FirstOrDefault(t => !t.Dead && MapEventRun.NameMatches(spawner, t.Name));
+                            var why = sample is null ? "no_name_match"
+                                : state.CastRefusalBlacklisted.Contains(sample.Key) ? "blacklisted"
+                                : !sample.Hostile ? "not_hostile" : "filtered";
+                            var sig = $"{spawner}:{why}:{sample?.Key ?? 0}";
+                            if (sig != state.LastKillSpawnerTargetSig || now - state.LastKillSpawnerTargetAt > 30_000)
+                            {
+                                PlaytestDebug.Action("kill_spawner_target", ("spawner", spawner), ("prey", "none"), ("why", why),
+                                    ("living", SpawnerLiving(session, spawner)), ("sampleKey", sample?.Key ?? 0), ("hostile", sample?.Hostile ?? false));
+                                state.LastKillSpawnerTargetSig = sig;
+                                state.LastKillSpawnerTargetAt = now;
+                            }
+                        }
                         if (!state.KickSpawnersAttempted.Contains(spawner))
                         {
                             state.KickSpawnersAttempted.Add(spawner);
@@ -377,14 +518,24 @@ public static class QaMapEventRunner
                             return QuestDriverSlice.Stuck("boss_not_spawned", "map_event:seek_mob");
                         if (TryTriggerOrSubzonePosition(session.MapId ?? 0, spawner, out var spawn) && Flat(me, spawn) > 600)
                             return driver.MoveTowardPublic(session, me, spawn, 200, now, state, "map_event:walk_spawn");
+                        if (session.QaBot && string.IsNullOrEmpty(spawner) == false)
+                        {
+                            var living = session.Targets.Values.Count(t => !t.Dead && !t.CorpseRemoved && MapEventRun.NameMatches(spawner, t.Name));
+                            return QuestDriverSlice.Wait($"map_event:seek_mob:spawner={spawner}:living={living}");
+                        }
                         return QuestDriverSlice.Wait("map_event:seek_mob");
                     }
                     state.MapEventBossSeekSince = 0;
+                    state.CombatTargetKey = prey.Key;
                     var skill = QaBotCombat.BasicAttackSkill(driver.Data, session, now);
                     var reach = session.QaBot ? QaBotCombat.CastReach(driver.Data, skill) : QuestStepDriver.KillReach;
-                    var killGoal = ClampLayerMovementGoal(session.MapId ?? 0, prey.Position);
-                    if (Flat(me, killGoal) > reach)
-                        return driver.MoveTowardPublic(session, me, killGoal, reach * 0.9, now, state, "map_event:walk_kill");
+                    if (session.QaBot)
+                        LogKillSpawnerTarget(driver.Data, session, state, spawner, prey, me, skill, now);
+                    if (KillSpawnerHeightReposition(driver, session, me, now, state, prey, spawner, skill, reach) is { } heightSlice)
+                        return heightSlice;
+                    var killGoal = KillChaseGoal(me, prey.Position);
+                    if (!QaBotCombat.InCastRange(driver.Data, me, prey, skill))
+                        return driver.MoveTowardPublic(session, me, killGoal, Math.Min(reach * 0.85, 180), now, state, "map_event:walk_kill");
                     QaBotCombat.ScheduleSwing(state, driver.Data, session, skill, now);
                     var yaw = Math.Atan2(prey.Position.Y - me.Y, prey.Position.X - me.X) * 180 / Math.PI;
                     return QuestDriverSlice.Act(
@@ -401,8 +552,10 @@ public static class QaMapEventRunner
                     var attackNames = names.Where(n => !MapEventSpawnerLabel(n)).ToArray();
                     if (attackNames.Length > 0 && KillHostilesOnce(driver, session, me, now, state, attackNames) is { } opportunisticKill)
                         return opportunisticKill;
+                    var reservedForHp = ReservedHpRemainingNpcIds(run);
                     var candidates = LivingMonsters(session, objective.Npcs, names.Where(n => !MapEventSpawnerLabel(n)).ToArray())
                         .Where(t => state.CastHeightRepositionKey == t.Key || !state.CastRefusalBlacklisted.Contains(t.Key))
+                        .Where(t => !reservedForHp.Contains(t.NpcId))
                         .ToList();
                     var prey = state.CombatTargetKey is { } lockKey && candidates.FirstOrDefault(t => t.Key == lockKey) is { } locked
                         ? locked
@@ -415,6 +568,11 @@ public static class QaMapEventRunner
                     }
                     if (prey is null)
                     {
+                        if (session.QaBot && objective.Npcs is { Length: > 0 } seekIds)
+                        {
+                            var living = session.Targets.Values.Count(t => !t.Dead && seekIds.Contains(t.NpcId));
+                            return QuestDriverSlice.Wait($"map_event:seek_mob:npcLiving={living}:ids={string.Join(',', seekIds)}");
+                        }
                         if (KickSpawnersForNpcIds(driver, session, state, now, objective.Npcs) is { } kick)
                             return kick;
                         if (names.Length > 0 && TryTriggerOrSubzonePosition(session.MapId ?? 0, names[0], out var spawn) && Flat(me, spawn) > 600)
@@ -423,14 +581,14 @@ public static class QaMapEventRunner
                     }
                     var skill = QaBotCombat.BasicAttackSkill(driver.Data, session, now);
                     var reach = session.QaBot ? QaBotCombat.CastReach(driver.Data, skill) : QuestStepDriver.KillReach;
-                    var walkKill = ClampLayerMovementGoal(session.MapId ?? 0, prey.Position);
+                    var walkKill = KillChaseGoal(me, prey.Position);
                     var hpRatio = session.Resource.HpMax > 0 ? (double)session.Resource.Hp / session.Resource.HpMax : 1;
-                    if (hpRatio < 0.35 && Flat(me, prey.Position) < 1200)
+                    if (hpRatio < 0.50 && Flat(me, prey.Position) < 1600 && TryCombatRetreat(state, now))
                     {
                         var away = new Vector3d(me.X + (me.X - prey.Position.X) * 0.4, me.Y + (me.Y - prey.Position.Y) * 0.4, me.Z);
                         return driver.MoveTowardPublic(session, me, away, 150, now, state, $"map_event:kill_retreat:{prey.NpcId}");
                     }
-                    if (Flat(me, walkKill) > reach)
+                    if (!QaBotCombat.InCastRange(driver.Data, me, prey, skill))
                         return driver.MoveTowardPublic(session, me, walkKill, reach * 0.9, now, state, "map_event:walk_kill");
                     state.CombatTargetKey = prey.Key;
                     QaBotCombat.ScheduleSwing(state, driver.Data, session, skill, now);
@@ -530,7 +688,7 @@ public static class QaMapEventRunner
                         (objective.Npcs ?? []).Contains(n.NpcId)
                         || objective.Names.Any(na => NameMatches(na, n.Name)));
                     if (npc is null) return QuestDriverSlice.Wait("map_event:seek_npc");
-                    if (liveAskNpc || objective.Type == "AskNpc")
+                    if (liveAskNpc || objective.Type is "AskNpc" or "CloseNpc")
                     {
                         if (Flat(me, npc.Position) > QuestStepDriver.TalkReach * 2)
                             return driver.MoveTowardPublic(session, me, npc.Position, QuestStepDriver.TalkReach, now, state, "map_event:walk_talk");
@@ -538,13 +696,15 @@ public static class QaMapEventRunner
                         [
                             new PacketWriter().U16(0xe240).Varint((uint)npc.Key).ToArray(),
                             new PacketWriter().U16(0xe242).Varint((uint)npc.Key).ToArray(),
-                        ], $"map_event:talk:{npc.NpcId}");
+                        ], objective.Type == "CloseNpc" ? $"map_event:close_talk:{npc.NpcId}" : $"map_event:talk:{npc.NpcId}");
                     }
                     var index = Math.Max(0, ObjectiveIndex(run, objective));
                     return QuestDriverSlice.Act(
                         [new PacketWriter().U16(0x8d2b).U8(2).I32(run.Id).I32(npc.Key).I32(index).ToArray()],
                         $"map_event:script_talk:{npc.NpcId}");
                 }
+                case "UpdateEnvObjState":
+                    return UpdateEnvObjStateSlice(driver, session, me, now, state, mapId, objective);
             }
         }
         foreach (var (_, objective) in run.Open)
@@ -636,7 +796,7 @@ public static class QaMapEventRunner
 
     internal static bool IsQaOpportunisticPrey(Target t) => QaOpportunisticPrey(t);
 
-    const int BombProbeMoveBudgetMs = 20_000;
+    const int BombProbeMoveBudgetMs = 90_000;
     const double BombProbeBeyondReachCm = 2500;
 
     static void SkipBombRangeProbe(QuestDriverState state, int runId)
@@ -648,25 +808,27 @@ public static class QaMapEventRunner
         state.BombProbeMoveSince = 0;
     }
 
+    static bool BombRangeProbeAllowed(GameSession session, MapEventRun run) =>
+        run.BombTowerPeakEver >= 3 || run.BombProbeDue || session.BombTowerEnvPeak >= 3;
+
     static QuestDriverSlice? TryBombRangeProbe(QuestStepDriver driver, GameSession session, MapEventRun run, Vector3d me, long now,
         QuestDriverState state, WorldObject tower, int bombSkill)
     {
         if (state.BombRangeProbeRunsAttempted.Contains(run.Id) || !WorldObjects.HasCarryBoxes(session.MapId ?? 0))
             return null;
-        if (session.Targets.Values.Any(t => QaOpportunisticPrey(t) && Flat(me, t.Position) < 2200))
+        if (!BombRangeProbeAllowed(session, run))
+            return null;
+        var scheduledProbe = run.BombProbeDue;
+        if (!scheduledProbe)
         {
-            SkipBombRangeProbe(state, run.Id);
-            return null;
+            if (run.Open.Any(x => x.Objective.Type is not "UseEnvObj"))
+            {
+                SkipBombRangeProbe(state, run.Id);
+                return null;
+            }
         }
-        var useIdx = run.Step?.Objectives.ToList().FindIndex(o => o.Type == "UseEnvObj") ?? -1;
-        if (useIdx < 0 || useIdx >= run.Goals.Length || run.Goals[useIdx] < 1)
+        if (session.InCombat)
             return null;
-        // Exploit probe is optional: never hold tower progress on kills or other open script objectives.
-        if (run.Open.Any(x => x.Objective.Type is not "UseEnvObj"))
-        {
-            SkipBombRangeProbe(state, run.Id);
-            return null;
-        }
         var plantReach = GameSession.BombPlantReach(tower);
         var minDist = plantReach + BombProbeBeyondReachCm + 80;
         if (!TryBombProbeFarPoint(session.MapId ?? 0, tower.At, minDist, out var far))
@@ -674,22 +836,190 @@ public static class QaMapEventRunner
             SkipBombRangeProbe(state, run.Id);
             return null;
         }
-        if (state.BombProbeMoveSince > 0 && now - state.BombProbeMoveSince > BombProbeMoveBudgetMs)
+        var moveBudgetExhausted = state.BombProbeMoveSince > 0 && now - state.BombProbeMoveSince > BombProbeMoveBudgetMs;
+        if (moveBudgetExhausted && Flat(me, far) > 900)
         {
             SkipBombRangeProbe(state, run.Id);
             return null;
         }
-        if (Flat(me, far) > 300)
+        if (Flat(me, far) > 200)
         {
+            if (session.QaBot && state.BombProbeMoveSince == 0)
+                PlaytestDebug.Action("bomb_probe_move", ("distFar", (int)Flat(me, far)), ("runPeak", run.BombTowerPeakEver), ("due", run.BombProbeDue));
             state.BombProbeMoveSince = state.BombProbeMoveSince == 0 ? now : state.BombProbeMoveSince;
-            return driver.MoveTowardPublic(session, me, far, 200, now, state, "map_event:bomb_range_probe_move");
+            return driver.MoveTowardPublic(session, me, far, 150, now, state, "map_event:bomb_range_probe_move");
         }
         state.BombRangeProbeRunsAttempted.Add(run.Id);
         state.BombProbeMapEventRunId = run.Id;
         state.BombProbeGoalsBefore = run.Goals.ToArray();
         state.BombProbeAttemptAt = now;
+        state.BombProbeAt = me;
         state.BombProbeMoveSince = 0;
+        run.BombProbeDue = false;
         return QuestDriverSlice.Act([BotRequests.BombGroundReady(bombSkill)], "map_event:bomb_range_probe");
+    }
+
+    const int KillSpawnerHeightRepositionDzCm = 500;
+
+    static void ClearSpawnerCastBlacklist(QuestDriverState state, IEnumerable<Target> spawnerNpcs)
+    {
+        foreach (var t in spawnerNpcs)
+        {
+            state.CastRefusalBlacklisted.Remove(t.Key);
+            state.CastRefusalStreak.Remove(t.Key);
+        }
+    }
+
+    static QuestDriverSlice? KillSpawnerHeightReposition(QuestStepDriver driver, GameSession session, Vector3d me, long now,
+        QuestDriverState state, Target prey, string spawner, int skill, double reach)
+    {
+        var dz = prey.Position.Z - me.Z;
+        if (Math.Abs(dz) < KillSpawnerHeightRepositionDzCm) return null;
+        if (QaBotCombat.InCastRange(driver.Data, me, prey, skill)) return null;
+        state.CastHeightRepositionKey = prey.Key;
+        var lead = KillChaseGoal(me, prey.Position, Math.Min(1200, Flat(me, prey.Position) * 0.4 + 200));
+        return driver.MoveTowardPublic(session, me, lead, Math.Min(reach * 0.85, 180), now, state, $"map_event:walk_kill_height:{spawner}");
+    }
+
+    /// <summary>Chase prey without clamping to layer point boxes (clamp was stopping bots at the arena edge while prey stayed far away).</summary>
+    static Vector3d KillChaseGoal(Vector3d me, Vector3d preyAt, double maxStep = 2800)
+    {
+        var flat = Flat(me, preyAt);
+        if (flat <= maxStep) return preyAt;
+        var f = maxStep / flat;
+        return new Vector3d(me.X + (preyAt.X - me.X) * f, me.Y + (preyAt.Y - me.Y) * f, preyAt.Z);
+    }
+
+    static HashSet<int> ReservedHpRemainingNpcIds(MapEventRun run)
+    {
+        var ids = new HashSet<int>();
+        foreach (var (_, o) in run.Open.Where(x => x.Objective.Type == "HpRemaining" && x.Objective.Npcs is { Length: > 0 }))
+            foreach (var id in o.Npcs!) ids.Add(id);
+        return ids;
+    }
+
+    static void LogHpRemainingTarget(GameSession session, QuestDriverState state, MapEventObjective objective, Target? target, Vector3d me, int thresholdPct, long now)
+    {
+        var sig = target is null
+            ? $"none:{string.Join(',', objective.Names)}"
+            : $"{target.Key}:{(int)target.Hp}:{(int)target.HpMax}:{(int)Flat(me, target.Position)}";
+        if (sig == state.LastHpRemainingTargetSig && now - state.LastHpRemainingTargetAt <= 30_000) return;
+        state.LastHpRemainingTargetSig = sig;
+        state.LastHpRemainingTargetAt = now;
+        if (target is null)
+        {
+            PlaytestDebug.Action("hp_remaining_target", ("found", false), ("names", string.Join(',', objective.Names)),
+                ("threshold", thresholdPct), ("map", session.MapId ?? 0));
+            return;
+        }
+        var hpPct = target.HpMax > 0 ? (int)Math.Ceiling(target.Hp * 100.0 / target.HpMax) : 0;
+        PlaytestDebug.Action("hp_remaining_target",
+            ("key", target.Key), ("name", target.Name), ("npcId", target.NpcId),
+            ("dist", (int)Flat(me, target.Position)), ("dz", (int)(target.Position.Z - me.Z)),
+            ("hpPct", hpPct), ("threshold", thresholdPct), ("hp", (int)target.Hp), ("hpMax", (int)target.HpMax));
+    }
+
+    static bool MatchesUpdateEnvObjTarget(WorldObject o, MapEventObjective objective)
+    {
+        foreach (var n in objective.Names)
+        {
+            if (NameMatches(n, o.Name)) return true;
+            if (o.EnvName is { } env && NameMatches(n, env)) return true;
+        }
+        var wanted = objective.Value(0);
+        if (wanted.Contains("StoneWall_Auto", StringComparison.OrdinalIgnoreCase)
+            && (o.Name.Contains("StoneWall", StringComparison.OrdinalIgnoreCase)
+                || o.EnvName?.Contains("StoneWall", StringComparison.OrdinalIgnoreCase) == true))
+            return true;
+        return false;
+    }
+
+    static QuestDriverSlice UpdateEnvObjStateSlice(QuestStepDriver driver, GameSession session, Vector3d me, long now, QuestDriverState state, int mapId, MapEventObjective objective)
+    {
+        var wantedState = objective.Value(1);
+        var objects = WorldObjects.ObjectsOn(mapId).Select((o, i) => (o, i)).ToList();
+        var broken = objects.Where(x => MatchesUpdateEnvObjTarget(x.o, objective) && session.EnvObjAvailableForUse(x.i, x.o, now) == false).ToList();
+        if (broken.Count > 0 && wantedState.Equals("Dead", StringComparison.OrdinalIgnoreCase))
+            return QuestDriverSlice.Wait($"map_event:env_state_wait:{objective.Value(0)}");
+        var targets = objects
+            .Where(x => MatchesUpdateEnvObjTarget(x.o, objective))
+            .Where(x => x.o.Destructible && session.EnvObjAvailableForUse(x.i, x.o, now))
+            .OrderBy(x => Flat(me, x.o.At))
+            .ToList();
+        if (targets.Count == 0)
+        {
+            foreach (var name in objective.Names)
+            {
+                if (!TryTriggerOrSubzonePosition(mapId, name, out var at) || Flat(me, at) > 2500) continue;
+                return driver.MoveTowardPublic(session, me, at, 200, now, state, "map_event:walk_env_state");
+            }
+            return QuestDriverSlice.Wait($"map_event:seek_env_state:{objective.Value(0)}");
+        }
+        var (obj, idx) = targets[0];
+        var key = WorldObjects.FirstKey + idx;
+        var skill = QaBotCombat.BasicAttackSkill(driver.Data, session, now);
+        var reach = session.QaBot ? QaBotCombat.CastReach(driver.Data, skill) : QuestStepDriver.KillReach;
+        var goal = KillChaseGoal(me, obj.At);
+        if (Flat(me, obj.At) > reach)
+            return driver.MoveTowardPublic(session, me, goal, Math.Min(reach * 0.85, 180), now, state, $"map_event:walk_env_state:{obj.Env}");
+        QaBotCombat.ScheduleSwing(state, driver.Data, session, skill, now);
+        var yaw = Math.Atan2(obj.At.Y - me.Y, obj.At.X - me.X) * 180 / Math.PI;
+        return QuestDriverSlice.Act(
+        [
+            BotRequests.CastBegin(),
+            BotRequests.Cast(skill, key, yaw, obj.At, 1),
+            BotRequests.CastEnd(),
+        ], $"map_event:hit_env_state:{obj.EnvName ?? obj.Name}");
+    }
+
+    static void LogKillSpawnerTarget(GameData data, GameSession session, QuestDriverState state, string spawner, Target prey, Vector3d me, int skill, long now)
+    {
+        var dist = (int)Flat(me, prey.Position);
+        var dz = (int)(prey.Position.Z - me.Z);
+        var inRange = QaBotCombat.InCastRange(data, me, prey, skill);
+        var distBucket = dist / 1000;
+        var sig = $"{spawner}:{prey.Key}:{distBucket}:{inRange}:{prey.Hostile}:{state.CastRefusalBlacklisted.Contains(prey.Key)}";
+        if (sig == state.LastKillSpawnerTargetSig && now - state.LastKillSpawnerTargetAt <= 30_000) return;
+        state.LastKillSpawnerTargetSig = sig;
+        state.LastKillSpawnerTargetAt = now;
+        var blacklisted = state.CastRefusalBlacklisted.Contains(prey.Key);
+        PlaytestDebug.Action("kill_spawner_target",
+            ("spawner", spawner), ("key", prey.Key), ("name", prey.Name), ("npcId", prey.NpcId),
+            ("dist", dist), ("dz", dz), ("inRange", inRange), ("hostile", prey.Hostile), ("immune", prey.Immune),
+            ("blacklisted", blacklisted), ("skill", skill));
+    }
+
+    static void LogEnterVolumeTrigger(GameSession session, Vector3d me, string triggerName)
+    {
+        var mapId = session.MapId ?? 0;
+        var trigger = WorldObjects.TriggersOn(mapId).FirstOrDefault(t => NameMatches(triggerName, t.Name));
+        if (trigger is null)
+        {
+            PlaytestDebug.Action("enter_vol_trigger", ("name", triggerName), ("found", false),
+                ("botX", (int)me.X), ("botY", (int)me.Y), ("botZ", (int)me.Z));
+            return;
+        }
+        PlaytestDebug.Action("enter_vol_trigger",
+            ("name", triggerName),
+            ("botX", (int)me.X), ("botY", (int)me.Y), ("botZ", (int)me.Z),
+            ("ctrX", (int)trigger.At.X), ("ctrY", (int)trigger.At.Y), ("ctrZ", (int)trigger.At.Z),
+            ("boxW", trigger.Box.Length > 0 ? trigger.Box[0] : 0),
+            ("boxH", trigger.Box.Length > 1 ? trigger.Box[1] : 0),
+            ("radius", trigger.Radius), ("shape", trigger.Shape),
+            ("inside", trigger.Contains(me, 0)));
+    }
+
+    static QuestDriverSlice? TryReturnFromLightCamp(QuestStepDriver driver, GameSession session, MapEventRun run, Vector3d me, long now,
+        QuestDriverState state)
+    {
+        if ((session.MapId ?? 0) != 100002 || run.StageOrder < 5) return null;
+        var camp = new Vector3d(-2516, -16076, 20375);
+        if (Flat(me, camp) > 3200) return null;
+        if (!run.Open.Any(x => x.Objective.Type is "KillNpc" or "KillSpawner" or "HpRemaining")) return null;
+        if (!TryTriggerOrSubzonePosition(100002, "L_Starter_InstanceLayer_2_Trigger_ToBattle_2", out var battle))
+            return null;
+        if (Flat(me, battle) < 600) return null;
+        return driver.MoveTowardPublic(session, me, battle, 200, now, state, "map_event:return_battle");
     }
 
     /// <summary>A far plant point outside tower reach but still inside layer bounds; null when the clamp leaves none.</summary>
@@ -729,29 +1059,44 @@ public static class QaMapEventRunner
     }
 
     const int SelfDefensePinMs = 12_000;
+    const int MaxCombatRetreatsPerWindow = 4;
+    const int CombatRetreatWindowMs = 30_000;
 
-    static bool BombMissionAllowsSelfDefense(GameSession session, Vector3d me)
+    static bool TryCombatRetreat(QuestDriverState state, long now)
     {
+        if (now - state.CombatRetreatWindowSince > CombatRetreatWindowMs)
+        {
+            state.CombatRetreatCount = 0;
+            state.CombatRetreatWindowSince = now;
+        }
+        if (state.CombatRetreatCount >= MaxCombatRetreatsPerWindow) return false;
+        state.CombatRetreatCount++;
+        return true;
+    }
+
+    static bool BombMissionAllowsSelfDefense(GameSession session, Vector3d me, bool pickupPending)
+    {
+        if (pickupPending) return session.InCombat;
         if (session.InCombat) return true;
         var r = session.Resource;
         if (r.HpMax > 0 && (double)r.Hp / r.HpMax < 0.60) return true;
         return session.Targets.Values.Any(t => QaOpportunisticPrey(t) && Flat(me, t.Position) < 550);
     }
 
-    static QuestDriverSlice? TrySelfDefense(QuestStepDriver driver, GameSession session, Vector3d me, long now, QuestDriverState state, bool bombMission)
+    static QuestDriverSlice? TrySelfDefense(QuestStepDriver driver, GameSession session, Vector3d me, long now, QuestDriverState state, bool bombMission, bool pickupPending, double? engageRadius = null)
     {
-        if (bombMission && !BombMissionAllowsSelfDefense(session, me)) return null;
-        var engageRadius = bombMission ? 450 : 600;
+        if (bombMission && !BombMissionAllowsSelfDefense(session, me, pickupPending)) return null;
+        var radius = engageRadius ?? (bombMission ? 450 : 600);
         var hpRatio = session.Resource.HpMax > 0 ? (double)session.Resource.Hp / session.Resource.HpMax : 1;
         var candidates = session.Targets.Values.Where(QaOpportunisticPrey)
             .Where(t => state.CastHeightRepositionKey == t.Key || !state.CastRefusalBlacklisted.Contains(t.Key))
-            .Where(t => Flat(me, t.Position) <= engageRadius)
+            .Where(t => Flat(me, t.Position) <= radius)
             .ToList();
         var prey = state.SelfDefenseFocusKey is { } focus && candidates.FirstOrDefault(t => t.Key == focus) is { } pinned
             ? pinned
             : candidates.OrderBy(t => Flat(me, t.Position)).FirstOrDefault();
         if (prey is null) return null;
-        if (hpRatio < 0.35 && Flat(me, prey.Position) < 900)
+        if (hpRatio < 0.50 && Flat(me, prey.Position) < 1200 && TryCombatRetreat(state, now))
         {
             var away = new Vector3d(me.X + (me.X - prey.Position.X) * 0.5, me.Y + (me.Y - prey.Position.Y) * 0.5, me.Z);
             return driver.MoveTowardPublic(session, me, away, 120, now, state, $"map_event:self_defense_retreat:{prey.NpcId}");
@@ -771,7 +1116,7 @@ public static class QaMapEventRunner
         var skill = QaBotCombat.BasicAttackSkill(driver.Data, session, now);
         var reach = session.QaBot ? QaBotCombat.CastReach(driver.Data, skill) : QuestStepDriver.KillReach;
         var chase = ClampLayerMovementGoal(session.MapId ?? 0, prey.Position);
-        if (Flat(me, chase) > reach * 1.05)
+        if (!QaBotCombat.InCastRange(driver.Data, me, prey, skill))
             return driver.MoveTowardPublic(session, me, chase, reach * 0.9, now, state, "map_event:self_defense_walk");
         QaBotCombat.ScheduleSwing(state, driver.Data, session, skill, now);
         var yaw = Math.Atan2(prey.Position.Y - me.Y, prey.Position.X - me.X) * 180 / Math.PI;
@@ -825,7 +1170,7 @@ public static class QaMapEventRunner
         if (prey is null) return null;
         var skill = QaBotCombat.BasicAttackSkill(driver.Data, session, now);
         var reach = session.QaBot ? QaBotCombat.CastReach(driver.Data, skill) : QuestStepDriver.KillReach;
-        if (Flat(me, prey.Position) > reach * 1.05) return null;
+        if (!QaBotCombat.InCastRange(driver.Data, me, prey, skill)) return null;
         QaBotCombat.ScheduleSwing(state, driver.Data, session, skill, now);
         var yaw = Math.Atan2(prey.Position.Y - me.Y, prey.Position.X - me.X) * 180 / Math.PI;
         return QuestDriverSlice.Act(
@@ -884,6 +1229,8 @@ public static class QaMapEventRunner
     }
 
     const double BombPlantApproachStopCm = 150;
+    /// <summary>Stay inside interact range with slack so GroundReady is not refused at ~1050cm when reach is 1050.</summary>
+    const double BombPlantInsideMarginCm = 160;
 
     internal static List<(WorldObject o, int i)> RemainingBombTowersForTests(GameSession session, long now, Vector3d me,
         List<(WorldObject o, int i)> objects, Func<WorldObject, bool> match, MapEventRun? run = null) =>
@@ -894,9 +1241,9 @@ public static class QaMapEventRunner
     {
         var spentSites = objects.Where(x => match(x.o) && !session.EnvObjBombTowerRemaining(x.i, x.o, now))
             .Select(x => x.o.At).ToList();
-        if (run is not null)
+        if (run is not null && session.CountSpentBombTowers(now) > 0)
         {
-            var credited = GameSession.BombTowerCreditsFromRun(run);
+            var credited = Math.Min(GameSession.BombTowerCreditsFromRun(run), session.CountSpentBombTowers(now));
             spentSites.AddRange(objects.Where(x => match(x.o)).OrderBy(x => x.o.Name, StringComparer.Ordinal)
                 .Take(credited).Select(x => x.o.At));
         }
@@ -907,12 +1254,32 @@ public static class QaMapEventRunner
             .ToList();
     }
 
+    static QuestDriverSlice? TryBombProbeMission(QuestStepDriver driver, GameSession session, MapEventRun run, Vector3d me, long now,
+        QuestDriverState state, int mapId)
+    {
+        if (!BombRangeProbeAllowed(session, run) || !run.BombProbeDue || state.BombRangeProbeRunsAttempted.Contains(run.Id))
+            return null;
+        var objects = WorldObjects.ObjectsOn(mapId).Select((o, i) => (o, i)).ToList();
+        if (session.CarriedGroup is null)
+        {
+            if (CarryBombSlice(driver, session, me, now, state, objects, o => o.Carry is not null) is { } pick)
+                return pick;
+            return QuestDriverSlice.Wait("map_event:bomb_probe:need_carry");
+        }
+        var probeTower = objects.FirstOrDefault(x => x.o.Destructible && x.o.Env == 1400824).o
+            ?? objects.FirstOrDefault(x => x.o.Destructible).o;
+        if (probeTower is null || session.CarriedSkillId is not { } probeSkill)
+            return QuestDriverSlice.Wait("map_event:bomb_probe:need_tower");
+        return TryBombRangeProbe(driver, session, run, me, now, state, probeTower, probeSkill);
+    }
+
     static QuestDriverSlice WalkTowardBombTower(QuestStepDriver driver, GameSession session, Vector3d me, long now,
         QuestDriverState state, WorldObject tower)
     {
         var dist = Flat(me, tower.At);
         var plantReach = GameSession.BombPlantReach(tower);
-        var stop = dist <= plantReach ? plantReach * 0.85 : BombPlantApproachStopCm;
+        var insideStop = Math.Max(80, plantReach - BombPlantInsideMarginCm);
+        var stop = dist <= insideStop ? insideStop * 0.92 : Math.Min(BombPlantApproachStopCm, insideStop);
         return driver.MoveTowardPublic(session, me, tower.At, stop, now, state,
             $"map_event:walk_plant:env={tower.Env}:dist={(int)dist}:stop={(int)stop}");
     }
@@ -920,6 +1287,8 @@ public static class QaMapEventRunner
     static QuestDriverSlice? TryBombMissionSlice(QuestStepDriver driver, GameSession session, MapEventRun run, Vector3d me, long now,
         QuestDriverState state, int mapId)
     {
+        if (TryBombProbeMission(driver, session, run, me, now, state, mapId) is { } probeMission)
+            return probeMission;
         var needsPlant = session.CarriedGroup is not null && run.Open.Any(x => x.Objective.Type == "UseEnvObj");
         if (!BombPickupPending(session, run, mapId) && !needsPlant) return null;
         foreach (var (_, objective) in run.Open.Where(x => x.Objective.Type == "UseEnvObj"))
@@ -934,7 +1303,8 @@ public static class QaMapEventRunner
                     return QuestDriverSlice.Wait("map_event:seek_plant_tower");
                 var (obj, idx) = remaining[0];
                 var plantReach = GameSession.BombPlantReach(obj);
-                if (!session.EnvObjBombPlantable(idx, obj, now, me) || Flat(me, obj.At) > plantReach)
+                var insideReach = plantReach - BombPlantInsideMarginCm;
+                if (!session.EnvObjBombPlantable(idx, obj, now, me) || Flat(me, obj.At) > insideReach)
                     return WalkTowardBombTower(driver, session, me, now, state, obj);
                 if (session.CarriedSkillId is not { } bombSkill)
                     return QuestDriverSlice.Wait("map_event:bomb_plant:need_skill");
@@ -962,7 +1332,8 @@ public static class QaMapEventRunner
         var hasTower = focus.o is not null;
         var boxes = objects
             .Where(x => x.o.Carry is not null && session.EnvObjAvailableForUse(x.i, x.o, now))
-            .OrderBy(x => Flat(me, x.o.At) + (hasTower ? Flat(x.o.At, focus.o!.At) * 0.3 : 0))
+            .OrderBy(x => CarryBombBoxScore(me, x.o.At, hasTower ? focus.o!.At : null))
+            .ThenBy(x => Flat(me, x.o.At))
             .ToList();
         if (boxes.Count == 0) return QuestDriverSlice.Wait("map_event:seek_bomb_box");
         var (box, boxIdx) = boxes[0];
@@ -1021,4 +1392,8 @@ public static class QaMapEventRunner
     static byte[] LoadComplete(int ticket) => new PacketWriter().U16(0x3622).I32(ticket).ToArray();
 
     static double Flat(Vector3d a, Vector3d b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
+
+    /// <summary>Prefer supply boxes on the tower lane over soldier-camp pickups far from objectives (HQ1101070 layer 2).</summary>
+    internal static double CarryBombBoxScore(Vector3d me, Vector3d box, Vector3d? towerFocus) =>
+        towerFocus is { } tower ? Flat(box, tower) + Flat(me, box) * 0.15 : Flat(me, box);
 }

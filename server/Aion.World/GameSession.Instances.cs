@@ -63,6 +63,8 @@ public sealed partial class GameSession
 
     /// <summary>The instance copy this player is in (its own key), or 0 on the shared maps.</summary>
     int instanceKey;
+    /// <summary>Per-copy env-object bomb progress: cleared when <see cref="instanceKey"/> changes (field usedObjects must not leak into a fresh layer).</summary>
+    int bombEnvInstanceKey;
     long? instanceExitAt;
     readonly List<string> clearedEvents = [];
     public int InstanceKey => instanceKey;

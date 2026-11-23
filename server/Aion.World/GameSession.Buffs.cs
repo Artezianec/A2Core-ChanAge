@@ -26,6 +26,7 @@ public sealed partial class GameSession
         public bool Carried { get; set; }
         /// <summary>A season rank reward buff (GameSession.RankRewards.cs): its level, recomputed at entry, never saved.</summary>
         public bool Rank { get; set; }
+        public bool PassiveHidden { get; set; }
         public int Level { get; set; } = 1;
         /// <summary>Casts of the AbnormalClear SkillStart skill so far.</summary>
         public int ChargesUsed { get; set; }
@@ -35,6 +36,8 @@ public sealed partial class GameSession
         public AbnormalCombat.BuffCombat? Combat { get; set; }
         public Dictionary<string, int> Stats { get; } = [];
         public List<HealOverTime> Heals { get; } = [];
+        /// <summary>CastSkill rows: a proc skill the abnormal casts every interval (GameSession.SkillEffectEngine.cs).</summary>
+        public List<BuffCast> Casts { get; } = [];
         /// <summary>An NPC skill put this on: the NPC is the wire caster and its position is the range base.</summary>
         public int? CasterKey { get; set; }
         public Vector3d? RangeBase { get; set; }
@@ -54,6 +57,8 @@ public sealed partial class GameSession
         public required int EffectId, IntervalMs, PerTick;
         public required int Remaining;
         public required long NextAt;
+        /// <summary>The resource the row restores: Hp (Hot), Mp (Mot), Sp (Sot).</summary>
+        public string Resource { get; init; } = "Hp";
     }
 
     readonly List<Buff> buffs = [];
@@ -64,7 +69,7 @@ public sealed partial class GameSession
     bool buffSettingsDirty;
     long buffSettingsFlushAt;
 
-    public IReadOnlyList<int> ActiveBuffs => buffs.Select(b => b.AbnormalId).ToList();
+    public IReadOnlyList<int> ActiveBuffs => buffs.Where(b => !b.PassiveHidden).Select(b => b.AbnormalId).ToList();
 
     /// <summary>A stat summed over the active buffs (StatChange / MoveSpeed rows), excluding rows already expired before the next BuffTick.</summary>
     int BuffStat(string stat) => buffs.Where(b => b.ExpireAt > lastNow).Sum(b => b.Stats.GetValueOrDefault(stat));
@@ -159,23 +164,45 @@ public sealed partial class GameSession
     /// an abnormal the tables do not know only shows its icon. The caller refreshes the stats.
     /// </summary>
     Buff? AddBuff(int abnormalId, int durationMs, int skillId, long now, List<byte[]> replies, bool scripted = false,
-        SelfAbnormalPath path = SelfAbnormalPath.Unrestricted, BuffCaster? appliedBy = null)
+        SelfAbnormalPath path = SelfAbnormalPath.Unrestricted, BuffCaster? appliedBy = null, bool passiveHidden = false)
     {
         if (resources is null) return null;
-        if (!SkillSelfAbnormalPolicy.TryAllowPlayerBuff(data, abnormalId, skillId, path, out var denyReason))
+        if (!passiveHidden && !SkillSelfAbnormalPolicy.TryAllowPlayerBuff(data, abnormalId, skillId, path, out var denyReason))
         {
             PlaytestDebug.Action("self_abnormal", ("allowed", false), ("abnormalId", abnormalId), ("skillId", skillId),
                 ("path", path.ToString()), ("reason", denyReason ?? ""));
             return null;
         }
         PlaytestDebug.Action("self_abnormal", ("allowed", true), ("abnormalId", abnormalId), ("skillId", skillId),
-            ("path", path.ToString()));
+            ("path", path.ToString()), ("passiveHidden", passiveHidden));
         var rule = AbnormalStackRules.For(abnormalId);
         var group = rule.Group;
-        var info = AbnormalSpecs.Info(abnormalId);
         var permanent = durationMs < 0;
         var duration = permanent ? 0 : durationMs;
-        var existingSame = buffs.Where(b => b.AbnormalId == abnormalId).ToList();
+        if (SkillEffectEngine.AbnormalStacking)
+        {
+            var pool = buffs.Where(b => b.PassiveHidden == passiveHidden).ToList();
+            var active = pool.Select(b => new AbnormalEngine.Active(b.Uid, b.AbnormalId, b.Group, b.Level,
+                b.ExpireAt >= PassiveExpireTime ? long.MaxValue : Math.Max(0, b.ExpireAt - now))).ToList();
+            var decision = AbnormalEngine.Resolve(active, abnormalId, appliedBy?.Level ?? 1, durationMs, rule);
+            PlaytestDebug.Action("abnormal_stack", ("abnormalId", abnormalId), ("group", group), ("outcome", decision.Outcome.ToString()),
+                ("reason", decision.Reason), ("removed", decision.Remove.Count));
+            if (decision.Outcome == AbnormalEngine.Outcome.Reject) return null;
+            var displaced = pool.Where(b => decision.Remove.Contains(b.Uid)).ToList();
+            if (displaced.Count > 0) replies.AddRange(RemoveBuffs(displaced, ExpireReplaced));
+            if (decision.Outcome == AbnormalEngine.Outcome.Refresh && pool.FirstOrDefault(b => b.Uid == decision.RefreshUid) is { } renewed)
+            {
+                renewed.ExpireAt = permanent ? PassiveExpireTime : decision.KeepLonger ? Math.Max(renewed.ExpireAt, now + durationMs) : now + durationMs;
+                renewed.DurationMs = permanent ? -1 : (int)Math.Max(0, renewed.ExpireAt - now);
+                NoteBuffCaster(renewed, appliedBy);
+                RefreshBuffEffects(renewed, durationMs, now, replies);
+                MarkBuffSettingsDirty();
+                replies.Add(PlayerPackets.AbnormalChange(playerKey, Wire(renewed)));
+                return renewed;
+            }
+            return AddNewBuff(abnormalId, durationMs, skillId, now, replies, scripted, appliedBy, passiveHidden, group, permanent);
+        }
+        var existingSame = buffs.Where(b => b.AbnormalId == abnormalId && b.PassiveHidden == passiveHidden).ToList();
         if (existingSame.Count > 0 && rule.OverlapTime is not "Separate")
         {
             var existing = existingSame[0];
@@ -200,13 +227,20 @@ public sealed partial class GameSession
             replies.Add(PlayerPackets.AbnormalChange(playerKey, Wire(existing)));
             return existing;
         }
-        var sameGroup = buffs.Where(b => b.Group == group && b.AbnormalId != abnormalId).ToList();
+        var sameGroup = buffs.Where(b => b.Group == group && b.AbnormalId != abnormalId && b.PassiveHidden == passiveHidden).ToList();
         if (sameGroup.Count > 0)
             replies.AddRange(RemoveBuffs(sameGroup, ExpireReplaced));
+        return AddNewBuff(abnormalId, durationMs, skillId, now, replies, scripted, appliedBy, passiveHidden, group, permanent);
+    }
+
+    Buff AddNewBuff(int abnormalId, int durationMs, int skillId, long now, List<byte[]> replies, bool scripted, BuffCaster? appliedBy,
+        bool passiveHidden, int group, bool permanent)
+    {
         var buff = new Buff
         {
-            Uid = ++buffUid, AbnormalId = abnormalId, SkillId = skillId, Group = group, DurationMs = permanent ? -1 : durationMs,
-            ExpireAt = permanent ? PassiveExpireTime : now + durationMs, Scripted = scripted,
+            Uid = passiveHidden ? PassiveHiddenUid(abnormalId) : ++buffUid, AbnormalId = abnormalId, SkillId = skillId, Group = group,
+            DurationMs = permanent ? -1 : durationMs, ExpireAt = permanent ? PassiveExpireTime : now + durationMs, Scripted = scripted,
+            PassiveHidden = passiveHidden,
         };
         NoteBuffCaster(buff, appliedBy);
         PopulateBuffEffects(buff, durationMs, now);
@@ -214,17 +248,23 @@ public sealed partial class GameSession
             replies.Add(GamePackets.CharBarrierInfo(playerKey, [(buff.Uid, buff.Combat.BarrierAmount)]));
         buffs.Add(buff);
         MarkBuffSettingsDirty();
-        var packets = new List<byte[]> { PlayerPackets.AbnormalAdd(playerKey, [Wire(buff)]) };
-        if (buff.Polymorph) packets.Add(RidePackets.PolymorphUpdate(playerKey, buff.Uid));
-        if (buff.Relationship is { } shown) packets.Add(GamePackets.RelationshipUpdate(playerKey, shown));
-        if (buff.KnockdownEffect is int knock && buff.CasterKey is int knocker && knocker != playerKey)
-            packets.Add(PlayerPackets.AbnormalMoveInstant(playerKey, knocker, knock, position ?? Vector3d.Zero, PlayerPackets.MoveKnockdownInstant));
-        worldPlayer?.Map?.Broadcast(worldPlayer, packets);
-        replies.Add(packets[0]);
-        foreach (var h in buff.Heals) replies.Add(RidePackets.AbnormalEffect(playerKey, playerKey, buff.Uid, h.EffectId, h.Remaining, null, skillId));
-        replies.AddRange(packets.Skip(1));
+        if (!passiveHidden)
+        {
+            var packets = new List<byte[]> { PlayerPackets.AbnormalAdd(playerKey, [Wire(buff)]) };
+            if (buff.Polymorph) packets.Add(RidePackets.PolymorphUpdate(playerKey, buff.Uid));
+            if (buff.Relationship is { } shown) packets.Add(GamePackets.RelationshipUpdate(playerKey, shown));
+            if (buff.KnockdownEffect is int knock && buff.CasterKey is int knocker && knocker != playerKey)
+                packets.Add(PlayerPackets.AbnormalMoveInstant(playerKey, knocker, knock, position ?? Vector3d.Zero, PlayerPackets.MoveKnockdownInstant));
+            worldPlayer?.Map?.Broadcast(worldPlayer, packets);
+            replies.Add(packets[0]);
+            foreach (var h in buff.Heals) replies.Add(RidePackets.AbnormalEffect(playerKey, playerKey, buff.Uid, h.EffectId, h.Remaining, null, skillId));
+            replies.AddRange(packets.Skip(1));
+        }
+        AfterBuffAdded(buff, now, replies);
         return buff;
     }
+
+    static int PassiveHiddenUid(int abnormalId) => 2_000_000 + abnormalId;
 
     static void NoteBuffCaster(Buff buff, BuffCaster? appliedBy)
     {
@@ -267,6 +307,12 @@ public sealed partial class GameSession
         var per = perTick ? amount : amount / ticks;
         return new HealOverTime { EffectId = effectId, IntervalMs = interval, PerTick = per, Remaining = per * ticks, NextAt = now + interval };
     }
+
+    static HealOverTime ResourceHeal(string resource, HealOverTime row) => new()
+    {
+        EffectId = row.EffectId, IntervalMs = row.IntervalMs, PerTick = row.PerTick, Remaining = row.Remaining, NextAt = row.NextAt,
+        Resource = resource == "M" ? "Mp" : resource == "S" ? "Sp" : "Hp",
+    };
 
     static Dictionary<string, int> StatChangeAmounts(int abnormalId)
     {
@@ -311,6 +357,7 @@ public sealed partial class GameSession
         buff.KnockdownEffect = null;
         buff.Stats.Clear();
         buff.Heals.Clear();
+        buff.Casts.Clear();
         buff.Combat = info is not null ? new AbnormalCombat.BuffCombat() : null;
         foreach (var (id, type, values) in info?.Effects ?? [])
         {
@@ -335,6 +382,23 @@ public sealed partial class GameSession
                 case "HotRatio_Item" or "Hot_Ratio" when V(0) > 0:
                     buff.Heals.Add(Heal(id, V(0), (int)Math.Min(V(3) > 0 ? V(3) : int.MaxValue, (long)resources.HpMax * V(1) / 10_000), duration, now, perTick: false));
                     break;
+                // Mot / Sot [interval, min, max, ...] per tick like Hot; *_Ratio [interval, ratio of the maximum, cap] over the duration like Hot_Ratio.
+                case "Mot" or "Sot" when V(0) > 0 && !permanent:
+                    buff.Heals.Add(ResourceHeal(type[..1], Heal(id, V(0), rng.Next(Math.Min(V(1), V(2)), Math.Max(V(1), V(2)) + 1), duration, now, perTick: true)));
+                    break;
+                case "Mot_Ratio" or "Sot_Ratio" when V(0) > 0 && !permanent:
+                {
+                    var max = type[0] == 'M' ? resources.MpMax : resources.SpMax;
+                    buff.Heals.Add(ResourceHeal(type[..1], Heal(id, V(0), (int)Math.Min(V(3) > 0 ? V(3) : int.MaxValue, (long)max * V(1) / 10_000), duration, now, perTick: false)));
+                    break;
+                }
+                case "TriggerSkillByAttackAll" or "TriggerSkillByGetDamage" or "TriggerSkillByKill" or "TriggerSkillByGetAbnormal" or "TriggerSkillByAddAbnormal"
+                    or "TriggerSkillBySelfBlock" or "TriggerSkillBySelfEvade" or "TriggerSkillBySelfWeaponBlock" or "TriggerSkillBySelfShieldBlock"
+                    or "DecreaseCooltimeByKill" or "OnExpireAbnormal" or "AbnormalClear":
+                    break;
+                case "CastSkill":
+                    if (!buff.FromNpc && values.Count > 1 && V(1) > 0) buff.Casts.Add(BuffCastOf(V(1), values[0], now));
+                    break;
                 case "ChangeRelationshipEntity" when values.Count >= 2 && MapEventTables.Relationship(values[1]) is { } relation:
                     buff.Relationship = relation;
                     break;
@@ -358,7 +422,14 @@ public sealed partial class GameSession
                     buff.Combat!.Held = true;
                     break;
                 default:
-                    if (buff.Combat is not null) AbnormalCombat.ApplyRow(id, type, values, buff.Combat, duration, now, rng, resources.HpMax);
+                    if (buff.Combat is not null)
+                    {
+                        var had = buff.Combat.Held || buff.Combat.Silence || buff.Combat.Dots.Count > 0 || buff.Combat.BarrierAmount > 0;
+                        AbnormalCombat.ApplyRow(id, type, values, buff.Combat, duration, now, rng, resources.HpMax);
+                        var has = buff.Combat.Held || buff.Combat.Silence || buff.Combat.Dots.Count > 0 || buff.Combat.BarrierAmount > 0;
+                        if (!had && !has) AbnormalEngine.NoteUnknownEffectType(buff.AbnormalId, type);
+                    }
+                    else AbnormalEngine.NoteUnknownEffectType(buff.AbnormalId, type);
                     break;
             }
         }
@@ -387,6 +458,7 @@ public sealed partial class GameSession
         {
             var healed = false;
             var damaged = false;
+            var restored = false;
             if (b.Combat?.Dots is { Count: > 0 } dots)
                 foreach (var d in dots)
                     while (now >= d.NextAt && d.NextAt <= b.ExpireAt && d.Remaining > 0)
@@ -415,11 +487,17 @@ public sealed partial class GameSession
                     var amount = Math.Min(h.PerTick, h.Remaining);
                     h.Remaining -= amount;
                     h.NextAt += h.IntervalMs;
-                    r.Hp = Math.Min(r.HpMax, r.Hp + amount);
+                    switch (h.Resource)
+                    {
+                        case "Mp": r.Mp = Math.Min(r.MpMax, r.Mp + amount); restored = true; break;
+                        case "Sp": r.Sp = Math.Min(r.SpMax, r.Sp + amount); restored = true; break;
+                        default: r.Hp = Math.Min(r.HpMax, r.Hp + amount); healed = true; break;
+                    }
                     replies.Add(RidePackets.AbnormalEffect(playerKey, playerKey, b.Uid, h.EffectId, h.Remaining, amount, b.SkillId));
-                    healed = true;
                 }
             if (healed || damaged) replies.Add(GamePackets.NpcHp(playerKey, r.Hp));
+            CollectDueCasts(b, now);
+            if (restored) replies.Add(r.Update());
             if (damaged && r.Hp == 0)
             {
                 if (b.FromNpc && b.SkillId > 0) lastNpcHitSkill = b.SkillId;
@@ -427,6 +505,7 @@ public sealed partial class GameSession
                 if (b.FromNpc) return replies;
             }
         }
+        RunDueCasts(now, replies);
         var expired = buffs.Where(b => now >= b.ExpireAt).ToList();
         if (expired.Count > 0)
         {
@@ -437,6 +516,7 @@ public sealed partial class GameSession
             var speedBefore = buffs.Sum(b => b.Stats.GetValueOrDefault("MoveSpeed"));
             replies.AddRange(RemoveBuffs(expired, ExpireTimeout));
             replies.AddRange(BuffStatsChanged(speedBefore, npcMove));
+            AfterBuffsExpired(expired, now, replies);
         }
         return replies;
     }
@@ -445,7 +525,7 @@ public sealed partial class GameSession
     List<byte[]> DispelDebuffs(long now)
     {
         var speedBefore = BuffStat("MoveSpeed");
-        var gone = buffs.Where(b => !b.Rebirth && !b.Scripted && Boxes.Debuff(b.AbnormalId)).ToList();
+        var gone = buffs.Where(b => !b.Rebirth && !b.Scripted && !b.PassiveHidden && Boxes.Debuff(b.AbnormalId)).ToList();
         if (gone.Count == 0) return [];
         return [.. RemoveBuffs(gone, ExpireDispel), .. BuffStatsChanged(speedBefore)];
     }
@@ -469,7 +549,7 @@ public sealed partial class GameSession
     List<byte[]> ClearBuffs()
     {
         var speedBefore = BuffStat("MoveSpeed");
-        return [.. RemoveBuffs(buffs.Where(b => !b.Rebirth).ToList(), ExpireEtc), .. BuffStatsChanged(speedBefore)];
+        return [.. RemoveBuffs(buffs.Where(b => !b.Rebirth && !b.PassiveHidden).ToList(), ExpireEtc), .. BuffStatsChanged(speedBefore)];
     }
 
     public bool CanRebirth => buffs.Any(b => b.Rebirth);
@@ -564,7 +644,7 @@ public sealed partial class GameSession
             buff.Combat = combat;
     }
 
-    sealed record SavedHeal(int EffectId, int IntervalMs, int PerTick, int Remaining, long NextAt);
+    sealed record SavedHeal(int EffectId, int IntervalMs, int PerTick, int Remaining, long NextAt, string? Resource = null);
     sealed record SavedDot(int EffectId, int IntervalMs, int PerTick, int Remaining, long NextAt);
     sealed record SavedCombat(int BarrierAmount, int ReflectPermille, bool Held, bool Silence, bool Rooted = false);
     // SavedAt: when the row was written (0 in older saves). OBSERVED (community recordings 2026-11-04 to 06, ported from
@@ -606,7 +686,7 @@ public sealed partial class GameSession
                     };
                     foreach (var (k, v) in row.Stats) buff.Stats[k] = v;
                     foreach (var h in row.Heals)
-                        buff.Heals.Add(new HealOverTime { EffectId = h.EffectId, IntervalMs = h.IntervalMs, PerTick = h.PerTick, Remaining = h.Remaining, NextAt = h.NextAt });
+                        buff.Heals.Add(new HealOverTime { EffectId = h.EffectId, IntervalMs = h.IntervalMs, PerTick = h.PerTick, Remaining = h.Remaining, NextAt = h.NextAt, Resource = h.Resource ?? "Hp" });
                     if (row.Combat is { } sc)
                     {
                         buff.Combat = new AbnormalCombat.BuffCombat { BarrierAmount = sc.BarrierAmount, ReflectPermille = sc.ReflectPermille, Held = sc.Held, Silence = sc.Silence, Rooted = sc.Rooted };
@@ -642,8 +722,8 @@ public sealed partial class GameSession
         if (resources.FpMax > 0) await SaveSettingAsync(FlightGaugeSetting, resources.Fp, ct);
     }
 
-    SavedBuff[] SerializeBuffs(long now) => buffs.Where(b => !IsSpiritSummonStateAbnormal(b.AbnormalId) && !b.Rank).Select(b => new SavedBuff(b.Uid, b.AbnormalId, b.SkillId, b.ExpireAt, b.Rebirth, b.Polymorph, b.Scripted, b.Relationship,
-        new Dictionary<string, int>(b.Stats), b.Heals.Select(h => new SavedHeal(h.EffectId, h.IntervalMs, h.PerTick, h.Remaining, h.NextAt)).ToList(),
+    SavedBuff[] SerializeBuffs(long now) => buffs.Where(b => !IsSpiritSummonStateAbnormal(b.AbnormalId) && !b.Rank && !b.PassiveHidden).Select(b => new SavedBuff(b.Uid, b.AbnormalId, b.SkillId, b.ExpireAt, b.Rebirth, b.Polymorph, b.Scripted, b.Relationship,
+        new Dictionary<string, int>(b.Stats), b.Heals.Select(h => new SavedHeal(h.EffectId, h.IntervalMs, h.PerTick, h.Remaining, h.NextAt, h.Resource == "Hp" ? null : h.Resource)).ToList(),
         b.Combat is { } c ? new SavedCombat(c.BarrierAmount, c.ReflectPermille, c.Held, c.Silence, c.Rooted) : null,
         b.Combat?.Dots.Select(d => new SavedDot(d.EffectId, d.IntervalMs, d.PerTick, d.Remaining, d.NextAt)).ToList() ?? [], now)).ToArray();
 

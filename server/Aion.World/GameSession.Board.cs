@@ -83,7 +83,10 @@ public sealed partial class GameSession
             level++;
         }
         var updated = WithOpenSlots(board with { Level = level, Exp = total });
-        return await SaveBoardAsync(updated, new Dictionary<int, int>(), null, ct) ? updated.Level != board.Level ? [RidePackets.BoardInfo(updated)] : [] : [];
+        if (!await SaveBoardAsync(updated, new Dictionary<int, int>(), null, ct)) return [];
+        if (updated.Level == board.Level) return [];
+        var ctype = CreatureTypeNames.FirstOrDefault(p => p.Value == type).Key ?? "";
+        return [RidePackets.BoardInfo(updated), .. Emit(new AchievementEvent("VehicleCreatureBoardLevel", SetValue: updated.Level, Keys: ctype.Length > 0 ? [ctype] : null), DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())];
     }
 
     async Task<bool> SaveBoardAsync(CreatureBoard board, IReadOnlyDictionary<int, int> crystalCost, (Guid Item, long Revision, long Count)? kina, CancellationToken ct)

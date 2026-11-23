@@ -151,6 +151,14 @@ public static class QaBotCombat
     public static double CastReach(GameData data, int skillId) =>
         Math.Clamp(data.SkillUseRangeCm(skillId) + GameSession.CastRangeToleranceCm + 50, QuestStepDriver.KillReach * 0.5, 2500);
 
+    public static bool InCastRange(GameData data, Vector3d me, Target prey, int skillId)
+    {
+        var dx = me.X - prey.Position.X;
+        var dy = me.Y - prey.Position.Y;
+        var horiz = Math.Sqrt(dx * dx + dy * dy);
+        return horiz <= CastReach(data, skillId) * 0.95;
+    }
+
     public static int SwingBusyMs(GameData data, GameSession session, int skillId)
     {
         var skill = data.Skill(skillId);

@@ -205,22 +205,47 @@ public sealed class QuestStepDriver(GameData data, QaBotOptions? qaOptions = nul
         return step?.Npc;
     }
 
+    const int MaxHeightRepositionNudges = 5;
+
     internal QuestDriverSlice? TryHeightRepositionSlice(GameSession session, QuestDriverState state, Vector3d me, long now, string label)
     {
         if (state.CastHeightRepositionKey is not { } key) return null;
         if (session.Targets.GetValueOrDefault(key) is not { Dead: false } target)
         {
             state.CastHeightRepositionKey = null;
+            state.HeightRepositionNudges.Remove(key);
+            return null;
+        }
+        if (state.HeightRepositionNudges.GetValueOrDefault(key) >= MaxHeightRepositionNudges)
+        {
+            state.CastHeightRepositionKey = null;
+            state.CastRefusalBlacklisted.Add(key);
+            state.HeightRepositionNudges.Remove(key);
             return null;
         }
         var z = session.SharedMap?.Ai.Nav?.FloorAt(target.Position.X, target.Position.Y, target.Position.Z) ?? target.Position.Z;
         var dest = target.Position with { Z = z };
         if (Flat(me, dest) > 150)
             return MoveToward(session, me, dest, 100, now, state, $"{label}:height_reposition:key={key}");
+        state.HeightRepositionNudges[key] = state.HeightRepositionNudges.GetValueOrDefault(key) + 1;
         return QuestDriverSlice.Act([BotRequests.Move(start: true, dest, 0, now)], $"{label}:height_reposition:nudge:key={key}");
     }
 
     const double MaxKillSpawnChaseCm = 12_000;
+    const int MaxCombatRetreatsPerWindow = 4;
+    const int CombatRetreatWindowMs = 30_000;
+
+    static bool TryKillRetreat(QuestDriverState state, long now)
+    {
+        if (now - state.CombatRetreatWindowSince > CombatRetreatWindowMs)
+        {
+            state.CombatRetreatCount = 0;
+            state.CombatRetreatWindowSince = now;
+        }
+        if (state.CombatRetreatCount >= MaxCombatRetreatsPerWindow) return false;
+        state.CombatRetreatCount++;
+        return true;
+    }
 
     QuestDriverSlice KillSlice(GameSession session, QuestObjective objective, Vector3d me, long now, QuestDriverState state)
     {
@@ -281,14 +306,14 @@ public sealed class QuestStepDriver(GameData data, QaBotOptions? qaOptions = nul
         var combatAt = living.Position with { Z = navZ };
         var dist = Flat(me, combatAt);
         var hpRatio = session.Resource.HpMax > 0 ? (double)session.Resource.Hp / session.Resource.HpMax : 1;
-        if (hpRatio < 0.40 && dist > reach && dist < 1200)
+        if (hpRatio < 0.40 && dist > reach && dist < 1200 && TryKillRetreat(state, now))
         {
             var away = new Vector3d(me.X + (me.X - living.Position.X) * 0.3, me.Y + (me.Y - living.Position.Y) * 0.3, me.Z);
             return MoveToward(session, me, away, 120, now, state, $"kill:retreat:{living.NpcId}");
         }
         if (dist > MaxKillSpawnChaseCm && session.QaBot && mapId > 0)
             return QuestDriverSlice.Teleport(mapId, combatAt, $"teleport:combat:{living.NpcId}");
-        if (dist > reach)
+        if (!QaBotCombat.InCastRange(data, me, living, skill))
             return MoveToward(session, me, combatAt, reach * 0.9, now, state, "walk:combat");
         state.CombatTargetKey = living.Key;
         state.Moving = false;
@@ -389,6 +414,12 @@ public sealed class QuestStepDriver(GameData data, QaBotOptions? qaOptions = nul
     QuestDriverSlice MoveToward(GameSession session, Vector3d me, Vector3d goal, double stopWithin, long now, QuestDriverState state, string label)
     {
         if (session.QaBot && Flat(me, goal) > MaxKillSpawnChaseCm
+            && !label.Contains("self_defense", StringComparison.Ordinal)
+            && !label.Contains("walk_bomb", StringComparison.Ordinal)
+            && !label.Contains("walk_plant", StringComparison.Ordinal)
+            && !label.Contains("walk_kill", StringComparison.Ordinal)
+            && !label.Contains("hp_remaining_walk", StringComparison.Ordinal)
+            && !label.Contains("return_battle", StringComparison.Ordinal)
             && (label.StartsWith("walk:combat", StringComparison.Ordinal) || label.StartsWith("walk:kill", StringComparison.Ordinal)
                 || label.StartsWith("walk:env", StringComparison.Ordinal) || label.StartsWith("walk:npc", StringComparison.Ordinal)
                 || label.StartsWith("enter:", StringComparison.Ordinal) || label.StartsWith("map_event:", StringComparison.Ordinal)
@@ -414,7 +445,7 @@ public sealed class QuestStepDriver(GameData data, QaBotOptions? qaOptions = nul
             return QuestDriverSlice.Wait($"{label}:interval");
         var budget = RunSpeed * Math.Min(now - state.LastMovePacketAt, 1000) / 1000.0;
         state.LastMovePacketAt = now;
-        var nav = session.SharedMap?.Ai.Nav;
+        var nav = session.SessionAi.Nav ?? session.SharedMap?.Ai.Nav;
         if (state.Path is null || state.PathIndex >= state.Path.Count || state.PathGoal is not { } planned || Flat(planned, goal) > 150)
         {
             state.Path = nav?.FindPath(me, goal) ?? [goal];
@@ -448,7 +479,8 @@ public sealed class QuestStepDriver(GameData data, QaBotOptions? qaOptions = nul
     }
 
     static double Ground(Vector3d at, NavMesh? nav, GameSession session) =>
-        nav?.FloorAt(at.X, at.Y, at.Z) ?? session.SharedMap?.Ai.Terrain?.GroundAt(at.X, at.Y) ?? at.Z;
+        nav?.FloorAt(at.X, at.Y, at.Z) ?? session.SessionAi.Terrain?.GroundAt(at.X, at.Y)
+        ?? session.SharedMap?.Ai.Terrain?.GroundAt(at.X, at.Y) ?? at.Z;
 
     /// <summary>Fingerprint of quest progress for stuck detection.</summary>
     public static string ProgressFingerprint(GameSession session, string code)
@@ -493,12 +525,26 @@ public sealed class QuestDriverState
     public Dictionary<int, int> CastRefusalStreak { get; } = [];
     public HashSet<int> CastRefusalBlacklisted { get; } = [];
     public int? CastHeightRepositionKey { get; set; }
+    public Dictionary<int, int> HeightRepositionNudges { get; } = [];
+    public int CombatRetreatCount { get; set; }
+    public long CombatRetreatWindowSince { get; set; }
     public long BombProbeMoveSince { get; set; }
+    public Vector3d? BombProbeAt { get; set; }
+    public string? LastSliceDecisionSig { get; set; }
+    public long LastSliceDecisionAt { get; set; }
+    public string? LastKillSpawnerSliceSig { get; set; }
+    public long LastKillSpawnerSliceAt { get; set; }
+    public string? LastKillSpawnerTargetSig { get; set; }
+    public long LastKillSpawnerTargetAt { get; set; }
     public int? SelfDefenseFocusKey { get; set; }
     public long SelfDefenseFocusSince { get; set; }
     public long KillSeekSince { get; set; }
     public int HostileClearCount { get; set; }
     public long HostileClearWindowSince { get; set; }
+    /// <summary>After respawn, avoid re-engaging until HP has recovered (reduces death_loop on low-level bots).</summary>
+    public long PostCombatRecoverUntil { get; set; }
+    public string? LastHpRemainingTargetSig { get; set; }
+    public long LastHpRemainingTargetAt { get; set; }
 }
 
 public sealed record QuestDriverSlice(

@@ -1,0 +1,249 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "draupnir_bakarma",
+  "display": "Transcendent Bakarma",
+  "display_ru": "Бакарма",
+  "dungeon": "Draupnir",
+  "source": "official-overlay (boss-phases.json rotation and phases) + CANDIDATE mechanics from expedition-boss-mechanics.json",
+  "note": "Wave of Death at 70% and 30% (stagger check): everyone is thrown to the arena edge, then rings pulse every 2 s from the centre outward; stand in the safe band. Below 30% two whirlpools sit 1200 either side of where Bakarma stood.",
+  "npcs": {
+    "Easy": [2310471],
+    "Normal": [2300471],
+    "Hard": [2320471]
+  },
+  "vars": {
+    "frenzy_ms": 300000,
+    "edge_radius": 4800,
+    "ring_dot_min": 15000,
+    "ring_dot_max": 25000,
+    "whirlpool_radius": 450,
+    "whirlpool_min": 8000,
+    "whirlpool_max": 14000
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1800560,
+      "every_ms": 14000,
+      "wind_up_ms": 1500,
+      "radius": 4000,
+      "warning": "Transcendent Bakarma sweeps the front: get behind him!",
+      "warning_ru": "Бакарма бьёт перед собой: зайдите за спину!"
+    },
+    {
+      "type": "cast",
+      "skill": 1800570,
+      "every_ms": 16000,
+      "wind_up_ms": 1900,
+      "radius": 4000,
+      "warning": "Transcendent Bakarma slams a lane: step off the strip!",
+      "warning_ru": "Бакарма бьёт полосой: отойдите в сторону!"
+    },
+    {
+      "type": "cast",
+      "skill": 1800540,
+      "every_ms": 11000,
+      "wind_up_ms": 900,
+      "radius": 400,
+      "warning": "Transcendent Bakarma drops a water bomb: walk out of the circle!",
+      "warning_ru": "Бакарма бросает водную бомбу: выйдите из круга!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "wave_of_death_70",
+      "when": {
+        "type": "hp_below",
+        "pct": 70
+      },
+      "do": [
+        {
+          "type": "cast",
+          "skill": 1800655,
+          "wind_up_ms": 18000,
+          "radius": 6500,
+          "once": true,
+          "stagger_check": true,
+          "warning": "Wave of Death — jump the rings and break the stagger gauge!",
+          "warning_ru": "Волна смерти — перепрыгивайте кольца и сбейте шкалу стаггера!",
+          "during": [
+            {
+              "type": "displace",
+              "mode": "to_radius",
+              "at": "cast_centre",
+              "radius": "$edge_radius"
+            },
+            {
+              "type": "decal",
+              "skill": 1800655,
+              "at": "cast_centre",
+              "ends": "cast_land",
+              "linger_ms": 5400
+            },
+            {
+              "type": "repeat",
+              "every_ms": 2000,
+              "ends": "cast_land",
+              "linger_ms": 5400,
+              "note": "Three pulses after the cast lands (5400 = 3 x 2000 less the 600 ms hit delay).",
+              "do": [
+                {
+                  "type": "telegraph",
+                  "id": "death_ring",
+                  "at": "cast_centre",
+                  "decal": false,
+                  "steps": [
+                    {
+                      "shape": "donut",
+                      "inner": 0,
+                      "radius": 1200,
+                      "invert": true
+                    },
+                    {
+                      "shape": "donut",
+                      "inner": 1200,
+                      "radius": 2800,
+                      "invert": true
+                    },
+                    {
+                      "shape": "donut",
+                      "inner": 2800,
+                      "radius": 4500,
+                      "invert": true
+                    }
+                  ],
+                  "damage": {
+                    "fixed": ["$ring_dot_min", "$ring_dot_max"]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "Wretched worm, begone! Jump the waves and break the stagger gauge!",
+          "text_ru": "Жалкий червь, прочь! Перепрыгивайте волны и сбейте шкалу стаггера!"
+        }
+      ]
+    },
+    {
+      "id": "wave_of_death_30",
+      "when": {
+        "type": "hp_below",
+        "pct": 30
+      },
+      "do": [
+        {
+          "type": "cast",
+          "skill": 1800655,
+          "wind_up_ms": 18000,
+          "radius": 6500,
+          "once": true,
+          "stagger_check": true,
+          "warning": "Wave of Death — route around whirlpools, jump the rings, break the gauge!",
+          "warning_ru": "Волна смерти — обходите воронки, перепрыгивайте кольца, сбейте шкалу!",
+          "during": [
+            {
+              "type": "displace",
+              "mode": "to_radius",
+              "at": "cast_centre",
+              "radius": "$edge_radius"
+            },
+            {
+              "type": "decal",
+              "skill": 1800655,
+              "at": "cast_centre",
+              "ends": "cast_land",
+              "linger_ms": 5400
+            },
+            {
+              "type": "repeat",
+              "every_ms": 2000,
+              "ends": "cast_land",
+              "linger_ms": 5400,
+              "note": "Three pulses after the cast lands (5400 = 3 x 2000 less the 600 ms hit delay).",
+              "do": [
+                {
+                  "type": "telegraph",
+                  "id": "death_ring",
+                  "at": "cast_centre",
+                  "decal": false,
+                  "steps": [
+                    {
+                      "shape": "donut",
+                      "inner": 0,
+                      "radius": 1200,
+                      "invert": true
+                    },
+                    {
+                      "shape": "donut",
+                      "inner": 1200,
+                      "radius": 2800,
+                      "invert": true
+                    },
+                    {
+                      "shape": "donut",
+                      "inner": 2800,
+                      "radius": 4500,
+                      "invert": true
+                    }
+                  ],
+                  "damage": {
+                    "fixed": ["$ring_dot_min", "$ring_dot_max"]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "Wave of Death — route around the whirlpools, jump the rings, break the gauge!",
+          "text_ru": "Волна смерти — обходите воронки, перепрыгивайте кольца и сбейте шкалу!"
+        },
+        {
+          "type": "zone",
+          "id": "whirlpools",
+          "at": "boss",
+          "offsets": [[1200, 0], [-1200, 0]],
+          "shape": "circle",
+          "radius": "$whirlpool_radius",
+          "tick_ms": 1500,
+          "first_tick_ms": 0,
+          "decal": false,
+          "damage": {
+            "fixed": ["$whirlpool_min", "$whirlpool_max"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "frenzy",
+      "when": {
+        "type": "enrage_timer",
+        "after_ms": "$frenzy_ms"
+      },
+      "difficulty": ["Normal", "Hard"],
+      "do": [
+        {
+          "type": "enrage",
+          "damage_mul": 2.0,
+          "haste_mul": 0.5,
+          "text": "Transcendent Bakarma goes into a frenzy!",
+          "text_ru": "Бакарма впадает в неистовство!"
+        }
+      ]
+    }
+  ],
+  "difficulty": {
+    "Easy": {
+      "note": "Exploration: no enrage timer."
+    },
+    "Hard": {
+      "vars": {
+        "frenzy_ms": 240000
+      }
+    }
+  }
+}

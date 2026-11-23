@@ -50,13 +50,23 @@ def _short(value):
     return str(value).split('::')[-1]
 
 
-def _rows(path):
-    return json.loads(Path(path).read_text(encoding='utf-8'))['Properties']['Data']
+def _rows(source):
+    if isinstance(source, str) and source.startswith('client:'):
+        from client_export import load_rows
+        return load_rows(source.split(':', 1)[1])
+    return json.loads(Path(source).read_text(encoding='utf-8'))['Properties']['Data']
 
 
 def _skill_table_path():
     found = sorted(LOCAL.glob('skill-tables-*/table-000.json'))
-    return found[-1] if found else None
+    if found:
+        return found[-1]
+    try:
+        from client_export import load_rows
+        load_rows('Skill')
+        return 'client:Skill'
+    except FileNotFoundError:
+        return None
 
 
 def elemental_summon_cast_skill_ids():
@@ -133,10 +143,13 @@ def export_from_skill_dat():
         fields = use_condition_fields({'facts': row, 'raw': row}, sid)
         if fields:
             by_skill[sid] = fields
-    try:
-        rel = str(path.relative_to(ROOT))
-    except ValueError:
-        rel = str(path)
+    if isinstance(path, str):
+        rel = path if path.startswith('client:') else path
+    else:
+        try:
+            rel = str(path.relative_to(ROOT))
+        except ValueError:
+            rel = str(path)
     return by_skill, rel
 
 

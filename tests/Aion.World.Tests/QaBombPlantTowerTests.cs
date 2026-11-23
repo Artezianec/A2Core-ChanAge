@@ -40,4 +40,34 @@ public sealed class QaBombPlantTowerTests
         Assert.False(session.EnvObjBombPlantable(tower.i, tower.o, t + 2000, tower.o.At));
         Assert.Equal("not_carrying", session.BombPlantRefusalReason(t + 2000, 5003));
     }
+
+    [Fact]
+    public async Task Far_ground_ready_refuses_out_of_range_without_crediting_tower()
+    {
+        var store = new FakeCharacterStore();
+        store.Quests.Add(new QuestRecord("HQ1101040", 1101040, 100, QuestLog.Rewarded, 1, new int[6]));
+        store.Quests.Add(new QuestRecord("HQ1101050", 1101050, 101, QuestLog.Rewarded, 1, new int[6]));
+        var session = await GameSessionTestHelpers.EnterFreshSharedWorldAsync(store, Now, race: 1, level: 10);
+        await session.QuestCommandAsync("QuestAdd", "HQ1101070", default);
+        var inst = InstanceTables.Embedded.Of(100002)!;
+        var center = new Vector3d(inst.Entry.Center[0], inst.Entry.Center[1], inst.Entry.Center[2]);
+        session.Teleport(1000, center with { Y = center.Y - 300 }, Now + 10);
+        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 20);
+        await session.HandleAsync(MapEventScenarioHelpers.MoveUpdate(center), Now + 5000);
+        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 5100);
+        var objects = WorldObjects.ObjectsOn(100002);
+        var tower = objects.Select((o, i) => (o, i)).First(x => x.o.Env == 1400824);
+        var box = objects.Select((o, i) => (o, i)).First(x => x.o.Env == 1400823);
+        var t = Now + 20_000;
+        await MapEventScenarioHelpers.SyncPositionAsync(session, box.o.At, t);
+        await session.HandleAsync(Use(WorldObjects.FirstKey + box.i), t + 100);
+        await session.TickAsync(t + 100 + GameSession.CarryPickupMs);
+        var far = tower.o.At with { X = tower.o.At.X + GameSession.BombPlantReach(tower.o) + 500 };
+        await MapEventScenarioHelpers.SyncPositionAsync(session, far, t + 500);
+        Assert.Equal("out_of_range", session.BombPlantRefusalReason(t + 600, 5003));
+        await session.HandleAsync(GroundReady(5003), t + 600);
+        await session.TickAsync(t + 2000);
+        Assert.True(session.EnvObjBombTowerRemaining(tower.i, tower.o, t + 2000));
+        Assert.Contains(session.MapEventNotes, n => n.Contains("Bomb plant refused: out_of_range", StringComparison.Ordinal));
+    }
 }

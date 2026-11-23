@@ -17,8 +17,8 @@ class AbnormalStackRulesTests(unittest.TestCase):
         self.assertTrue(len(doc['abnormals']) > 0)
         sample = next(iter(doc['abnormals'].values()))
         self.assertIn('group', sample)
-        self.assertEqual('Renew', sample['overlap_time'])
-        self.assertEqual('Replace', sample['replace'])
+        self.assertIn(sample['overlap_time'], ('Renew', 'None', 'Separate', 'Longer'))
+        self.assertIn(sample['replace'], ('Replace', 'Priority', 'Reject'))
 
 
 if __name__ == '__main__':

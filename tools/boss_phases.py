@@ -44,14 +44,22 @@ EXPEDITIONS = {
     'KraoCave': 'Krao Cave', 'Urugugu_Canyon': 'Urugugu Canyon', 'Fire_Temple': 'Fire Temple', 'Draupnir': 'Draupnir Cave',
     'BakronIsland': 'Vakron Sky Island', 'HornCave': 'Ferocious Horn Den',
 }
+# Expedition-style instances without Season-1 scripts yet: generic OURS finals/mids (marked in boss-coverage).
+EXTRA_DUNGEONS = {
+    'BlueBreathIsle': 'Blue Breath Isle', 'CradleNihility': 'Cradle of Nihility', 'PhantomsHall': "Phantom's Hall",
+    'SunkenTemple': 'Sunken Temple', 'DeadDramataNest': 'DDN Durbati', 'DaevaCitadel': 'Daeva Citadel',
+    'MirrorHeart_G': 'Mirror Heart', 'FafniteGully_G': 'Fafnite Gully', 'ErosionPurifier': 'Erosion Purifier',
+    'MusphelHolyGrail': 'Musphel Holy Grail',
+}
 TRANSCENDENCE = {'DeusCenter_G': 'Deus Research Base', 'Arkanis_G': 'Shattered Arkanis'}
+ALL_EXPEDITION = {**EXPEDITIONS, **EXTRA_DUNGEONS}
 RAID = 'ReforgedAbyss_Normal'
 MID_MIN_SKILLS = 6
 # Proper names the spawn entries carry (the rest are called after their dungeon).
 NAMES = {
     'Bakarma': 'Bakarma', 'Lakshmi': 'Lakshmi', 'Saraswati': 'Saraswati', 'Rotan': 'Rotan', 'Ferk': 'Ferk',
     'KalnifElite': 'the Kalnif chieftain', 'Lycan_04': 'the Lycan alpha', 'Lagta': 'Lagta', 'Kashapa': 'Kashapa',
-    'Durbati': 'Durbati',
+    'Durbati': 'Durbati', 'Ferk_01': 'Ferk',
 }
 # Per mode: slam interval and radius of a final boss, adds per call, the extra phases.
 MODE = {
@@ -247,12 +255,38 @@ def waves(events, world):
     return dict(sorted(out.items()))
 
 
+def behavior_npc_ids(world):
+    """Npc ids with NpcBehaviorCase rows resolved to placed spawns (client export, tools/npc_behavior_cases.py)."""
+    path = ROOT / 'tools/data/npc-behavior-cases.json'
+    if not path.is_file():
+        return set()
+    data = json.loads(path.read_text(encoding='utf-8'))
+    return {int(k) for k in (data.get('by_npc_id') or {})}
+
+
+def mark_behavior_client(bosses, world, behavior_ids):
+    """Flag scripted bosses that have client NpcBehaviorCase rows (phases may still be OURS)."""
+    if not behavior_ids:
+        return
+    names_by_npc = {}
+    for spawns in (world.get('maps') or {}).values():
+        for s in spawns:
+            names_by_npc.setdefault(str(s[1]), set()).add(s[0])
+    for npc, script in bosses.items():
+        if int(npc) not in behavior_ids:
+            continue
+        script['behavior_client'] = True
+        spawn_names = sorted(names_by_npc.get(npc, ()))
+        if spawn_names:
+            script['behavior_spawn'] = spawn_names[0]
+
+
 def build(events, world):
     templates, npc_skills = world['templates'], world['npc_skills']
     bosses = {}
     for room in sorted(events['dungeons'].values(), key=lambda r: r['map']):
         name = room['name']
-        family = next((f for f in EXPEDITIONS if name.startswith(f + '_')), None)
+        family = next((f for f in ALL_EXPEDITION if name.startswith(f + '_')), None)
         transcendence = next((f for f in TRANSCENDENCE if name.startswith(f + '_')), None)
         spawns = world['maps'].get(str(room['map']), [])
         if name == RAID:
@@ -260,7 +294,7 @@ def build(events, world):
             continue
         if family:
             mode = name.rsplit('_', 1)[1]
-            place = EXPEDITIONS[family]
+            place = ALL_EXPEDITION[family]
         elif transcendence:
             mode, place = 'Normal', TRANSCENDENCE[transcendence]
         else:
@@ -275,8 +309,9 @@ def build(events, world):
             who = label(s[0], place)
             if s[1] == room.get('cube_boss'):
                 bosses[str(s[1])] = final_script(s[0], name, who, t, npc_skills, mode, adds)
-            elif family and len(t['skills']) >= MID_MIN_SKILLS:
+            elif len(t['skills']) >= MID_MIN_SKILLS:
                 bosses[str(s[1])] = mid_script(s[0], name, who, t, npc_skills)
+    mark_behavior_client(bosses, world, behavior_npc_ids(world))
     return {
         'source': 'OURS: tools/boss_phases.py (ported from ckrealm/A2Core, AGPL-3.0; the rules are in its docstring), with '
                   'official overlays from tools/data/boss-phase-overrides.json for five Expedition finals (docs/BOSS-MECHANICS.md). '
@@ -397,6 +432,9 @@ def text(data):
 
 def main(argv):
     events, world = load()
+    if ROOT.joinpath('tools/npc_behavior_cases.py').is_file():
+        import subprocess
+        subprocess.run([sys.executable, str(ROOT / 'tools/npc_behavior_cases.py')], check=False, cwd=ROOT)
     data = annotate(apply_overrides(build(events, world), world), client_areas(), world['npc_skills'])
     problems = validate(data, world)
     if problems:

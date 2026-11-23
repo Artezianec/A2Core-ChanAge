@@ -87,16 +87,27 @@ public sealed class ContentResetSchedule
         };
     }
 
-    /// <summary>Next boundary after <paramref name="nowMs"/> for daily (1) or weekly (2) periods.</summary>
+    /// <summary>Next boundary strictly after <paramref name="nowMs"/> (daily 1, weekly 2, monthly 3).</summary>
     public static long NextBoundaryMs(int kind, long nowMs)
     {
         var start = PeriodStartMs(kind, nowMs);
-        if (nowMs <= start) return start;
+        if (nowMs < start) return start;
         return kind switch
         {
             1 => start + 86_400_000L,
             2 => start + 7 * 86_400_000L,
-            _ => start,
+            3 => NextMonthlyBoundaryMs(start),
+            _ => 0,
         };
+    }
+
+    static long NextMonthlyBoundaryMs(long periodStartMs)
+    {
+        var dt = DateTimeOffset.FromUnixTimeMilliseconds(periodStartMs).UtcDateTime;
+        var hour = Embedded.schedule.Monthly.HourUtc;
+        var day = Embedded.schedule.Monthly.DayOfMonth;
+        var nextMonth = dt.Month == 12 ? (dt.Year + 1, 1) : (dt.Year, dt.Month + 1);
+        var anchor = new DateTime(nextMonth.Item1, nextMonth.Item2, Math.Min(day, DateTime.DaysInMonth(nextMonth.Item1, nextMonth.Item2)), hour, 0, 0, DateTimeKind.Utc);
+        return new DateTimeOffset(anchor, TimeSpan.Zero).ToUnixTimeMilliseconds();
     }
 }

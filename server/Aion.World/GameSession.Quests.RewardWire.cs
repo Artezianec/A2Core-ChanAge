@@ -77,6 +77,7 @@ public sealed partial class GameSession
                 afterTake.Add(GamePackets.AddSkillList(playerKey, levels, originalLevels: originals, additionalDaevanion: daevanion));
             }
             afterTake.AddRange(PassiveAbnormals());
+            afterTake.AddRange(RefreshPassiveStatBuffs(lastNow));
         }
         var broadcast = PlayerPackets.LevelBroadcast(playerKey, level);
         worldPlayer?.Map?.Broadcast(worldPlayer, [broadcast]);

@@ -1,0 +1,12 @@
+{
+  "bundles": {
+    "1212": [
+      {
+        "tier": 1,
+        "requires_goods": null,
+        "parts": [[532760001, 1]],
+        "first_purchase_bonus": [[531060026, 1]]
+      }
+    ]
+  }
+}

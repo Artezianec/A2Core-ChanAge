@@ -51,6 +51,8 @@ public sealed record GameSessionOptions
     public bool MapEventAskNpcProximityFallback { get; init; } = true;
     /// <summary>Pass Shop / BM premium currency for this connection; null uses the host default from <see cref="GameSession.ConfigureShopOptions"/>.</summary>
     public ShopOptions? Shop { get; init; }
+    /// <summary>BM shop feature layer (Mileage wallet, mail delivery, …); null uses <see cref="GameSession.ConfigureShopFeatures"/>.</summary>
+    public ShopFeatureOptions? ShopFeatures { get; init; }
     /// <summary>Aion:Stigmas for this connection (docs/STIGMAS.md); null uses the host default from <see cref="GameSession.ConfigureStigmas"/> (off).</summary>
     public StigmaOptions? Stigmas { get; init; }
     /// <summary>The host's base rates (Aion:Rates); they multiply with the scheduled event boosts of <see cref="World"/>.</summary>
@@ -162,6 +164,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     }
 
     NpcAi ai = new(rng, data);
+    internal NpcAi SessionAi => ai;
     Task<Terrain?>? terrainLoad;
     Task<NavMesh?>? navLoad;
     bool invisible;
@@ -509,6 +512,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case RandomShopRefreshCheckRq when plain.Length >= 6: return await RandomShopRefreshCheckAsync(plain, ct);
             case NPShopGameMoneyLimitRq when plain.Length >= 3: return await NPShopGameMoneyLimitAsync(plain, now, ct);
             case NPShopPurchaseRq when plain.Length >= 10: return await NPShopPurchaseAsync(plain, now, ct);
+            case ShopGiftPurchaseRq when plain.Length >= 10: return await ShopGiftPurchaseAsync(plain, now, ct);
             case TrustLimitInfoRq: return TrustLimitInfo(now);
             case GamePackets.MonolithResonateRq when plain.Length >= 14: return await MonolithResonateRequestAsync(plain, ct);
             case GamePackets.SyncMonolithAccountAchievementsRq when plain.Length >= 6: return await SyncMonolithAccountAchievementsAsync(plain);
@@ -553,7 +557,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 return await RespawnRequestAsync(plain[2], plain.Length >= 11 ? BitConverter.ToInt64(plain, 3) : 0, now, ct);
             case RidePackets.UseRebirthRq when plain.Length == 3: return UseRebirth(plain[2] != 0, now);
             case RidePackets.LevelUpRq when plain.Length == 6: return await LevelUpRideAsync(BitConverter.ToInt32(plain, 2), ct);
-            case RidePackets.GetOnRq when plain.Length == 6: return GetOnRide(BitConverter.ToInt32(plain, 2));
+            case RidePackets.GetOnRq when plain.Length == 6: return await GetOnRideAsync(BitConverter.ToInt32(plain, 2), ct);
             case RidePackets.GetOffRq when plain.Length == 3: return GetOffRide(plain[2] != 0);
             case RidePackets.DefaultSetRq when plain.Length == 6: return await SetDefaultRideAsync(BitConverter.ToInt32(plain, 2), ct);
             case 0x562f when plain.Length == 10 && inventory.ContainsKey(BitConverter.ToInt64(plain, 2)):
@@ -599,7 +603,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 // SetMainTarget_RQ: 00 + target varint; answered 0x3834 (official).
                 try
                 {
-                    var target = (int)new PacketReader(plain) { Offset = 3 }.Varint();
+                    var targetRaw = new PacketReader(plain) { Offset = 3 }.Varint();
+                    if (targetRaw > int.MaxValue) return [];
+                    var target = (int)targetRaw;
                     selectedTarget = target;
                     var replies = new List<byte[]> { GamePackets.SetMainTargetReply(target), GamePackets.TargetUpdate(playerKey, target) };
                     if (targets?.ContainsKey(target) == true) replies.Add(GamePackets.TargetUpdate(target));
@@ -1063,7 +1069,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         var stats = SoulBindPools.Of(row.TemplateId) is { } binding ? SoulBindPools.Bind(binding, SoulBindHeld(row), count, rng) : null;
         var bound = await Stored(async () => await store.SoulBindItemAsync(character, row.InstanceId, count, ct, stats) ? [Array.Empty<byte>()] : []);
         if (bound.Count != 1) return [GamePackets.SoulBindComplete(key, 0, 1)];
-        List<byte[]> replies = [GamePackets.SoulBindComplete(key, count, 0, stats), .. await InventoryChangesAsync(ct), .. Achieve("SoulbindTry")];
+        List<byte[]> replies = [GamePackets.SoulBindComplete(key, count, 0, stats), .. await InventoryChangesAsync(ct),
+            .. Emit(new AchievementEvent("SoulbindTry")),
+            .. Emit(new AchievementEvent("SoulbindMax", SetValue: count))];
         if (row.Location == "equipment" && stats is { Count: > 0 }) replies.AddRange(RefreshStats());
         return replies;
     }
@@ -1086,6 +1094,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         // Quna is the account wallet's: stacks still stored go into it, and the balance is read on the first load.
         if (store.QunaWallet is not null && rows.Any(r => IsQunaRow(r) && r.Location == "bag")) rows = await SweepQunaStacksAsync(store, character, rows, ct);
         if (qunaEntry < 0) await RefreshAccountQunaBalanceAsync(ct);
+        if (mileageEntry < 0) await RefreshAccountMileageBalanceAsync(ct);
         storedItems.Clear();
         foreach (var row in rows.Where(r => !QunaInWallet || !IsQunaRow(r))) storedItems[WireKey(row)] = row;
         await EnsureRolledStatsAsync(store, character, ct);
@@ -1133,6 +1142,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             replies.AddRange(await InventoryChangesAsync(ct, IncreaseQuestReward, 0, hints));
             // The new weapon decides weapon skills and damage; gear changes the stats.
             equippedWeapon = WeaponFromInventory();
+            replies.AddRange(RefreshPassiveStatBuffs(lastNow));
             replies.AddRange(RefreshStats());
             var level = EquipItemLevel();
             replies.Add(GamePackets.ItemEquipLevelChange(level, level));
@@ -1603,19 +1613,30 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         var sharedMap = options.World?.Map(mapId, instanceKey);
         JoinCopy(sharedMap, mapId, now);
         if (sharedMap is not null) ai = sharedMap.Ai;
-        if (sharedMap is null || !sharedMap.GeometryApplied)
+        if (ai.GeometryMapId is { } priorGeometry && priorGeometry != geometry)
         {
-            if (sharedMap is not null) sharedMap.GeometryApplied = true;
             ai.Terrain = null;
             ai.Nav = null;
-            terrainLoad = options.Terrain?.LoadAsync(geometry);
-            navLoad = options.Nav?.LoadAsync(geometry);
+        }
+        var geometryReady = ai.Terrain is not null || ai.Nav is not null;
+        if (sharedMap is null || !geometryReady)
+        {
+            if (sharedMap is not null) sharedMap.GeometryApplied = true;
+            if (!geometryReady)
+            {
+                ai.Terrain = null;
+                ai.Nav = null;
+                terrainLoad = options.Terrain?.LoadAsync(geometry);
+                navLoad = options.Nav?.LoadAsync(geometry);
+            }
             ApplyGeometry();
+            ai.GeometryMapId = geometry;
         }
         else
         {
             terrainLoad = null;
             navLoad = null;
+            if (ai.GeometryMapId is null) ai.GeometryMapId = geometry;
         }
         if (sharedMap is not null)
         {
@@ -1723,6 +1744,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         // Respawn protection (10002) and class passives right after the own appearance (0x3633 / 0x3645).
         var appearAt = replies.FindIndex(b => b[0] == 0x46 && b[1] == 0x36) + 1;
         replies.InsertRange(appearAt, [.. RespawnLoadProtectAfterAppear(now), .. PassiveAbnormals(resend: true)]);
+        replies.AddRange(RefreshPassiveStatBuffs(now));
         replies.InsertRange(0, sameLevelRemovals);   // the same level's old entities go before the load reply (OBSERVED)
         sameLevelRemovals = [];
         if (shortLoad)
@@ -1770,12 +1792,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             replies.AddRange(EntryConstants(now, AccountContentsInfoList(now), SubscribeList(now), profileRace == 2 ? 2 : 1, level)
                 .Select(p => p.Length >= 2 && BitConverter.ToUInt16(p, 0) == DailyDungeons.WaveDungeonInfoNt ? WaveDungeonInfoAtEntry() : p));
             StartFieldEventTracking(now);   // 0x6000 in the constants lists the running festival events; their changes follow
-            replies.AddRange(AchieveSet("EquipItemLevel", EquipItemLevel(), now: now));
-            if (fresh) { replies.AddRange(Achieve("LoginCharacter", now: now)); elapsedAchieveAt = now + 60_000; }
+            if (fresh) { replies.AddRange(Emit(new AchievementEvent("LoginCharacter"), now)); elapsedAchieveAt = now + 60_000; }
             replies.AddRange(ApplyLazyPeriodicResets(now, notifyClient: true));
             // After login progress and lazy daily/weekly resets so the first 0x5683 matches persisted state (playtest: blank journal until relog).
+            replies.AddRange(SyncStateAchievementProgress(now));
             replies.Add(AchievementList(now));
-            replies.AddRange(SyncVehicleCollectAchievements(now));
             replies.AddRange(CraftListsAtEntry());
         }
         if (!instanceMove && !shortLoad) replies.AddRange(MapEnvironment(mapId));   // every full map load (OBSERVED at the official world entry, map 1000 state 0)
@@ -1853,8 +1874,18 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         shownObjects.Clear();
         ClearRecoveryOrbs();
         shownTriggers.Clear();
-        // Short layer reloads (0x3622) keep the same instance script: clearing used/broken env state made towers look fresh while goals still counted plants (HQ1101070).
-        if (!shortLoad)
+        var newInstanceCopy = instanceKey != 0 && IsInstanceMap(mapId) && bombEnvInstanceKey != instanceKey;
+        if (newInstanceCopy)
+        {
+            ClearBombTowerEnvState();
+            ResetBombTowerPeakSpent();
+            bombEnvInstanceKey = instanceKey;
+        }
+        else if (!IsInstanceMap(mapId))
+            bombEnvInstanceKey = 0;
+        // Short layer reloads and same-copy position syncs (0x3622) must not wipe planted towers while map-event goals still count them.
+        var keepInstanceEnvState = !fresh && !newInstanceCopy && instanceKey != 0 && IsInstanceMap(mapId) && mapEventsMap == mapId && mapEventRuns.Count > 0;
+        if (!shortLoad && !keepInstanceEnvState && !newInstanceCopy)
         {
             usedObjects.Clear();
             ResetEnvObjHits();
@@ -1862,8 +1893,12 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         pendingUse = null;
         pendingGatherLoss = null;
         replies.AddRange(ObjectVisibility(at, now));
-        replies.AddRange(MapEventsStart(now, resendExistingJoins: shortLoad));   // the layer's events join (0x922e) and run their first directives
-        if (shortLoad) SyncMapEventBombTowerCredits(now);
+        if (keepInstanceEnvState && WorldObjects.HasCarryBoxes(mapId)
+            && bombTowerPeakSpent == 0
+            && mapEventRuns.Any(r => !r.Finished && r.StageOrder == 1 && GameSession.BombTowerCreditsFromRun(r) == 0))
+            ClearBombTowerEnvState();
+        replies.AddRange(MapEventsStart(now, resendExistingJoins: shortLoad || keepInstanceEnvState));   // the layer's events join (0x922e) and run their first directives
+        if (shortLoad || keepInstanceEnvState) ReconcileMapEventBombRuns(now);
         replies.AddRange(ApplyQuestWorldGating(now));
         CharacterName = name;
         EnterSharedWorld(mapId, at);
@@ -2039,11 +2074,6 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         var toggleOn = request.HasChangeToggle && request.ChangeToggle == 1;
         if (basicAuto && toggleOff)
             return StopAutoAttackReplies(request, skill);
-        if (basicAuto && toggleOn)
-        {
-            autoAttackSkill = skill;
-            selectedTarget = request.TargetKey;
-        }
         // Minimum gap between two accepted non-dodge casts. CheckToleranceMs (200) equals ProjectileRecastMs (200), so a
         // zero-cooldown projectile (Tempest Shot) or a chain step was re-accepted on every client resend (~17 ms, live
         // 2026-10-30 16:08: Tempest Shot x6 in 70 ms, Snipe->Rapid Fire->Spiral Arrow->Snipe in 33 ms). Each accept is a new
@@ -2087,7 +2117,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 : DodgeUnlockRefusal(combatDodge))];
             // Right-click auto-attack-on-target: acknowledge toggle while the swing is still on lockout (no SkillStart).
             if (basicAuto && toggleOn && meetsCastRules && !cooldownReady)
+            {
+                autoAttackSkill = skill;
+                selectedTarget = request.TargetKey;
                 return [CastReplyFor(request, true)];
+            }
             if (data.IsBasicAttackChainSkill(skill) && chainSkill && chainAllowed && !castGapOk)
                 return BasicChainLockoutRefusal(request, now);
             // Held-key duplicate 0x3800 (~17 ms): 0x3801 failure (no second 0x3802). Playtest 2026-10-31 #262 silent drop hid reason.
@@ -2130,6 +2164,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         {
             autoAttackActionUid = (byte)actionUid;
             autoAttackSkill = skill;
+            if (request.HasChangeToggle && request.ChangeToggle == 1)
+                selectedTarget = request.TargetKey;
         }
         if (dodging)
         {
@@ -2305,6 +2341,30 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             if (nav.IsFaulted) PersistenceErrors.Add("NavMeshLoad");
             navLoad = null;
         }
+        EnsureMapGeometryLoaded();
+    }
+
+    /// <summary>QA/playtest: finish geometry synchronously when async load did not populate shared map AI.</summary>
+    internal void EnsureMapGeometryLoaded()
+    {
+        var geometry = data.GeometryMap(worldMap);
+        if (ai.Nav is null && options.Nav is null && QaBot && mapEventSnapDiagLogged.Add("navstore:null"))
+            Note($"EnsureMapGeometryLoaded: NavMeshStore not configured map={worldMap}");
+        if (ai.Nav is null && options.Nav is { } navStore)
+        {
+            var navPath = navStore.ExpectedPath(geometry);
+            var exists = navPath is not null && File.Exists(navPath);
+            ai.Nav = navStore.For(geometry);
+            if (QaBot && ai.Nav is null && mapEventSnapDiagLogged.Add($"geom:{worldMap}:{geometry}"))
+                Note($"EnsureMapGeometryLoaded: nav=null map={worldMap} geometry={geometry} dir={navStore.Directory ?? "null"} path={navPath ?? "?"} exists={exists}");
+        }
+        if (ai.Terrain is null && options.Terrain is { } terrainStore)
+        {
+            var terrainPath = terrainStore.ExpectedPath(geometry);
+            ai.Terrain = terrainStore.For(geometry);
+            if (QaBot && ai.Terrain is null && mapEventSnapDiagLogged.Add($"terrain:{worldMap}:{geometry}"))
+                Note($"EnsureMapGeometryLoaded: terrain=null map={worldMap} geometry={geometry} dir={terrainStore.Directory ?? "null"} path={terrainPath ?? "?"} exists={terrainPath is not null && File.Exists(terrainPath)}");
+        }
     }
 
     /// <summary>NPCs killed by other NPCs (SetAggroNpc fights): the kill sequence without loot or experience; the map events count it.</summary>
@@ -2422,6 +2482,20 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         foreach (var (type, value) in StatSheet().Stats)
             if (type == wireType) return value;
         return 0;
+    }
+
+    /// <summary>
+    /// Natural MP recovery per second for every class: the stat sheet's RestMPRegen (201, 250 in the official sheet) out of
+    /// combat and BattleMPRegen (276, 25) in combat, plus the generic MPRegen (200) and gear/title/buff lines of the same
+    /// names. Sitting multiplies only the out-of-combat rate (<see cref="RestRegenFactor"/>).
+    /// </summary>
+    int MpRegenPerSecond()
+    {
+        var (name, wire) = inCombat ? ("BattleMPRegen", 276) : ("RestMPRegen", 201);
+        // The sheet lines already carry the base and the Daevanion share, so the aggregate is asked without a wire.
+        var sheet = StatSheet().Stats;
+        int Line(int type) => sheet.Where(s => s.Item1 == type).Select(s => s.Item2).FirstOrDefault();
+        return Math.Max(0, Line(wire) + Line(200) + AggregatedStat(name, 0) + AggregatedStat("MPRegen", 0));
     }
 
     /// <summary>Applies the stat sheet to the pools (HP/MP clamped) and returns the updates for the client.</summary>
@@ -2968,6 +3042,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     public async Task<List<byte[]>> TickAsync(long now, CancellationToken ct = default)
     {
         lastNow = now;
+        batchAchievementCountUpdates = true;
+        achievementCountBatch.Clear();
         var replies = new List<byte[]>();
         while (posted.TryDequeue(out var item)) replies.AddRange(await item.Run(now));
         replies.AddRange(IdleReturnTick(now));
@@ -3033,9 +3109,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 {
                     var hpRegen = StatWireValue(195) + BuffStat("HPRegen");
                     if (hpRegen > 0) resources.Hp = (int)Math.Min(resources.HpMax, resources.Hp + seconds * rest * hpRegen);
-                    var mpRegen = StatWireValue(201) + BuffStat("MPRegen");
-                    resources.Mp = (int)Math.Min(resources.MpMax, resources.Mp + seconds * rest * Math.Max(0, mpRegen));
                 }
+                var mpRegen = MpRegenPerSecond();
+                if (mpRegen > 0) resources.Mp = (int)Math.Min(resources.MpMax, resources.Mp + (long)seconds * rest * mpRegen);
                 if (!sprinting)
                     resources.Sp = (int)Math.Min(resources.SpMax, resources.Sp + seconds * (inCombat ? SpRegenInCombat : SpRegenOutOfCombat));
                 if (resources.ApMax > 0)
@@ -3132,6 +3208,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 SyncSharedMapAiKillPreserve(aiMap);
                 aiMap.Ai.DefenseOf ??= key => aiMap.Players.TryGetValue(key, out var p) ? p.Session.Defense : 0;
                 aiMap.Ai.PlayerLevelOf ??= key => aiMap.Players.TryGetValue(key, out var p) ? p.Session.Level : 1;
+                aiMap.Ai.PlayerHpOf ??= key => aiMap.Players.TryGetValue(key, out var p) ? p.Session.HpPair : (0, 0);
                 // This session's map-event packets (its own instance script) go to this player only, not into the broadcast.
                 var ownMapEvents = new List<byte[]>();
                 WireMapEventNpcCombatHooks(aiMap.Ai, now, ownMapEvents);
@@ -3158,6 +3235,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         {
             ai.DefenseOf ??= _ => Defense;
             ai.PlayerLevelOf ??= _ => Level;
+            ai.PlayerHpOf ??= _ => HpPair;
             ai.SkipLeashHealNpcIds = OpenKillNpcIdsForSharedAi();
             if (ai.SkipLeashHealNpcIds.Count == 0) ai.SkipLeashHealNpcIds = null;
             WireMapEventNpcCombatHooks(ai, now);
@@ -3186,6 +3264,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         if (pendingAchievementPackets.Count > 0) { replies.AddRange(pendingAchievementPackets); pendingAchievementPackets.Clear(); }
         if (worldPlayer is not null)
             while (worldPlayer.Outbox.TryDequeue(out var queued)) replies.Add(queued);
+        batchAchievementCountUpdates = false;
+        CoalesceAchievementCountUpdates(replies);
         await CheckpointAsync(now, force: false, ct);
         return replies;
     }

@@ -96,7 +96,8 @@ public sealed partial class GameSession
         AirspaceBattleApplyRq = 0x3731, AirspaceBattleApplyRs = 0x3732, AirspaceBattleApplyNt = 0x3733,
         AirspaceBattleApplyCancelRq = 0x3734, AirspaceBattleApplyCancelRs = 0x3735, AirspaceBattleApplyCancelNt = 0x3736,
         AirspaceBattleApplyGuildListNt = 0x3737, CharAirspacePointNt = 0x3738, AirspaceBattleRankingRq = 0x3739, AirspaceBattleRankingRs = 0x373A,
-        RiftOptionUpdateRq = 0x3652, RiftOptionUpdateRs = 0x3653, RiftOptionCharUpdateNt = 0x3654;
+        RiftOptionUpdateRq = 0x3652, RiftOptionUpdateRs = 0x3653, RiftOptionCharUpdateNt = 0x3654,
+        AbyssRiftProgressInfoRq = 0x385B, AbyssRiftProgressInfoRs = 0x385C, AbyssRiftPhaseInfoNt = 0x385E, AbyssRiftPhaseStartNt = 0x385F;
     const int RankingTypeAbyss = 1;
 
     static AbyssTables Abyss => AbyssTables.Embedded;
@@ -110,6 +111,8 @@ public sealed partial class GameSession
     long abyssInsideSince;
     long pendingSiegeAp;
     int riftPvpOn;
+    /// <summary>Current phase index per abyss rift id the character is in (tools/data/abyss-rift-phases.json).</summary>
+    readonly Dictionary<int, int> abyssRiftPhase = [];
     bool abyssDirty;
     bool abyssLoaded;
     bool airspaceLoaded;
@@ -401,8 +404,37 @@ public sealed partial class GameSession
             }
             case AbyssArtifactEventInfoRq when plain.Length == 2:
                 return [AbyssArtifactEventInfo()];
+            case AbyssRiftProgressInfoRq when plain.Length >= 6:
+            {
+                var id = BitConverter.ToInt32(plain, 2);
+                return AbyssRiftProgressInfo(id, now);
+            }
         }
         return null;
+    }
+
+    /// <summary>AbyssRiftProgressInfo: phase table from the client export; scores CANDIDATE until rift scoring is wired.</summary>
+    List<byte[]> AbyssRiftProgressInfo(int abyssRiftId, long now)
+    {
+        var phases = AbyssRiftPhases.Embedded.PhasesOf(abyssRiftId);
+        if (phases is null or { Length: 0 })
+            return [PacketWriter.Opcode(AbyssRiftProgressInfoRs).U16(1).I32(abyssRiftId).I32(0).I32(0).I32(0).ToArray()];
+        if (!abyssRiftPhase.ContainsKey(abyssRiftId))
+        {
+            abyssRiftPhase[abyssRiftId] = 1;
+            return
+            [
+                PacketWriter.Opcode(AbyssRiftProgressInfoRs).U16(0).I32(abyssRiftId).I32(0).I32(0).I32(0).ToArray(),
+                PacketWriter.Opcode(AbyssRiftPhaseStartNt).I32(abyssRiftId).I32(1).I64(now).ToArray(),
+                PacketWriter.Opcode(AbyssRiftPhaseInfoNt).I32(abyssRiftId).I32(1).I64(now).ToArray(),
+            ];
+        }
+        var phase = abyssRiftPhase[abyssRiftId];
+        return
+        [
+            PacketWriter.Opcode(AbyssRiftProgressInfoRs).U16(0).I32(abyssRiftId).I32(0).I32(0).I32(0).ToArray(),
+            PacketWriter.Opcode(AbyssRiftPhaseInfoNt).I32(abyssRiftId).I32(phase).I64(now).ToArray(),
+        ];
     }
 
     byte[] AbyssArtifactEventInfo()

@@ -598,7 +598,13 @@ public sealed partial class GameSession
                 DungeonState(c.DungeonId, DungeonStateComplete, now, now),
                 DungeonState(c.DungeonId, DungeonStateEnd, now, now + hold),
             ];
-            if (s == this) festivalOut.AddRange(result); else s.worldPlayer?.Send(result);
+            var festAchieve = new List<byte[]>();
+            festAchieve.AddRange(s.AchieveFieldEventComplete(g.Contents, now));
+            var place = ranks.FindIndex(r => r.DbId == s.DbId);
+            if (place >= 0)
+                festAchieve.AddRange(s.AchieveFieldEventRanking(g.Cube, place + 1, score.Level, now));
+            if (s == this) { festivalOut.AddRange(result); festivalOut.AddRange(festAchieve); }
+            else s.worldPlayer?.Send([.. result, .. festAchieve]);
             s.instanceExitAt ??= now + hold;
         }
         // Players who scored and left before the end still get their mail.

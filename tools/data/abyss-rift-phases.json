@@ -1,0 +1,111 @@
+{
+  "source": "AbyssRiftPhase.dat + AbyssRiftPhaseSpawnerGroup.dat (research/client-export/2026-11-22)",
+  "rifts": {
+    "1": [
+      {
+        "phase": 1,
+        "spawner_group": null,
+        "spawners": [],
+        "ends": [
+          {
+            "type": "Time",
+            "value": "5",
+            "message_key": "UI_ABYSSRIFT_TARGET_WAIT"
+          }
+        ],
+        "abnormal_ids": []
+      },
+      {
+        "phase": 2,
+        "spawner_group": null,
+        "spawners": [],
+        "ends": [
+          {
+            "type": "KillNpcCount",
+            "value": "12",
+            "message_key": "UI_ABYSSRIFT_TARGET_KILLNPCCOUNT"
+          }
+        ],
+        "abnormal_ids": []
+      },
+      {
+        "phase": 3,
+        "spawner_group": null,
+        "spawners": [],
+        "ends": [
+          {
+            "type": "KillNpcCount",
+            "value": "4",
+            "message_key": "UI_ABYSSRIFT_TARGET_KILLNPCCOUNT2"
+          }
+        ],
+        "abnormal_ids": []
+      },
+      {
+        "phase": 4,
+        "spawner_group": null,
+        "spawners": [],
+        "ends": [
+          {
+            "type": "KillNpcCount",
+            "value": "6",
+            "message_key": "UI_ABYSSRIFT_TARGET_KILLNPCCOUNT"
+          }
+        ],
+        "abnormal_ids": []
+      },
+      {
+        "phase": 5,
+        "spawner_group": null,
+        "spawners": [],
+        "ends": [
+          {
+            "type": "KillNpcCount",
+            "value": "10",
+            "message_key": "UI_ABYSSRIFT_TARGET_KILLNPCCOUNT2"
+          }
+        ],
+        "abnormal_ids": []
+      },
+      {
+        "phase": 6,
+        "spawner_group": null,
+        "spawners": [],
+        "ends": [
+          {
+            "type": "KillNpcCount",
+            "value": "8",
+            "message_key": "UI_ABYSSRIFT_TARGET_KILLNPCCOUNT"
+          }
+        ],
+        "abnormal_ids": []
+      },
+      {
+        "phase": 7,
+        "spawner_group": null,
+        "spawners": [],
+        "ends": [
+          {
+            "type": "Time",
+            "value": "60",
+            "message_key": "UI_ABYSSRIFT_TARGET_COMMON"
+          }
+        ],
+        "abnormal_ids": []
+      },
+      {
+        "phase": 8,
+        "spawner_group": null,
+        "spawners": [],
+        "ends": [
+          {
+            "type": "KillNpc",
+            "value": "2670066, 2670067, 2670114, 2670118",
+            "message_key": "UI_ABYSSRIFT_TARGET_KILLNPC"
+          }
+        ],
+        "abnormal_ids": []
+      }
+    ]
+  }
+}

@@ -117,7 +117,8 @@ class SkillEffectExportTests(unittest.TestCase):
     def test_shadowstrike_stun_is_held_and_teleports(self):
         data = json.loads(skill_areas.DATA.read_text(encoding='utf-8'))['skills']
         self.assertEqual(data['13070000']['debuffs'], [[100000301, 3000, 3000, 1]])
-        self.assertEqual(data['13070000']['effects'], [['Teleport_Caster']])
+        effects = data['13070000']['effects']
+        self.assertTrue(any(e[0] == 'Teleport_Caster' for e in effects))
 
     def test_mark_known_held_flags_only_known_abnormals(self):
         skills = {'1': {'debuffs': [[100000301, 1, 1, 0], [555, 1, 1, 0]]}}

@@ -276,8 +276,12 @@ public sealed partial class GameSession
             if (g.Limit > 0) limits.Add((g.LimitTarget, (int)goodsId, ShopTables.Period(g.LimitPeriod, at), (int)count, g.Limit));
         }
         if (PurchaseCosts(prices.Select(p => (p.Key, p.Value))) is not { } paid) return [Reply(2, npcKey)];
+        var lines = entries.Select(e => ((int)e.A, (int)e.B)).ToList();
+        var fingerprint = ShopPurchaseRequest.Fingerprint(store.WorldId, store.AccountId, character, "npc", lines, clientSerial: null);
+        var purchaseId = await store.ResolveShopPurchaseRequestIdAsync(fingerprint, now, ct);
+        if (orders.Count > 0) orders[0] = orders[0] with { RequestId = purchaseId };
         var pay = await PayQunaAsync(paid.Quna, new { kind = "npc", npc = npc!.NpcId, lines = orders.Count },
-            request => StoredOk(() => store.ShopBuyAsync(character, paid.Costs, rewards, limits, orders, ct, request)), ct);
+            request => StoredOk(() => store.ShopBuyAsync(character, paid.Costs, rewards, limits, orders, ct, request)), ct, purchaseId);
         if (pay == QunaPay.NotEnough) return [Reply(2, npcKey)];
         if (pay != QunaPay.Done)
         {

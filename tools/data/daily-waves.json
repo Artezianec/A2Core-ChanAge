@@ -1,38 +1,38 @@
 {
- "source": "WaveStepData.dat (the client's wave orders; via zaraza87/A2Core dell-merge-2026-11 29934bea tools/data/map-events.json waves): the daily dungeon maps' waves, each order's spawners in order. Hand-extracted for the three daily maps (OURS: our map-events.json carries no WaveStepData).",
- "maps": {
-  "900001": {
-   "DungeonWave_0001_Wave_L_B_03": [
-    "S1_DungeonWave_0001_Multi_Monster_Wave_L_21",
-    "S1_DungeonWave_0001_Multi_Monster_Wave_L_22",
-    "S1_DungeonWave_0001_Multi_Monster_Wave_L_23",
-    "S1_DungeonWave_0001_Multi_Monster_Wave_L_24",
-    "S1_DungeonWave_0001_Multi_Monster_Wave_L_25",
-    "S1_DungeonWave_0001_Multi_Monster_Wave_L_26",
-    "S1_DungeonWave_0001_Multi_Monster_Wave_L_27",
-    "S1_DungeonWave_0001_Multi_Monster_Wave_L_28",
-    "S1_DungeonWave_0001_Multi_Monster_Wave_L_29",
-    "S1_DungeonWave_0001_Multi_Monster_Wave_L_30"
-   ]
-  },
-  "900002": {
-   "Wave_Dungeon_Daily_0001": [
-    "Dungeon_Daily_0001_Single_OrcusGem",
-    "Dungeon_Daily_0001_Multi_Point_1",
-    "Dungeon_Daily_0001_Multi_Point_2",
-    "Dungeon_Daily_0001_Multi_Point_3",
-    "Dungeon_Daily_0001_Multi_Point_4",
-    "Dungeon_Daily_0001_Multi_Point_5"
-   ]
-  },
-  "900003": {
-   "Wave_Dungeon_Daily_0002": [
-    "Dungeon_Daily_0002_Multi_Point_1",
-    "Dungeon_Daily_0002_Multi_Point_2",
-    "Dungeon_Daily_0002_Multi_Point_3",
-    "Dungeon_Daily_0002_Multi_Point_4",
-    "Dungeon_Daily_0002_Multi_Point_5"
-   ]
+  "source": "WaveStepData.dat (client export 2026-11-22), built by tools/wave_data.py for daily dungeon maps 900001-900003 (ClearWave objectives in map-events.json).",
+  "maps": {
+    "900001": {
+      "DungeonWave_0001_Wave_L_B_03": [
+        "S1_DungeonWave_0001_Multi_Monster_Wave_L_21",
+        "S1_DungeonWave_0001_Multi_Monster_Wave_L_22",
+        "S1_DungeonWave_0001_Multi_Monster_Wave_L_23",
+        "S1_DungeonWave_0001_Multi_Monster_Wave_L_24",
+        "S1_DungeonWave_0001_Multi_Monster_Wave_L_25",
+        "S1_DungeonWave_0001_Multi_Monster_Wave_L_26",
+        "S1_DungeonWave_0001_Multi_Monster_Wave_L_27",
+        "S1_DungeonWave_0001_Multi_Monster_Wave_L_28",
+        "S1_DungeonWave_0001_Multi_Monster_Wave_L_29",
+        "S1_DungeonWave_0001_Multi_Monster_Wave_L_30"
+      ]
+    },
+    "900002": {
+      "Wave_Dungeon_Daily_0001": [
+        "Dungeon_Daily_0001_Single_OrcusGem",
+        "Dungeon_Daily_0001_Multi_Point_1",
+        "Dungeon_Daily_0001_Multi_Point_2",
+        "Dungeon_Daily_0001_Multi_Point_3",
+        "Dungeon_Daily_0001_Multi_Point_4",
+        "Dungeon_Daily_0001_Multi_Point_5"
+      ]
+    },
+    "900003": {
+      "Wave_Dungeon_Daily_0002": [
+        "Dungeon_Daily_0002_Multi_Point_1",
+        "Dungeon_Daily_0002_Multi_Point_2",
+        "Dungeon_Daily_0002_Multi_Point_3",
+        "Dungeon_Daily_0002_Multi_Point_4",
+        "Dungeon_Daily_0002_Multi_Point_5"
+      ]
+    }
   }
- }
 }

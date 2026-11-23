@@ -30,9 +30,15 @@ public sealed partial class GameSession
     {
         var gameId = PlatformGoodsTables.Embedded.ResolveGameGoodsId(platformOrGoodsId) ?? platformOrGoodsId;
         // Quna / Kina BM SKUs are omitted from shops.json at export; fall back to the platform catalog.
-        return Shops.RowByGoodsId(gameId)
+        var row = Shops.RowByGoodsId(gameId)
             ?? PlatformGoodsTables.Embedded.ToShopGoods(platformOrGoodsId)
             ?? OfficialShopGoods.Embedded.ToShopGoods(platformOrGoodsId)
             ?? OfficialShopGoods.Embedded.ToShopGoods(gameId);
+        return row is null ? null : ApplyOfficialPurchaseLimit(platformOrGoodsId, row);
     }
+
+    static ShopTables.GoodsRow ApplyOfficialPurchaseLimit(int goodsId, ShopTables.GoodsRow row) =>
+        row.Limit > 0 ? row
+        : OfficialShopGoods.TryPurchaseLimit(goodsId, out var limit, out var target, out var period)
+            ? row with { Limit = limit, LimitTarget = target, LimitPeriod = period } : row;
 }

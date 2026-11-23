@@ -1,0 +1,15 @@
+{
+  "source": "BM shop gaps when Item.dat / BoxReward are incomplete (client export 2026-11-22). Re-run: python tools/box_data.py",
+  "uses": {},
+  "rides": {},
+  "skins": {},
+  "skin_categories": {},
+  "boxes": {
+    "G_event_Recharge_RewardTicket_PartyDungeon_Common_01a_A_s_02_b": {
+      "items": [[503700032, 1]],
+      "select": [],
+      "packages": [],
+      "max": 1
+    }
+  }
+}

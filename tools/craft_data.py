@@ -195,10 +195,50 @@ def build(tables=TABLES, catalog=CATALOG):
     replacement_rows = find_table(tables, None, 'ReplacementItemList')
     conversion_recipes = conversion_recipes_from_rows(conversion_rows, replacement_rows, ids)
     conversion_sources = {rid: 'ConversionRecipe.dat' for rid in conversion_recipes}
-    return {'source': 'CraftRecipe + CraftRecipeRate + ConversionRecipe + CraftMastery + GatherMastery (tools/craft_data.py)',
+    out = {'source': 'CraftRecipe + CraftRecipeRate + ConversionRecipe + CraftMastery + GatherMastery (tools/craft_data.py)',
             'recipes': recipes, 'guild_recipes': guild_recipes, 'conversions': conversions,
             'conversion_recipes': conversion_recipes, 'conversion_recipe_sources': conversion_sources,
             'rate_curves': curves, 'craft_mastery': craft_mastery, 'gather_mastery': gather_mastery}
+    out['recipe_names'] = recipe_names_for_achievements(recipes, ids)
+    return out
+
+
+def recipe_names_for_achievements(recipes, item_ids):
+    """Map craft recipe id -> CraftRecipe.dat Name for CraftSuccess achievements (heuristic from product + mastery)."""
+    achievements = json.loads((ROOT / 'tools/data/achievements.json').read_text(encoding='utf-8'))['achievements']
+    items = json.loads((ROOT / 'tools/data/items.json').read_text(encoding='utf-8'))['items']
+    ach_names = {v for e in achievements.values() if e.get('t') == 'CraftSuccess' for v in e.get('v') or []}
+    grade_bands = (('Legend', 70), ('Rare', 45), ('Common', 0))
+
+    def recipe_grade(mastery):
+        for grade, need in grade_bands:
+            if mastery >= need:
+                return grade
+        return 'Common'
+
+    names = {}
+    for rid, row in recipes.items():
+        wt, race, prod, mastery = row[0], row[1], row[4], row[2]
+        it = items.get(str(prod))
+        if not it:
+            continue
+        cat = it['c']
+        prefix = {v: k + ('ing' if k.endswith('craft') else '') for k, v in WORKTABLE.items()}.get(wt)
+        if not prefix:
+            if wt == 'Blacksmith':
+                prefix = 'Blacksmithing'
+            elif wt == 'Tailor':
+                prefix = 'Tailoring'
+            elif wt == 'Jewelcraft':
+                prefix = 'Jewelcrafting'
+            else:
+                prefix = wt
+        rc = 'L' if race == 1 else 'D'
+        grade = recipe_grade(mastery)
+        cands = [n for n in ach_names if prefix in n and f'_{rc}_' in n and f'_{cat}_' in n and f'_{grade}_' in n]
+        if len(cands) == 1:
+            names[rid] = cands[0]
+    return names
 
 
 MISSING_CONVERSION_SCRAPE = ['31103001', '31143013', '32103001', '32143013']
@@ -224,6 +264,15 @@ def main():
                     data.setdefault('conversion_recipe_sources', {})[rid] = prev_sources.get(rid, 'aion2.gg-scrape')
         if not data.get('guild_recipes') and existing.get('guild_recipes'):
             data['guild_recipes'] = existing['guild_recipes']
+    if not data.get('recipe_names') and existing.get('recipe_names'):
+        data['recipe_names'] = existing['recipe_names']
+    elif data.get('recipes') and not data.get('recipe_names'):
+        try:
+            with open(CATALOG, encoding='utf-8') as source:
+                ids = {e['internal_name']: e['id'] for line in source if (e := json.loads(line)).get('kind') == 'items'}
+            data['recipe_names'] = recipe_names_for_achievements(data['recipes'], ids)
+        except (FileNotFoundError, OSError, KeyError):
+            data['recipe_names'] = existing.get('recipe_names', {})
     data['conversion_recipe_missing'] = [rid for rid in MISSING_CONVERSION_SCRAPE
                                          if rid not in (data.get('conversion_recipes') or {})]
     sources = data.setdefault('conversion_recipe_sources', {})

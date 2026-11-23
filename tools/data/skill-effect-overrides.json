@@ -78,6 +78,45 @@
       "scope": "self",
       "evidence": "Defiance (60 s): clears the crowd control on the caster."
     },
+    "15210000": {
+      "name": "Flame Arrow",
+      "family": true,
+      "scope": "self",
+      "effects": [
+        [
+          "MpHealRatio",
+          "300",
+          "300"
+        ]
+      ],
+      "evidence": "SkillEffect.dat *201 Damage row DrainByDamageAndCasterMaxHPOnce: EffectValueList 100,100 and 300 (client export 2026-11-22); 300 permille of max MP on hit."
+    },
+    "15030000": {
+      "name": "Burst",
+      "family": true,
+      "scope": "self",
+      "effects": [
+        [
+          "MpHealRatio",
+          "300",
+          "300"
+        ]
+      ],
+      "evidence": "SkillEffect.dat *201 Damage row DrainByDamageAndCasterMaxHPOnce (Flame Arrow chain); client export 2026-11-22."
+    },
+    "15250000": {
+      "name": "Pyroclasm",
+      "family": true,
+      "scope": "self",
+      "effects": [
+        [
+          "MpHealRatio",
+          "300",
+          "300"
+        ]
+      ],
+      "evidence": "SkillEffect.dat *201 Damage row DrainByDamageAndCasterMaxHPOnce (Burst chain finisher); client export 2026-11-22."
+    },
     "16200000": {
       "name": "Defiance",
       "family": true,

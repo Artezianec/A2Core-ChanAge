@@ -43,6 +43,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'tools/data/boxes.json'
+CLIENT_EXPORT = ROOT / 'research' / 'client-export' / '2026-11-22'
 ABNORMALS = ROOT / 'research/local/abnormal-tables-20261016'
 TABLES = ROOT / 'research/local/pet-tables-20261016'
 CATALOG = ROOT / 'research/local/game-catalog-v2/entries.jsonl'
@@ -135,6 +136,99 @@ def _abnormals(skills, tables=ABNORMALS):
         if value(r['AbnormalId']) in found:
             found[value(r['AbnormalId'])]['effects'].append([value(r['ID']), _short(r.get('AbnormalEffectType')), *[str(v) for v in r.get('Values') or []][:8]])
     return {str(k): v for k, v in sorted(found.items())}
+
+
+def _wanted_package_names(boxes: dict) -> set[str]:
+    wanted: set[str] = set()
+    for box in boxes.values():
+        for pkg in box.get('packages') or []:
+            if pkg:
+                wanted.add(str(pkg[0]))
+    return wanted
+
+
+def build_client_export(persisted: dict | None = None, export_dir: Path | None = None):
+    """Rebuild uses, packages, and rides from research/client-export (Item, RewardPackageItem, Vehicle*)."""
+    try:
+        from .client_export import load_rows
+        from .client_export_dat import cell_id, export_available, export_version, short
+    except ImportError:
+        from client_export import load_rows
+        from client_export_dat import cell_id, export_available, export_version, short
+
+    export_dir = export_dir or CLIENT_EXPORT
+    if not export_available(export_dir):
+        raise FileNotFoundError(f'client export missing under {export_dir}')
+
+    base = json.loads(json.dumps(persisted or json.loads(DATA.read_text(encoding='utf-8'))))
+    ids = {row['Name']: cell_id(row['ID']) for row in load_rows('Item', export_dir)}
+    uses, cool = {}, {}
+    for row in load_rows('Item', export_dir):
+        iid = cell_id(row['ID'])
+        if (use_row := _use_row(row)) is not None:
+            key = str(iid)
+            uses[key] = use_row
+            cool[key] = _cool_row(row)
+    _finalize_uses(uses, cool)
+
+    packages: dict[str, list] = {}
+    for row in load_rows('RewardPackageItem', export_dir):
+        name = row['PackageName']
+        entries = [
+            [ids[i['ItemName']], int(i.get('ItemProb') or 0), int(i.get('ItemCountMin') or 1),
+             int(i.get('ItemCountMax') or i.get('ItemCountMin') or 1)]
+            for i in row.get('Items') or [] if i.get('ItemName') in ids
+        ]
+        if entries:
+            packages[name] = entries
+
+    rides = {}
+    for row in load_rows('VehicleList', export_dir):
+        ride = cell_id(row['ID'])
+        rides[str(ride)] = {
+            'name': row.get('Name'),
+            'item': ids.get(row.get('VehicleItemName')),
+            'type': CREATURES.get(short(row.get('CreatureType')), 0),
+            'need': int(row.get('NeedSoul') or 0),
+            'crystal': CRYSTALS.get(short(row.get('SoulCrystalType')), 0),
+            'stat': row.get('StatGroupName'),
+            'run': row.get('ArtRunSpeed'),
+            'sprint': row.get('ArtSprintSpeed'),
+        }
+    ride_levels = {str(r['Level']): int(r.get('NeedSoulCount') or 0) for r in load_rows('VehicleLevel', export_dir)}
+    ride_board_exp = {str(r['Level']): int(r.get('GetCreatureExp') or 0) for r in load_rows('VehicleLevel', export_dir)}
+    ride_stats = {}
+    for row in load_rows('VehicleStat', export_dir):
+        ride_stats.setdefault(row['Group'], {})[str(row['Level'])] = {
+            short(s['StatType']): int(s['StatValue']) for s in row.get('StatList') or []
+        }
+
+    item_ver = export_version('Item', export_dir)
+    out = {
+        'source': f'Item.dat v{item_ver} + RewardPackageItem + VehicleList (client export 2026-11-22, tools/box_data.py)',
+        'handled_use_effects': sorted(HANDLED_USE_EFFECTS),
+        'uses': uses,
+        'cool': cool,
+        'skills': base.get('skills') or {},
+        'boxes': base.get('boxes') or {},
+        'packages': packages,
+        'rides': rides,
+        'ride_levels': ride_levels,
+        'ride_stats': ride_stats,
+        'ride_board_exp': ride_board_exp,
+        'creature_levels': base.get('creature_levels') or {},
+        'creature_slots': base.get('creature_slots') or {},
+        'creature_options': base.get('creature_options') or {},
+        'abnormals': base.get('abnormals') or {},
+        'passives': base.get('passives') or {},
+    }
+    # Ensure every RewardBox use has a boxes row (BoxReward.dat not in this export).
+    boxes = out.setdefault('boxes', {})
+    for row in uses.values():
+        if row and row[0] == 'RewardBox' and len(row) > 2:
+            group = row[2]
+            boxes.setdefault(group, {'items': [], 'select': [], 'packages': [], 'max': 100})
+    return out
 
 
 def build(tables=TABLES, catalog=CATALOG):
@@ -240,7 +334,30 @@ def patch_committed_boxes(path=DATA):
 
 
 def main():
-    if CATALOG.exists():
+    try:
+        from .client_export_dat import export_available
+    except ImportError:
+        from client_export_dat import export_available
+
+    if export_available(CLIENT_EXPORT):
+        data = build_client_export()
+        try:
+            from .bmshop_item_uses import apply_overrides, load_overrides, merge_bmshop_uses
+        except ImportError:
+            from bmshop_item_uses import apply_overrides, load_overrides, merge_bmshop_uses
+        overrides = load_overrides()
+        uses = data.setdefault('uses', {})
+        cool = data.setdefault('cool', {})
+        apply_overrides(data, overrides)
+        skin_names = set()
+        skins_path = ROOT / 'tools/data/skins.json'
+        if skins_path.is_file():
+            skin_names = set(json.loads(skins_path.read_text(encoding='utf-8')).get('skins', {}))
+        merge_bmshop_uses(uses, data.get('rides') or {}, skin_names)
+        for key in list(uses):
+            cool.setdefault(key, [0, 'None', 0])
+        write_data_json(DATA, data)
+    elif CATALOG.exists():
         data = build()
         write_data_json(DATA, data)
     else:

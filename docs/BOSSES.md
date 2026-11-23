@@ -8,6 +8,9 @@ checked against an official capture.
 "Client" below means the game's exported data (`map-events.json`, `world-npcs.json`, `skill-areas.json`, Skill.dat cast
 times). "OURS" means an invented value, kept in `tools/data/boss-phases.json` and marked there.
 
+Boss fights now run on the data-driven mechanics engine (`docs/BOSS-MECHANICS-ENGINE.md`): these scripts are compiled into
+engine rules unchanged, and bosses with an authored file in `tools/data/boss-mechanics/` use that instead.
+
 ## Waves (`ClearWave`)
 
 `ClearWave` used to finish on its own after `MapEventRun.FallbackMs` (30 s). Now:
@@ -21,7 +24,10 @@ times). "OURS" means an invented value, kept in `tools/data/boss-phases.json` an
 - **Ferocious Horn Den's totem wave is hand-made (OURS).** Its spawn data names no wave monsters. Three of the den's
   Lycans come around the totem every 15 s while it lives, up to six times. The wave is clear when the totem and its Lycans
   are dead.
-- **Any other wave keeps the old 30 s timer.** Field events, Beritra and the sealed dungeons name spawns we can't match yet.
+- **WaveStepData waves** (`tools/data/client-waves.json`, built by `tools/wave_data.py` from the client export): ordered
+  spawner parts for field events, Beritra, sealed dungeons, dailies and most dungeons. The server filters them to spawns
+  present on the map at load (as with `daily-waves.json`). `python tools/wave_data.py coverage` lists anything still on the
+  30 s timer (no WaveStepData row, or Ludra `{wave}_{n}` / `boss-phases.json` synthetic waves).
 - A wave already cleared when its `ClearWave` step begins counts at once.
 - The `HpRemaining` condition (scripts that branch on a boss's HP) now reads the NPC's HP. It used to be always false.
 - `ResetRebirthLimit` and `SetAbnormalVolumeState` are accepted as no-ops. The client data has no limit or volume
@@ -72,7 +78,8 @@ Those scripts no longer use invented adds or a repeating "longest-cast" slam. Ev
 ## Not done
 
 - Ground markers under slams use `SkillRangeNoticeFilterLocation_NT` when `Aion:Combat:GroundMarkers` is on (see `docs/GROUND-TELEGRAPHS.md`; opcode/fields CANDIDATE).
-- The waves on other maps keep the timer (see above).
+- Reshanta **AbyssRift** phase progression (kill counts / timers from `abyss-rift-phases.json`) is only packet + table
+  wiring so far; spawner groups from the export are not yet tied to map spawns.
 
 ## Brigade Base (HQ1101070, layer 100002)
 

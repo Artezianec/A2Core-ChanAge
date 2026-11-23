@@ -17,6 +17,7 @@ public sealed partial class GameSession
     void ClearChainState()
     {
         activeChainSkills.Clear();
+        basicChainFamilyExpiredAt.Clear();
         ClearHeldCastState();
     }
 
@@ -24,8 +25,11 @@ public sealed partial class GameSession
     bool ChainReady(int skillId, long now)
     {
         if (data.Skill(skillId) is not { ChainPrev: > 0 }) return true;
-        return activeChainSkills.TryGetValue(skillId, out var until) && now < until;
+        var wire = data.BasicChainWireStepId(skillId);
+        return activeChainSkills.TryGetValue(wire, out var until) && now < until;
     }
+
+    int ChainWireSkillId(int skillId) => data.BasicChainWireStepId(skillId);
 
     /// <summary>FixSlot left-click combo step (Snipe / Rapid Fire / Spiral Arrow, …): shared root cooldown group.</summary>
     int BasicChainCooldownGroup(int skillId) => data.CooldownGroup(ChainRoot(skillId));
@@ -57,10 +61,13 @@ public sealed partial class GameSession
     {
         if (activeChainSkills.Count == 0) return [];
         var replies = new List<byte[]>();
-        foreach (var (child, until) in activeChainSkills.Where(p => now < p.Value).OrderBy(p => p.Key))
+        foreach (var (child, until) in activeChainSkills.Where(p => now < p.Value).OrderBy(p => p.Key).ToList())
         {
             if (data.Skill(child) is not { ChainPrev: > 0 } step) continue;
-            replies.Add(GamePackets.ChainSkillActiveList(step.ChainPrev, [child]));
+            var prev = ChainWireSkillId(step.ChainPrev);
+            var active = GamePackets.ChainSkillActiveList(prev, [child]);
+            replies.Add(active);
+            LogChainWirePacket("chain_resync", active, prev, [child]);
         }
         return replies;
     }
@@ -107,11 +114,11 @@ public sealed partial class GameSession
             // Official order: the next step's 0x3818 first, then 0x3819 consuming this one.
             var parent = chain.ChainPrev;
             var siblings = data.ChainFollowUpIds(parent).Where(id => id != skillId).ToList();
-            foreach (var sibling in siblings) activeChainSkills.Remove(sibling);
-            activeChainSkills.Remove(skillId);
-            if (siblings.Count > 0) replies.Add(GamePackets.ChainSkillDeactiveList(siblings));
+            foreach (var sibling in siblings) activeChainSkills.Remove(ChainWireSkillId(sibling));
+            activeChainSkills.Remove(ChainWireSkillId(skillId));
+            if (siblings.Count > 0) replies.Add(ChainDeactive(siblings));
             TryOpenChainChildren(skillId, now, replies);
-            replies.Add(GamePackets.ChainSkillDeactiveList([skillId]));
+            replies.Add(ChainDeactive([skillId]));
             return replies;
         }
         replies.AddRange(CloseChainWindowsForFamily(skillId));
@@ -125,12 +132,21 @@ public sealed partial class GameSession
         if (activeChainSkills.Count == 0) return [];
         var root = ChainRoot(skillId);
         var toClose = activeChainSkills.Keys.Where(id => ChainRoot(id) == root).Order().ToList();
-        foreach (var id in toClose) activeChainSkills.Remove(id);
-        return toClose.Count == 0 ? [] : [GamePackets.ChainSkillDeactiveList(toClose)];
+        foreach (var id in toClose) activeChainSkills.Remove(ChainWireSkillId(id));
+        return toClose.Count == 0 ? [] : [ChainDeactive(toClose)];
+    }
+
+    byte[] ChainDeactive(IReadOnlyList<int> skillIds)
+    {
+        var wire = skillIds.Select(ChainWireSkillId).Distinct().Order().ToList();
+        var pkt = GamePackets.ChainSkillDeactiveList(wire);
+        LogChainWirePacket("chain_close", pkt, 0, wire);
+        return pkt;
     }
 
     void TryOpenChainChildren(int parentSkillId, long now, List<byte[]> replies)
     {
+        var parentWire = ChainWireSkillId(parentSkillId);
         if (ResolveSkillDefinition(parentSkillId) is not { } parent) return;
         var children = data.ChainFollowUpIds(parentSkillId);
         if (children.Count == 0) return;
@@ -142,8 +158,9 @@ public sealed partial class GameSession
         foreach (var candidate in children)
         {
             if (data.Skill(candidate) is not { } definition) continue;
-            var child = candidate;
-            if (definition.ChainPrev == 0)
+            var child = ChainWireSkillId(candidate);
+            // FixSlot basics always advance; optional skill chains (Defiance, …) roll each follow-up's ChainRate in dat.
+            if (definition.ChainPrev > 0 && !data.IsBasicAttackChainSkill(parentSkillId))
             {
                 var rate = definition.ChainRate <= 0 ? 10_000 : definition.ChainRate;
                 if (rng.Next(10_000) >= rate) continue;
@@ -155,9 +172,12 @@ public sealed partial class GameSession
             learned.Add(child);
         }
         if (opened.Count == 0) return;
-        replies.Add(GamePackets.ChainSkillActiveList(parentSkillId, opened));
+        var active = GamePackets.ChainSkillActiveList(parentWire, opened);
+        replies.Add(active);
+        LogChainWirePacket("chain_open", active, parentWire, opened);
         PlaytestDebug.Action("chain_open",
-            ("prevSkillId", parentSkillId),
+            ("prevSkillId", parentWire),
+            ("castSkillId", parentSkillId),
             ("chainSkills", string.Join(',', opened)),
             ("windowMs", opened.Max(id => activeChainSkills[id] - now)));
     }
@@ -165,14 +185,14 @@ public sealed partial class GameSession
     List<byte[]> ChainExpireReplies(long now)
     {
         if (activeChainSkills.Count == 0) return [];
-        var expired = activeChainSkills.Where(p => now >= p.Value).Select(p => p.Key).Order().ToList();
-        foreach (var id in expired)
+        var expired = activeChainSkills.Where(p => now >= p.Value).OrderBy(p => p.Key).ToList();
+        foreach (var (id, expiryAt) in expired)
         {
             activeChainSkills.Remove(id);
             if (data.IsBasicAttackChainSkill(id))
-                basicChainFamilyExpiredAt[ChainRoot(id)] = now;
+                basicChainFamilyExpiredAt[ChainRoot(id)] = expiryAt;
         }
-        return expired.Count == 0 ? [] : [GamePackets.ChainSkillDeactiveList(expired)];
+        return expired.Count == 0 ? [] : [ChainDeactive(expired.Select(p => p.Key).ToList())];
     }
 
     List<byte[]> ChainTickReplies(long now) => ChainExpireReplies(now);
@@ -315,7 +335,7 @@ public sealed partial class GameSession
         {
             if (data.Skill(skillId) is not { SkillCond: { } cond }) continue;
             if (!matches(cond)) continue;
-            if (!cond.SelectTarget?.Equals("Target", StringComparison.OrdinalIgnoreCase) == true) continue;
+            if (cond.SelectTarget?.Equals("Target", StringComparison.OrdinalIgnoreCase) != true) continue;
             if (!TryContextSlotOfSkill(skillId, out var slot, out var index)) continue;
             contextAutoSelect[slot] = (index, skillId, contextMarker);
             replies.AddRange(NotifyQuickSlotContextSkill(slot, index, skillId));
@@ -444,6 +464,42 @@ public sealed partial class GameSession
         return w.ToArray();
     }
 
+    bool BuildQuickSlotContextEdit(Dictionary<int, int[]> before, int slotId, byte contextSlot, int skillId,
+        out Dictionary<int, int[]>? stacks, out bool noOp, out bool swapped, out byte swapSlot, out byte swapContext, out int displaced)
+    {
+        stacks = before.ToDictionary(p => p.Key, p => (int[])p.Value.Clone());
+        noOp = false;
+        swapped = false;
+        swapSlot = swapContext = 0;
+        displaced = 0;
+        if (!stacks.TryGetValue(slotId, out var target))
+        {
+            if (skillId == 0) { noOp = true; stacks = null; return true; }
+            if (contextSlot != 0) return false;
+            target = stacks[slotId] = new int[4];
+        }
+        displaced = target[contextSlot];
+        if (displaced == skillId) { noOp = true; stacks = null; return true; }
+        if (!IsAllowedContextSkillEdit(slotId, target, contextSlot, skillId)) return false;
+        if (skillId != 0)
+        {
+            foreach (var (otherSlot, other) in stacks.OrderBy(p => p.Key != slotId).ThenBy(p => p.Key))
+            {
+                var index = Array.IndexOf(other, skillId);
+                if (index < 0 || ReferenceEquals(other, target) && index == contextSlot) continue;
+                other[index] = displaced;
+                swapped = true;
+                swapSlot = (byte)otherSlot;
+                swapContext = (byte)index;
+                break;
+            }
+        }
+        target[contextSlot] = skillId;
+        ClearSkillIdExcept(stacks, skillId, slotId, contextSlot);
+        foreach (var stack in stacks.Values.Where(st => st[0] == 0)) Array.Clear(stack, 0, 4);
+        return true;
+    }
+
     /// <summary>
     /// 0x5607 QuickSlotContextSkillUpdate_RQ {slot u8, context index u8, skill id i32} (OBSERVED live 2026-10-30, 8 bytes:
     /// `06 01 D008E500` = slot 6, index 1, skill 15010000). The Skill Order window sends every edit as this one request:
@@ -471,47 +527,23 @@ public sealed partial class GameSession
             return Refused();
         if (quickSlots.TryGetValue(slotId, out var occupied) && !IsClearedQuickSlot(occupied) && occupied.Type != 0) return Refused();
 
-        var stacks = EffectiveSkillStacks();
-        var before = stacks.ToDictionary(p => p.Key, p => (int[])p.Value.Clone());
-        if (!stacks.TryGetValue(slotId, out var target))
-        {
-            if (skillId == 0) return [Rs(0), Hotbar(profile.DefaultBar())];
-            if (contextSlot != 0) return Refused();
-            target = stacks[slotId] = new int[4];
-        }
-        var displaced = target[contextSlot];
-        if (displaced == skillId) return [Rs(0), Hotbar(profile.DefaultBar())];
-        if (!IsAllowedContextSkillEdit(slotId, target, contextSlot, skillId)) return Refused();
+        var before = EffectiveSkillStacks().ToDictionary(p => p.Key, p => (int[])p.Value.Clone());
+        if (!BuildQuickSlotContextEdit(before, slotId, contextSlot, skillId, out var stacks, out var noOp, out var swapped, out var swapSlot, out var swapContext, out var displaced))
+            return Refused();
+        if (noOp) return [Rs(0), Hotbar(profile.DefaultBar())];
 
-        byte swapSlot = 0, swapContext = 0;
-        var swapped = false;
-        if (skillId != 0)
-        {
-            foreach (var (otherSlot, other) in stacks.OrderBy(p => p.Key != slotId).ThenBy(p => p.Key))
-            {
-                var index = Array.IndexOf(other, skillId);
-                if (index < 0 || ReferenceEquals(other, target) && index == contextSlot) continue;
-                other[index] = displaced;
-                swapped = true;
-                swapSlot = (byte)otherSlot;
-                swapContext = (byte)index;
-                break;
-            }
-        }
-        target[contextSlot] = skillId;
-        ClearSkillIdExcept(stacks, skillId, slotId, contextSlot);
-        foreach (var stack in stacks.Values.Where(st => st[0] == 0)) Array.Clear(stack, 0, 4);
-
+        var edited = stacks!;
         var changes = new List<(int Slot, QuickSlotRecord? Record)>();
-        foreach (var number in stacks.Keys.Concat(before.Keys).Distinct().Order())
+        foreach (var number in edited.Keys.Concat(before.Keys).Distinct().Order())
         {
-            var now = stacks.TryGetValue(number, out var stack) ? stack : new int[4];
+            var now = edited.TryGetValue(number, out var stack) ? stack : new int[4];
             if (before.TryGetValue(number, out var was) && was.SequenceEqual(now)) continue;
             changes.Add((number, now[0] != 0 ? new QuickSlotRecord(number, 0, 0, 0, now[0], now)
                 : HasDefaultQuickSlot(number) ? new QuickSlotRecord(number, 0, 0, 0, 0, [0, 0, 0, 0]) : null));
         }
         if (Store is { } store && CharacterId is { } character)
         {
+            if (skillId != 0 && data.Skill(skillId) is null) return Refused();
             var saved = await Stored(async () =>
             {
                 foreach (var (number, record) in changes)

@@ -115,50 +115,10 @@ public sealed partial class GameSession
         await BuyCatalogGoodsAsync(kind, entries, now, ct, reply, store, character, goodsId => Shops.GoodsInShop(shop, profileRace, goodsId));
 
     async Task<List<byte[]>> BuyCatalogGoodsAsync(string kind, List<(int Goods, int Count)> entries, long now, CancellationToken ct,
-        Func<int, byte[]> reply, INativeCharacterStore store, Guid character, Func<int, ShopTables.GoodsRow?>? resolve = null)
+        Func<int, byte[]> reply, INativeCharacterStore store, Guid character, Func<int, ShopTables.GoodsRow?>? resolve = null, int? clientPurchaseSerial = null)
     {
-        var orders = new List<ShopOrderLine>();
-        resolve ??= ResolveExportedGoods;
-        var rewards = new List<(int, long)>();
-        var prices = new Dictionary<int, long>();
-        var limits = new List<(int, int, string, int, int)>();
-        var at = DateTimeOffset.FromUnixTimeMilliseconds(now);
-        foreach (var (goodsId, count) in entries)
-        {
-            if (count < 1 || count > PacketSecurity.MaxShopLineCount || resolve(goodsId) is not { } g || level < g.Level) return [reply(1)];
-            if (!PacketSecurity.TryMultiply(g.Bundle, count, out var bundleTotal) || !PacketSecurity.TryMultiply(g.Price, count, out var linePrice)) return [reply(1)];
-            var priced = ApplyPremiumPrice(g.Currency, linePrice);
-            if (priced is null) return [reply(1)];
-            var parts = OfficialShopGoods.Embedded.Parts(goodsId);
-            if (parts.Count > 0)
-            {
-                foreach (var (itemId, itemCount) in parts)
-                {
-                    if (!PacketSecurity.TryMultiply(itemCount, count, out var partTotal)) return [reply(1)];
-                    rewards.Add((itemId, partTotal));
-                }
-            }
-            else rewards.Add((g.ItemId, bundleTotal));
-            orders.Add(new(kind, goodsId, count, priced.Value.Currency, priced.Value.Price));
-            if (!PacketSecurity.TryAdd(prices.GetValueOrDefault(priced.Value.Currency), priced.Value.Price, out var sum)) return [reply(1)];
-            prices[priced.Value.Currency] = sum;
-            if (g.Limit > 0) limits.Add((g.LimitTarget, goodsId, ShopTables.Period(g.LimitPeriod, at), count, g.Limit));
-        }
-        foreach (var (itemId, _) in rewards)
-        {
-            if (ShopDeliverableNeedsUseData(itemId) && Boxes.Use(itemId) is null)
-                return [reply(1)];
-        }
-        if (PurchaseCosts(prices.Select(p => (p.Key, p.Value))) is not { } paid) return [reply(2)];
-        var pay = await PayQunaAsync(paid.Quna, new { kind, goods = entries.Select(e => new[] { e.Goods, e.Count }).ToArray() },
-            request => StoredOk(() => store.ShopBuyAsync(character, paid.Costs, rewards, limits, orders, ct, request)), ct);
-        if (pay == QunaPay.NotEnough) return [reply(2)];
-        if (pay != QunaPay.Done) return [reply(limits.Count > 0 ? 3 : 1)];
-        var replies = new List<byte[]> { reply(0) };
-        replies.AddRange(await InventoryChangesAsync(ct, IncreaseShopBuy, DecreaseShopBuy));
-        replies.AddRange(await AutoUseAcquiredItemsAsync(rewards.Select(r => r.Item1), now, ct));
-        if (paid.Quna > 0) replies.AddRange(QunaRefreshIfChanged());
-        return replies;
+        resolve ??= ResolveShopGoodsRow;
+        return await ExecuteShopPurchaseAsync(kind, entries, now, ct, reply, store, character, resolve, clientPurchaseSerial);
     }
 
     async Task<List<byte[]>> RandomShopInfoAsync(byte[] plain, long now, CancellationToken ct)

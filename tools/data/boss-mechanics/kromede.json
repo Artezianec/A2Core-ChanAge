@@ -1,0 +1,236 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "fire_temple_kromede",
+  "display": "Kromede's Desire",
+  "display_ru": "Желание Кромеды",
+  "dungeon": "Fire_Temple",
+  "source": "official-overlay (boss-phases.json rotation and phases) + CANDIDATE mechanics from expedition-boss-mechanics.json",
+  "note": "Fire walls at 75% and 25%: a 7x7 grid of burning walls with moving gaps rises at the cast and lasts 14 s after it lands; walls burn and block movement. At 50% she splits into two clones that fire their line every 8 s.",
+  "npcs": {
+    "Easy": [2310371],
+    "Normal": [2300371],
+    "Hard": [2320371]
+  },
+  "vars": {
+    "frenzy_ms": 300000,
+    "wall_wind_up": 16500,
+    "wall_linger": 14000,
+    "wall_dot_min": 8000,
+    "wall_dot_max": 12000,
+    "clone_line_ms": 8000
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1801080,
+      "every_ms": 25000,
+      "wind_up_ms": 2000,
+      "radius": 1100,
+      "warning": "Kromede's Desire slashes the front: get behind her!",
+      "warning_ru": "Желание Кромеды рубит перед собой: зайдите за спину!"
+    },
+    {
+      "type": "cast",
+      "skill": 1801050,
+      "every_ms": 15000,
+      "wind_up_ms": 1000,
+      "radius": 1500,
+      "warning": "Kromede's Desire stomps a line: step off the strip!",
+      "warning_ru": "Желание Кромеды бьёт полосой: отойдите в сторону!"
+    },
+    {
+      "type": "cast",
+      "skill": 1801060,
+      "every_ms": 20000,
+      "wind_up_ms": 1800,
+      "radius": 1100,
+      "warning": "Kromede's Desire sweeps a wide arc: get behind her!",
+      "warning_ru": "Желание Кромеды бьёт широкой дугой: зайдите за спину!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "fire_walls_75",
+      "when": {
+        "type": "hp_below",
+        "pct": 75
+      },
+      "do": [
+        {
+          "type": "cast",
+          "skill": 1801185,
+          "wind_up_ms": "$wall_wind_up",
+          "radius": 0,
+          "once": true,
+          "land": false,
+          "warning": "Find the gap!",
+          "warning_ru": "Ищите проход!",
+          "during": [
+            {
+              "type": "zone",
+              "id": "fire_walls",
+              "at": "cast_centre",
+              "shape": "grid",
+              "grid": {
+                "arena_half_extent": 5000,
+                "cell_size": 1400,
+                "wall_half_thickness": 550,
+                "rows": 7,
+                "cols": 7,
+                "step_interval_ms": 2500,
+                "gap_patterns": [[3], [2, 4], [1, 3, 5], [3], [2, 4]]
+              },
+              "skill": 1801185,
+              "ends": "cast_land",
+              "linger_ms": "$wall_linger",
+              "tick_ms": 1000,
+              "first_tick_ms": 1000,
+              "blocks_movement": true,
+              "damage": {
+                "fixed": ["$wall_dot_min", "$wall_dot_max"]
+              }
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "I will crush you! Find the gap in the fire walls!",
+          "text_ru": "Я вас раздавлю! Ищите проход в стенах огня!"
+        }
+      ]
+    },
+    {
+      "id": "clones_50",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "notice",
+          "text": "Kromede's Desire splits — dodge the clone line, then get behind your clone!",
+          "text_ru": "Желание Кромеды разделяется — уйдите с линии клона, затем зайдите ему за спину!"
+        },
+        {
+          "type": "summon",
+          "npc": 0,
+          "count": 2,
+          "radius": 1500,
+          "group": "clones",
+          "target": "victim",
+          "note": "npc 0: copies of the boss itself (this difficulty's NpcData id)."
+        },
+        {
+          "type": "phase",
+          "phase": "clones"
+        }
+      ]
+    },
+    {
+      "id": "fire_walls_25",
+      "when": {
+        "type": "hp_below",
+        "pct": 25
+      },
+      "do": [
+        {
+          "type": "cast",
+          "skill": 1801185,
+          "wind_up_ms": "$wall_wind_up",
+          "radius": 0,
+          "once": true,
+          "land": false,
+          "warning": "Find the gap!",
+          "warning_ru": "Ищите проход!",
+          "during": [
+            {
+              "type": "zone",
+              "id": "fire_walls",
+              "at": "cast_centre",
+              "shape": "grid",
+              "grid": {
+                "arena_half_extent": 5000,
+                "cell_size": 1400,
+                "wall_half_thickness": 550,
+                "rows": 7,
+                "cols": 7,
+                "step_interval_ms": 2500,
+                "gap_patterns": [[3], [2, 4], [1, 3, 5], [3], [2, 4]],
+                "pattern_offset": 2
+              },
+              "skill": 1801185,
+              "ends": "cast_land",
+              "linger_ms": "$wall_linger",
+              "tick_ms": 1000,
+              "first_tick_ms": 1000,
+              "blocks_movement": true,
+              "damage": {
+                "fixed": ["$wall_dot_min", "$wall_dot_max"]
+              }
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "Find the gap! Clones also fire lines across the arena.",
+          "text_ru": "Ищите проход! Клоны тоже бьют линиями по арене."
+        }
+      ]
+    },
+    {
+      "id": "clone_line",
+      "when": {
+        "type": "timer",
+        "from": "phase",
+        "after_ms": 200,
+        "every_ms": "$clone_line_ms"
+      },
+      "phase": "clones",
+      "do": [
+        {
+          "type": "telegraph",
+          "id": "clone_line",
+          "at": "group:clones",
+          "skill": 1801050,
+          "shape": "skill_area",
+          "decal": false,
+          "damage": {
+            "skill": 1801050,
+            "ignore_defense": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "frenzy",
+      "when": {
+        "type": "enrage_timer",
+        "after_ms": "$frenzy_ms"
+      },
+      "difficulty": ["Normal", "Hard"],
+      "do": [
+        {
+          "type": "enrage",
+          "damage_mul": 2.0,
+          "haste_mul": 0.5,
+          "text": "Let desire consume you!",
+          "text_ru": "Пусть желание поглотит вас!"
+        }
+      ]
+    }
+  ],
+  "difficulty": {
+    "Easy": {
+      "note": "Exploration: no enrage timer."
+    },
+    "Hard": {
+      "vars": {
+        "frenzy_ms": 240000,
+        "wall_wind_up": 15100
+      },
+      "skill_remap": {
+        "1801185": 1801191
+      }
+    }
+  }
+}

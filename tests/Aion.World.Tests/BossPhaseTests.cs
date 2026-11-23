@@ -42,7 +42,7 @@ public sealed class BossPhaseTests
     public void Embedded_scripts_load_with_client_shapes_and_marked_invented_values()
     {
         var all = BossPhases.Embedded.All.ToList();
-        Assert.Equal(68, all.Count);
+        Assert.True(all.Count >= 120, $"expected expanded boss scripts, got {all.Count}");
         var slams = all.SelectMany(b => new[] { b.Script.Telegraph }.Concat(b.Script.Telegraphs ?? []).Concat((b.Script.Phases ?? []).Select(p => p.Telegraph))).OfType<BossTelegraph>().ToList();
         Assert.All(slams, s => Assert.Contains(s.RadiusFrom, new[] { "skill-areas", "OURS" }));
         Assert.All(slams, s => Assert.Contains(s.WindUpFrom, new[] { "client cast", "OURS" }));

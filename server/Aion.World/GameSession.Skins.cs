@@ -28,6 +28,9 @@ public sealed class SkinTables
     public int Of(string name) => file.Skins.GetValueOrDefault(name);
     /// <summary>The skins of a set by its SkinSet.dat name (GetSkinSet items).</summary>
     public IReadOnlyList<int> Set(string name) => file.Sets.GetValueOrDefault(name) ?? [];
+    /// <summary>SkinSet.dat names that include a skin id (for SkinSetFirstCollect).</summary>
+    public IEnumerable<string> SetsContaining(int skinId) =>
+        file.Sets.Where(p => p.Value.Contains(skinId)).Select(p => p.Key);
     public bool Known(int skinId) => file.Categories.ContainsKey(skinId.ToString(CultureInfo.InvariantCulture));
     public string Category(int skinId) => file.Categories.GetValueOrDefault(skinId.ToString(CultureInfo.InvariantCulture)) ?? "None";
     public int Count => file.Skins.Count;
@@ -107,8 +110,14 @@ public sealed partial class GameSession
             var saved = await Stored(async () => await store.GrantSkinsAsync(character, known, ct) ? [[]] : []);
             if (saved.Count == 0) return [];
         }
+        var prior = new HashSet<int>(skins.Keys);
         foreach (var id in known) skins[id] = skins.GetValueOrDefault(id) + 1;
-        return [SkinUpdate(known)];
+        var achieve = new List<byte[]>();
+        if (prior.Count == 0) achieve.AddRange(Emit(new AchievementEvent("SkinFirstCollectAny", SetValue: 1)));
+        foreach (var id in known.Where(i => !prior.Contains(i)))
+        foreach (var setName in Skins.SetsContaining(id))
+            achieve.AddRange(Emit(new AchievementEvent("SkinSetFirstCollect", Keys: [setName])));
+        return [SkinUpdate(known), .. achieve];
     }
 
     /// <summary>A GetSkin [skin name] or GetSkinSet [set name] item: used up, the skins acquired.</summary>

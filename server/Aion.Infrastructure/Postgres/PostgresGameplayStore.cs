@@ -695,6 +695,28 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
         await t.CommitAsync(ct); return pending;
     }
 
+    public async Task<string> ResolveShopPurchaseRequestIdAsync(VerifiedAccount account, string fingerprint, long nowMs, CancellationToken ct=default)
+    {
+        await using var c=await source.OpenConnectionAsync(ct);
+        await using var q=new NpgsqlCommand(@"SELECT request_id, status, (extract(epoch from ordered_at)*1000)::bigint
+            FROM game.shop_orders WHERE account_id=$1 AND request_id IS NOT NULL
+            AND (request_id=$2 OR request_id LIKE $2||':%') ORDER BY ordered_at DESC LIMIT 1", c);
+        q.Parameters.AddWithValue(account.AccountId);
+        q.Parameters.AddWithValue(fingerprint);
+        string? lastId=null, lastStatus=null;
+        long? lastMs=null;
+        await using(var r=await q.ExecuteReaderAsync(ct))
+        {
+            if(await r.ReadAsync(ct))
+            {
+                lastId=r.GetString(0);
+                lastStatus=r.GetString(1);
+                lastMs=(long)r.GetDouble(2);
+            }
+        }
+        return Aion.Application.Gameplay.ShopPurchaseRequest.Allocate(fingerprint, nowMs, lastId, lastStatus, lastMs);
+    }
+
     public async Task<IReadOnlyList<(int Target,int GoodsId,string Period,int Count)>> ShopPurchasesAsync(VerifiedAccount account, Guid character, CancellationToken ct=default)
     {
         await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
@@ -711,7 +733,7 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
 
     public async Task<bool> ShopBuyAsync(VerifiedAccount account, Guid character, IReadOnlyList<(Guid Item,long Revision,int Count)> costs,
         IReadOnlyList<(int TemplateId,long Count)> goods, IReadOnlyList<(int Target,int GoodsId,string Period,int Count,int Limit)> limits,
-        IReadOnlyList<ShopOrderLine>? orders=null, CancellationToken ct=default, QunaRequest? qunaSpend=null)
+        IReadOnlyList<ShopOrderLine>? orders=null, CancellationToken ct=default, QunaRequest? qunaSpend=null, ShopBuyContext? context=null)
     {
         if(orders is not null && orders.Any(o=>o.Quantity<1 || o.Price<0 || !ShopOrderKinds.Contains(o.Kind))) throw new GameplayException("invalid_shop_buy");
         // No goods with costs: a failed craft (the components are used up).
@@ -720,6 +742,12 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
             throw new GameplayException("invalid_shop_buy");
         await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
         if(!await Own(c,t,account.AccountId,character,ct)) return false;
+        var purchaseRequestId=qunaSpend?.RequestId ?? orders?.FirstOrDefault(o=>o.RequestId is not null)?.RequestId;
+        if(purchaseRequestId is not null)
+        {
+            var prior=await Scalar(c,t,"SELECT status FROM game.shop_orders WHERE account_id=$1 AND request_id=$2",ct,account.AccountId,purchaseRequestId) as string;
+            if(prior=="done"){await t.CommitAsync(ct);return true;}
+        }
         // Templates must exist before any debit: a missing catalog row would otherwise charge Quna and roll back,
         // or worse if a caller debited outside this transaction. The client already showed the item; a stale
         // catalog.items export is the usual cause (log the template so it can be imported).
@@ -730,23 +758,33 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
                 throw new GameplayException($"shop_buy_missing_template:{template}");
         }
         if(qunaSpend is { } quna && !await DebitQunaAsync(c,t,quna,ct)) return false;
+        if(context?.MileageSpend is { } mileage && !await DebitMileageAsync(c,t,mileage,ct)) return false;
         foreach(var (cost,revision,count) in costs)
             if(!await Consume(c,t,character,cost,revision,count,ct)) return false;
         var shopServer=limits.Any(l=>l.Target==3) ? ConversionServerOwner(await WorldOf(c,t,character,ct)) : Guid.Empty;
         foreach(var (target,goodsId,period,count,limit) in limits)
         {
             var owner=target switch { 2 => account.AccountId, 3 => shopServer, _ => character };
-            var total=await Scalar(c,t,"INSERT INTO game.shop_purchases(owner_id,goods_id,period,count) VALUES($1,$2,$3,$4) ON CONFLICT(owner_id,goods_id,period) "
-                +"DO UPDATE SET count=game.shop_purchases.count+EXCLUDED.count RETURNING count",ct,owner,goodsId,period,count);
+            var total=await Scalar(c,t,"INSERT INTO game.shop_purchases(owner_id,account_id,goods_id,period,count) VALUES($1,$2,$3,$4,$5) ON CONFLICT(owner_id,goods_id,period) "
+                +"DO UPDATE SET count=game.shop_purchases.count+EXCLUDED.count RETURNING count",ct,owner,account.AccountId,goodsId,period,count);
             if(total is not int n || n>limit) return false;
         }
+        var deliverMail = context?.DeliverViaMail == true;
+        var grantTo = context?.GiftToCharacter ?? character;
         foreach(var (template,count) in goods)
         {
-            if(!await GrantShopGoodAsync(c,t,character,build!,template,count,itemRoller,ct)) return false;
+            if(!await GrantShopRewardAsync(c,t,grantTo,build!,template,count,itemRoller,deliverMail || context?.GiftToCharacter is not null,ct)) return false;
         }
+        if(context?.OrderGoodsId is { } packageGoods)
+            await ApplyPackageBonusesAsync(c,t,account.AccountId,grantTo,build!,(int)packageGoods,itemRoller,deliverMail || context?.GiftToCharacter is not null,ct);
         foreach(var o in orders ?? [])
-            await Execute(c,t,"INSERT INTO game.shop_orders(character_id,account_id,kind,goods_id,quantity,currency_item,price) VALUES($1,$2,$3,$4,$5,$6,$7)",ct,
-                character,account.AccountId,o.Kind,o.GoodsId,o.Quantity,o.CurrencyItemId,o.Price);
+        {
+            var orderStatus = deliverMail ? "pending" : "done";
+            var requestId = o.RequestId ?? purchaseRequestId;
+            await Execute(c,t,"INSERT INTO game.shop_orders(character_id,account_id,kind,goods_id,quantity,currency_item,price,request_id,status,deliver_via) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",ct,
+                character,account.AccountId,o.Kind,o.GoodsId,o.Quantity,o.CurrencyItemId,o.Price,
+                (object?)requestId??DBNull.Value, orderStatus, deliverMail ? "mail" : "bag");
+        }
         await Execute(c,t,"INSERT INTO audit.events(action,character_id,actor_id,details) VALUES('shop_bought',$1,$2,$3)",ct,character,account.AccountId,
             Json(new {goods=goods.Select(g=>new[]{(long)g.TemplateId,g.Count}),costs=costs.Select(x=>new{x.Item,x.Count})}));
         await t.CommitAsync(ct); return true;
@@ -2187,6 +2225,12 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
         await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
         var id=await Scalar(c,t,"SELECT character_id FROM game.characters WHERE lower(name)=lower($1) LIMIT 1",ct,name.Trim()) as Guid?;
         await t.CommitAsync(ct); return id;
+    }
+
+    public async Task<int?> CharacterWorldIdAsync(Guid characterId, CancellationToken ct=default)
+    {
+        await using var c=await source.OpenConnectionAsync(ct);
+        return await Scalar(c,null,"SELECT world_id FROM game.characters WHERE character_id=$1",ct,characterId) as int?;
     }
 
     public async Task<IReadOnlyList<AchievementRecord>> AchievementsAsync(VerifiedAccount account, Guid character, CancellationToken ct=default)

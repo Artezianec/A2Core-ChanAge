@@ -1,0 +1,457 @@
+{
+  "served_goods": 249,
+  "on_sale_goods": 217,
+  "missing_on_sale": [],
+  "hidden_count": 59,
+  "served_on_sale_without_item_use": [],
+  "g4l_audit": {
+    "g4l_unique_item_ids": 154,
+    "g4l_products_deduped": 249,
+    "g4l_packages_without_item_id": 18,
+    "missing_from_served_before_build": 53,
+    "addable_item_ids": [
+      535300006,
+      535510131,
+      536310004
+    ],
+    "kr_only_or_unverified_item_ids": [
+      531060002,
+      531060006,
+      532000016,
+      532000017,
+      532000018,
+      532000019,
+      532000020,
+      532100001,
+      532100002,
+      532400047,
+      532400048,
+      532400053,
+      532400054,
+      532400055,
+      532400056,
+      532400059,
+      532400060,
+      533700161,
+      533700162,
+      533700163,
+      533700164,
+      533700167,
+      534760226,
+      535510038,
+      535510129,
+      535710873,
+      535710874,
+      535710875,
+      535710876,
+      535710877,
+      535710878,
+      535710879,
+      535710880,
+      536010046,
+      536310001,
+      536310002,
+      536310005,
+      574760002,
+      583000001,
+      583000002,
+      583000003,
+      630511013,
+      630511014,
+      630511015,
+      630511025,
+      630530004,
+      630530005,
+      630530006,
+      630543007,
+      630554001
+    ],
+    "packages_without_item_id_titles": [
+      "\ube14\ub799 \ud504\ub77c\uc774\ub370\uc774 \ud328\ud0a4\uc9c0",
+      "\uc288\uace0 \uc0c1\ub2e8\uc758 \ub9f9\uc138\uc758 \uc8fc\ud654 \uafb8\ub7ec\ubbf8",
+      "\uc288\uace0 \uc0c1\ub2e8\uc758 \ubabd\ud658\uc758 \ud30c\ud3b8 \uafb8\ub7ec\ubbf8",
+      "\uc288\uace0 \uc0c1\ub2e8\uc758 \ubc31\ub144\uc0bc \uc99d\ud45c \uafb8\ub7ec\ubbf8",
+      "\uc288\uace0 \uc0c1\ub2e8\uc758 \uc5b4\ube44\uc2a4 \ud3ec\uc778\ud2b8 \uafb8\ub7ec\ubbf8",
+      "\uc288\uace0 \uc0c1\ub2e8\uc758 \ud0a4\ub098 \uafb8\ub7ec\ubbf8",
+      "\uc544\ud2b8\ub808\uc774\uc544\uc758 \ub0a0\uac1c \uc0c1\uc790",
+      "\uc544\ud2b8\ub808\uc774\uc544\uc758 \ud3ab \uc0c1\uc790",
+      "\uc720\uc2a4\ud2f0\uc5d8\uc758 \uc804\ud22c \uc9c0\uc6d0 \uc0c1\uc790",
+      "\uce68\ubb35\uc758 \ubb18\uc5ed \uc2dc\uac04 \ucda9\uc804\uad8c",
+      "\ud2b8\ub9ac\ub2c8\uc5d8\uc758 \ud1a0\ubc8c \uc9c0\uc6d0 \uc0c1\uc790",
+      "\ud30c\ud504\ub098\uc774\ud2b8 \ubd84\uc9c0 \uc2dc\uac04 \ucda9\uc804\uad8c"
+    ],
+    "excluded_verifiable_no_g4l_price": [
+      {
+        "item_id": 530116008,
+        "title": "[Test001] \uc0dd\uba85\uc758 \uc2e0\uc57d Step1 \ud604\uae08",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 530116009,
+        "title": "\ubc14\ub78c\uc758 \uc2e0\uc57d",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 531060005,
+        "title": "\ucda9\uaca9 \uc644\ud654 \uc8fc\ubb38\uc11c",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535510020,
+        "title": "TEST \uc6b4\uba85\uc758 \ub0a0\uac1c",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535710921,
+        "title": "\ub9ac\uc6b0\ub860\uc758 \uc18c\uc911\ud55c \ub300\ud30c (\uc678\ud615: \ub300\uac80)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535710924,
+        "title": "\ud6c4\ub2e4\ub860\uc758 \uc18c\uc911\ud55c \uc545\uae30 (\uc678\ud615: \ud65c)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535710925,
+        "title": "\ud0c0\uc774\ub860\uc758 \uc18c\uc911\ud55c \uc218\ucca9 (\uc678\ud615: \ubc95\uc11c)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535710926,
+        "title": "\ub450\ud0a4\ub860\uc758 \uc18c\uc911\ud55c \uc7a5\uc2dd (\uc678\ud615: \ubcf4\uc8fc)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535710927,
+        "title": "\uce74\uc288\ub860\uc758 \uc18c\uc911\ud55c \uc7a5\ub09c\uac10 (\uc678\ud615: \uc804\uace4)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535710928,
+        "title": "\ud504\uc138\ub860\uc758 \uc18c\uc911\ud55c \ud3ec\ud06c (\uc678\ud615: \ubc95\ubd09)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535710941,
+        "title": "\uc2dc\ud06c\ub9bf \ud2f0\ud0c0\uc784 (\uc678\ud615: \ubc95\uc11c)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 536310003,
+        "title": "\uc6b0\ub974\ub4dc\uc758 \ub2e4\ub78c\uc950 (\uc678\ud615: \uc5b4\uae68)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 536310014,
+        "title": "\ub3c4\ud2b8 \uc548\uacbd (\uc678\ud615: \ub208)",
+        "reason": "no_g4l_or_bmshop_price"
+      }
+    ]
+  },
+  "tabs": [
+    {
+      "tab": "Daily_Founderspack",
+      "on_sale": 13,
+      "served": 5,
+      "missing_goods_ids": [
+        100088,
+        100089,
+        100090,
+        100091,
+        100092,
+        100093,
+        100094,
+        100095
+      ],
+      "items_without_use": []
+    },
+    {
+      "tab": "Daily_RechargeQuna",
+      "on_sale": 8,
+      "served": 0,
+      "missing_goods_ids": [
+        100002,
+        100003,
+        100004,
+        100005,
+        100006,
+        100007,
+        100008,
+        100009
+      ],
+      "items_without_use": []
+    },
+    {
+      "tab": "Daily_Skin",
+      "on_sale": 2,
+      "served": 2,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "Goods_SocialMotion",
+      "on_sale": 8,
+      "served": 8,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "Goods_Usable",
+      "on_sale": 8,
+      "served": 8,
+      "missing_goods_ids": [],
+      "items_without_use": [
+        630900003,
+        632100001
+      ]
+    },
+    {
+      "tab": "Mileage_Special",
+      "on_sale": 4,
+      "served": 4,
+      "missing_goods_ids": [],
+      "items_without_use": [
+        632430001,
+        632440001,
+        632450001,
+        632460001
+      ]
+    },
+    {
+      "tab": "Mileage_Usable",
+      "on_sale": 7,
+      "served": 7,
+      "missing_goods_ids": [],
+      "items_without_use": [
+        630900003,
+        632100001
+      ]
+    },
+    {
+      "tab": "None",
+      "on_sale": 15,
+      "served": 15,
+      "missing_goods_ids": [],
+      "items_without_use": [
+        630554011
+      ]
+    },
+    {
+      "tab": "Shop_Special",
+      "on_sale": 9,
+      "served": 9,
+      "missing_goods_ids": [],
+      "items_without_use": [
+        602600002,
+        602600003
+      ]
+    },
+    {
+      "tab": "Shop_Usable",
+      "on_sale": 13,
+      "served": 13,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "Shop_alch",
+      "on_sale": 9,
+      "served": 9,
+      "missing_goods_ids": [],
+      "items_without_use": [
+        630520007,
+        630520008,
+        630520009,
+        630520012,
+        630543001,
+        630543002,
+        630543005,
+        630543008,
+        630543013
+      ]
+    },
+    {
+      "tab": "Shop_black",
+      "on_sale": 5,
+      "served": 5,
+      "missing_goods_ids": [],
+      "items_without_use": [
+        630520001,
+        630520002,
+        630520003,
+        630520010,
+        630541001
+      ]
+    },
+    {
+      "tab": "Shop_cook",
+      "on_sale": 8,
+      "served": 8,
+      "missing_goods_ids": [],
+      "items_without_use": [
+        630554002,
+        630554003,
+        630554004,
+        630554005,
+        630554006,
+        630554007,
+        630554008,
+        630554009
+      ]
+    },
+    {
+      "tab": "Shop_jewel",
+      "on_sale": 7,
+      "served": 7,
+      "missing_goods_ids": [],
+      "items_without_use": [
+        630520007,
+        630520008,
+        630520009,
+        630520012,
+        630542001,
+        630542005,
+        630543005
+      ]
+    },
+    {
+      "tab": "Shop_tail",
+      "on_sale": 5,
+      "served": 5,
+      "missing_goods_ids": [],
+      "items_without_use": [
+        630520004,
+        630520005,
+        630520006,
+        630520011,
+        630541001
+      ]
+    },
+    {
+      "tab": "SkinShop_Earring",
+      "on_sale": 3,
+      "served": 3,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "SkinShop_EyeWear",
+      "on_sale": 13,
+      "served": 13,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "SkinShop_Helmet",
+      "on_sale": 7,
+      "served": 7,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "SkinShop_MouthWear",
+      "on_sale": 4,
+      "served": 4,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "SkinShop_Necklace",
+      "on_sale": 3,
+      "served": 3,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "SkinShop_Pet",
+      "on_sale": 12,
+      "served": 12,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "SkinShop_ShoulderWear",
+      "on_sale": 1,
+      "served": 1,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "SkinShop_SkinSet",
+      "on_sale": 25,
+      "served": 25,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "SkinShop_Weapon",
+      "on_sale": 8,
+      "served": 8,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "SkinShop_Wing",
+      "on_sale": 10,
+      "served": 10,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "Skin_Shop_Bow",
+      "on_sale": 1,
+      "served": 1,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "Skin_Shop_Dagger",
+      "on_sale": 2,
+      "served": 2,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "Skin_Shop_Greatsword",
+      "on_sale": 1,
+      "served": 1,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "Skin_Shop_Mace",
+      "on_sale": 1,
+      "served": 1,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "Skin_Shop_Orb",
+      "on_sale": 1,
+      "served": 1,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "Skin_Shop_Staff",
+      "on_sale": 1,
+      "served": 1,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "Skin_Shop_Sword",
+      "on_sale": 1,
+      "served": 1,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    },
+    {
+      "tab": "Subscribe",
+      "on_sale": 2,
+      "served": 2,
+      "missing_goods_ids": [],
+      "items_without_use": []
+    }
+  ]
+}

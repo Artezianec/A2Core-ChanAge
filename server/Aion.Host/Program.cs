@@ -57,7 +57,22 @@ Aion.World.GameSession.ConfigureShopOptions(new Aion.World.ShopOptions
     PremiumMode = shopPremium,
     PassUnlockPrice = Math.Clamp(builder.Configuration.GetValue("Aion:Shop:PassUnlockPrice", Aion.World.GameSession.PaidPassUnlockQunaCost), 0, 1_000_000),
 });
-// Dungeon waves and boss phases (docs/BOSSES.md): Aion:Bosses (Phases, Frenzy, FrenzySeconds, DamageScale, Waves, WavePartSeconds).
+{
+    var shop = builder.Configuration.GetSection("Aion:Shop");
+    Aion.World.GameSession.ConfigureShopFeatures(new Aion.World.ShopFeatureOptions
+    {
+        UseMileageCurrency = shop.GetValue("UseMileageCurrency", true),
+        MileageEarnPercent = Math.Clamp(shop.GetValue("MileageEarnPercent", 10), 0, 100),
+        MailDeliveryEnabled = shop.GetValue("MailDeliveryEnabled", true),
+        RefundWindowHours = Math.Clamp(shop.GetValue("RefundWindowHours", 168), 1, 24 * 365),
+        GiftingEnabled = shop.GetValue("GiftingEnabled", true),
+        PackageBonusesEnabled = shop.GetValue("PackageBonusesEnabled", true),
+    });
+}
+try { Aion.World.ShopPackageCatalog.Embedded.ValidateAgainstOfficialParts(); }
+catch (Exception error) { throw new InvalidOperationException("shop_package_tiers.json failed validation against official_shop parts", error); }
+// Dungeon waves and boss phases (docs/BOSSES.md): Aion:Bosses (Phases, Engine, Frenzy, FrenzySeconds, DamageScale, Waves, WavePartSeconds).
+// Engine (default true) runs bosses on the mechanics engine (docs/BOSS-MECHANICS-ENGINE.md); false keeps the legacy hand-coded fights.
 Aion.World.GameSession.ConfigureBosses(builder.Configuration.GetSection("Aion:Bosses").Get<Aion.World.BossOptions>() ?? Aion.World.BossOptions.Default);
 Aion.World.GameSession.ConfigureCombatTelegraphs(
     builder.Configuration.GetSection("Aion:Combat").Get<Aion.World.CombatTelegraphOptions>() ?? Aion.World.CombatTelegraphOptions.Default);
@@ -96,6 +111,11 @@ if (!string.IsNullOrWhiteSpace(connectionString))
         provider.GetService<Aion.World.WorldPresence>() is { } presence
             ? new PushingQunaWallet(provider.GetRequiredService<PostgresQunaWallet>(), presence, provider.GetRequiredService<ILogger<PushingQunaWallet>>())
             : provider.GetRequiredService<PostgresQunaWallet>());
+    builder.Services.AddSingleton<PostgresMileageWallet>();
+    builder.Services.AddSingleton<IMileageWallet>(provider =>
+        provider.GetService<Aion.World.WorldPresence>() is { } presence
+            ? new PushingMileageWallet(provider.GetRequiredService<PostgresMileageWallet>(), presence, provider.GetRequiredService<ILogger<PushingMileageWallet>>())
+            : provider.GetRequiredService<PostgresMileageWallet>());
     builder.Services.AddSingleton<IWorldRegistry, PostgresWorldRegistry>();
     // Custom NPCs (migration 122, docs/CUSTOM_NPCS.md): edited on the dashboard, placed by every world on this database.
     builder.Services.AddSingleton<PostgresCustomNpcs>();
@@ -185,11 +205,14 @@ if (native.LoginPort is not null || native.GamePort is not null)
         throw new InvalidOperationException("Native ports with account logins need the Aion and Auth connection strings; set Aion:Native:Logins=development for local testing.");
     builder.Services.AddSingleton(native);
     // NPCs walk on the extracted landscape where a ground grid exists (extracted data, not in the repository).
-    var terrainStore = new Aion.World.TerrainStore(Aion.World.TerrainStore.Locate(native.TerrainDirectory, AppContext.BaseDirectory));
+    var terrainDir = Aion.World.TerrainStore.Locate(native.TerrainDirectory, AppContext.BaseDirectory);
+    var terrainStore = new Aion.World.TerrainStore(terrainDir);
     builder.Services.AddSingleton(terrainStore);
     // NPC paths around obstacles where a navigation mesh exists (extracted data, not in the repository).
-    var navStore = new Aion.World.NavMeshStore(Aion.World.NavMeshStore.Locate(native.NavMeshDirectory, AppContext.BaseDirectory));
+    var navDir = Aion.World.NavMeshStore.Locate(native.NavMeshDirectory, AppContext.BaseDirectory);
+    var navStore = new Aion.World.NavMeshStore(navDir);
     builder.Services.AddSingleton(navStore);
+    Console.WriteLine($"[Geometry] terrainDir={terrainDir ?? "(null)"} navDir={navDir ?? "(null)"} (override via Native:TerrainDirectory / Native:NavMeshDirectory)");
     foreach (var map in native.PreloadMaps)
     {
         // Background warm-up; a failed load surfaces when a session uses the map.
@@ -202,7 +225,8 @@ if (native.LoginPort is not null || native.GamePort is not null)
     builder.Services.AddSingleton(sp => new ShopQunaBalanceService(
         sp.GetRequiredService<Aion.World.WorldPresence>(),
         sp.GetService<IPlatformSecondaryAuth>(),
-        sp.GetService<IQunaWallet>()));
+        sp.GetService<IQunaWallet>(),
+        sp.GetService<IMileageWallet>()));
     builder.Services.AddSingleton<Aion.Host.Authentication.ScheduledRestart>();
     // Multiplayer: one shared world (maps, NPCs, players) for every game connection on this host.
     builder.Services.AddSingleton(provider => new Aion.World.SharedWorld(provider.GetRequiredService<Aion.World.GameData>()));
@@ -244,7 +268,9 @@ if (native.LoginPort is not null || native.GamePort is not null)
                     game,
                     provider.GetRequiredService<CharacterPersistenceService>(),
                     provider.GetService<IQunaWallet>(),
-                    staffRole);
+                    staffRole,
+                    provider.GetService<TerrainStore>(),
+                    provider.GetService<NavMeshStore>());
             });
         }
         builder.Services.AddSingleton(provider =>
@@ -258,7 +284,9 @@ if (native.LoginPort is not null || native.GamePort is not null)
                 provider.GetService<IQaBotStore>(),
                 provider.GetService<NativeOptions>()?.WorldId,
                 spawn,
-                provider.GetService<IQaBotDiagnostics>());
+                provider.GetService<IQaBotDiagnostics>(),
+                provider.GetService<TerrainStore>(),
+                provider.GetService<NavMeshStore>());
         });
         builder.Services.AddHostedService<QaBotService>();
     }
@@ -351,11 +379,15 @@ if (native.LoginPort is not null || native.GamePort is not null)
     builder.Services.AddSingleton<NativePortReadiness>();
     builder.Services.AddSingleton(provider => new PublicPlayerCount(provider.GetService<WorldPresence>(), provider.GetService<QaBots>(), provider.GetRequiredService<TimeProvider>()));
     if (native.LoginPort is not null) builder.Services.AddHostedService<NativeLoginListener>();
-    // Multi-world (primary host, Aion:Worlds:Enabled): the world registry's list for the login port and the managed child worlds.
-    if (native.MultiWorld && native.LoginPort is not null && !native.Development && worldProcess is null && !string.IsNullOrWhiteSpace(connectionString))
+    if (native.LoginPort is not null && !native.Development && worldProcess is null && !string.IsNullOrWhiteSpace(connectionString))
     {
-        builder.Services.AddSingleton<Aion.Host.Worlds.WorldSupervisor>();
-        builder.Services.AddHostedService(provider => provider.GetRequiredService<Aion.Host.Worlds.WorldSupervisor>());
+        // Multi-world (primary host, Aion:Worlds:Enabled): the managed child worlds. The registry list also names the
+        // single-world rows, so a dashboard rename reaches the client without multi-world.
+        if (native.MultiWorld)
+        {
+            builder.Services.AddSingleton<Aion.Host.Worlds.WorldSupervisor>();
+            builder.Services.AddHostedService(provider => provider.GetRequiredService<Aion.Host.Worlds.WorldSupervisor>());
+        }
         builder.Services.AddSingleton(provider => new Aion.Host.Worlds.LoginWorldList(provider.GetRequiredService<IWorldRegistry>(), native,
             provider.GetService<Aion.Host.Worlds.WorldSupervisor>(), provider.GetRequiredService<ILogger<Aion.Host.Worlds.LoginWorldList>>()));
     }
@@ -457,6 +489,10 @@ builder.Services.AddSingleton<WardrobeAccess>();
 var app = builder.Build();
 app.Logger.LogInformation("Bosses: {Bosses}; field bosses: {FieldBosses}; combat: {CombatTelegraphs}",
     Aion.World.GameSession.BossRules, Aion.World.FieldBosses.Options, Aion.World.GameSession.CombatTelegraphRules);
+app.Logger.LogInformation("Boss encounters: {Count} authored (tools/data/boss-mechanics), {Errors} rejected.",
+    Aion.World.BossEncounters.Embedded.Count, Aion.World.BossEncounters.Embedded.Errors.Count);
+foreach (var error in Aion.World.BossEncounters.Embedded.Errors)
+    app.Logger.LogError("Boss encounter {File} rejected: {Problem}", error.File, error.Message);
 if (native.LoginPort is not null || native.GamePort is not null)
     app.Logger.LogInformation("World rates: {Rates} (scheduled events multiply on top, each 0.1–10).", serverRates);
 if (app.Services.GetService<Aion.World.SharedWorld>() is { } sharedWorld)
@@ -625,6 +661,7 @@ if (accountsReady)
     app.MapTotpEndpoints();
     app.MapGameplayEndpoints();
     Aion.Host.Authentication.StaffAccountEndpoints.MapStaffAccountEndpoints(app);
+    Aion.Host.Authentication.StaffShopEndpoints.MapStaffShopEndpoints(app);
     Aion.Host.Authentication.StaffEndpoints.MapStaffEndpoints(app);
     Aion.Host.Authentication.StaffToolsEndpoints.MapStaffToolsEndpoints(app);
     Aion.Host.Authentication.StaffToolsEndpoints.MapTicketEndpoints(app);

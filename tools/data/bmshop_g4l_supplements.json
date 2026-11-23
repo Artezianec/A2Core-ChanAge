@@ -1,0 +1,317 @@
+{
+  "source": "G4L products missing from served catalog but verifiable locally (tools/shop_g4l_catalog.py)",
+  "goods": [
+    {
+      "goods_id": 100174,
+      "category_light": "Skin_Shop_Dagger",
+      "category_dark": "D_Skin_Shop_Dagger",
+      "race": "All",
+      "on_sale": true,
+      "item_name": "BM_G4L_item_535710923_b",
+      "item_id": 535710923,
+      "item_count": 1,
+      "currency": "Cash",
+      "price": 1000,
+      "display_order": 100,
+      "_g4l_title": "스니론의 소중한 간식 (외형: 단검)"
+    },
+    {
+      "goods_id": 100175,
+      "category_light": "Skin_Shop_Greatsword",
+      "category_dark": "D_Skin_Shop_Greatsword",
+      "race": "All",
+      "on_sale": true,
+      "item_name": "BM_G4L_item_535710937_b",
+      "item_id": 535710937,
+      "item_count": 1,
+      "currency": "Cash",
+      "price": 19000,
+      "display_order": 100,
+      "_g4l_title": "시크릿 티타임 (외형: 대검)"
+    },
+    {
+      "goods_id": 100176,
+      "category_light": "Skin_Shop_Sword",
+      "category_dark": "D_Skin_Shop_Sword",
+      "race": "All",
+      "on_sale": true,
+      "item_name": "BM_G4L_item_535710938_b",
+      "item_id": 535710938,
+      "item_count": 1,
+      "currency": "Cash",
+      "price": 19000,
+      "display_order": 100,
+      "_g4l_title": "시크릿 티타임 (외형: 장검)"
+    },
+    {
+      "goods_id": 100177,
+      "category_light": "Skin_Shop_Dagger",
+      "category_dark": "D_Skin_Shop_Dagger",
+      "race": "All",
+      "on_sale": true,
+      "item_name": "BM_G4L_item_535710939_b",
+      "item_id": 535710939,
+      "item_count": 1,
+      "currency": "Cash",
+      "price": 19000,
+      "display_order": 100,
+      "_g4l_title": "시크릿 티타임 (외형: 단검)"
+    },
+    {
+      "goods_id": 100178,
+      "category_light": "Skin_Shop_Bow",
+      "category_dark": "D_Skin_Shop_Bow",
+      "race": "All",
+      "on_sale": true,
+      "item_name": "BM_G4L_item_535710940_b",
+      "item_id": 535710940,
+      "item_count": 1,
+      "currency": "Cash",
+      "price": 19000,
+      "display_order": 100,
+      "_g4l_title": "시크릿 티타임 (외형: 활)"
+    },
+    {
+      "goods_id": 100179,
+      "category_light": "Skin_Shop_Orb",
+      "category_dark": "D_Skin_Shop_Orb",
+      "race": "All",
+      "on_sale": true,
+      "item_name": "BM_G4L_item_535710942_b",
+      "item_id": 535710942,
+      "item_count": 1,
+      "currency": "Cash",
+      "price": 19000,
+      "display_order": 100,
+      "_g4l_title": "시크릿 티타임 (외형: 보주)"
+    },
+    {
+      "goods_id": 100180,
+      "category_light": "Skin_Shop_Mace",
+      "category_dark": "D_Skin_Shop_Mace",
+      "race": "All",
+      "on_sale": true,
+      "item_name": "BM_G4L_item_535710943_b",
+      "item_id": 535710943,
+      "item_count": 1,
+      "currency": "Cash",
+      "price": 19000,
+      "display_order": 100,
+      "_g4l_title": "시크릿 티타임 (외형: 전곤)"
+    },
+    {
+      "goods_id": 100181,
+      "category_light": "Skin_Shop_Staff",
+      "category_dark": "D_Skin_Shop_Staff",
+      "race": "All",
+      "on_sale": true,
+      "item_name": "BM_G4L_item_535710944_b",
+      "item_id": 535710944,
+      "item_count": 1,
+      "currency": "Cash",
+      "price": 19000,
+      "display_order": 100,
+      "_g4l_title": "시크릿 티타임 (외형: 법봉)"
+    },
+    {
+      "goods_id": 1225,
+      "category_light": "Mileage_Special",
+      "category_dark": "D_Mileage_Special",
+      "race": "All",
+      "on_sale": true,
+      "item_name": "Material_SkinCombine_ProbUp_01a_A_u_b",
+      "item_id": 632430001,
+      "item_count": 1,
+      "currency": "Mileage",
+      "price": 70000,
+      "display_order": 100,
+      "_g4l_title": "행운의 기운: 유일"
+    }
+  ],
+  "uses": {
+    "535710923": [
+      "GetSkin",
+      1,
+      "WP_Beloved_01_DA"
+    ],
+    "535710937": [
+      "GetSkin",
+      1,
+      "WP_Maid_01_GS"
+    ],
+    "535710938": [
+      "GetSkin",
+      1,
+      "WP_Maid_01_SW"
+    ],
+    "535710939": [
+      "GetSkin",
+      1,
+      "WP_Maid_01_DA"
+    ],
+    "535710940": [
+      "GetSkin",
+      1,
+      "WP_Maid_01_BW"
+    ],
+    "535710942": [
+      "GetSkin",
+      1,
+      "WP_Maid_01_OR"
+    ],
+    "535710943": [
+      "GetSkin",
+      1,
+      "WP_Maid_01_MA"
+    ],
+    "535710944": [
+      "GetSkin",
+      1,
+      "WP_Maid_01_ST"
+    ]
+  },
+  "audit": {
+    "g4l_unique_item_ids": 154,
+    "g4l_products_deduped": 249,
+    "g4l_packages_without_item_id": 18,
+    "missing_from_served_before_build": 53,
+    "addable_item_ids": [
+      535300006,
+      535510131,
+      536310004
+    ],
+    "kr_only_or_unverified_item_ids": [
+      531060002,
+      531060006,
+      532000016,
+      532000017,
+      532000018,
+      532000019,
+      532000020,
+      532100001,
+      532100002,
+      532400047,
+      532400048,
+      532400053,
+      532400054,
+      532400055,
+      532400056,
+      532400059,
+      532400060,
+      533700161,
+      533700162,
+      533700163,
+      533700164,
+      533700167,
+      534760226,
+      535510038,
+      535510129,
+      535710873,
+      535710874,
+      535710875,
+      535710876,
+      535710877,
+      535710878,
+      535710879,
+      535710880,
+      536010046,
+      536310001,
+      536310002,
+      536310005,
+      574760002,
+      583000001,
+      583000002,
+      583000003,
+      630511013,
+      630511014,
+      630511015,
+      630511025,
+      630530004,
+      630530005,
+      630530006,
+      630543007,
+      630554001
+    ],
+    "packages_without_item_id_titles": [
+      "블랙 프라이데이 패키지",
+      "슈고 상단의 맹세의 주화 꾸러미",
+      "슈고 상단의 몽환의 파편 꾸러미",
+      "슈고 상단의 백년삼 증표 꾸러미",
+      "슈고 상단의 어비스 포인트 꾸러미",
+      "슈고 상단의 키나 꾸러미",
+      "아트레이아의 날개 상자",
+      "아트레이아의 펫 상자",
+      "유스티엘의 전투 지원 상자",
+      "침묵의 묘역 시간 충전권",
+      "트리니엘의 토벌 지원 상자",
+      "파프나이트 분지 시간 충전권"
+    ],
+    "excluded_verifiable_no_g4l_price": [
+      {
+        "item_id": 530116008,
+        "title": "[Test001] 생명의 신약 Step1 현금",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 530116009,
+        "title": "바람의 신약",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 531060005,
+        "title": "충격 완화 주문서",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535510020,
+        "title": "TEST 운명의 날개",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535710921,
+        "title": "리우론의 소중한 대파 (외형: 대검)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535710924,
+        "title": "후다론의 소중한 악기 (외형: 활)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535710925,
+        "title": "타이론의 소중한 수첩 (외형: 법서)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535710926,
+        "title": "두키론의 소중한 장식 (외형: 보주)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535710927,
+        "title": "카슈론의 소중한 장난감 (외형: 전곤)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535710928,
+        "title": "프세론의 소중한 포크 (외형: 법봉)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 535710941,
+        "title": "시크릿 티타임 (외형: 법서)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 536310003,
+        "title": "우르드의 다람쥐 (외형: 어깨)",
+        "reason": "no_g4l_or_bmshop_price"
+      },
+      {
+        "item_id": 536310014,
+        "title": "도트 안경 (외형: 눈)",
+        "reason": "no_g4l_or_bmshop_price"
+      }
+    ]
+  }
+}

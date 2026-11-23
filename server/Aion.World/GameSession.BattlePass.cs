@@ -54,7 +54,7 @@ public sealed partial class GameSession
     {
         if (exp <= 0) return [];
         var ids = group.Passes.Where(p => p.Length >= 2).Select(p => (int)p[1]).ToHashSet();
-        return [.. Progress("BattlePassExp", e => ids.Contains(e.Id), s => s.Count + exp, now, 1), BattlePassInfoList(now)];
+        return [.. Emit(new AchievementEvent("BattlePassExp", exp, TargetIds: [.. ids]), now), BattlePassInfoList(now)];
     }
 
     /// <summary>GM: pass exp to every active group (levels to claim without playing the missions).</summary>

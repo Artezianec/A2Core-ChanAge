@@ -447,6 +447,7 @@ public sealed partial class GameSession
         Remember(ride);
         var replies = Used(row, reply);
         replies.Add(RidePackets.SoulPoints([(rideId, souls)]));
+        replies.AddRange(await TryAutoAcquireRideRepliesAsync(rideId, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), ct));
         replies.AddRange(await InventoryChangesAsync(ct, IncreaseItemUse, DecreaseItemUse));
         return replies;
     }
@@ -673,13 +674,61 @@ public sealed partial class GameSession
         return [RidePackets.LevelUpReply(0, rideId, ride.Level, (byte)info.Type, board?.Level ?? 1, board?.Exp ?? 0), .. paid, .. extra, .. RefreshStats()];
     }
 
+    /// <summary>Acquires the ride when soul points (and crystals) cover VehicleList NeedSoul but the row is not owned yet.</summary>
+    async Task<List<byte[]>> TryAutoAcquireRideRepliesAsync(int rideId, long nowMs, CancellationToken ct)
+    {
+        if (rideId <= 0 || OwnsRide(rideId) || Boxes.Ride(rideId) is not { NeedSoul: > 0 } info || !CanPay(rideId, info.NeedSoul))
+            return [];
+        if (Store is not { } store || CharacterId is not { } character) return [];
+        var soulsBefore = rides.TryGetValue(rideId, out var entry) ? entry.SoulPoints : 0;
+        RideRecord? ride = null;
+        await Stored(async () => (ride = await store.AcquireRideWithSoulsAsync(character, rideId, info.NeedSoul, info.Crystal, ct)) is null ? [] : [[]]);
+        if (ride is null) return [];
+        var paid = Paid(rideId, soulsBefore, info.NeedSoul);
+        var (extra, board) = await RideBoardAsync(info, 1, ct);
+        Remember(ride);
+        await PersistDefaultRideIfUnsetAsync(rideId, ct);
+        return [.. paid, RidePackets.Acquired(playerKey, rideId, ride.Level, (byte)info.Type, board?.Level ?? 1, board?.Exp ?? 0),
+            .. extra, .. RememberRide(ride, nowMs), .. RefreshStats(), .. UnlockRideContentsIfNeeded()];
+    }
+
+    string MountRefusalReason(int ride)
+    {
+        if (resources is null || dead) return "dead_or_no_resources";
+        if (!SubzoneAllowsRideNow()) return "subzone_forbidden";
+        if (ride <= 0) return "no_ride";
+        if (!rides.ContainsKey(ride)) return "unknown_ride";
+        if (!OwnsRide(ride)) return CanPay(ride, Boxes.Ride(ride)?.NeedSoul ?? 0) ? "not_acquired" : "insufficient_souls";
+        return "unknown";
+    }
+
     /// <summary>0x9001 CharGetOnRide_RQ {i32 ride} (0: the default ride): an owned ride is mounted and shown to others.</summary>
-    List<byte[]> GetOnRide(int requested)
+    async Task<List<byte[]>> GetOnRideAsync(int requested, CancellationToken ct)
     {
         if (resources is null || dead || !SubzoneAllowsRideNow())
+        {
+            LogMountRefusal(resources is null || dead ? "dead_or_no_resources" : "subzone_forbidden", requested, contentsUnlocked: rideContentsUnlocked);
             return [RidePackets.GetOnReply(playerKey, 1, requested)];
+        }
         var ride = requested != 0 ? requested : defaultRide != 0 ? defaultRide : Rides.FirstOrDefault();
-        if (!OwnsRide(ride)) return [RidePackets.GetOnReply(playerKey, 1, requested)];
+        if (ride <= 0)
+        {
+            LogMountRefusal("no_ride", requested, contentsUnlocked: rideContentsUnlocked);
+            return [RidePackets.GetOnReply(playerKey, 1, requested)];
+        }
+        if (!OwnsRide(ride))
+        {
+            var acquired = await TryAutoAcquireRideRepliesAsync(ride, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), ct);
+            if (!OwnsRide(ride))
+            {
+                var souls = rides.TryGetValue(ride, out var e) ? e.SoulPoints : 0;
+                LogMountRefusal(MountRefusalReason(ride), requested, ride, souls, rideContentsUnlocked);
+                return [.. acquired, RidePackets.GetOnReply(playerKey, 1, requested)];
+            }
+            return [.. acquired, .. MountAck(ride)];
+        }
+        if (!rideContentsUnlocked && OwnsAnyRide())
+            return [.. UnlockRideContentsIfNeeded(), .. MountAck(ride)];
         // Live client retries 0x9001 while WaitGetOnComplete; always re-ack (never toggle dismount on repeat).
         return MountAck(ride);
     }

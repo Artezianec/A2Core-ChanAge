@@ -9,6 +9,7 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../Aion.Application/Aion.Application.csproj" />
+    <ProjectReference Include="../Aion.World/Aion.World.csproj" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
   </ItemGroup>
 </Project>

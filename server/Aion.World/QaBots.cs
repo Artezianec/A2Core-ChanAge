@@ -44,7 +44,9 @@ public sealed class QaBots(
     IQaBotStore? store = null,
     int? worldId = null,
     Func<QaBotSpawnContext, QaBotSpawnBinding?>? spawnPersisted = null,
-    IQaBotDiagnostics? diagnostics = null)
+    IQaBotDiagnostics? diagnostics = null,
+    TerrainStore? terrain = null,
+    NavMeshStore? nav = null)
 {
     public const int TickMs = 50;
     const int BootFailureBackoffMs = 60_000;
@@ -171,7 +173,7 @@ public sealed class QaBots(
             if (bots.Count(b => b.State != PlayerBot.Phase.Gone) >= options.HardMaxBots) return;
         }
         var turn = new WorldTurn(world);
-        var sessionOptions = new GameSessionOptions { World = world, CharacterLevel = from };
+        var sessionOptions = new GameSessionOptions { World = world, CharacterLevel = from, Terrain = terrain, Nav = nav };
         QaBotSpawnBinding? binding = null;
         if (spawnPersisted is not null && internalAccounts is { Count: > 0 } ids && slot < ids.Count)
             binding = spawnPersisted(new QaBotSpawnContext(slot, ids[slot], turn, from));
@@ -183,6 +185,8 @@ public sealed class QaBots(
                 StaffRole = binding.SessionOptions.StaffRole,
                 WorldRace = binding.SessionOptions.WorldRace,
                 WireServerId = binding.SessionOptions.WireServerId,
+                Terrain = binding.SessionOptions.Terrain ?? terrain,
+                Nav = binding.SessionOptions.Nav ?? nav,
             };
         var session = new GameSession(data, sessionOptions, new Random(9000 + slot))
         {
@@ -347,6 +351,7 @@ public sealed class QaBots(
                 && stuck.Detail?.StartsWith("map_event:", StringComparison.Ordinal) == true;
             var stayOnline = stuck.ReasonCode is QaStuckReason.UnsupportedObjective or QaStuckReason.NoProgress or QaStuckReason.StepTimeout
                 or QaStuckReason.NpcMissing or QaStuckReason.MobMissing or QaStuckReason.EnvMissing or QaStuckReason.DeathLoop
+                or QaStuckReason.BossNotSpawned or QaStuckReason.BossPhaseStall or QaStuckReason.BossUnkillable
                 || mapEventStuck || repeated;
             if (stayOnline)
             {

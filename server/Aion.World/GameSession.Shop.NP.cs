@@ -1,3 +1,4 @@
+using Aion.Application.Gameplay;
 using Aion.Protocol.Native;
 
 namespace Aion.World;
@@ -36,9 +37,10 @@ public sealed partial class GameSession
     /// </summary>
     public static byte[] TrustLimitInfoNotice(long now)
     {
+        var dailyReset = ContentResetSchedule.NextBoundaryMs(1, now);
         var w = PacketWriter.Opcode(TrustLimitInfoNt).U8(0x07).Varint(4);
         foreach (var type in new byte[] { 2, 3, 4, 5 })
-            w.U8(type).U8(type).I64(0).I64(type == 2 ? 500_000_000 : -1).I64(now);
+            w.U8(type).U8(type).I64(0).I64(type == 2 ? 500_000_000 : -1).I64(type == 2 ? dailyReset : now);
         return w.I64(now).I32(5).ToArray();
     }
 
@@ -61,7 +63,7 @@ public sealed partial class GameSession
             var at = DateTimeOffset.FromUnixTimeMilliseconds(now);
             foreach (var goodsId in goodsIds)
             {
-                if (Shops.RowByGoodsId(goodsId) is not { Limit: > 0 } row) continue;
+                if (ResolveExportedGoods(goodsId) is not { Limit: > 0 } row) continue;
                 var period = ShopTables.Period(row.LimitPeriod, at);
                 var bought = rows.FirstOrDefault(r => r.GoodsId == goodsId && r.Target == row.LimitTarget && r.Period == period).Count;
                 if (bought <= 0) continue;
@@ -93,6 +95,7 @@ public sealed partial class GameSession
         if (plain.Length < 10) return [];
         var goodsId = BitConverter.ToInt32(plain, 2);
         var quantity = BitConverter.ToInt32(plain, 6);
+        var clientSerial = ShopPurchaseRequest.ClientSerialFromNpPacket(plain);
         byte[] Reply(int result) => PacketWriter.Opcode(NPShopPurchaseRs).U16(result).I32(goodsId).I32(quantity).ToArray();
 
         DebugShop($"NPShopPurchase_RQ goods={goodsId} qty={quantity} (platform/catalog id)");
@@ -109,7 +112,7 @@ public sealed partial class GameSession
 
         var gameGoodsId = PlatformGoodsTables.Embedded.ResolveGameGoodsId(goodsId) ?? goodsId;
         var entries = new List<(int Goods, int Count)> { (gameGoodsId, quantity) };
-        var replies = await BuyCatalogGoodsAsync("bm", entries, now, ct, Reply, store, character);
+        var replies = await BuyCatalogGoodsAsync("bm", entries, now, ct, Reply, store, character, clientPurchaseSerial: clientSerial);
         DebugShop($"NPShopPurchase_RS result={(replies.Count > 0 ? replies[0][2] : -1)}");
         return replies;
     }

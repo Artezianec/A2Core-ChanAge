@@ -17,6 +17,7 @@ partial class GameSession
     CastRequest? pendingSkillCharge;
     CastRequest? lastSkillChargingStart;
     bool releasingSkillCharge;
+    int? holdChargeDamageRow;
     long skillChargeStartedAtMs;
     long lastChargeRepeatAtMs;
     long skillChargeNextTickAtMs;
@@ -72,9 +73,13 @@ partial class GameSession
     }
 
     /// <summary>Same accept rules as <see cref="CastReplies"/> without spending resources, cooldowns, or combat packets.</summary>
-    bool TryValidateCast(CastRequest request, long now, out SkillDefinition? definition)
+    bool TryValidateCast(CastRequest request, long now, out SkillDefinition? definition) =>
+        TryValidateCast(request, now, out definition, out _);
+
+    bool TryValidateCast(CastRequest request, long now, out SkillDefinition? definition, out string? refusalReason)
     {
         definition = null;
+        refusalReason = null;
         var skill = request.SkillId;
         request = WithCastLocation(request);
         var combatDodge = ClassCombatDodge;
@@ -82,7 +87,11 @@ partial class GameSession
         if (dodging) combatDodge = IsCombatDodgeId(skill) ? skill : skill - 1;
         var variant = DashVariant;
         if (dodging && !sprinting && variant >= 6) variant = 0;
-        if (dodging && sprinting && variant == 6) return false;
+        if (dodging && sprinting && variant == 6)
+        {
+            refusalReason = "sprint_dash_refused";
+            return false;
+        }
         var sprintDash = dodging && sprinting;
         if (sprintDash && variant == 10) variant = 0;
         var sprintOpeningDash = sprintDash && now - sprintOnAt <= SprintAutoDodgeWindowMs;
@@ -116,7 +125,22 @@ partial class GameSession
         var cooldownOk = cooldownReady || sprintOpeningDash;
         if (meetsCastRules && cooldownOk && castGapOk) return true;
         if (basicAuto && toggleOn && meetsCastRules && !cooldownReady) return true;
+        refusalReason = DetermineCastRefusalReason(request, skill, definition, meetsCastRules, chainAllowed, cooldownReady, castGapOk, cost, weapons, now);
         return false;
+    }
+
+    void LogSkillChargingRefusal(CastRequest request, SkillDefinition? definition, string? reason)
+    {
+        reason ??= definition is null ? "unknown_skill" : "cast_rules";
+        pendingSkillCastRefusalReason = reason;
+        if (QaBot) LogQaCastRefusalDetail(request.TargetKey, reason, definition?.Name ?? request.SkillId.ToString());
+        PlaytestDebug.Action("skill_cast",
+            ("wire", "skill_charging"),
+            ("skillId", request.SkillId),
+            ("skill", definition?.Name ?? request.SkillId.ToString()),
+            ("targetKey", request.TargetKey),
+            ("accepted", false),
+            ("reason", reason));
     }
 
     /// <summary>Hold-to-charge skills (Deadshot): several damage rows on one timed shot, instant cast in data.</summary>
@@ -133,14 +157,8 @@ partial class GameSession
 
     static bool SameHoldChargeRequest(CastRequest a, CastRequest b) => a.SkillId == b.SkillId;
 
-    static int ChargeStepForElapsed(SkillDefinition definition, long chargeBuildMs)
-    {
-        var stages = definition.Damage.Length;
-        if (stages <= 1) return 1;
-        var capped = Math.Min(chargeBuildMs, SkillChargeMaxHoldMs);
-        var step = (int)(capped * stages / SkillChargeMaxHoldMs) + 1;
-        return Math.Clamp(step, 1, stages);
-    }
+    static int ChargeStepForElapsed(SkillDefinition definition, long chargeBuildMs) =>
+        HoldChargeSupport.StepForElapsed(definition, chargeBuildMs);
 
     long HoldChargeBuildMs(long now) =>
         Math.Min(SkillChargeMaxHoldMs, Math.Max(0, lastChargeRepeatAtMs - skillChargeStartedAtMs));
@@ -225,11 +243,13 @@ partial class GameSession
         if (pendingSkillCharge is null || skillChargeStartedAtMs <= 0 || lastChargeRepeatAtMs <= 0)
             return [];
         var releaseSilence = now - lastChargeRepeatAtMs >= SkillChargeReleaseSilenceMs;
-        var releaseMax = now - skillChargeStartedAtMs >= SkillChargeMaxHoldMs;
+        var definition = ResolveSkillDefinition(pendingSkillCharge.SkillId);
+        var maxHold = definition is not null ? HoldChargeSupport.MaxHoldMs(definition) : SkillChargeMaxHoldMs;
+        var releaseMax = now - skillChargeStartedAtMs >= maxHold;
         if (!releaseSilence && !releaseMax)
             return [];
-        var definition = ResolveSkillDefinition(pendingSkillCharge.SkillId);
-        var step = definition is not null ? ChargeStepForElapsed(definition, HoldChargeBuildMs(now)) : 1;
+        var timeoutDef = ResolveSkillDefinition(pendingSkillCharge.SkillId);
+        var step = timeoutDef is not null ? ChargeStepForElapsed(timeoutDef, HoldChargeBuildMs(now)) : 1;
         return await ReleasePendingSkillChargeAsync(step, pendingSkillCharge.SkillId, now, ct);
     }
 
@@ -253,23 +273,24 @@ partial class GameSession
             replies.AddRange(SkillChargingStartAck(cast, request));
             return replies;
         }
-        if (definition is null || !TryValidateCast(request, now, out _))
+        if (definition is null)
         {
             replies.Add(GamePackets.SkillChargingStartReply(1, request.SkillId));
+            LogSkillChargingRefusal(request, null, "unknown_skill");
             return replies;
         }
-        if (!UsesHoldChargeFlow(definition, request.SkillId))
+        // While 0x381a repeats during a hold charge, refresh aim/target without re-running full cast gates (live Deadshot reticle moves).
+        if (UsesHoldChargeFlow(definition, request.SkillId)
+            && pendingSkillCharge is { } holdExisting && SameHoldChargeRequest(holdExisting, request))
         {
-            replies.AddRange(CancelPendingSkillCharge(sendStopReply: true));
-            var cast = CastReplies(plain, now);
-            cast.AddRange(await SealStoneConsumedAsync(ct));
-            cast.AddRange(await QuestKillsAsync(ct));
-            cast.AddRange(await KillExperienceAsync(ct));
-            replies.AddRange(SkillChargingStartAck(cast, request));
-            return replies;
-        }
-        if (pendingSkillCharge is { } existing && SameHoldChargeRequest(existing, request))
-        {
+            if (!HoldChargeTargetValid(definition, request.SkillId, request))
+            {
+                var reason = CastTargetRefusalReason(definition, request.SkillId, request);
+                replies.AddRange(CancelPendingSkillCharge(sendStopReply: true));
+                replies.Add(GamePackets.SkillChargingStartReply(1, request.SkillId));
+                LogSkillChargingRefusal(request, definition, reason);
+                return replies;
+            }
             lastChargeRepeatAtMs = now;
             pendingSkillCharge = request with { Yaw = request.Yaw };
             lastSkillChargingStart = pendingSkillCharge;
@@ -281,6 +302,22 @@ partial class GameSession
             replies.Add(GamePackets.SkillChargingStartReply(0, request.SkillId));
             replies.Add(GamePackets.SkillChargingStartNotify(playerKey, request.SkillId, level, request.TargetKey, yaw, request.Location,
                 chargeRate, chargingActId: chargingActId));
+            return replies;
+        }
+        if (!TryValidateCast(request, now, out _, out var refusalReason))
+        {
+            replies.Add(GamePackets.SkillChargingStartReply(1, request.SkillId));
+            LogSkillChargingRefusal(request, definition, refusalReason);
+            return replies;
+        }
+        if (!UsesHoldChargeFlow(definition, request.SkillId))
+        {
+            replies.AddRange(CancelPendingSkillCharge(sendStopReply: true));
+            var cast = CastReplies(plain, now);
+            cast.AddRange(await SealStoneConsumedAsync(ct));
+            cast.AddRange(await QuestKillsAsync(ct));
+            cast.AddRange(await KillExperienceAsync(ct));
+            replies.AddRange(SkillChargingStartAck(cast, request));
             return replies;
         }
         if (pendingSkillCharge is not null) replies.AddRange(CancelPendingSkillCharge(sendStopReply: true));
@@ -312,16 +349,32 @@ partial class GameSession
         var charge = pendingSkillCharge ?? lastSkillChargingStart;
         if (charge is null) return [];
         var skill = charge.SkillId;
+        var def = ResolveSkillDefinition(skill);
+        if (def is null || !HoldChargeTargetValid(def, skill, charge))
+        {
+            pendingSkillCharge = null;
+            lastSkillChargingStart = null;
+            skillChargeStartedAtMs = 0;
+            lastChargeRepeatAtMs = 0;
+            skillChargeNextTickAtMs = 0;
+            var reason = def is null ? "unknown_skill" : CastTargetRefusalReason(def, skill, charge);
+            return RefuseHoldChargeRelease(skill, step, selectedSkill, charge, def, reason);
+        }
         pendingSkillCharge = null;
         lastSkillChargingStart = null;
         skillChargeStartedAtMs = 0;
         lastChargeRepeatAtMs = 0;
         skillChargeNextTickAtMs = 0;
         var wire = BuildSkillStartWire(skill, charge.TargetKey, charge.Location, charge.Yaw);
+        holdChargeDamageRow = HoldChargeSupport.DamageRowIndex(def, step);
         releasingSkillCharge = true;
         List<byte[]> cast;
         try { cast = CastReplies(wire, now); }
-        finally { releasingSkillCharge = false; }
+        finally
+        {
+            releasingSkillCharge = false;
+            holdChargeDamageRow = null;
+        }
         cast = cast.Where(p => Opcode(p) != 0x3801).ToList();
         if (cast.Count == 0)
             cast = [CastReplyFor(charge, false)];
@@ -348,8 +401,20 @@ partial class GameSession
         var definition = ResolveSkillDefinition(skill);
         var buildMs = charge is not null && skillChargeStartedAtMs > 0 && lastChargeRepeatAtMs > 0
             ? HoldChargeBuildMs(now) : 0;
-        var step = definition is not null ? ChargeStepForElapsed(definition, buildMs) : end.Step;
+        // Official step on 0x381d is informational; release tier comes from server hold time (0x381a cadence).
+        var step = definition is not null ? ChargeStepForElapsed(definition, buildMs) : 1;
         return await ReleasePendingSkillChargeAsync(step, selected, now, ct);
+    }
+
+    List<byte[]> RefuseHoldChargeRelease(int skill, int step, int selectedSkill, CastRequest charge, SkillDefinition? def, string reason)
+    {
+        LogSkillChargingRefusal(charge, def, reason);
+        var replies = new List<byte[]>
+        {
+            GamePackets.SkillChargingEndReply(1, skill, step, selectedSkill),
+        };
+        replies.AddRange(ClearSkillChargeAbnormal());
+        return replies;
     }
 
     List<byte[]> HandleSkillChargingStop(byte[] plain)

@@ -77,6 +77,12 @@ QaBots.StepAsync
 
 - **`QaBotCombat` basic chains:** resolve FixSlot chain root from learned skills / `IsBasicAutoAttack` (not hard-coded `*020000` mid-steps); `PickBasicChainStep` walks open `ActiveChainSkills` windows for Templar, Spiritmaster, Cleric, Chanter, etc. (`QaBotBasicChainTests`).
 
+## Boss probe (client-export branch)
+
+- **`QaBossProbe`** (`QaBossProbe.cs`, `Aion:QaBots:BossProbe`): in instance map-events, reports `boss_not_spawned`, `boss_phase_stall`, `boss_unkillable` via `QaQuestBrain`.
+- **NpcBehaviorCase** wired in `NpcAi.BehaviorCases.cs` (`tools/npc_behavior_cases.py` → `npc-behavior-cases.json`): combat-start/casting/skill-use/die captions from client talks.
+- **`tools/boss_coverage.py`**: client vs OURS per scripted boss; **`tools/boss_phases.py`** extended to extra expedition families + Deus/Arkanis mids (126 scripts).
+
 ## Dependencies
 
 - #563 merged: map-event stall timeouts, death loop, escort defend, cutscene skip, spawner kick.

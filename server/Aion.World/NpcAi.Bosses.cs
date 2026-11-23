@@ -19,7 +19,13 @@ public sealed partial class NpcAi
     public BossOptions BossRules { get; set; } = BossOptions.Default;
 
     /// <summary>A phase's call for adds, for the host to place (it owns the map's table): the boss, its fight, the adds, the victim to send them at.</summary>
-    public sealed record SummonRequest(Target Boss, BossFight Fight, BossAdds Adds, int VictimKey);
+    public sealed record SummonRequest(Target Boss, BossFight Fight, BossAdds Adds, int VictimKey)
+    {
+        /// <summary>The engine group the adds join (adds_dead / add_died triggers, group anchors), or null.</summary>
+        public string? Group { get; init; }
+        /// <summary>Where they come (null: around the boss).</summary>
+        public Vector3d? At { get; init; }
+    }
     readonly List<SummonRequest> summonRequests = [];
 
     /// <summary>The adds called since the last take (the host spawns them with <see cref="BossSummons.Spawn"/> and sends them in).</summary>
@@ -55,7 +61,7 @@ public sealed partial class NpcAi
     static long Hasted(Brain brain, int cooldown) => brain.Fight is { Haste: var haste } ? (long)(cooldown * haste) : cooldown;
 
     /// <summary>A slam skill of the boss's script: never chosen as an ordinary special while the phases run.</summary>
-    bool IsScriptedSlam(Brain brain, int skillId) => brain.Fight is { } fight && fight.Script.SlamSkills.Contains(skillId);
+    bool IsScriptedSlam(Brain brain, int skillId) => brain.Fight is { } fight && fight.SlamSkills.Contains(skillId);
 
     /// <summary>
     /// A scripted boss's tick: its phases, frenzy and slam. Winding: the boss is busy with a slam this tick (it neither moves
@@ -67,10 +73,28 @@ public sealed partial class NpcAi
         if (!BossRules.Phases || !target.Hostile || target.OwnerKey != 0) return (replies, false);
         if (brain.Fight is null)
         {
-            if (!brain.Engaged || brain.Mode != Mode.Chase || brain.VictimIsNpc || Bosses.Of(target.NpcId) is not { } script) return (replies, false);
-            brain.Fight = new BossFight(script, now) { NextSlamMs = now + (script.Telegraph?.EveryMs ?? 0) / 2 };
+            if (!brain.Engaged || brain.Mode != Mode.Chase || brain.VictimIsNpc) return (replies, false);
+            if (BossRules.Engine)
+            {
+                // Copies of a boss (Kromede's clones) fight as adds; they never run the boss's own encounter.
+                if (BossSummons.IsSummon(target.Key)) return (replies, false);
+                brain.Fight = StartEncounter(target, brain, now);
+            }
+            if (brain.Fight is null)
+            {
+                if (Bosses.Of(target.NpcId) is not { } script) return (replies, false);
+                brain.Fight = new BossFight(script, now) { NextSlamMs = now + (script.Telegraph?.EveryMs ?? 0) / 2 };
+            }
         }
         var fight = brain.Fight;
+        if (fight.Encounter is { } run)
+        {
+            replies.AddRange(EncounterWorldTick(target, brain, fight, run, now));
+            if (brain.Fight != fight) return (replies, false);
+            var (engineSlam, engineWinding) = SlamStep(target, brain, fight, now);
+            replies.AddRange(engineSlam);
+            return (replies, engineWinding);
+        }
         var percent = target.HpMax > 0 ? target.Hp * 100.0 / target.HpMax : 100;
         while (fight.Reached < fight.Script.Ordered.Count && percent <= fight.Script.Ordered[fight.Reached].At)
         {
@@ -96,6 +120,18 @@ public sealed partial class NpcAi
             fight.Haste *= frenzy.Haste;
             if (frenzy.Notice is { Length: > 0 } notice) replies.Add(GameSession.Notice(notice, frenzy.NoticeRu, 24, "FF4040"));
         }
+        var (slamReplies, winding) = SlamStep(target, brain, fight, now);
+        replies.AddRange(slamReplies);
+        return (replies, winding);
+    }
+
+    /// <summary>
+    /// The slam pipeline shared by both paths: a wound-up slam lands when due; otherwise the next one starts winding up when the
+    /// boss is free. Legacy fights run their hand-coded wind-up hooks (fire walls, rings); engine casts run their "during" actions.
+    /// </summary>
+    (List<byte[]> Replies, bool Winding) SlamStep(Target target, Brain brain, BossFight fight, long now)
+    {
+        var replies = new List<byte[]>();
         if (fight.Winding is { } winding)
         {
             if (now < winding.DueMs) return (replies, true);
@@ -123,9 +159,14 @@ public sealed partial class NpcAi
             fight.NextSlamMs = due + next.EveryMs;
             replies.Add(PlayerPackets.SkillCastingStart(target.Key, next.Skill, Victim(brain), yaw, centre, windUp));
             replies.AddRange(TelegraphForArea(target, next.Skill, (byte)brain.ActionSeq, centre, yaw, windUp + HitDelayMs, now));
+            replies.AddRange(BehaviorOnCasting(target, next.Skill, now));
             if (next.Warning is { Length: > 0 } warning) replies.Add(GameSession.Notice(warning, next.WarningRu, 22, "FF8040"));
-            replies.AddRange(MaybeStartFireWall(target, next, centre, now));
-            replies.AddRange(StartWindUpMechanic(target, next, centre, now));
+            if (fight.Encounter is null)
+            {
+                replies.AddRange(MaybeStartFireWall(target, next, centre, now));
+                replies.AddRange(StartWindUpMechanic(target, next, centre, now));
+            }
+            else if (next.Tag is EngineCast cast) replies.AddRange(EngineCastStarted(target, brain, fight, cast, centre, due, now));
             return (replies, true);
         }
         return (replies, false);
@@ -159,12 +200,17 @@ public sealed partial class NpcAi
         brain.Volley.Add(new SummonShot(now + MonsterEndAfterLastHitMs, ShotKind.End, slam.Skill, seq, Victim(brain), 0));
         if (brain.Fight is { } fight) fight.Slams++;
         SlamsLanded++;
+        var engine = slam.Tag is EngineCast && brain.Fight?.Encounter is not null ? brain.Fight.Encounter : null;
         if (!slam.Land)
-            return replies.Concat(SlamMechanicLand(target, brain, slam, centre, yaw, now)).ToList();
+            return replies.Concat(engine is not null ? EngineCastLanded(target, brain, slam, centre, 0, now) : SlamMechanicLand(target, brain, slam, centre, yaw, now)).ToList();
         if (currentHitPlayer is not { } hitPlayer) return replies;
         var max = SkillAreas.For(slam.Skill) is { IsArea: true } area ? area.Max : int.MaxValue;
-        foreach (var (key, _) in currentPlayers.Where(p => InSlam(target, slam, centre, yaw, p.Position) && !SlamSkipsPlayer(target, slam, p.Position))
-                     .OrderBy(p => p.Position.DistanceSquared(centre)).ThenBy(p => p.Key).Take(max).ToList())
+        bool Skips(Vector3d at) => engine is not null
+            ? ((EngineCast)slam.Tag!).Def.Cover == true && Covered(target, engine, at, now)
+            : SlamSkipsPlayer(target, slam, at);
+        var struck = currentPlayers.Where(p => InSlam(target, slam, centre, yaw, p.Position) && !Skips(p.Position))
+            .OrderBy(p => p.Position.DistanceSquared(centre)).ThenBy(p => p.Key).Take(max).ToList();
+        foreach (var (key, _) in struck)
         {
             var raw = Damage(target, skill, PlayerLevelOf?.Invoke(key) ?? 1) * slam.Damage;
             var damage = Math.Max(1, (int)Math.Round(raw * 1000.0 / (1000 + Math.Max(0, DefenseOf?.Invoke(key) ?? 0))));
@@ -175,6 +221,7 @@ public sealed partial class NpcAi
             replies.Add(GamePackets.NpcSkillHit(key, target.Key, slam.Skill, seq, skill.Effect, damage));
             replies.AddRange(hitPlayer(key, damage));
         }
+        if (engine is not null) replies.AddRange(EngineCastLanded(target, brain, slam, centre, struck.Count, now));
         return replies;
     }
 
@@ -186,15 +233,21 @@ public sealed partial class NpcAi
     {
         if (slam.Once || slam.StaggerCheck)
         {
-            var filler = fight.Filler ?? fight.Script.Rotation.ElementAtOrDefault(fight.RotationIndex);
+            if (fight.Encounter?.CastQueue.TryDequeue(out var queued) == true)
+            {
+                fight.Telegraph = queued;
+                fight.NextSlamMs = now + SlamRecoverMs;
+                return;
+            }
+            var filler = fight.Filler ?? fight.Rotation.ElementAtOrDefault(fight.RotationIndex);
             fight.Telegraph = filler;
             fight.NextSlamMs = now + (filler?.EveryMs ?? SlamRetryMs);
             return;
         }
-        if (fight.Script.Rotation.Count > 1)
+        if (fight.Rotation.Count > 1)
         {
-            fight.RotationIndex = (fight.RotationIndex + 1) % fight.Script.Rotation.Count;
-            var next = fight.Script.Rotation[fight.RotationIndex];
+            fight.RotationIndex = (fight.RotationIndex + 1) % fight.Rotation.Count;
+            var next = fight.Rotation[fight.RotationIndex];
             fight.Filler = next;
             fight.Telegraph = next;
             fight.NextSlamMs = now + next.EveryMs;
@@ -210,17 +263,22 @@ public sealed partial class NpcAi
             winding.Centre, winding.Yaw);
         if (winding.Slam.Once || winding.Slam.StaggerCheck) FinishSlam(fight, winding.Slam, now);
         else fight.NextSlamMs = now + SlamRetryMs;
-        return clear is null ? [] : [clear];
+        var broken = EngineCastBroken(target, brain, winding.Slam, winding.Centre, now);
+        return clear is null ? broken : [clear, .. broken];
     }
 
     /// <summary>A boss's fight ends (a wipe sent it home, or it died): its living adds vanish (0x3642 flag 7) and the phases start over.</summary>
     List<byte[]> EndFight(Brain brain)
     {
         if (brain.Fight is not { } fight) return [];
-        ClearFireWall();
-        ClearExpeditionMechanics();
-        brain.Fight = null;
         var replies = new List<byte[]>();
+        if (fight.Encounter is { } run) replies.AddRange(EndEncounter(run));
+        else
+        {
+            ClearFireWall();
+            ClearExpeditionMechanics();
+        }
+        brain.Fight = null;
         foreach (var key in fight.Adds)
         {
             if (current?.GetValueOrDefault(key) is not { } add || add.Dead && add.CorpseRemoved) continue;

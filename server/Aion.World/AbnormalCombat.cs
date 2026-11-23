@@ -67,14 +67,20 @@ static class AbnormalCombat
                 break;
             case "HpBarrier":
                 combat.BarrierEffectId = effectId;
-                combat.BarrierAmount = Roll(V(values, 2), V(values, 3), rng);
-                if (combat.BarrierAmount <= 0) combat.BarrierAmount = Math.Max(V(values, 2), V(values, 3));
+                // [0] None, [1] min, [2] max absorbed; [3] a share of the max HP (1/10000) when min/max are -1 / 0 (151600001: 16%).
+                combat.BarrierAmount = V(values, 1) > 0 || V(values, 2) > 0 ? Roll(Math.Max(0, V(values, 1)), Math.Max(0, V(values, 2)), rng) : 0;
+                if (combat.BarrierAmount <= 0 && V(values, 3) > 0 && hpMax > 0)
+                    combat.BarrierAmount = (int)Math.Min(int.MaxValue, (long)hpMax * V(values, 3) / 10_000);
                 break;
             case "DamageReflect":
                 // CANDIDATE dat layout: [trigger permille, reflect cap, damage permille, skill name, ...].
                 combat.ReflectPermille = V(values, 2) > 0 ? V(values, 2) : V(values, 0);
                 combat.ReflectCap = V(values, 1);
                 combat.ReflectSkillId = 0;
+                break;
+            case "ImmuneBind":
+                // No values in the export (225 rows): immunity to Bind abnormals.
+                combat.ImmuneEffectTypes.Add("Bind");
                 break;
             case "ImmuneAbnormal":
                 foreach (var part in (values.Count > 5 ? values[5] : "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))

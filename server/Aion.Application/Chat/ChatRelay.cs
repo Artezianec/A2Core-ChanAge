@@ -33,6 +33,10 @@ public sealed class ChatRelay(TimeProvider clock, IChatDirectory? directory = nu
     readonly ConcurrentDictionary<string, Session> sessions = new();
     readonly ConcurrentDictionary<string, Queue<DateTimeOffset>> recent = new();
     int seq;
+    readonly long startedAt = clock.GetUtcNow().ToUnixTimeMilliseconds();
+
+    /// <summary>When this relay started, as epoch milliseconds: the creation time reported for every room.</summary>
+    public long StartedAtMilliseconds => startedAt;
 
     /// <summary>Mutes and the chat log (set by the host when staff tools are available).</summary>
     public IChatModeration? Moderation { get; set; }
@@ -56,17 +60,34 @@ public sealed class ChatRelay(TimeProvider clock, IChatDirectory? directory = nu
     /// <summary>Who is speaking: stored name (routing, commands) and shown name (notifications).</summary>
     public sealed record Speaker(string Name, string DisplayName);
 
-    /// <summary>Starts a session for a verified identity; returns its opaque token (mtalkToken).</summary>
+    /// <summary>
+    /// Starts a session for a verified identity; returns its opaque token (mtalkToken). A relog
+    /// replaces the earlier session of the same chat identity (same account and character ID, or
+    /// the same server key and character ID for development logins), so a client that logs in
+    /// again without logging out does not leave a second session behind.
+    /// </summary>
     public string Login(ChatIdentity identity)
     {
+        foreach (var (stale, session) in sessions)
+            if (SameChatIdentity(session.Identity, identity)) sessions.TryRemove(stale, out _);
         var token = "mtalk-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
         sessions[token] = new Session(identity);
         return token;
     }
 
+    static bool SameChatIdentity(ChatIdentity a, ChatIdentity b) =>
+        a.CharacterId == b.CharacterId && a.ServerKey == b.ServerKey && a.AccountId == b.AccountId;
+
+    /// <summary>The room's current member sessions (joinRoom's memberCount).</summary>
+    public int MemberCount(ChatRoomKey room) => sessions.Values.Count(session => { lock (session) return session.Rooms.Contains(room); });
+
     public ChatIdentity? Find(string token) => sessions.TryGetValue(token, out var session) ? session.Identity : null;
 
-    public void Logout(string token) => sessions.TryRemove(token, out _);
+    /// <summary>Ends the session (logout route, closed STOMP socket); unknown tokens are ignored.</summary>
+    public void Logout(string token)
+    {
+        if (!string.IsNullOrEmpty(token)) sessions.TryRemove(token, out _);
+    }
 
     /// <summary>Joins one of the rooms every player on this server shares (see the class summary), or the legion room of a legion member.</summary>
     public void Join(string token, ChatRoomKey room)
@@ -267,9 +288,12 @@ public sealed class ChatRelay(TimeProvider clock, IChatDirectory? directory = nu
         subType is { Length: >= 1 and <= 16 } && subType.All(c => c is >= 'A' and <= 'Z' or '_') ? subType : "NORMAL";
 
     ChatNotification Notify(ChatIdentity sender, Speaker speaker, ChatRoomKey room, ChatMessage message) => new(
-        Guid.NewGuid().ToString("N"), clock.GetUtcNow().ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture),
+        Guid.NewGuid().ToString("N"), clock.GetUtcNow().ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture),
         Interlocked.Increment(ref seq), room,
         "PUBLISH", SubType(message.SubType),
         message.Content, Optional(message.Optional, sender), sender.CharacterId, sender.ServerKey, speaker.DisplayName, sender.Locale,
-        message.ReceiverCharacterId, message.ReceiverUserName, message.ReceiverServerId);
+        message.ReceiverCharacterId, message.ReceiverUserName, message.ReceiverServerId, Faction(sender));
+
+    /// <summary>userMetaData.faction: ELYOS is observed; ASMODIAN is a candidate spelling.</summary>
+    static string Faction(ChatIdentity sender) => sender.Character?.Race switch { 1 => "ELYOS", 2 => "ASMODIAN", _ => "" };
 }

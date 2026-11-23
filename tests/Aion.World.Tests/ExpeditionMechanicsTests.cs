@@ -26,7 +26,11 @@ public sealed class ExpeditionMechanicsTests
         var script = BossPhases.Embedded.Of(2300218)!;
         var phase75 = Assert.Single(script.Ordered, p => p.At == 75);
         Assert.Equal("auldor_tempest_soak", phase75.Telegraph!.Mechanic);
-        var ai = new NpcAi(new Random(2), GameData.Embedded) { Bosses = new BossPhases(new Dictionary<int, BossScript> { [2300218] = script }) };
+        var ai = new NpcAi(new Random(2), GameData.Embedded)
+        {
+            Bosses = new BossPhases(new Dictionary<int, BossScript> { [2300218] = script }),
+            BossRules = BossOptions.Default with { Engine = false },
+        };
         var boss = new Target { Key = 1, Name = "UruCan_Stage03_Boss_1", NpcId = 2300218, Position = Vector3d.Zero, Level = 60, Hp = 70_000, HpMax = 100_000, WalkSpeed = 1, RunSpeed = 1, Radius = 50 };
         var map = new Dictionary<int, Target> { [1] = boss };
         ai.Engage(map, boss, 0, Tank);

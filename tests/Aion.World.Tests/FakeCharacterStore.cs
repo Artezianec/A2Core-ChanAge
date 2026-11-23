@@ -26,9 +26,12 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     public List<SkillState> Skills { get; } = [];
     public List<(int Target, int GoodsId, string Period, int Count)> Purchases { get; } = [];
     public List<ShopOrderLine> ShopOrders { get; } = [];
+    public List<(string RequestId, string Status, long OrderedAtMs)> ShopPurchaseRecords { get; } = [];
+    long shopResolveNowMs;
     public StoredMembership? Membership { get; set; }
     public List<(int Target, int RecipeId, string Period, int Count)> ConversionCounts { get; } = [];
     public List<AchievementRecord> Achievements { get; } = [];
+    public bool FailSaveAchievements { get; set; }
     public (int Level, long Exp) Progress { get; set; } = (1, 0);
     public Dictionary<int, QuickSlotRecord> QuickSlots { get; } = [];
     public Dictionary<string, JsonElement> Settings { get; } = [];
@@ -776,6 +779,7 @@ public sealed class FakeCharacterStore : INativeCharacterStore
 
     public Task<bool> SaveAchievementsAsync(Guid character, IReadOnlyList<AchievementRecord> records, CancellationToken ct)
     {
+        if (FailSaveAchievements) return Task.FromResult(false);
         foreach (var record in records)
         {
             var index = Achievements.FindIndex(a => a.Id == record.Id);
@@ -798,25 +802,51 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, CancellationToken ct) =>
         ShopBuyAsync(character, costs, goods, limits, [], ct);
 
+    public IMileageWallet? MileageWallet { get; set; }
+
+    public Task<int?> CharacterWorldIdAsync(Guid characterId, CancellationToken ct) => Task.FromResult<int?>(WorldId);
+
+    public Task<string> ResolveShopPurchaseRequestIdAsync(string fingerprint, long nowMs, CancellationToken ct)
+    {
+        shopResolveNowMs = nowMs;
+        var matches = ShopPurchaseRecords.Where(r => ShopPurchaseRequest.MatchesFingerprint(r.RequestId, fingerprint)).ToList();
+        if (matches.Count == 0) return Task.FromResult(ShopPurchaseRequest.Allocate(fingerprint, nowMs, null, null, null));
+        var last = matches.MaxBy(r => r.OrderedAtMs);
+        return Task.FromResult(ShopPurchaseRequest.Allocate(fingerprint, nowMs, last.RequestId, last.Status, last.OrderedAtMs));
+    }
+
     public async Task<bool> ShopBuyAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
         IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, IReadOnlyList<ShopOrderLine> orders, CancellationToken ct,
-        QunaRequest? qunaSpend = null)
+        QunaRequest? qunaSpend = null, ShopBuyContext? context = null)
     {
         if (FailShopBuy) return false;
+        var purchaseId = qunaSpend?.RequestId ?? orders.FirstOrDefault(o => o.RequestId is not null)?.RequestId;
+        if (purchaseId is not null && ShopPurchaseRecords.Any(r => r.RequestId == purchaseId && r.Status == "done")) return true;
         foreach (var l in limits)
             if (Purchases.Where(p => p.GoodsId == l.GoodsId && p.Target == l.Target && p.Period == l.Period).Sum(p => p.Count) + l.Count > l.Limit)
                 return false;
         if (costs.Any(c => !Items.Any(i => i.InstanceId == c.Item && i.Revision == c.Revision && i.Quantity >= c.Count)))
             return false;
+        if (context?.MileageSpend is { } mileageSpend)
+        {
+            if (MileageWallet is not { } mileage) return false;
+            var m = await mileage.SpendAsync(mileageSpend, ct);
+            if (!m.Ok) return false;
+        }
         if (qunaSpend is { } spend)
         {
             if (QunaWallet is not { } wallet) return false;
             var spent = await wallet.SpendAsync(spend, ct);
-            if (!spent.Ok) return false;
+            if (!spent.Ok)
+            {
+                if (spent.Repeated && ShopPurchaseRecords.Any(r => r.RequestId == spend.RequestId && r.Status == "done")) return true;
+                return false;
+            }
         }
         foreach (var (cost, revision, count) in costs) Consume(cost, revision, count);
         foreach (var l in limits) Purchases.Add((l.Target, l.GoodsId, l.Period, l.Count));
         ShopOrders.AddRange(orders);
+        if (purchaseId is not null) ShopPurchaseRecords.Add((purchaseId, "done", shopResolveNowMs));
         var wire = Items.Count == 0 ? 5000 : Items.Max(i => i.WireId) + 1;
         foreach (var (template, quantity) in goods)
         {
@@ -905,6 +935,26 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         var updated = RideRows[index] with { SoulPoints = RideRows[index].SoulPoints + souls };
         RideRows[index] = updated;
         return Task.FromResult<RideRecord?>(updated);
+    }
+
+    public Task<RideRecord?> AcquireRideWithSoulsAsync(Guid character, int rideId, int cost, int crystalType, CancellationToken ct)
+    {
+        if (rideId <= 0 || cost < 1) return Task.FromResult<RideRecord?>(null);
+        var index = RideRows.FindIndex(r => r.RideId == rideId);
+        RideRecord row;
+        if (index < 0)
+        {
+            row = new RideRecord(rideId, 1, 0, true);
+            RideRows.Add(row);
+        }
+        else
+        {
+            var cur = RideRows[index];
+            if (cur.Owned || cur.SoulPoints < cost) return Task.FromResult<RideRecord?>(null);
+            row = cur with { SoulPoints = cur.SoulPoints - cost, Owned = true };
+            RideRows[index] = row;
+        }
+        return Task.FromResult<RideRecord?>(row);
     }
 
     public Task<bool> ConsumeAndGrantAsync(Guid character, Guid item, long revision, int count, IReadOnlyList<(int TemplateId, long Count)> rewards, CancellationToken ct)

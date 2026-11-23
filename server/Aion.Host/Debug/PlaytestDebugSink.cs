@@ -21,8 +21,11 @@ public sealed class PlaytestDebugSink : IPlaytestDebugSink, IAsyncDisposable
     ];
     static readonly HashSet<string> ConsoleActionKinds = new(StringComparer.Ordinal)
     {
-        "skill_cast", "damage", "kill", "death", "resurrect", "teleport", "quest_accept", "quest_progress",
+        "skill_cast", "chain_open", "chain_wire", "damage", "kill", "death", "resurrect", "teleport", "quest_accept", "quest_progress",
         "quest_complete", "level_up", "skill_point", "npc_talk", "npc_talk_refused", "map_event", "item_use", "item_use_refused", "item_gain",
+        "map_event_slice_decision", "enter_vol_trigger", "bomb_probe_move", "bomb_plant_refused", "kill_spawner_slice", "kill_spawner_skip", "kill_spawner_target", "kill_spawner_credit", "hp_remaining_target",
+        "bomb_plant", "bomb_channel_complete", "pickup_bomb", "map_event_join",
+        "abnormal_unknown_effect", "abnormal_stack", "self_abnormal", "skill_trigger", "skill_effect_unknown", "skill_drain",
         // Diagnostics for unknown client requests (were file-only, so live console logs never showed them).
         "unhandled_packet", "container_slot_extend",
     };

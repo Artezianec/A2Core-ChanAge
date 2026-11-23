@@ -56,11 +56,17 @@ public sealed partial class GameSession
         waveParts.Clear();
         if (!bossRules.Waves || !RunsMapEvents || targets is null) return;
         var names = targets.Values.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var wave in MapEventData.Waves(worldMap))
+        var client = ClientWaves.Embedded;
+        var waveNames = new HashSet<string>(MapEventData.Waves(worldMap), StringComparer.OrdinalIgnoreCase);
+        foreach (var wave in client.NamesOnMap(worldMap)) waveNames.Add(wave);
+        foreach (var wave in waveNames)
         {
+            if (waveParts.ContainsKey(wave)) continue;
             var part = new Regex("^" + Regex.Escape(wave) + @"_(\d+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
             var parts = names.Select(n => (Name: n, Match: part.Match(n))).Where(x => x.Match.Success)
                 .OrderBy(x => int.Parse(x.Match.Groups[1].Value, CultureInfo.InvariantCulture)).Select(x => x.Name).ToList();
+            if (parts.Count == 0 && client.TryGetParts(worldMap, wave, out var stepParts))
+                parts = stepParts.Where(names.Contains).ToList();
             if (parts.Count == 0) continue;
             waveParts[wave] = parts;
             dormantSpawners.UnionWith(parts);
@@ -185,16 +191,22 @@ public sealed partial class GameSession
     /// </summary>
     List<byte[]> BossAdds(NpcAi fights, Dictionary<int, Target> table, long now)
     {
+        foreach (var wave in fights.TakeWaveStarts()) ((IMapEventHost)this).StartWave(wave);
         var requests = fights.TakeSummons();
         if (requests.Count == 0) return [];
         var replies = new List<byte[]>();
         foreach (var request in requests)
         {
-            var made = BossSummons.Spawn(data, table, request.Adds.Npc, request.Boss.Position, request.Adds.Count, request.Adds.Radius);
+            var made = BossSummons.Spawn(data, table, request.Adds.Npc, request.At ?? request.Boss.Position, request.Adds.Count, request.Adds.Radius);
             if (made.Count == 0) { Note($"boss {request.Boss.Name}: add NPC {request.Adds.Npc} has no template"); continue; }
             foreach (var add in made)
             {
                 request.Fight.Adds.Add(add.Key);
+                if (request.Group is { } group)
+                {
+                    if (!request.Fight.Groups.TryGetValue(group, out var members)) request.Fight.Groups[group] = members = [];
+                    members.Add(add.Key);
+                }
                 seenNpcs.Add(add.Key);
                 replies.Add(GamePackets.NpcAppear(add.Appearance() with { Reason = NpcAppearance.NpcSpawnReason }));
                 replies.AddRange(fights.ForceAggro(add, request.VictimKey, now));

@@ -204,6 +204,8 @@ public sealed partial class GameSession
         var next = prev + 1;
         SetMonolithResonateCount(monolithId, next);
         var replies = await InventoryChangesAsync(ct, IncreaseEnvObjReward, 0);
+        if (MonolithTables.Embedded.NameForId(monolithId) is { } monolithName)
+            replies.AddRange(Emit(new AchievementEvent("MonolithLevel", SetValue: next, Keys: [monolithName])));
         var held = inventory.Values.Where(i => i.ItemId == rewardId).Sum(i => i.Count);
         replies.AddRange(await Stored(() => QuestChangesAsync(questLog.Holding(rewardId, held, level), ct)));
         return new(true, monolithId, tokenId, tokenCount, rewardId, prev, next, replies);

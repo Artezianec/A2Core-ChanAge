@@ -143,7 +143,10 @@ public sealed partial class GameSession
             if (set.Count > 0) storedItems[WireKey(made1)] = made1 with { RolledStats = rolled, Revision = made1.Revision + 1 };
         }
         Note($"arcana: created {row.Item} (creation {createId}, {mains.Count} main / {subs.Count} sub picks, {material} material, {kina} Kina)");
-        return [Reply(0, uid, card with { MainStats = stats }, end), .. changes, PacketWriter.Opcode(ArcanaCreateCoolTimeNt).I64(end).ToArray()];
+        var materialGroup = Arcana.MaterialGroup(row.Material);
+        var arcanaKeys = new[] { card.Category, card.EnchantGroup, materialGroup ?? "" }.Where(s => !string.IsNullOrEmpty(s)).Distinct().ToArray();
+        return [Reply(0, uid, card with { MainStats = stats }, end), .. changes, .. Emit(new AchievementEvent("ArcanaCreate", Keys: arcanaKeys.Length > 0 ? arcanaKeys : null)),
+            PacketWriter.Opcode(ArcanaCreateCoolTimeNt).I64(end).ToArray()];
     }
 
     /// <summary>The created card's main stats: the picked stats at the card's own main stat value (none picked: the card's own).</summary>

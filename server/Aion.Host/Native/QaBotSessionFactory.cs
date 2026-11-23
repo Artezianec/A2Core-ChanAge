@@ -13,7 +13,9 @@ public sealed class QaBotSessionFactory(
     IGameplayStore game,
     CharacterPersistenceService persistence,
     IQunaWallet? quna,
-    Func<Guid, CancellationToken, Task<string?>>? staffRole)
+    Func<Guid, CancellationToken, Task<string?>>? staffRole,
+    TerrainStore? terrain = null,
+    NavMeshStore? nav = null)
 {
     public QaBotSpawnBinding Bind(QaBotSpawnContext context) =>
         Bind(context.Slot, context.AccountId, context.Turn, context.CharacterLevel);
@@ -29,6 +31,8 @@ public sealed class QaBotSessionFactory(
             WorldId = worldId,
             CharacterLevel = characterLevel,
             StaffRole = staffRole,
+            Terrain = terrain,
+            Nav = nav,
         };
         return new(store, options, inner);
     }

@@ -1,0 +1,1135 @@
+{
+  "note": "Conditional passive procs from client SkillAbnormalEffect trigger rows (tools/client_skill_sync.py).",
+  "triggers": {
+    "11170037": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "111700381"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 111700371 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "111700381"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 111700371 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "11300037": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "113000381"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 113000371 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "113000381"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 113000371 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "11380007": [
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "-1",
+            "-1",
+            "113800081"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 113800071 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "-1",
+            "-1",
+            "113800481"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 113800071 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      }
+    ],
+    "11780000": [
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "20000",
+            "20000",
+            "117800071"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 117800001 TriggerSkillBySelfWeaponBlock (client export 2026-11-22)"
+      }
+    ],
+    "11790000": [
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "117900071"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 117900001 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      },
+      {
+        "on": "OnDamaged",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "117900081"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 117900001 TriggerSkillByGetDamage (client export 2026-11-22)"
+      }
+    ],
+    "11800000": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "118000071"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 118000001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "118000071"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 118000001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "12300037": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "123000001"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 123000371 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "123000001"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 123000371 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "12730000": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "127300021"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 127300001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "127300021"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 127300001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "12770000": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "127700071"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 127700001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "127700071"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 127700001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "12780000": [
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "20000",
+            "20000",
+            "127800011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 127800001 TriggerSkillBySelfWeaponBlock (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "20000",
+            "20000",
+            "127800011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 127800001 TriggerSkillBySelfShieldBlock (client export 2026-11-22)"
+      }
+    ],
+    "12790000": [
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "127900011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 127900001 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      },
+      {
+        "on": "OnDamaged",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "127900021"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 127900001 TriggerSkillByGetDamage (client export 2026-11-22)"
+      }
+    ],
+    "12800000": [
+      {
+        "on": "OnDamaged",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "128000012"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 128000001 TriggerSkillByGetDamage (client export 2026-11-22)"
+      }
+    ],
+    "13220037": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "132200381"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 132200371 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "132200381"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 132200371 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "13350007": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "133500081"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 133500071 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "133500081"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 133500071 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "13720000": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "130000011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "137200101"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "137200101"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137200001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "13780000": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "137800071"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137800001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "137800071"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137800001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "13790000": [
+      {
+        "on": "OnDamaged",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "137900081"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 137900001 TriggerSkillByGetDamage (client export 2026-11-22)"
+      }
+    ],
+    "14050007": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "140500081"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 140500071 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "140500081"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 140500071 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "14730000": [
+      {
+        "on": "OnDamaged",
+        "effects": [
+          [
+            "Abnormal_True",
+            "1000",
+            "1000",
+            "147300071"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 147300001 TriggerSkillByGetDamage (client export 2026-11-22)"
+      }
+    ],
+    "14780000": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "100",
+            "100",
+            "100000421"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 147800001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "100",
+            "100",
+            "100000421"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 147800001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "14790000": [
+      {
+        "on": "OnDamaged",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "147900081"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 147900001 TriggerSkillByGetDamage (client export 2026-11-22)"
+      }
+    ],
+    "15220037": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "152200381"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 152200371 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "152200381"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 152200371 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "15410057": [
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "-1",
+            "-1",
+            "154100581"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 154100571 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "-1",
+            "-1",
+            "154100681"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 154100571 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      }
+    ],
+    "15710000": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "157100071"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 157100001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "157100071"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 157100001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "15790000": [
+      {
+        "on": "OnDamaged",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "157900081"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 157900001 TriggerSkillByGetDamage (client export 2026-11-22)"
+      }
+    ],
+    "16300001": [
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "163000002"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 163000001 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      }
+    ],
+    "16780000": [
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "167800011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 167800001 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "167800011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 167800001 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "167800011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 167800001 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "167800011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 167800001 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "10000",
+            "10000",
+            "167800011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 167800001 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      }
+    ],
+    "16790000": [
+      {
+        "on": "OnDamaged",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "167900021"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 167900001 TriggerSkillByGetDamage (client export 2026-11-22)"
+      }
+    ],
+    "17270147": [
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "-1",
+            "-1",
+            "172702471"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 172701471 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "-1",
+            "-1",
+            "172702481"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 172701471 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      }
+    ],
+    "17760000": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "177600011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 177600001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "177600011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 177600001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "17790000": [
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "177900011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 177900001 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      },
+      {
+        "on": "OnDamaged",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "177900021"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 177900001 TriggerSkillByGetDamage (client export 2026-11-22)"
+      }
+    ],
+    "18080037": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "180800381"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 180800371 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "180800381"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 180800371 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "18730000": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "187300011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 187300001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "187300011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 187300001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "18780000": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "187800011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 187800001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "187800011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 187800001 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "18790000": [
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "187900011"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 187900001 TriggerSkillByGetAbnormal (client export 2026-11-22)"
+      },
+      {
+        "on": "OnDamaged",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "187900021"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 187900001 TriggerSkillByGetDamage (client export 2026-11-22)"
+      }
+    ],
+    "19000001": [
+      {
+        "on": "OnCrit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "190000003"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 190000002 TriggerSkillByAttackAll (client export 2026-11-22)"
+      },
+      {
+        "on": "OnHit",
+        "effects": [
+          [
+            "Abnormal_True",
+            "3000",
+            "3000",
+            "190000003"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 190000002 TriggerSkillByAttackAll (client export 2026-11-22)"
+      }
+    ],
+    "19790000": [
+      {
+        "on": "OnDamaged",
+        "effects": [
+          [
+            "Abnormal_True",
+            "5000",
+            "5000",
+            "197900002"
+          ]
+        ],
+        "evidence": "SkillAbnormalEffect 197900001 TriggerSkillByGetDamage (client export 2026-11-22)"
+      }
+    ]
+  }
+}

@@ -51,6 +51,20 @@ Check(relay.Send(aliceToken, common, Message("after leave")).Deliveries.Count ==
 var notification = deliveries[0].Notification;
 var envelope = JsonNode.Parse(LimeWire.NotificationEnvelope(notification))!;
 Check((string?)envelope["type"] == "NOTI" && (string?)envelope["method"] == "GAME", "NOTI envelope with method GAME");
+Check((string?)envelope["jsonData"]?["dateCreated"] == notification.DateCreated && long.TryParse(notification.DateCreated, out var created)
+    && created > 1_700_000_000_000 && created <= clock.GetUtcNow().ToUnixTimeMilliseconds(), "dateCreated is epoch milliseconds as a string");
+Check((string?)envelope["jsonData"]?["roomId"] == LimeWire.RoomId(common).ToString() && LimeWire.RoomId(common) != LimeWire.RoomId(shout), "roomId is the numeric id of the room key");
+Check((string?)envelope["jsonData"]?["alias"] == notification.UserName && (string?)envelope["jsonData"]?["role"] == "JOINER"
+    && (string?)envelope["jsonData"]?["gameCode"] == "aion2" && (string?)envelope["jsonData"]?["locale"] == "en-US", "alias, role, game code and locale as the official service sends them");
+Check(LimeWire.Token("Bearer abc") == "abc" && LimeWire.Token("bearer  abc ") == "abc" && LimeWire.Token("abc") == "abc" && LimeWire.Token(null) == "", "optional Bearer prefix is stripped");
+var relogToken = relay.Login(alice);
+Check(relay.Find(aliceToken) is null && relay.Find(relogToken) == alice, "a relog replaces the character's earlier session");
+relay.Logout(relogToken);
+relay.Logout("mtalk-unknown");
+Check(relay.Find(relogToken) is null, "logout ends the session");
+aliceToken = relay.Login(alice);
+relay.Join(aliceToken, common);
+relay.Join(aliceToken, shout);
 Check((string?)envelope["jsonData"]?["content"] == "test 123", "envelope carries the notification");
 Check((string?)envelope["jsonData"]?["gameRoomKeyInfo"]?["roomKey"] == "RG", "room key serialized camelCase");
 var login = LimeWire.LoginReply(aliceToken, alice, "ws://127.0.0.1:8091/stomp");

@@ -59,6 +59,9 @@ public sealed class TerrainStore(string? directory)
 
     public string? Directory => directory;
 
+    public string? ExpectedPath(int mapId) => directory is null ? null
+        : Path.Combine(directory, mapId.ToString(System.Globalization.CultureInfo.InvariantCulture), "terrain.bin");
+
     /// <summary>
     /// The map's grid, loaded once on a worker thread (a world map's grid is large; loading it on a
     /// game loop stalled the client for seconds). Null when there is none.
@@ -81,8 +84,11 @@ public sealed class TerrainStore(string? directory)
         if (!string.IsNullOrWhiteSpace(configured)) return Path.GetFullPath(configured);
         for (var dir = new DirectoryInfo(start); dir is not null; dir = dir.Parent)
         {
-            var candidate = Path.Combine(dir.FullName, "research", "local", "terrain");
-            if (System.IO.Directory.Exists(candidate)) return candidate;
+            foreach (var rel in new[] { Path.Combine("data", "terrain"), Path.Combine("research", "local", "terrain") })
+            {
+                var candidate = Path.Combine(dir.FullName, rel);
+                if (System.IO.Directory.Exists(candidate)) return candidate;
+            }
         }
         return null;
     }

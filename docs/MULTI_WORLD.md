@@ -5,7 +5,8 @@ world sessions are already scoped by that id. Ported from [KiskEmu](https://gith
 
 **Off by default.** With the default configuration a single host behaves exactly as before:
 
-- the login port shows the built-in two rows (Light 1361, Dark 2361);
+- the login port shows the built-in two rows (Light 1361, Dark 2361), named after the `primary` world on the Worlds page
+  (renaming it there changes the name the client shows within a few seconds; the ids stay);
 - every pick redirects to this host's game port;
 - the game keeps the wire server id 1204.
 

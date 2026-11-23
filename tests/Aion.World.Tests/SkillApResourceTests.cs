@@ -16,9 +16,9 @@ public sealed class SkillApResourceTests
     }
 
     [Fact]
-    public void Ap_max_zero_skips_ap_ratio_thresholds()
+    public void Ap_max_zero_skips_ap_use_condition_thresholds()
     {
-        var req = new SkillResourceCondition("APRatio_More", 1);
-        Assert.False(SkillResourceThreshold.Met(req, 1, 1, 1, 1, 0, 0));
+        Assert.True(SkillResourceThreshold.Met(new SkillResourceCondition("APRatio_More", 1), 1, 1, 1, 1, 0, 0));
+        Assert.True(SkillResourceThreshold.Met(new SkillResourceCondition("AP_More", 99_999), 1, 1, 1, 1, 0, 0));
     }
 }

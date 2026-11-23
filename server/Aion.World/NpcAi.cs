@@ -46,6 +46,9 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
     /// <summary>The current map's navigation mesh, if extracted: paths and floor heights.</summary>
     public NavMesh? Nav { get; set; }
 
+    /// <summary><see cref="GameData.GeometryMap"/> id last loaded into <see cref="Terrain"/> / <see cref="Nav"/> on this AI.</summary>
+    public int? GeometryMapId { get; set; }
+
     /// <summary>NPC keys in an open player dialog (0xe240..0xe242): no patrol, follow, or scripted moves until it closes.</summary>
     public HashSet<int> DialogPaused { get; } = [];
 
@@ -509,13 +512,13 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         brain.Volley.Clear();
         brain.Cooldowns.Clear();
         var adds = EndFight(brain);   // a killed boss's adds go with it
-        if (!brain.Engaged) return adds;
+        if (!brain.Engaged) return adds.Concat(BehaviorOnDie(target, 0)).ToList();
         brain.Engaged = false;
-        return [GamePackets.CombatState(target.Key, false), .. adds];
+        return [.. BehaviorOnDie(target, 0), GamePackets.CombatState(target.Key, false), .. adds];
     }
 
     /// <param name="noticed">The NPC found its victim itself (detection, a map event's SetAggro); false when a hit started the fight.</param>
-    static List<byte[]> StartChase(Target target, Brain brain, long now, bool noticed = true)
+    List<byte[]> StartChase(Target target, Brain brain, long now, bool noticed = true)
     {
         var replies = new List<byte[]>();
         brain.VictimKey = brain.CandidateKey != 0 ? brain.CandidateKey : PlayerKey;
@@ -532,6 +535,7 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
             }
             replies.AddRange(Stop(target, brain, brain.Heading, now));
             replies.Add(GamePackets.CombatState(target.Key, true));
+            replies.AddRange(BehaviorOnCombatStart(target, now));
         }
         brain.Mode = Mode.Chase;
         brain.Moving = false;  // the next tick starts a run (0x371b) towards the player
@@ -780,7 +784,8 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         }
         // The victim's defense reduces the hit (the CANDIDATE 1000/(1000+defense) used for players' hits).
         var defense = brain.VictimIsNpc && current?.GetValueOrDefault(victim) is { } prey ? prey.Defense : DefenseOf?.Invoke(victim) ?? 0;
-        var damage = Math.Max(1, (int)Math.Round(Damage(target, hit.Skill, VictimLevel(brain)) * 1000.0 / (1000 + Math.Max(0, defense))));
+        var damage = RatioDamage(hit.SkillId, victim, brain.VictimIsNpc)
+            ?? Math.Max(1, (int)Math.Round(Damage(target, hit.Skill, VictimLevel(brain)) * 1000.0 / (1000 + Math.Max(0, defense))));
         LastAttacker = target.Key;
         LastHitSkill = hit.SkillId;
         LastHitSeq = 1;
@@ -819,7 +824,10 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
             brain.Volley.Clear();
             var broken = BreakSlam(target, brain, now);   // a hold or stun breaks a slam's wind-up (an interrupt does not)
             if (broken.Count > 0) replies.AddRange(broken);
-            return brain.Moving ? Stop(target, brain, brain.Heading, now) : replies;
+            // The encounter's zones, timers and stagger windows keep running while the boss is held.
+            if (BossRules.Phases && brain.Fight is { Encounter: { } run } fight) replies.AddRange(EncounterWorldTick(target, brain, fight, run, now));
+            if (brain.Moving) replies.AddRange(Stop(target, brain, brain.Heading, now));
+            return replies;
         }
         if (DialogPaused.Contains(target.Key))
         {

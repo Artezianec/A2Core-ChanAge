@@ -14,17 +14,27 @@ namespace Aion.Host.Platform;
 public sealed class ShopQunaBalanceService(
     WorldPresence presence,
     IPlatformSecondaryAuth? platformAuth,
-    IQunaWallet? wallet)
+    IQunaWallet? wallet,
+    IMileageWallet? mileageWallet = null)
 {
-    public async Task<long> BalanceAsync(IPAddress? clientAddress, string? platformSessionToken, string? wireAccountId, CancellationToken ct)
+    public async Task<long> BalanceAsync(IPAddress? clientAddress, string? platformSessionToken, string? wireAccountId, CancellationToken ct) =>
+        await CurrencyBalanceAsync(clientAddress, platformSessionToken, wireAccountId, wallet, accountId => OnlineSessionQuna(accountId), ct);
+
+    public Task<long> MileageBalanceAsync(IPAddress? clientAddress, string? platformSessionToken, string? wireAccountId, CancellationToken ct) =>
+        CurrencyBalanceAsync(clientAddress, platformSessionToken, wireAccountId, mileageWallet, _ => 0L, ct);
+
+    async Task<long> CurrencyBalanceAsync(IPAddress? clientAddress, string? platformSessionToken, string? wireAccountId,
+        object? currencyWallet, Func<Guid, long> fallback, CancellationToken ct)
     {
         if (await ResolveAccountIdAsync(clientAddress, platformSessionToken, wireAccountId, ct) is not { } accountId)
             return 0;
         if (platformAuth is not null)
             await platformAuth.RememberClientAsync(clientAddress, accountId, ct);
-        if (wallet is not null)
-            return (await wallet.BalanceAsync(accountId, ct)).Balance;
-        return OnlineSessionQuna(accountId);
+        if (currencyWallet is IQunaWallet quna)
+            return (await quna.BalanceAsync(accountId, ct)).Balance;
+        if (currencyWallet is IMileageWallet mileage)
+            return (await mileage.BalanceAsync(accountId, ct)).Balance;
+        return fallback(accountId);
     }
 
     long OnlineSessionQuna(Guid accountId)

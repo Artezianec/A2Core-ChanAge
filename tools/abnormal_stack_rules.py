@@ -94,14 +94,40 @@ def wanted_abnormals():
     return wanted
 
 
+def from_client_export():
+    try:
+        from client_export import load_rows
+    except ImportError:
+        return {}
+    rules = {}
+    for row in load_rows('SkillAbnormal'):
+        aid = int(_value(row['ID']))
+        ot = _short(row.get('AbnormalOverlapTimeType', DEFAULT_OVERLAP_TIME))
+        rp = _short(row.get('AbnormalReplaceType', DEFAULT_REPLACE))
+        if ot in ('None', 'Max'):
+            ot = DEFAULT_OVERLAP_TIME
+        if rp in ('None', 'Max'):
+            rp = DEFAULT_REPLACE
+        rules[str(aid)] = {
+            'group': int(row.get('GroupId') or aid),
+            'overlap_count': int(row.get('AbnormalOverlapCount') or DEFAULT_OVERLAP_COUNT),
+            'overlap_time': ot,
+            'replace': rp,
+            'source': 'SkillAbnormal',
+        }
+    return rules
+
+
 def build():
     table = _abnormal_table()
     wanted = wanted_abnormals()
     rules = from_boxes(wanted) if table is None else {}
     if table is not None:
         rules = {**from_boxes(wanted), **from_tables(table)}
+    else:
+        rules = {**rules, **from_client_export()}
     return {
-        'source': str(table.relative_to(ROOT)) if table else 'boxes.json defaults (AbnormalTable.dat not present)',
+        'source': str(table.relative_to(ROOT)) if table else 'research/client-export/SkillAbnormal.json.gz (+ boxes defaults)',
         'abnormals': {k: rules[k] for k in sorted(rules, key=int)},
     }
 

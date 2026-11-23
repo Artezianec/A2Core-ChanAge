@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "boss-mechanics.schema.json",
+  "title": "Boss encounter (docs/BOSS-MECHANICS-ENGINE.md)",
+  "description": "One boss family's fight as rules (trigger -> primitive actions). Loaded by server/Aion.World/BossEngine, checked by tools/boss_mechanics_validate.py. Every action is one flat object with a 'type'; only the fields that type documents are read.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "npcs"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": { "type": "string", "description": "Unique encounter id (logs, PlaytestDebug 'boss_mechanic')." },
+    "display": { "type": "string" },
+    "display_ru": { "type": "string" },
+    "dungeon": { "type": "string", "description": "Dungeon family name, without the mode suffix. The boss-phases.json script's dungeon wins when present." },
+    "source": { "type": "string", "description": "Where the numbers come from (client data, official overlay, CANDIDATE guesses)." },
+    "note": { "type": "string" },
+    "npcs": {
+      "type": "object",
+      "description": "NpcData ids per difficulty.",
+      "propertyNames": { "$ref": "#/$defs/difficulty_name" },
+      "additionalProperties": { "type": "array", "items": { "type": "integer" }, "minItems": 1 }
+    },
+    "arena": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "centre": { "$ref": "#/$defs/anchor", "description": "'home' (default: the boss's spawn), 'boss' (where the fight starts) or a point." },
+        "radius": { "$ref": "#/$defs/num" }
+      }
+    },
+    "vars": { "$ref": "#/$defs/vars" },
+    "start_phase": { "type": "string" },
+    "opening_ms": { "$ref": "#/$defs/num", "description": "First rotation cast this long after the pull (default: half the first cast's every_ms)." },
+    "rotation": { "type": "array", "items": { "$ref": "#/$defs/action" }, "description": "Filler casts in order (type 'cast' only)." },
+    "rules": { "type": "array", "items": { "$ref": "#/$defs/rule" } },
+    "difficulty": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/difficulty_name" },
+      "additionalProperties": { "$ref": "#/$defs/difficulty" }
+    }
+  },
+  "$defs": {
+    "difficulty_name": {
+      "description": "Easy = Exploration, Normal = Conquest, Hard = Conquest Hard.",
+      "enum": ["Easy", "Normal", "Hard", "easy", "normal", "hard", "Exploration", "exploration", "Conquest", "conquest", "conquest_normal", "conquest_hard", "advanced"]
+    },
+    "difficulty_list": {
+      "oneOf": [
+        { "$ref": "#/$defs/difficulty_name" },
+        { "type": "array", "items": { "$ref": "#/$defs/difficulty_name" } }
+      ]
+    },
+    "vars": { "type": "object", "additionalProperties": { "type": "number" } },
+    "num": {
+      "description": "A number, or \"$name\" for one of the encounter's (difficulty-merged) vars.",
+      "oneOf": [{ "type": "number" }, { "type": "string", "pattern": "^\\$[A-Za-z_][A-Za-z0-9_]*$" }]
+    },
+    "range": { "type": "array", "items": { "$ref": "#/$defs/num" }, "minItems": 2, "maxItems": 2 },
+    "string_list": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
+    "anchor_keyword": {
+      "enum": ["boss", "victim", "each_player", "random_player", "farthest_player", "nearest_player", "arena_centre", "home", "cast_centre", "event", "mark", "group", "point"]
+    },
+    "anchor": {
+      "description": "Keyword (boss, victim, each_player, random_player, farthest_player, nearest_player, arena_centre, home, cast_centre, event, mark:<name>, group:<name>) or a world point.",
+      "oneOf": [
+        { "type": "string", "pattern": "^(boss|victim|each_player|random_player|farthest_player|nearest_player|arena_centre|home|cast_centre|event|mark:[^:]+|group:[^:]+)$" },
+        {
+          "type": "object", "additionalProperties": false, "required": ["x", "y"],
+          "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" } }
+        }
+      ]
+    },
+    "shape_name": { "enum": ["circle", "donut", "cone", "rect", "line", "grid", "safe_zone", "skill_area"] },
+    "shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shape": { "$ref": "#/$defs/shape_name" },
+        "radius": { "$ref": "#/$defs/num" },
+        "inner": { "$ref": "#/$defs/num" },
+        "angle": { "$ref": "#/$defs/num" },
+        "length": { "$ref": "#/$defs/num" },
+        "width": { "$ref": "#/$defs/num" },
+        "invert": { "type": "boolean" }
+      }
+    },
+    "damage": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "skill: Skill.dat damage of that skill (NPC formula). factor: [min,max] in 1/10000 of the NPC fixing damage. fixed: flat [min,max] (no defense). lethal: kills.",
+      "properties": {
+        "skill": { "type": "integer" },
+        "factor": { "$ref": "#/$defs/range" },
+        "fixed": { "$ref": "#/$defs/range" },
+        "scale": { "$ref": "#/$defs/num" },
+        "lethal": { "type": "boolean" },
+        "ignore_defense": { "type": "boolean" }
+      }
+    },
+    "grid": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "arena_half_extent": { "$ref": "#/$defs/num" },
+        "cell_size": { "$ref": "#/$defs/num" },
+        "wall_half_thickness": { "$ref": "#/$defs/num" },
+        "rows": { "type": "integer" },
+        "cols": { "type": "integer" },
+        "step_interval_ms": { "$ref": "#/$defs/num" },
+        "gap_patterns": { "type": "array", "items": { "type": "array", "items": { "type": "integer" } } },
+        "pattern_offset": { "type": "integer" }
+      }
+    },
+    "part": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string" },
+        "hp": { "$ref": "#/$defs/num" },
+        "client_part_id": { "type": "integer" },
+        "on_break": { "$ref": "#/$defs/actions" }
+      }
+    },
+    "trigger_type": {
+      "enum": ["fight_start", "hp_below", "hp_every", "timer", "enrage_timer", "phase_enter", "phase_exit", "adds_dead", "add_died",
+        "players_in_area", "shield_broken", "stacks_reached", "npc_killed", "counter_reached", "stagger_broken", "part_broken", "event"]
+    },
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "$ref": "#/$defs/trigger_type" },
+        "pct": { "$ref": "#/$defs/num" },
+        "step": { "$ref": "#/$defs/num" },
+        "after_ms": { "$ref": "#/$defs/num" },
+        "every_ms": { "$ref": "#/$defs/num" },
+        "from": { "enum": ["fight", "phase"] },
+        "count": { "type": "integer" },
+        "phase": { "type": "string" },
+        "group": { "type": "string" },
+        "shield": { "type": "string" },
+        "debuff": { "type": "string" },
+        "stacks": { "type": "integer" },
+        "npc": { "type": "integer" },
+        "counter": { "type": "string" },
+        "value": { "$ref": "#/$defs/num" },
+        "part": { "type": "string" },
+        "event": { "type": "string" },
+        "at": { "$ref": "#/$defs/anchor" },
+        "area": { "$ref": "#/$defs/shape" },
+        "min": { "type": "integer" },
+        "max": { "type": "integer" },
+        "hold_ms": { "$ref": "#/$defs/num" },
+        "note": { "type": "string" }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "when"],
+      "properties": {
+        "id": { "type": "string" },
+        "when": { "$ref": "#/$defs/trigger" },
+        "phase": { "$ref": "#/$defs/string_list" },
+        "difficulty": { "$ref": "#/$defs/difficulty_list" },
+        "once": { "type": "boolean" },
+        "max_fires": { "type": "integer" },
+        "chance": { "$ref": "#/$defs/num" },
+        "do": { "$ref": "#/$defs/actions" },
+        "note": { "type": "string" }
+      }
+    },
+    "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } },
+    "action_type": {
+      "enum": ["cast", "telegraph", "zone", "soak", "stack", "spread", "cover", "displace", "summon", "despawn_group", "shield",
+        "stagger_check", "parts", "debuff", "cleanse", "tank_swap", "orb", "move", "enrage", "wipe", "phase", "notice", "caption",
+        "env", "decal", "modify", "set_rotation", "counter", "delay", "repeat", "random", "mark", "emit"]
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "$ref": "#/$defs/action_type" },
+        "id": { "type": "string" },
+        "note": { "type": "string" },
+        "skill": { "type": "integer" },
+        "wind_up_ms": { "$ref": "#/$defs/num" },
+        "every_ms": { "$ref": "#/$defs/num" },
+        "radius": { "$ref": "#/$defs/num" },
+        "damage": { "$ref": "#/$defs/damage" },
+        "warning": { "type": "string" },
+        "warning_ru": { "type": "string" },
+        "land": { "type": "boolean" },
+        "stagger_check": { "type": "boolean" },
+        "once": { "type": "boolean" },
+        "cover": { "type": "boolean" },
+        "during": { "$ref": "#/$defs/actions" },
+        "on_land": { "$ref": "#/$defs/actions" },
+        "on_break": { "$ref": "#/$defs/actions" },
+        "shape": { "$ref": "#/$defs/shape_name" },
+        "inner": { "$ref": "#/$defs/num" },
+        "angle": { "$ref": "#/$defs/num" },
+        "length": { "$ref": "#/$defs/num" },
+        "width": { "$ref": "#/$defs/num" },
+        "invert": { "type": "boolean" },
+        "steps": { "type": "array", "items": { "$ref": "#/$defs/shape" } },
+        "grid": { "$ref": "#/$defs/grid" },
+        "at": { "$ref": "#/$defs/anchor" },
+        "toward": { "$ref": "#/$defs/anchor" },
+        "distance": { "$ref": "#/$defs/num" },
+        "offsets": { "type": "array", "items": { "$ref": "#/$defs/range" } },
+        "offset_space": { "enum": ["world", "facing"] },
+        "delay_ms": { "$ref": "#/$defs/num" },
+        "decal": { "type": "boolean" },
+        "duration_ms": { "$ref": "#/$defs/num" },
+        "ends": { "enum": ["cast_land"] },
+        "linger_ms": { "$ref": "#/$defs/num" },
+        "tick_ms": { "$ref": "#/$defs/num" },
+        "first_tick_ms": { "$ref": "#/$defs/num" },
+        "blocks_movement": { "type": "boolean" },
+        "count": { "type": "integer" },
+        "interval_ms": { "$ref": "#/$defs/num" },
+        "min_players": { "type": "integer" },
+        "split": { "type": "boolean" },
+        "overlap_scale": { "$ref": "#/$defs/num" },
+        "on_hit": { "$ref": "#/$defs/actions" },
+        "on_success": { "$ref": "#/$defs/actions" },
+        "on_fail": { "$ref": "#/$defs/actions" },
+        "mode": { "enum": ["knockback", "pull", "to_radius", "to_point", "phase", "mul", "set"] },
+        "npc": { "type": "integer" },
+        "group": { "type": "string" },
+        "wave": { "type": "string" },
+        "invuln": { "type": "boolean" },
+        "hp": { "$ref": "#/$defs/num" },
+        "hp_pct": { "$ref": "#/$defs/num" },
+        "until": { "type": "string", "pattern": "^(stagger|adds_dead:.+)$" },
+        "on_expire": { "$ref": "#/$defs/actions" },
+        "window_ms": { "$ref": "#/$defs/num" },
+        "parts": { "type": "array", "items": { "$ref": "#/$defs/part" } },
+        "from_client": { "type": "boolean" },
+        "debuff": { "type": "string" },
+        "stacks": { "type": "integer" },
+        "max": { "type": "integer" },
+        "abnormal": { "type": "integer" },
+        "on_max": { "$ref": "#/$defs/actions" },
+        "env_obj": { "type": "integer" },
+        "required": { "type": "integer" },
+        "count_mode": { "enum": ["consume", "per_player", "per_tick"] },
+        "on_complete": { "$ref": "#/$defs/actions" },
+        "on_touch": { "$ref": "#/$defs/actions" },
+        "op": { "enum": ["spawn", "despawn"] },
+        "slot": { "type": "integer" },
+        "to": { "$ref": "#/$defs/anchor" },
+        "damage_mul": { "$ref": "#/$defs/num" },
+        "haste_mul": { "$ref": "#/$defs/num" },
+        "hard": { "type": "boolean" },
+        "text": { "type": "string" },
+        "text_ru": { "type": "string" },
+        "size": { "type": "integer" },
+        "color": { "type": "string", "pattern": "^[0-9A-Fa-f]{6}$" },
+        "talk": { "type": "string" },
+        "phase": { "type": "string" },
+        "name": { "type": "string" },
+        "target": { "$ref": "#/$defs/anchor" },
+        "counter": { "type": "string" },
+        "add": { "$ref": "#/$defs/num" },
+        "set": { "$ref": "#/$defs/num" },
+        "ms": { "$ref": "#/$defs/num" },
+        "do": { "$ref": "#/$defs/actions" },
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "properties": { "weight": { "$ref": "#/$defs/num" }, "do": { "$ref": "#/$defs/actions" } }
+          }
+        },
+        "event": { "type": "string" },
+        "rotation": { "$ref": "#/$defs/actions" }
+      }
+    },
+    "difficulty": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "vars": { "$ref": "#/$defs/vars" },
+        "damage_scale": { "type": "number" },
+        "time_scale": { "type": "number" },
+        "skill_remap": { "type": "object", "propertyNames": { "pattern": "^[0-9]+$" }, "additionalProperties": { "type": "integer" } },
+        "rotation": { "$ref": "#/$defs/actions" },
+        "rules_add": { "type": "array", "items": { "$ref": "#/$defs/rule" } },
+        "rules_remove": { "$ref": "#/$defs/string_list" },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}

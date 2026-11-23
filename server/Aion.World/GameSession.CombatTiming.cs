@@ -25,6 +25,11 @@ partial class GameSession
         // A new cast no longer drops the rows still in flight from the previous one: the Templar's Pummel (rows at 600/1000/1400 ms)
         // lost its 2nd and 3rd hits to the next Vicious Strike swing (live 2026-10-30, Tunapre Lake Cave boss).
         if (data.Skill(skill) is not { Damage.Length: > 0 } definition) return replies;
+        if (holdChargeDamageRow is int chargeRow)
+        {
+            chargeRow = Math.Clamp(chargeRow, 0, definition.Damage.Length - 1);
+            definition = definition with { Damage = [definition.Damage[chargeRow]] };
+        }
         if (ScheduleEnvObjHits(skill, definition, request, now, actionUid)) return replies;
         bool? sealStone = null;
         bool SealStone() => sealStone ??= TryUseSealStone(skill);
@@ -289,12 +294,13 @@ partial class GameSession
                 : GamePackets.SkillHit(target.Key, playerKey, scheduled.SkillId, hit.EffectId, hit.Amount, hit.Critical, scheduled.ActionUid, scheduled.Seq, AttackSpeed),
             GamePackets.NpcHp(target.Key, target.Hp),
         };
+        if (hit.Amount > 0) replies.AddRange(AfterCombatHitDealt(scheduled.SkillId, target, hit.Amount, hit.Critical, now));
         replies.AddRange(GodstoneProcReplies(target, scheduled.SkillId, now));
         replies.AddRange(MapEventHp(target, now));
         if (target.Dead)
         {
             LogCombatHit(scheduled.SkillId, target.Key, hit.Amount, kill: true);
-            replies.AddRange(PlayerKilledNpc(target, scheduled.SkillId, playerKey, now));
+            replies.AddRange(PlayerKilledNpc(target, scheduled.SkillId, playerKey, now, hit.Critical));
         }
         else
         {
@@ -309,13 +315,14 @@ partial class GameSession
     }
 
     /// <summary>The player's kill (by its hit, or by its summon <paramref name="killerKey"/>): loot, experience, quests, map events.</summary>
-    List<byte[]> PlayerKilledNpc(Target target, int skillId, int killerKey, long now)
+    List<byte[]> PlayerKilledNpc(Target target, int skillId, int killerKey, long now, bool killingBlowCritical = false)
     {
         var replies = new List<byte[]>();
         respawnAt[target.Key] = now + KillRespawnMs(target, now);   // RespawnMs, or a field boss's hours (Aion:FieldBosses)
         target.KilledAtMs = now;
         killedNpcs.Add(target.NpcId);
-        replies.AddRange(AchieveKill(target.NpcId));
+        if (killerKey == playerKey) replies.AddRange(AfterPlayerKill(target, skillId, now));
+        replies.AddRange(AchieveKill(target, killingBlowCritical));
         replies.AddRange(BossChallengeKilled(target, now));
         InstanceKill(target, now);
         killedLevels.Add((target.Level, target.Grade, instanceKey != 0));

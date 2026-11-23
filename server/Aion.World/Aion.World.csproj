@@ -23,6 +23,7 @@
     <EmbeddedResource Include="../../tools/data/pc-traps.json" LogicalName="pc-traps.json" />
     <EmbeddedResource Include="../../tools/data/pc-zones.json" LogicalName="pc-zones.json" />
     <EmbeddedResource Include="../../tools/data/skill-areas.json" LogicalName="skill-areas.json" />
+    <EmbeddedResource Include="../../tools/data/passive-triggers.json" LogicalName="passive-triggers.json" />
     <EmbeddedResource Include="../../tools/data/skill-cast-ranges.json" LogicalName="skill-cast-ranges.json" />
     <EmbeddedResource Include="../../tools/data/items.json" LogicalName="items.json" />
     <EmbeddedResource Include="../../tools/data/wings.json" LogicalName="wings.json" />
@@ -46,6 +47,7 @@
     <EmbeddedResource Include="../../tools/data/rank.json" LogicalName="rank.json" />
     <EmbeddedResource Include="../../tools/data/shops.json" LogicalName="shops.json" />
     <EmbeddedResource Include="../../tools/data/platform_goods.json" LogicalName="platform_goods.json" />
+    <EmbeddedResource Include="../../tools/data/shop_package_tiers.json" LogicalName="shop_package_tiers.json" />
     <EmbeddedResource Include="../../tools/data/official_shop.served.json" LogicalName="official_shop.json" />
     <EmbeddedResource Include="../../tools/data/trade.json" LogicalName="trade.json" />
     <EmbeddedResource Include="../../tools/data/enchant.json" LogicalName="enchant.json" />
@@ -72,11 +74,15 @@
     <EmbeddedResource Include="../../tools/data/map-events.json" LogicalName="map-events.json" />
     <EmbeddedResource Include="../../tools/data/daily-dungeons.json" LogicalName="daily-dungeons.json" />
     <EmbeddedResource Include="../../tools/data/daily-waves.json" LogicalName="daily-waves.json" />
+    <EmbeddedResource Include="../../tools/data/client-waves.json" LogicalName="client-waves.json" />
+    <EmbeddedResource Include="../../tools/data/abyss-rift-phases.json" LogicalName="abyss-rift-phases.json" />
     <EmbeddedResource Include="../../tools/data/dungeon-buff-abnormals.json" LogicalName="dungeon-buff-abnormals.json" />
     <!-- Addiboii/A2Core build 26262663 abnormal rows our exports did not carry (monster skills, self-buffs, missing target rows). -->
     <EmbeddedResource Include="../../tools/data/ported-skill-abnormals.json" LogicalName="ported-skill-abnormals.json" />
     <!-- OURS (ported from ckrealm/A2Core): boss phases, slams and hand-made waves, tools/boss_phases.py. -->
     <EmbeddedResource Include="../../tools/data/boss-phases.json" LogicalName="boss-phases.json" />
+    <EmbeddedResource Include="../../tools/data/boss-mechanics/*.json" LogicalName="boss-mechanics/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../../tools/data/npc-behavior-cases.json" LogicalName="npc-behavior-cases.json" />
     <EmbeddedResource Include="../../tools/data/npc-talks.json" LogicalName="npc-talks.json" />
     <EmbeddedResource Include="../../tools/data/expedition.json" LogicalName="expedition.json" />
     <!-- Ported from zaraza87/A2Core (A2Core Dell): the Shugo festival schedule and games, tools/systems2_data.py, tools/festival_games.py. -->
@@ -95,6 +101,7 @@
     <EmbeddedResource Include="../../tools/data/player-ap-pools.json" LogicalName="player-ap-pools.json" />
     <EmbeddedResource Include="../../tools/data/skill-effect-conditions.json" LogicalName="skill-effect-conditions.json" />
     <EmbeddedResource Include="../../tools/data/abnormal-stack-rules.json" LogicalName="abnormal-stack-rules.json" />
+    <EmbeddedResource Include="../../tools/data/skill-effect-engine.json" LogicalName="skill-effect-engine.json" />
     <EmbeddedResource Include="../../tools/data/recovery-orbs.json" LogicalName="recovery-orbs.json" />
     <EmbeddedResource Include="../../tools/data/kromede-fire-walls.json" LogicalName="kromede-fire-walls.json" />
     <EmbeddedResource Include="../../tools/data/expedition-boss-mechanics.json" LogicalName="expedition-boss-mechanics.json" />

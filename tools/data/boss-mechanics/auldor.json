@@ -1,0 +1,184 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "urugugu_canyon_auldor",
+  "display": "Divine Auldor",
+  "display_ru": "Аулдор",
+  "dungeon": "Urugugu_Canyon",
+  "source": "official-overlay (boss-phases.json rotation and phases) + CANDIDATE mechanics from expedition-boss-mechanics.json",
+  "note": "Tempest Strike at 75% and 30%: the target is marked; the hit lands on the mark and is split among everyone within 500. Below 30% the outer arena (beyond 4000 of where Auldor stood) burns every second.",
+  "npcs": {
+    "Easy": [2310218],
+    "Normal": [2300218],
+    "Hard": [2320218]
+  },
+  "vars": {
+    "frenzy_ms": 300000,
+    "stack_radius": 500,
+    "outer_safe_radius": 4000,
+    "outer_dot_min": 6000,
+    "outer_dot_max": 9000
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1600970,
+      "every_ms": 40000,
+      "wind_up_ms": 1330,
+      "radius": 2500,
+      "warning": "Divine Auldor charges a lane: step off the strip!",
+      "warning_ru": "Аулдор несётся полосой: отойдите в сторону!"
+    },
+    {
+      "type": "cast",
+      "skill": 1600960,
+      "every_ms": 20000,
+      "wind_up_ms": 830,
+      "radius": 800,
+      "warning": "Divine Auldor slams down: walk out of the circle!",
+      "warning_ru": "Аулдор бьёт сверху: выйдите из круга!"
+    },
+    {
+      "type": "cast",
+      "skill": 1600930,
+      "every_ms": 16000,
+      "wind_up_ms": 1000,
+      "radius": 700,
+      "warning": "Divine Auldor sweeps the front: get behind him!",
+      "warning_ru": "Аулдор бьёт перед собой: зайдите за спину!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "tempest_soak_75",
+      "when": {
+        "type": "hp_below",
+        "pct": 75
+      },
+      "do": [
+        {
+          "type": "mark",
+          "name": "tempest",
+          "target": "victim"
+        },
+        {
+          "type": "cast",
+          "skill": 1601030,
+          "wind_up_ms": 9570,
+          "radius": 500,
+          "once": true,
+          "land": false,
+          "warning": "Tempest Strike — stack on the marked player!",
+          "warning_ru": "Удар бури — встаньте вместе на отмеченного игрока!",
+          "on_land": [
+            {
+              "type": "stack",
+              "id": "tempest_stack",
+              "at": "mark:tempest",
+              "radius": "$stack_radius",
+              "damage": {
+                "skill": 1601030,
+                "ignore_defense": true
+              },
+              "split": true,
+              "decal": false,
+              "note": "Skill.dat gives 1601030 no damage row, so the split hit is 1 (unchanged from the hand-coded fight)."
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "Tempest Strike — stack on the marked player to split the hit!",
+          "text_ru": "Удар бури — встаньте вместе на отмеченного игрока, чтобы разделить удар!"
+        }
+      ]
+    },
+    {
+      "id": "tempest_soak_30",
+      "when": {
+        "type": "hp_below",
+        "pct": 30
+      },
+      "do": [
+        {
+          "type": "mark",
+          "name": "tempest",
+          "target": "victim"
+        },
+        {
+          "type": "cast",
+          "skill": 1601030,
+          "wind_up_ms": 9570,
+          "radius": 500,
+          "once": true,
+          "land": false,
+          "warning": "Tempest Strike — stack on the marked player! Stay near the centre.",
+          "warning_ru": "Удар бури — встаньте вместе на отмеченного. Держитесь ближе к центру.",
+          "on_land": [
+            {
+              "type": "stack",
+              "id": "tempest_stack",
+              "at": "mark:tempest",
+              "radius": "$stack_radius",
+              "damage": {
+                "skill": 1601030,
+                "ignore_defense": true
+              },
+              "split": true,
+              "decal": false,
+              "note": "Skill.dat gives 1601030 no damage row, so the split hit is 1 (unchanged from the hand-coded fight)."
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "Tempest Strike — stack on the marked player! Below 30% the outer arena is dangerous.",
+          "text_ru": "Удар бури — встаньте вместе на отмеченного. Ниже 30% край арены опасен."
+        },
+        {
+          "type": "zone",
+          "id": "outer_arena",
+          "at": "boss",
+          "shape": "circle",
+          "radius": "$outer_safe_radius",
+          "invert": true,
+          "tick_ms": 1000,
+          "first_tick_ms": 0,
+          "decal": false,
+          "damage": {
+            "fixed": ["$outer_dot_min", "$outer_dot_max"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "frenzy",
+      "when": {
+        "type": "enrage_timer",
+        "after_ms": "$frenzy_ms"
+      },
+      "difficulty": ["Normal", "Hard"],
+      "do": [
+        {
+          "type": "enrage",
+          "damage_mul": 2.0,
+          "haste_mul": 0.5,
+          "text": "Divine Auldor goes into a frenzy!",
+          "text_ru": "Аулдор впадает в неистовство!"
+        }
+      ]
+    }
+  ],
+  "difficulty": {
+    "Easy": {
+      "note": "Exploration: no enrage timer; Tempest Strike is the Easy skill.",
+      "skill_remap": {
+        "1601030": 1601035
+      }
+    },
+    "Hard": {
+      "vars": {
+        "frenzy_ms": 240000
+      }
+    }
+  }
+}

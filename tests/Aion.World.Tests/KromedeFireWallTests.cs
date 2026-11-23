@@ -17,7 +17,12 @@ public sealed class KromedeFireWallTests
             Key = BossKey, NpcId = BossNpc, Name = "Fire_Temple_Single_Boss_1", Hp = 100_000, HpMax = 100_000, Level = 63,
             Position = Vector3d.Zero, WalkSpeed = 1, RunSpeed = 1, Radius = 150, SubType = "HeroMonster", Grade = 2,
         };
-        var ai = new NpcAi(new Random(3), GameData.Embedded) { Bosses = new BossPhases(new Dictionary<int, BossScript> { [BossNpc] = script }) };
+        // The hand-coded grid (KromedeFireWalls) only runs on the legacy path; BossEngineMigrationTests covers the engine's.
+        var ai = new NpcAi(new Random(3), GameData.Embedded)
+        {
+            Bosses = new BossPhases(new Dictionary<int, BossScript> { [BossNpc] = script }),
+            BossRules = BossOptions.Default with { Engine = false },
+        };
         return (ai, new Dictionary<int, Target> { [BossKey] = boss }, boss);
     }
 

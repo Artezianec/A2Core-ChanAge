@@ -15,7 +15,7 @@ namespace Aion.Host.Native;
 /// revalidates it (and its parent browser session), and disposing closes it.
 /// </summary>
 public sealed class ServiceNativeCharacterStore(string token, WorldIdentity identity, IWorldSessions sessions,
-    IWireCharacterRepository wire, IGameplayStore game, CharacterPersistenceService persistence, IQunaWallet? quna) : INativeCharacterStore, IGameplayFlushStore, IQuestBatchStore
+    IWireCharacterRepository wire, IGameplayStore game, CharacterPersistenceService persistence, IQunaWallet? quna, IMileageWallet? mileage = null) : INativeCharacterStore, IGameplayFlushStore, IQuestBatchStore
 {
     bool closed;
     (CharacterState State, int MapId, Vector3d Position)? pendingLocation;
@@ -159,6 +159,7 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
 
     /// <summary>The account Quna wallet (migration 111); its changes are pushed to the account's sessions.</summary>
     public IQunaWallet? QunaWallet => quna;
+    public IMileageWallet? MileageWallet => mileage;
 
     public async Task<QunaResult?> AbsorbQunaStackAsync(Guid character, Guid instance, CancellationToken ct)
     {
@@ -635,6 +636,12 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
         return await game.ShopPurchasesAsync(identity.Account, character, ct);
     }
 
+    public async Task<string> ResolveShopPurchaseRequestIdAsync(string fingerprint, long nowMs, CancellationToken ct)
+    {
+        await ValidateAsync(ct);
+        return await game.ResolveShopPurchaseRequestIdAsync(identity.Account, fingerprint, nowMs, ct);
+    }
+
     public async Task<bool> ShopBuyAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
         IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, CancellationToken ct)
     {
@@ -647,7 +654,21 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
         QunaRequest? qunaSpend = null)
     {
         await ValidateAsync(ct);
-        return await game.ShopBuyAsync(identity.Account, character, costs, goods, limits, orders, ct, qunaSpend);
+        return await game.ShopBuyAsync(identity.Account, character, costs, goods, limits, orders, ct, qunaSpend, null);
+    }
+
+    public async Task<bool> ShopBuyAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
+        IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, IReadOnlyList<ShopOrderLine> orders, CancellationToken ct,
+        QunaRequest? qunaSpend, ShopBuyContext? context)
+    {
+        await ValidateAsync(ct);
+        return await game.ShopBuyAsync(identity.Account, character, costs, goods, limits, orders, ct, qunaSpend, context);
+    }
+
+    public async Task<int?> CharacterWorldIdAsync(Guid characterId, CancellationToken ct)
+    {
+        await ValidateAsync(ct);
+        return await game.CharacterWorldIdAsync(characterId, ct);
     }
 
     public async Task<StoredMembership?> MembershipAsync(CancellationToken ct)

@@ -232,8 +232,11 @@ def _find(node, key):
     return None
 
 
-def _rows(path):
-    return _find(json.loads(path.read_text(encoding='utf-8')), 'Data')
+def _rows(source):
+    if isinstance(source, str) and source.startswith('client:'):
+        from client_export import load_rows
+        return load_rows(source.split(':', 1)[1])
+    return _find(json.loads(Path(source).read_text(encoding='utf-8')), 'Data')
 
 
 def _enum(value):

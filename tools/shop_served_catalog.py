@@ -12,7 +12,8 @@ Rules (private Quna-only server):
 - Add on-sale BMShopGoods rows the capture is missing, in the official v2.0 shape.
 - Off-sale client rows are omitted from the synthesized set.
 - Cash and Mileage prices become Quna (group 145). Kina (159) and Quna (145) stay.
-- Hide Quna top-up (Daily_RechargeQuna / grant of item 535300006) and currency group 261.
+- Visibility policy: tools/data/shop_catalog_config.json (Quna top-up hidden; currency group 261 allowed).
+- Sale windows: tools/data/shop_schedule.json from tools/shop_g4l_catalog.py.
 - platform_goods.json GameCash prices win when present (e.g. membership 25000).
 """
 from __future__ import annotations
@@ -29,8 +30,11 @@ from data_json import write_data_json
 
 OFFICIAL = ROOT / "tools/data/official_shop.json"
 BMSHOP = ROOT / "tools/data/bmshop_goods.json"
+BMSHOP_G4L = ROOT / "tools/data/bmshop_g4l_supplements.json"
 PLATFORM = ROOT / "tools/data/platform_goods.json"
 BOXES = ROOT / "tools/data/boxes.json"
+CONFIG = ROOT / "tools/data/shop_catalog_config.json"
+SCHEDULE = ROOT / "tools/data/shop_schedule.json"
 OUT = ROOT / "tools/data/official_shop.served.json"
 
 QUNA_ITEM_ID = 535300006
@@ -41,8 +45,9 @@ KINA_GROUP = "159"
 GROUP_261 = "261"
 MILEAGE_MULTIPLIER = 1
 FAR_FROM = "2025-01-01T05:00:00+09:00"
-FAR_TO = "2123-12-31T05:00:00+09:00"
-BLOCKED_CATEGORIES = {"Daily_RechargeQuna", "D_Daily_RechargeQuna"}
+FAR_TO = "2099-12-31T23:59:59+09:00"
+DEFAULT_BLOCKED_CATEGORIES = {"Daily_RechargeQuna", "D_Daily_RechargeQuna"}
+DEFAULT_BLOCKED_GROUPS = {GROUP_261}
 
 CURRENCY_TO_GROUP = {
     "Cash": CASH_GROUP,
@@ -54,6 +59,23 @@ CURRENCY_TO_GROUP = {
 
 def load(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def official_intentional_free_goods() -> set[int]:
+    """goods_id values captured with a zero basic price in official_shop.json."""
+    if not OFFICIAL.is_file():
+        return set()
+    free: set[int] = set()
+    for g in load(OFFICIAL).get("goods") or []:
+        gid = int_or_none(g.get("goods_id"))
+        if gid is None:
+            continue
+        pols = g.get("goods_basic_price_policies") or []
+        if not pols:
+            continue
+        if (dec_price(pols[0].get("goods_basic_price")) or 0) <= 0:
+            free.add(gid)
+    return free
 
 
 def int_or_none(v):
@@ -154,13 +176,85 @@ def platform_quna_prices(platform: dict) -> dict[int, int]:
     return prices
 
 
+def load_catalog_config() -> dict:
+    if not CONFIG.is_file():
+        return {}
+    return json.loads(CONFIG.read_text(encoding="utf-8"))
+
+
+def load_schedule() -> dict:
+    if not SCHEDULE.is_file():
+        return {}
+    return json.loads(SCHEDULE.read_text(encoding="utf-8"))
+
+
+def load_bmshop_merged() -> dict:
+    data = load(BMSHOP)
+    if BMSHOP_G4L.is_file():
+        sup = load(BMSHOP_G4L)
+        by_id = {int(g["goods_id"]): g for g in data.get("goods") or []}
+        for row in sup.get("goods") or []:
+            if (int(row.get("price") or 0)) <= 0 or not row.get("currency"):
+                continue
+            gid = int(row["goods_id"])
+            if gid in by_id:
+                merged = dict(by_id[gid])
+                merged.update(row)
+                merged["on_sale"] = True
+                by_id[gid] = merged
+            else:
+                by_id[gid] = dict(row)
+        data["goods"] = sorted(by_id.values(), key=lambda g: g["goods_id"])
+    return data
+
+
+def policy_from_config(config: dict) -> tuple[set[str], set[str], set[str], int | None]:
+    blocked_cats = set(config.get("blocked_categories") or DEFAULT_BLOCKED_CATEGORIES)
+    blocked_groups = set(config.get("blocked_currency_groups") if "blocked_currency_groups" in config else DEFAULT_BLOCKED_GROUPS)
+    allowed_groups = set(config.get("allowed_currency_groups") or [])
+    blocked_groups -= allowed_groups
+    allowed_hidden = set(config.get("allowed_hidden_categories") or [])
+    blocked_quna_item = config.get("blocked_quna_grant_item_id", QUNA_ITEM_ID)
+    if blocked_quna_item is not None:
+        blocked_quna_item = int(blocked_quna_item)
+    return blocked_cats, blocked_groups, allowed_hidden, blocked_quna_item
+
+
+def apply_goods_schedule(row: dict, goods_id: int, item_ids: list[int], schedule: dict, config: dict) -> None:
+    sched_cfg = schedule or {}
+    sched_cfg.update(config.get("schedule") or {})
+    by_goods = sched_cfg.get("by_goods_id") or {}
+    by_item = sched_cfg.get("by_item_id") or {}
+    entry = by_goods.get(str(goods_id))
+    if entry is None and item_ids:
+        entry = by_item.get(str(item_ids[0]))
+    fallback_from = sched_cfg.get("fallback_effective_from") or FAR_FROM
+    fallback_to = sched_cfg.get("fallback_effective_to") or FAR_TO
+    if entry:
+        row["effective_from"] = entry.get("effective_from") or fallback_from
+        eff_to = entry.get("effective_to") or fallback_to
+        if sched_cfg.get("default_always_visible", True) and str(eff_to).startswith("2123-"):
+            eff_to = fallback_to
+        row["effective_to"] = eff_to
+        return
+    # Drop the old capture-wide 2123 extension when no G4L window exists.
+    cur_to = str(row.get("effective_to") or "")
+    if cur_to.startswith("2123-"):
+        row["effective_from"] = fallback_from
+        row["effective_to"] = fallback_to
+    elif row.get("_source") == "client_table":
+        row.setdefault("effective_from", fallback_from)
+        row.setdefault("effective_to", fallback_to)
+
+
 def blocked(goods_id: int, item_ids: list[int], categories: set[str], group: str | None,
-            box_quna: set[int], uses: dict | None = None) -> bool:
-    if group == GROUP_261:
+            box_quna: set[int], uses: dict | None, blocked_cats: set[str], blocked_groups: set[str],
+            blocked_quna_item: int | None) -> bool:
+    if group in blocked_groups:
         return True
-    if categories & BLOCKED_CATEGORIES:
+    if categories & blocked_cats:
         return True
-    if QUNA_ITEM_ID in item_ids:
+    if blocked_quna_item and blocked_quna_item in item_ids:
         return True
     if any(i in box_quna for i in item_ids):
         return True
@@ -173,12 +267,18 @@ def blocked(goods_id: int, item_ids: list[int], categories: set[str], group: str
     return False
 
 
-def map_price(group: str | None, price: int | None, goods_id: int, platform_prices: dict[int, int]) -> tuple[str, int] | None:
+def map_price(
+    group: str | None,
+    price: int | None,
+    goods_id: int,
+    platform_prices: dict[int, int],
+    blocked_groups: set[str] | None = None,
+) -> tuple[str, int] | None:
     if goods_id in platform_prices:
         return QUNA_GROUP, platform_prices[goods_id]
     if group in (None, ""):
         return None
-    if group == GROUP_261:
+    if blocked_groups and group in blocked_groups:
         return None
     if price is None or price < 0:
         return None
@@ -191,12 +291,23 @@ def map_price(group: str | None, price: int | None, goods_id: int, platform_pric
     return None
 
 
-def apply_price_policies(g: dict, goods_id: int, platform_prices: dict[int, int]) -> bool:
+def apply_price_policies(
+    g: dict,
+    goods_id: int,
+    platform_prices: dict[int, int],
+    blocked_groups: set[str] | None = None,
+) -> bool:
     """Rewrite price policies in place. Returns False if the row must be hidden."""
     pols = g.get("goods_basic_price_policies") or []
     group = pols[0].get("currency_group_id") if pols else None
     price = dec_price(pols[0].get("goods_basic_price")) if pols else None
-    mapped = map_price(str(group) if group is not None else None, price, goods_id, platform_prices)
+    mapped = map_price(
+        str(group) if group is not None else None,
+        price,
+        goods_id,
+        platform_prices,
+        blocked_groups=blocked_groups,
+    )
     if mapped is None:
         return False
     g["goods_basic_price_policies"] = [{
@@ -212,13 +323,13 @@ def apply_price_policies(g: dict, goods_id: int, platform_prices: dict[int, int]
     return True
 
 
-def apply_quota(q: dict, platform_prices: dict[int, int]) -> bool:
+def apply_quota(q: dict, platform_prices: dict[int, int], blocked_groups: set[str] | None = None) -> bool:
     gid = int_or_none(q.get("goods_id"))
     if gid is None:
         return False
     group = str(q.get("currency_group_id") or "")
     price = dec_price(q.get("current_payment_amount"))
-    mapped = map_price(group, price, gid, platform_prices)
+    mapped = map_price(group, price, gid, platform_prices, blocked_groups=blocked_groups)
     if mapped is None:
         return False
     q["currency_group_id"] = mapped[0]
@@ -234,6 +345,7 @@ def skeleton_from(official_good: dict, bm: dict, item_id: int) -> dict:
         "sale_status": "2",
         "effective_from": FAR_FROM,
         "effective_to": FAR_TO,
+        # schedule filled in by apply_goods_schedule()
         "purchase_type": official_good.get("purchase_type", "1"),
         "is_subscribable": "0",
         "is_delivery_confirmation": official_good.get("is_delivery_confirmation", "0"),
@@ -271,12 +383,21 @@ def skeleton_from(official_good: dict, bm: dict, item_id: int) -> dict:
 
 def build():
     official = load(OFFICIAL)
-    bmshop = load(BMSHOP)
+    config = load_catalog_config()
+    schedule = load_schedule()
+    blocked_cats, blocked_groups, _allowed_hidden, blocked_quna_item = policy_from_config(config)
+    if GROUP_261 in (config.get("allowed_currency_groups") or []):
+        blocked_groups.discard(GROUP_261)
+    bmshop = load_bmshop_merged()
     platform = load(PLATFORM)
     boxes = load(BOXES) if BOXES.is_file() else {}
     box_quna = build_box_quna_ids(boxes)
     uses = boxes.get('uses') or {}
+    if BMSHOP_G4L.is_file():
+        for key, use in (load(BMSHOP_G4L).get("uses") or {}).items():
+            uses.setdefault(str(key), use)
     plat_prices = platform_quna_prices(platform)
+    free_goods = official_intentional_free_goods()
 
     official_by_id = {int(g["goods_id"]): g for g in official["goods"]}
     me_by_id = {int(g["goods_id"]): g for g in official.get("me_goods") or []}
@@ -307,13 +428,14 @@ def build():
         items = goods_items(g)
         pols = g.get("goods_basic_price_policies") or []
         group = str(pols[0]["currency_group_id"]) if pols else None
-        if blocked(gid, items, cats, group, box_quna, uses):
+        if blocked(gid, items, cats, group, box_quna, uses, blocked_cats, blocked_groups, blocked_quna_item):
             hidden.append(("official", gid))
             continue
         row = deepcopy(g)
-        if not apply_price_policies(row, gid, plat_prices):
+        if not apply_price_policies(row, gid, plat_prices, blocked_groups):
             hidden.append(("official-unmap", gid))
             continue
+        apply_goods_schedule(row, gid, items, schedule, config)
         seen.add(gid)
         served.append(row)
 
@@ -325,16 +447,20 @@ def build():
         if not item_id:
             hidden.append(("bm-no-item", gid))
             continue
+        if int(bm.get("price") or 0) <= 0 and gid not in free_goods:
+            hidden.append(("bm-zero-price", gid))
+            continue
         cats = {bm.get("category_light") or "", bm.get("category_dark") or ""}
         group = CURRENCY_TO_GROUP.get(bm.get("currency"))
-        if blocked(gid, [item_id], cats, group, box_quna, uses):
+        if blocked(gid, [item_id], cats, group, box_quna, uses, blocked_cats, blocked_groups, blocked_quna_item):
             hidden.append(("bm-block", gid))
             continue
         tmpl = (templates.get(bm.get("category_light") or "") or [sample])[0]
         row = skeleton_from(tmpl, bm, item_id)
-        if not apply_price_policies(row, gid, plat_prices):
+        if not apply_price_policies(row, gid, plat_prices, blocked_groups):
             hidden.append(("bm-unmap", gid))
             continue
+        apply_goods_schedule(row, gid, [item_id], schedule, config)
         seen.add(gid)
         synthesized += 1
         served.append(row)
@@ -350,11 +476,12 @@ def build():
         items = goods_items(g)
         pols = g.get("goods_basic_price_policies") or []
         group = str(pols[0]["currency_group_id"]) if pols else None
-        if blocked(gid, items, cats, group, box_quna, uses):
+        if blocked(gid, items, cats, group, box_quna, uses, blocked_cats, blocked_groups, blocked_quna_item):
             continue
         row = deepcopy(g)
-        if not apply_price_policies(row, gid, plat_prices):
+        if not apply_price_policies(row, gid, plat_prices, blocked_groups):
             continue
+        apply_goods_schedule(row, gid, items, schedule, config)
         me_served.append(row)
 
     quotas = []
@@ -364,7 +491,7 @@ def build():
         if gid in hidden_ids:
             continue
         row = deepcopy(q)
-        if apply_quota(row, plat_prices):
+        if apply_quota(row, plat_prices, blocked_groups):
             quotas.append(row)
 
     on_sale_ids = {int(g["goods_id"]) for g in bm_on}

@@ -23,8 +23,11 @@ public sealed class BittercoldWindTests
 
         var zone = PcZones.For(BittercoldWind)!;
         Assert.Equal(2920011, zone.Npc);
-        Assert.Equal(6, zone.Ticks);
-        Assert.True(zone.Damage.Flat[0] > 0 && zone.Damage.Ratio[0] > 0);
+        Assert.Equal(10, zone.Ticks);
+        Assert.Equal(1528000211, zone.Damage.EffectId);
+        Assert.Equal(238, zone.Damage.Flat[0]);
+        Assert.Equal(23225, zone.Damage.Ratio[0]);
+        Assert.Equal("7", zone.Damage.Value4);
         Assert.Null(PcZones.For(15110000));
     }
 
@@ -66,7 +69,7 @@ public sealed class BittercoldWindTests
         await session.TickAsync(Now + 1_700);
         Assert.True(main.Hp < afterFirst, "the wind keeps hurting every second");
 
-        await session.TickAsync(Now + 10_000);
+        await session.TickAsync(Now + 12_000);
         Assert.Equal(0, session.PlacedZoneCount);
         Assert.DoesNotContain(map.Values, t => t.OwnerKey == session.PlayerKey && !t.CorpseRemoved && t.Hp > 0);
         var ended = main.Hp;
@@ -76,7 +79,7 @@ public sealed class BittercoldWindTests
     }
 
     [Fact]
-    public async Task One_cast_deals_six_ticks_to_a_lone_monster_and_hits_at_most_four_enemies()
+    public async Task One_cast_deals_ten_ticks_to_a_lone_monster_and_hits_at_most_four_enemies()
     {
         var (session, map, at) = await Entered();
         var main = Mob(map, 880_401, at);
@@ -84,13 +87,13 @@ public sealed class BittercoldWindTests
         session.PlaceZoneForTest(BittercoldWind, main.Key, at, Now);
 
         var hits = 0;
-        for (var t = Now + 100; t <= Now + 8_000; t += 100)
+        for (var t = Now + 100; t <= Now + 12_000; t += 100)
             hits += (await session.TickAsync(t)).Count(p => GameSessionTestHelpers.Op(p) == 0x3804);
 
         var victims = crowd.Prepend(main).Where(m => m.Hp < m.HpMax).ToList();
         Assert.Equal(4, victims.Count);
         Assert.Contains(main, victims);
-        Assert.Equal(6 * 4, hits);
+        Assert.Equal(10 * 4, hits);
         Assert.Equal(2, crowd.Count(m => m.Hp == m.HpMax));
     }
 
@@ -115,5 +118,51 @@ public sealed class BittercoldWindTests
         await session.TickAsync(Now + 1_000);
         Assert.Equal(0, session.PlacedZoneCount);
         Assert.Equal(main.HpMax, main.Hp);
+    }
+
+    static byte[] Cast(int skillId, int targetKey, Vector3d at) =>
+        new PacketWriter().U16(0x3800).U16(16).I32(skillId).U8(2).Varint(targetKey).F32(0).Vec3(at).U8(9).ToArray();
+
+    static bool CastAccepted(IEnumerable<byte[]> replies) =>
+        replies.Any(p => GameSessionTestHelpers.Op(p) == 0x3801 && GameSession.CastResultCode(p) == 0);
+
+    static bool ContainsI32(byte[] packet, int value)
+    {
+        for (var i = 0; i + 4 <= packet.Length; i++)
+            if (BitConverter.ToInt32(packet, i) == value) return true;
+        return false;
+    }
+
+    static async Task<GameSession> SorcererAsync()
+    {
+        var data = GameSessionTestHelpers.LiveGameData;
+        var store = new FakeCharacterStore { Progress = (25, 0) };
+        var creation = Enumerable.Range(1, 64).First(c => data.Profile(c, 1) is { Class: "Sorcerer" });
+        store.Items.Add(FakeCharacterStore.EquippedItem(data.StarterWeapon(data.Profile(creation, 1)!)!.Value, 900, 1));
+        var session = new GameSession(data,
+            new GameSessionOptions { World = new SharedWorld(data), CharacterLevel = 25, WorldId = store.WorldId, TrainingDummy = true },
+            new Random(12)) { Store = store };
+        await session.HandleAsync(GameSessionTestHelpers.Login(), Now);
+        await session.HandleAsync(new PacketWriter().U16(0x361b).String("Bitter").U8(1).U32((uint)creation).Bytes([0x0c, 0x64]).U8(2).U8(1).U8(0).ToArray(), Now);
+        await session.HandleAsync(new PacketWriter().U16(0x361f).Varint((uint)store.States[0].WireId << 16).I32(0).Vec3(Vector3d.Zero).ToArray(), Now);
+        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now);
+        return session;
+    }
+
+    [Fact]
+    public async Task Wired_cast_is_accepted_plays_skill_start_and_places_the_zone_marker()
+    {
+        var session = await SorcererAsync();
+        Assert.True(session.Knows(BittercoldWind), "Bittercold Wind is auto-learned on the Sorcerer kit");
+        session.SetResource('M', session.Resource!.MpMax);
+        var mob = session.Targets![Combat.TrainingDummyKey];
+        var castAt = Now + 3_000;
+        var replies = await session.HandleAsync(Cast(BittercoldWind, mob.Key, mob.Position), castAt);
+        Assert.True(CastAccepted(replies));
+        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3802 && ContainsI32(p, BittercoldWind));
+        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3641);
+        Assert.Equal(1, session.PlacedZoneCount);
+        await session.TickAsync(castAt + 700);
+        Assert.True(mob.Hp < mob.HpMax, "the first zone tick damages the target");
     }
 }

@@ -360,7 +360,7 @@ static partial class MapEventScenarioHelpers
     /// <summary>
     /// Advances a running map event by feeding open objectives (kills, talks, triggers, objects) until it finishes or times out.
     /// </summary>
-    public static async Task<bool> PlayMapEventScriptAsync(GameSession session, MapEventRun run, long now, int maxSeconds = 180, List<byte[]>? capture = null, bool liveAskNpc = false, IReadOnlySet<int>? skipAskNpcAtSteps = null)
+    public static async Task<bool> PlayMapEventScriptAsync(GameSession session, MapEventRun run, long now, int maxSeconds = 180, List<byte[]>? capture = null, bool liveAskNpc = false, IReadOnlySet<int>? skipAskNpcAtSteps = null, Func<MapEventRun, bool>? stopWhen = null)
     {
         var skillId = BasicAttackSkill(session);
         var t = now;
@@ -369,6 +369,7 @@ static partial class MapEventScenarioHelpers
             t += 1000;
             var tickReplies = await session.TickAsync(t);
             capture?.AddRange(tickReplies);
+            if (stopWhen?.Invoke(run) == true) return false;
             foreach (var (_, objective) in run.Open.ToList())
             {
                 switch (objective.Type)

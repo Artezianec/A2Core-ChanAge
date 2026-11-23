@@ -37,7 +37,9 @@ public static class PortedSkillAbnormals
         return JsonSerializer.Deserialize<FileModel>(stream, opts) ?? new FileModel(null, null, null, null);
     }
 
-    public static IReadOnlyList<Row> NpcRows(int skillId) => Rows(file.Value.NpcSkills, skillId);
+    /// <summary>An NPC skill's abnormal rows; skills the ported table lacks fall back to the skill effect engine's (client SkillEffect rows).</summary>
+    public static IReadOnlyList<Row> NpcRows(int skillId) => Rows(file.Value.NpcSkills, skillId) is { Count: > 0 } rows ? rows
+        : SkillEffectEngine.NpcAbnormals(skillId).Select(r => new Row(r.Abnormal, r.MinMs, r.MaxMs, Math.Clamp(r.Level, 1, 255), r.Chance, 0)).ToList();
 
     public static IReadOnlyList<Row> SelfRows(int skillId) => Rows(file.Value.SelfSkills, skillId);
 

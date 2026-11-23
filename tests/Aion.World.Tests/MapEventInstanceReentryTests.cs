@@ -35,6 +35,8 @@ public sealed class MapEventInstanceReentryTests
         await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), t + 100);
         Assert.Equal(field, session.MapId);
         var dungeonId = MapEventTables.Embedded.DungeonIdOfMap(100002);
+        var prefer = session.PreferredSoloDungeonCopy(100002);
+        Assert.NotEqual(0, prefer);
         var reenter = session.EnterDungeonById(dungeonId, t + 500);
         Assert.NotEmpty(reenter);
         await session.HandleAsync(reenter[^1], t + 600);

@@ -70,6 +70,16 @@ public sealed record SkillResourceCondition(
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("value")] int Value);
 
+/// <summary>One hold-charge tier (min hold before this step); populated when SkillCharging*.dat is exported.</summary>
+public sealed record SkillHoldChargeLevel(
+    [property: JsonPropertyName("min_hold_ms")] int MinHoldMs,
+    [property: JsonPropertyName("damage_row")] int DamageRow = -1);
+
+/// <summary>Optional hold-charge metadata on a skill; absent rows imply damage-row stages and <see cref="GameSession.SkillChargeMaxHoldMs"/>.</summary>
+public sealed record SkillHoldCharge(
+    [property: JsonPropertyName("max_hold_ms")] int? MaxHoldMs = null,
+    [property: JsonPropertyName("levels")] SkillHoldChargeLevel[]? Levels = null);
+
 /// <summary>Cast data of a skill (Skill.dat): cost, cooldown, weapon requirement and Damage rows.</summary>
 public sealed record SkillDefinition(
     [property: JsonPropertyName("name")] string? Name,
@@ -104,7 +114,8 @@ public sealed record SkillDefinition(
     // Design act EndureEnd / container PlayRate; 0 ends at once; null keeps the swing-end schedule (GameSession.SkillEnd).
     [property: JsonPropertyName("end_ms")] double? EndMs = null,
     // SkillLv.dat NeedCoolTime at skill levels 2, 3, ... when it differs from level 1.
-    [property: JsonPropertyName("cooldown_levels")] int[]? CooldownLevels = null)
+    [property: JsonPropertyName("cooldown_levels")] int[]? CooldownLevels = null,
+    [property: JsonPropertyName("hold_charge")] SkillHoldCharge? HoldCharge = null)
 {
     /// <summary>Cooldown at a skill level: SkillLv.dat when level 2+ lists one (level N uses row N, CANDIDATE), else <see cref="CooldownMs"/>.</summary>
     public int CooldownAt(int skillLevel) =>
@@ -650,15 +661,43 @@ public sealed class GameData
         return known.OrderBy(k => k.Key).Select(k => (k.Key, k.Value)).ToList();
     }
 
+    /// <summary>FixSlot combo root for wire ids (16013450 mastery tier → 16010000 FixSlot root).</summary>
+    int BasicComboFixRoot(int skillId)
+    {
+        var root = skillId;
+        for (var i = 0; i < 8 && Skill(root) is { ChainPrev: > 0 } step; i++)
+            root = step.ChainPrev;
+        if (Skill(root) is { } rootDef && SkillCooldown.IsBasicAutoAttack(rootDef)) return root;
+        return root / 10_000 * 10_000;
+    }
+
+    /// <summary>
+    /// Official 0x3818 / hotbar context ids for FixSlot combo steps: base chain_next ids (16020000), never mastery-tier rows (16020050).
+    /// </summary>
+    public int BasicChainWireStepId(int skillId)
+    {
+        if (!IsBasicAttackChainSkill(skillId)) return skillId;
+        var fixRoot = BasicComboFixRoot(skillId);
+        if (Skill(fixRoot) is not { } rootDef || !SkillCooldown.IsBasicAutoAttack(rootDef))
+            fixRoot = fixRoot / 10_000 * 10_000;
+        var steps = DefaultContextSkills(fixRoot).Where(id => id > 0).ToList();
+        if (steps.Count == 0) return skillId;
+        var depth = 0;
+        for (var id = skillId; Skill(id) is { ChainPrev: > 0 } step; id = step.ChainPrev)
+            depth++;
+        return depth < steps.Count ? steps[depth] : steps[^1];
+    }
+
     /// <summary>
     /// Skill ids for ChainSkillActiveList_NT (wire 0x3818): Skill.dat chain_next on the cast id, else the family root's chain_next.
     /// Official Ranger capture (2026-10-31): always base ids (14020000 -> 14030000 -> 14040000), never mastery-tier variants (14030050).
     /// </summary>
     public IReadOnlyList<int> ChainFollowUpIds(int castSkillId, int masteryLevel = 0)
     {
-        if (DirectChainNext(castSkillId) is { Count: > 0 } own) return own;
-        var family = castSkillId / 10_000 * 10_000;
-        return castSkillId == family ? [] : DirectChainNext(family);
+        var wireCast = IsBasicAttackChainSkill(castSkillId) ? BasicChainWireStepId(castSkillId) : castSkillId;
+        if (DirectChainNext(wireCast) is { Count: > 0 } own) return own;
+        var family = wireCast / 10_000 * 10_000;
+        return wireCast == family ? [] : DirectChainNext(family);
     }
 
     /// <summary>0x5100 level for basic-attack chain-only steps: same as the FixSlot root's mastery (base skill ids).</summary>
@@ -809,6 +848,7 @@ public sealed class GameData
                 CooldownLevels = own.CooldownLevels ?? parent.CooldownLevels,
                 EndMs = own.EndMs ?? parent.EndMs,
                 NeedsPeace = parent.NeedsPeace, NeedsResource = parent.NeedsResource, UseConditionSource = parent.UseConditionSource,
+                HoldCharge = own.HoldCharge ?? parent.HoldCharge,
                 SkillCond = parent.SkillCond, SkillCondSource = parent.SkillCondSource, SkillCondGrant = parent.SkillCondGrant,
                 SkillCondGrantSource = parent.SkillCondGrantSource, StaggerGauge = parent.StaggerGauge, StaggerGaugeSource = parent.StaggerGaugeSource,
                 UseRangeCm = own.UseRangeCm > 0 ? own.UseRangeCm : parent.UseRangeCm,

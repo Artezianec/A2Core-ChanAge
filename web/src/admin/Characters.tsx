@@ -134,7 +134,7 @@ function Overview({ tools, detail, onRefresh }: { tools: Tools; detail: Characte
     tools.confirm({
       title: granted ? `Make ${label}` : `Remove ${label}`, danger: !granted,
       body: granted ? `Give account ${c.accountName} the ${label} role?` : `Remove the ${label} role from account ${c.accountName}?`,
-      note: 'Applies when the player next starts the game client. Admins cannot remove their own Admin role.',
+      note: granted ? 'Also makes the account\'s existing characters staff characters. Applies when the player next starts the game client.' : 'Applies when the player next starts the game client. Admins cannot remove their own Admin role.',
       confirmLabel: granted ? `Make ${label}` : `Remove ${label}`,
       onConfirm: async () => {
         setBusy('role-' + role);
@@ -166,6 +166,9 @@ function Overview({ tools, detail, onRefresh }: { tools: Tools; detail: Characte
             <Button size="sm" variant={c.staff ? 'danger' : 'secondary'} busy={busy === 'staff'} onClick={toggleStaff}>
               {c.staff ? 'Make player character' : 'Make staff character'}
             </Button>
+          )}
+          {roles.length > 0 && !c.staff && !c.accountDisabled && (
+            <span className="small muted">The account has a staff rank, but this character is a player until made a staff character.</span>
           )}
         </div>
         {isAdmin && !c.accountDisabled && (

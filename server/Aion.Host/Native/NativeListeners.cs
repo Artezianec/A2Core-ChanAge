@@ -218,11 +218,15 @@ public sealed class NativeLoginListener(NativeOptions options, IServiceProvider 
     protected override async Task RunAsync(NetworkStream stream, Rc4 cipher, FrameBuffer buffer, IPAddress? clientAddress, CancellationToken ct)
     {
         // Multi-world: the registered worlds that are up now (null without a registry: the single world on GamePort).
-        var directory = services.GetService<Aion.Host.Worlds.LoginWorldList>() is { } worldList ? await worldList.DirectoryAsync(ct) : null;
+        var worldList = services.GetService<Aion.Host.Worlds.LoginWorldList>();
+        var directory = worldList is not null && Options.MultiWorld ? await worldList.DirectoryAsync(ct) : null;
+        // Single world: the built-in rows, named as the dashboard's primary world.
+        var singleRows = worldList is not null && !Options.MultiWorld ? await worldList.SingleWorldRowsAsync(ct) : null;
         var handoff = services.GetService<IClientHandoff>();
         var session = new LoginSession(new LoginSessionOptions
         {
             Directory = directory,
+            Worlds = singleRows ?? LoginPackets.DefaultWorlds,
             Route = handoff is null || directory is null ? null : (wire, grant, world, race, token) =>
                 long.TryParse(wire, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var wireId)
                     ? handoff.RouteLoginAsync(grant.ToString("D"), wireId, world, race, token) : Task.FromResult(false),
@@ -638,6 +642,6 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         }
         return (new ServiceNativeCharacterStore(opened.Token, who, sessions, services.GetRequiredService<IWireCharacterRepository>(),
             services.GetRequiredService<IGameplayStore>(), services.GetRequiredService<CharacterPersistenceService>(),
-            services.GetService<IQunaWallet>()), HostDiagnostics.Outcome.Succeeded);
+            services.GetService<IQunaWallet>(), services.GetService<IMileageWallet>()), HostDiagnostics.Outcome.Succeeded);
     }
 }

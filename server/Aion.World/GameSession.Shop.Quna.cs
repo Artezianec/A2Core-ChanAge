@@ -131,7 +131,7 @@ public sealed partial class GameSession
     {
         foreach (var packet in InventoryDepotSyncPackets()) yield return packet;
         yield return QunaRefreshNow();
-        yield return RefreshMileage();
+        yield return RefreshMileage(MileageBalance());
     }
 
     /// <summary>RefreshCurrency_NT when the balance differs from what the client was last shown.</summary>
@@ -166,7 +166,7 @@ public sealed partial class GameSession
         return CharacterId is null ? [] : await InventoryChangesAsync(ct);
     }
 
-    enum QunaPay { Done, NotEnough, Failed }
+    internal enum QunaPay { Done, NotEnough, Failed }
 
     /// <summary>A store call through <see cref="Stored"/>: false when it refused or failed.</summary>
     async Task<bool> StoredOk(Func<Task<bool>> action) => (await Stored(async () => await action() ? [[]] : [])).Count > 0;
@@ -200,18 +200,19 @@ public sealed partial class GameSession
     /// as a safety net (the in-memory wallet, or a store that debits before a later failure). Without Quna, only the
     /// purchase runs.
     /// </summary>
-    async Task<QunaPay> PayQunaAsync(long quna, object details, Func<Task<bool>> purchase, CancellationToken ct) =>
-        await PayQunaAsync(quna, details, _ => purchase(), ct, debitInPurchase: false);
+    async Task<QunaPay> PayQunaAsync(long quna, object details, Func<Task<bool>> purchase, CancellationToken ct, string? purchaseRequestId = null) =>
+        await PayQunaAsync(quna, details, _ => purchase(), ct, debitInPurchase: false, purchaseRequestId);
 
     /// <summary>Like <see cref="PayQunaAsync(long, object, Func{Task{bool}}, CancellationToken)"/>, but the purchase receives the spend and must debit it itself.</summary>
-    async Task<QunaPay> PayQunaAsync(long quna, object details, Func<QunaRequest?, Task<bool>> purchase, CancellationToken ct) =>
-        await PayQunaAsync(quna, details, purchase, ct, debitInPurchase: true);
+    async Task<QunaPay> PayQunaAsync(long quna, object details, Func<QunaRequest?, Task<bool>> purchase, CancellationToken ct, string? purchaseRequestId = null) =>
+        await PayQunaAsync(quna, details, purchase, ct, debitInPurchase: true, purchaseRequestId);
 
-    async Task<QunaPay> PayQunaAsync(long quna, object details, Func<QunaRequest?, Task<bool>> purchase, CancellationToken ct, bool debitInPurchase)
+    async Task<QunaPay> PayQunaAsync(long quna, object details, Func<QunaRequest?, Task<bool>> purchase, CancellationToken ct, bool debitInPurchase, string? purchaseRequestId = null)
     {
         if (quna <= 0) return await purchase(null) ? QunaPay.Done : QunaPay.Failed;
         if (Store is not { QunaWallet: { } wallet } store || CharacterId is not { } character) return QunaPay.Failed;
-        var request = new QunaRequest(store.AccountId, $"w{store.WorldId}:{character:N}:{Guid.NewGuid():N}", quna, QunaWalletRules.Purchase,
+        var requestId = purchaseRequestId ?? $"w{store.WorldId}:{character:N}:{Guid.NewGuid():N}";
+        var request = new QunaRequest(store.AccountId, requestId, quna, QunaWalletRules.Purchase,
             store.WorldId, character, JsonSerializer.SerializeToElement(details));
         if (!debitInPurchase)
         {

@@ -6,7 +6,7 @@ namespace Aion.World;
 /// <summary>Monolith.dat rows and env→monolith_id map (tools/data/monolith-table.json, tools/monolith_data.py).</summary>
 public sealed class MonolithTables
 {
-    sealed record Row(
+    public sealed record Row(
         [property: JsonPropertyName("id")] int Id,
         [property: JsonPropertyName("name")] string Name,
         [property: JsonPropertyName("race")] int Race);
@@ -42,4 +42,8 @@ public sealed class MonolithTables
     public int MonolithIdForEnv(int envId) => envToId.GetValueOrDefault(envId, envId);
 
     public IReadOnlyList<int> IdsForRace(int race) => idsByRace.GetValueOrDefault(race, []);
+
+    public IEnumerable<Row> AllRows => file.Monoliths;
+
+    public string? NameForId(int id) => file.Monoliths.FirstOrDefault(m => m.Id == id)?.Name;
 }

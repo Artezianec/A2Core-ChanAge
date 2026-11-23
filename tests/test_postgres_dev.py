@@ -95,6 +95,7 @@ class RoleStatementTests(unittest.TestCase):
         self.assertIn("provider='local' AND subject='staffuser'", grant)
         self.assertIn("'admin'", grant)
         self.assertIn('ON CONFLICT DO NOTHING', grant)
+        self.assertIn('UPDATE game.characters SET staff=true', grant)
         self.assertTrue(role_statement('staffuser', 'gamemaster', revoke=True).startswith('DELETE FROM auth.account_roles'))
 
     def test_role_statement_rejects_unsafe_input(self):
@@ -384,6 +385,49 @@ class AuthCharactersGrantTests(unittest.TestCase):
         self.scalar(body)
         self.assertEqual(self.scalar(
             f"SELECT name FROM game.characters WHERE character_id='{self.character}';", role='aion_auth'), 'GrantHero')
+
+
+@unittest.skipUnless(os.environ.get('AION_POSTGRES_TESTS') == '1', 'Requires local PostgreSQL')
+class StaffRoleCharacterFlagTests(unittest.TestCase):
+    """Migration 142: granting a staff role on the dashboard flags the account's existing characters (characters.staff,
+    migration 035), which is what in-world staff standing reads; a character created afterwards stays a player."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.db = 'aion_staff_flag_' + secrets.token_hex(6)
+        sql(f'CREATE DATABASE {cls.db} OWNER aion_owner;', database='postgres')
+        sql(f'REVOKE ALL ON DATABASE {cls.db} FROM PUBLIC; GRANT CONNECT ON DATABASE {cls.db} TO aion_app,aion_auth;', database=cls.db)
+        sql(migration_script(sorted((ROOT / 'database' / 'migrations').glob('*.sql'))), database=cls.db)
+        cls.admin, cls.target, cls.old, cls.other = (str(uuid.uuid4()) for _ in range(4))
+        cls.token = '\\x' + secrets.token_hex(32)
+        sql(f"INSERT INTO auth.accounts(account_id,provider,subject) VALUES('{cls.admin}','integration-test','admin'),('{cls.target}','integration-test','target');"
+            f"INSERT INTO auth.account_roles VALUES('{cls.admin}','admin');"
+            f"INSERT INTO auth.sessions(token_hash,account_id,expires_at,kind) VALUES('{cls.token}','{cls.admin}',now()+interval '1 hour','staff');"
+            f"INSERT INTO game.characters(character_id,account_id,world_id,name,creation_id,race,gender) "
+            f"VALUES('{cls.old}','{cls.target}',1204,'Admin',1,1,1),('{cls.other}','{cls.admin}',1204,'Boss',1,1,1);", database=cls.db)
+
+    @classmethod
+    def tearDownClass(cls):
+        sql(f'DROP DATABASE {cls.db} WITH (FORCE);', database='postgres')
+
+    def scalar(self, text, role='aion_admin'):
+        return sql(text, role=role, database=self.db).stdout.strip()
+
+    def staff(self, character):
+        return self.scalar(f"SELECT staff FROM game.characters WHERE character_id='{character}';")
+
+    def test_grant_flags_existing_characters_and_new_ones_stay_players(self):
+        self.assertEqual(self.staff(self.old), 'f')
+        self.assertEqual(self.scalar(f"SELECT auth.set_staff_role('{self.token}','{self.target}','gamemaster',true);", role='aion_auth'), 't')
+        self.assertEqual(self.staff(self.old), 't')
+        self.assertEqual(self.staff(self.other), 'f', 'only the target account is flagged')
+        later = str(uuid.uuid4())
+        self.scalar(f"INSERT INTO game.characters(character_id,account_id,world_id,name,creation_id,race,gender) "
+                    f"VALUES('{later}','{self.target}',1204,'Later',1,1,1);")
+        self.assertEqual(self.staff(later), 'f')
+        self.assertEqual(self.scalar(f"SELECT auth.set_staff_role('{self.token}','{self.target}','gamemaster',false);", role='aion_auth'), 't')
+        self.assertEqual(self.scalar(f"SELECT count(*) FROM auth.account_roles WHERE account_id='{self.target}';"), '0')
+        self.assertEqual(self.staff(self.old), 't', 'revoking leaves the flag; without a role it has no effect in game')
 
 
 @unittest.skipUnless(os.environ.get('AION_POSTGRES_TESTS') == '1', 'Requires local PostgreSQL')

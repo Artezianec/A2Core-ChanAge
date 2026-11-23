@@ -14,10 +14,10 @@ public static class SkillResourceThreshold
             "MP_Less" => mp < req.Value,
             "MPRatio_More" => RatioPermille(mp, mpMax) > req.Value,
             "MPRatio_Less" => RatioPermille(mp, mpMax) < req.Value,
-            "AP_More" => ap > req.Value,
-            "AP_Less" => ap < req.Value,
-            "APRatio_More" => RatioPermille(ap, apMax) > req.Value,
-            "APRatio_Less" => RatioPermille(ap, apMax) < req.Value,
+            "AP_More" => apMax <= 0 || ap > req.Value,
+            "AP_Less" => apMax <= 0 || ap < req.Value,
+            "APRatio_More" => apMax <= 0 || RatioPermille(ap, apMax) > req.Value,
+            "APRatio_Less" => apMax <= 0 || RatioPermille(ap, apMax) < req.Value,
             _ => false,
         };
 

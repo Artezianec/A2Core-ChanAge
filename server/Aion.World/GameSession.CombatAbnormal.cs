@@ -65,6 +65,7 @@ public sealed partial class GameSession
             resources.Hp = Math.Max(0, resources.Hp - damage);
             replies.Add(GamePackets.NpcHp(playerKey, resources.Hp));
             replies.AddRange(ForceDismount());
+            replies.AddRange(AfterPlayerDamaged(damage, now, attackerKey));
             if (resources.Hp == 0) replies.AddRange(Die(attackerKey, now));
         }
         var (permille, cap, reflectSkill) = BestReflect();

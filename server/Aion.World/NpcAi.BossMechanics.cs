@@ -51,9 +51,10 @@ public sealed partial class NpcAi
         FireWallPhasesTriggered = 0;
     }
 
-    /// <summary>Blocks entering a fire-wall cell; standing in a gap is allowed.</summary>
+    /// <summary>Blocks entering a fire-wall cell (legacy grid, or an engine zone with blocks_movement); standing in a gap is allowed.</summary>
     public bool FireWallBlocksMove(Vector3d from, Vector3d to, long now)
     {
+        if (EngineBlocksMove(from, to, now)) return true;
         if (ActiveFireWall is null || now > ActiveFireWall.ActiveUntilMs) return false;
         return KromedeFireWalls.InWall(ActiveFireWall, to) && !KromedeFireWalls.InWall(ActiveFireWall, from);
     }

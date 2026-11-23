@@ -61,7 +61,8 @@ public sealed record MapEventObjective(
     /// <summary>
     /// Objectives the server does not track yet (puzzles, scores, items): finished after a grace period so the event goes on.
     /// ClearWave is tracked when the host knows the wave's monsters (<see cref="IMapEventHost.WaveKnown"/>: spawn entries
-    /// "{wave}_{n}", every wave of the Ludra raid, or a hand-made wave of boss-phases.json); other waves keep the grace period.
+    /// "{wave}_{n}", WaveStepData parts from client-waves.json, every wave of the Ludra raid, or a hand-made wave of
+    /// boss-phases.json); other waves keep the grace period.
     /// </summary>
     public bool Unsupported => Type is "AchieveUnifiedObjectivesScore" or "ClearBoardPuzzle" or "GetAbnormal" or "PCSocial"
         or "UseUsableItemType" or "CollectItem" or "KillNpcCreatureType" or "UpdateEnvObjState";
@@ -540,6 +541,14 @@ public sealed class MapEventRun
     public long StartedMs { get; }
     public int[] Goals { get; private set; }
     public int[] Variables { get; }
+    /// <summary>Tower plants/credits this run has ever had (survives env clears on reload).</summary>
+    public int BombTowerPeakEver { get; set; }
+    /// <summary>True once any tower UseEnvObj goal credited (blocks bogus sanitize rewind).</summary>
+    public bool EverTowerCredited { get; set; }
+    /// <summary>Highest script stage reached (stage id from data).</summary>
+    public int MaxStageOrderReached { get; set; }
+    /// <summary>After three tower credits, QA may run one far bomb plant probe for this run.</summary>
+    public bool BombProbeDue { get; set; }
     public bool Finished => Status is Complete or Expired;
 
     /// <summary>The script is done (DungeonClear, or the last step's objectives met) but its closing directives (Delay, MapExit)
@@ -583,8 +592,53 @@ public sealed class MapEventRun
         BeginStep(now);
     }
 
+    /// <summary>Instance env was reset but script goals were not: restart the layer script from stage 1 (HQ1101070 bomb towers).</summary>
+    internal void RestartScript(long now)
+    {
+        if (Definition.Stages.Length == 0) return;
+        Status = Incomplete;
+        StageIndex = 0;
+        StepIndex = 0;
+        sequences.Clear();
+        repeaters.Clear();
+        clearedStages.Clear();
+        doneKeys.Clear();
+        firedRules.Clear();
+        stepSerial = 0;
+        stepObjectivesDone = false;
+        stageFailing = false;
+        Array.Fill(fallbackAt, 0);
+        Start(now);
+    }
+
+  /// <summary>Map-event goals ahead of broken towers: clamp UseEnvObj tower objectives to what the env shows spent.</summary>
+    internal void ClampBombTowerGoals(int maxCredits)
+    {
+        if (Step is not { } step || maxCredits < 0) return;
+        var goals = Goals.ToArray();
+        var changed = false;
+        for (var i = 0; i < step.Objectives.Length && i < goals.Length; i++)
+        {
+            var o = step.Objectives[i];
+            if (o.Type != "UseEnvObj" || !o.Names.Any(n => n.Contains("Tower", StringComparison.OrdinalIgnoreCase))) continue;
+            var clamped = Math.Min(goals[i], maxCredits);
+            if (clamped == goals[i]) continue;
+            goals[i] = clamped;
+            changed = true;
+        }
+        if (!changed) return;
+        Goals = goals;
+        stepObjectivesDone = false;
+    }
+
+    void TouchStageProgress()
+    {
+        if (StageOrder > MaxStageOrderReached) MaxStageOrderReached = StageOrder;
+    }
+
     void BeginStep(long now)
     {
+        TouchStageProgress();
         var step = Step!;
         Goals = new int[step.Objectives.Length];
         repeaters.Clear();
@@ -636,6 +690,7 @@ public sealed class MapEventRun
             if (Goals[i] >= o.Count || !matches(o)) continue;
             Goals[i] = whole ? o.Count : Math.Min(o.Count, Goals[i] + amount);
             changed = true;
+            Host.ScriptBeat(this, "goal-change", $"idx={i} type={o.Type} delta={amount} goals=[{string.Join(',', Goals)}]", now);
             if (Goals[i] >= o.Count)
             {
                 Host.ScriptBeat(this, "objective-done", $"{o.Type} {o.Value(0)} goal={i} goals=[{string.Join(',', Goals)}]", now);
@@ -784,8 +839,7 @@ public sealed class MapEventRun
     {
         var ok = Apply(o => o.Type == "NpcArriveWaypoint" && NameMatches(o.Value(0), spawnName)
                              && (o.Value(1).Length == 0 || string.Equals(o.Value(1), route, StringComparison.OrdinalIgnoreCase)), now);
-        if (ok && Definition.Name.Contains("Starter_HQ001", StringComparison.OrdinalIgnoreCase))
-            Host.ScriptBeat(this, "npc-arrive", $"{spawnName} route={route}", now);
+        Host.ScriptBeat(this, "npc-arrive", $"{spawnName} route={route}", now);
         return ok;
     }
 
@@ -825,7 +879,7 @@ public sealed class MapEventRun
         else
         {
             if (stage.Key.Length > 0) clearedStages.Add(stage.Key);
-            if (StageIndex + 1 < Definition.Stages.Length) { StageIndex++; StepIndex = 0; }
+            if (StageIndex + 1 < Definition.Stages.Length) { StageIndex++; StepIndex = 0; TouchStageProgress(); }
             else
             {
                 Status = Complete;

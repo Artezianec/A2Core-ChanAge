@@ -3,11 +3,13 @@
 Five party-expedition finals compared with official clear videos and guides, then
 overlaid on `tools/data/boss-phases.json` via `tools/data/boss-phase-overrides.json`.
 Generic scripts for every other boss (invented 70/40/20 adds and fury, "longest
-cast" as a repeating slam) are unchanged. See `docs/BOSSES.md` for the engine.
+cast" as a repeating slam) are unchanged. See `docs/BOSSES.md` for the phase scripts.
 
-Videos were downloaded 2026-11-11 with yt-dlp, no cookies, 720p, to
-`/workspace/yt/bosses/<boss>/`. Frames and a per-file list are in
-`/workspace/yt/bosses/MANIFEST.md` (not in git).
+These five fights are now authored encounters for the mechanics engine (`tools/data/boss-mechanics/`,
+`docs/BOSS-MECHANICS-ENGINE.md`); the hand-coded versions described below remain as the `Aion:Bosses:Engine=false` fallback.
+
+Videos were downloaded 2026-11-11 with yt-dlp, no cookies, 720p, into a local
+video cache (not in git), with frames and a per-file manifest.
 
 "Client" means exported Skill.dat / skill-areas.json / NpcData / MapEvent data.
 "Guides / videos" means the sources below, not a client AI table — the client has

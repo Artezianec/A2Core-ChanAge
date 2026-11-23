@@ -48,6 +48,21 @@ public sealed class QaMapEventLayerFixTests
     }
 
     [Fact]
+    public async Task In_range_bomb_credit_during_probe_window_does_not_trigger_exploit_stall()
+    {
+        var store = new FakeCharacterStore();
+        var session = await GameSessionTestHelpers.EnterSharedWorldAsync(store, T0, level: 10, qaBot: true);
+        var brain = new QaQuestBrain(GameData.Embedded, session, 1, 45, new QaBotOptions());
+        var state = brain.DriverState;
+        state.BombProbeGoalsBefore = [0, 0, 0];
+        state.BombProbeMapEventRunId = 42;
+        state.BombProbeAttemptAt = T0;
+        state.BombProbeAt = new Vector3d(99999, 99999, 20000);
+        session.RecordQaBombTowerCredit(new WorldObject(1400824, "tower", 0, [1, 2, 3], 0, 0, 0, 15), new Vector3d(10000, -30000, 21000), T0 + 100);
+        Assert.Null(brain.Think(T0 + 200).Stuck);
+    }
+
+    [Fact]
     public async Task Cast_refusal_on_far_target_is_specific_not_cast_rules()
     {
         var store = new FakeCharacterStore { Progress = (10, 0) };
@@ -95,13 +110,13 @@ public sealed class QaMapEventLayerFixTests
         var session = await GameSessionTestHelpers.EnterSharedWorldAsync(store, T0, level: 10, qaBot: true);
         var brain = new QaQuestBrain(GameData.Embedded, session, 1, 45, new QaBotOptions());
         const int preyKey = 56015;
-        for (var i = 0; i < QuestDriverState.CastRefusalBlacklistAfter + 2; i++)
+        for (var i = 0; i < QuestDriverState.CastRefusalBlacklistAfter - 1; i++)
         {
             session.NoteQaCastRefusal(preyKey, "out_of_range");
             brain.NoteClientCastOutcome(session);
         }
         Assert.DoesNotContain(preyKey, brain.DriverState.CastRefusalBlacklisted);
-        Assert.Equal(preyKey, brain.DriverState.CastHeightRepositionKey);
+        Assert.Equal(preyKey, brain.DriverState.CombatTargetKey);
     }
 
     [Fact]

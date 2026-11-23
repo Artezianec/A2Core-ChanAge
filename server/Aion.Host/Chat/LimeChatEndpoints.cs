@@ -23,9 +23,16 @@ public static class LimeChatEndpoints
                 ? await next(context) : Results.NotFound());
         var stompUrl = $"ws://{publicAddress}:{port}/stomp";
 
-        chat.MapPost("/gameLogin/{route}", async (string route, HttpContext context, ChatRelay relay,
+        chat.MapPost("/gameLogin/{route}", async (string route, HttpContext context, ChatRelay relay, StompHub hub,
             IChatLoginVerifier verifier, ILoggerFactory logs, CancellationToken cancellationToken) =>
         {
+            if (route is "logoutWithJwtToken" or "logout")
+            {
+                await LogoutAsync(LimeWire.Token(context.Request.Headers.Authorization.ToString()), relay, hub);
+                var reply = LimeWire.Ok();
+                reply["message"] = "Logged out";
+                return Results.Json(reply);
+            }
             if (route is not ("loginWithToken" or "loginWithGameAccessToken")) return Results.Json(LimeWire.Ok());
             var body = await ReadAsync(context, cancellationToken);
             var request = LimeWire.ReadLogin(body);
@@ -46,7 +53,7 @@ public static class LimeChatEndpoints
         chat.MapPost("/gameClient/{route}", async (string route, HttpContext context, ChatRelay relay,
             StompHub hub, CancellationToken cancellationToken) =>
         {
-            var token = context.Request.Headers.Authorization.ToString();
+            var token = LimeWire.Token(context.Request.Headers.Authorization.ToString());
             var body = await ReadAsync(context, cancellationToken);
             var commands = context.RequestServices.GetService<IChatCommandHandler>();
             try
@@ -110,22 +117,29 @@ public static class LimeChatEndpoints
             case "getSubscriptionInfo":
                 var identity = relay.Find(token) ?? throw new ChatRejectedException("Chat session is not authenticated.");
                 return LimeWire.LoginReply(token, identity, stompUrl);
+            case "logoutWithJwtToken" or "logout":
+            {
+                await LogoutAsync(token, relay, hub);
+                var reply = LimeWire.Ok();
+                reply["message"] = "Logged out";
+                return reply;
+            }
             case "joinRoom" or "createRoom" or "getRoom" or "updateRoom":
             {
                 var room = LimeWire.ReadRoom(body?["gameRoomKeyInfo"]);
                 if (route is "joinRoom" or "createRoom") relay.Join(token, room);
-                var reply = LimeWire.Ok();
-                reply["gameRoomInfo"] = LimeWire.RoomInfo(room);
-                return reply;
+                return LimeWire.RoomReply(room, relay.Find(token), relay.MemberCount(room), relay.StartedAtMilliseconds);
             }
             case "leaveRoom" or "deleteRoom":
             {
                 var room = LimeWire.ReadRoom(body?["gameRoomKeyInfo"]);
                 relay.Leave(token, room);
-                var reply = LimeWire.Ok();
-                reply["gameRoomInfo"] = LimeWire.RoomInfo(room);
-                return reply;
+                return LimeWire.RoomReply(room, relay.Find(token), relay.MemberCount(room), relay.StartedAtMilliseconds);
             }
+            case "getBlockUserList":
+                // The social store only answers "is there a block between these two characters"; it cannot list a
+                // character's blocks yet, so the list is empty (whisper blocks are still enforced by the relay).
+                return LimeWire.BlockedUsers();
             case "sendMessage" or "sendWhisper":
             {
                 var room = LimeWire.ReadRoom(body?["gameRoomKeyInfo"]);
@@ -164,6 +178,12 @@ public static class LimeChatEndpoints
         }
     }
 
+    static async Task LogoutAsync(string token, ChatRelay relay, StompHub hub)
+    {
+        relay.Logout(token);
+        await hub.DisconnectAsync(token);
+    }
+
     /// <summary>Client text for logs: decimal digits only (IDs, server keys), else "?".</summary>
     static string Digits(string text) => text is { Length: >= 1 and <= 20 } && text.All(char.IsAsciiDigit) ? text : "?";
 
@@ -180,25 +200,51 @@ public static class LimeChatEndpoints
     }
 }
 
-/// <summary>STOMP connections by session token; delivers notifications as MESSAGE frames.</summary>
-public sealed class StompHub
+/// <summary>
+/// STOMP heart-beat and idle limits. The defaults follow the official server: it answers
+/// CONNECT with <c>heart-beat:0,30000</c> (it sends none and wants a client beat every 30 s).
+/// </summary>
+/// <param name="ServerSendMs">What the server can send (first number of CONNECTED's heart-beat); 0 sends none.</param>
+/// <param name="ServerReceiveMs">What the server wants to receive (second number); 0 expects none.</param>
+/// <param name="ConnectTimeout">How long a socket may stay silent before CONNECT.</param>
+/// <param name="IdleFallback">The silence limit when no client heart-beat was negotiated.</param>
+public sealed record StompHubOptions(int ServerSendMs = 0, int ServerReceiveMs = 30000,
+    TimeSpan? ConnectTimeout = null, TimeSpan? IdleFallback = null)
+{
+    public TimeSpan ConnectLimit => ConnectTimeout ?? TimeSpan.FromSeconds(30);
+    public TimeSpan FallbackLimit => IdleFallback ?? TimeSpan.FromMinutes(10);
+}
+
+/// <summary>
+/// STOMP connections by session token; delivers notifications as MESSAGE frames. A socket that
+/// goes silent past its negotiated heart-beat (or never sends CONNECT) is closed, and a closed
+/// socket ends its chat session (<see cref="ChatRelay.Logout"/>) unless another socket still
+/// uses the same token.
+/// </summary>
+public sealed class StompHub(StompHubOptions? options = null)
 {
     sealed record Subscription(string Id, string Destination);
 
-    sealed class Connection(WebSocket socket)
+    sealed class Connection(WebSocket socket, TimeSpan idleLimit)
     {
         public WebSocket Socket { get; } = socket;
         public SemaphoreSlim Gate { get; } = new(1, 1);
         public string Token { get; set; } = "";
         public List<Subscription> Subscriptions { get; } = [];
+        public TimeSpan IdleLimit { get; set; } = idleLimit;
+        public int SendIntervalMs { get; set; }
+        public CancellationTokenSource? Stop { get; set; }
     }
 
+    readonly StompHubOptions settings = options ?? new StompHubOptions();
     readonly ConcurrentDictionary<Connection, byte> connections = new();
 
     public async Task RunAsync(WebSocket socket, ChatRelay relay, CancellationToken cancellationToken)
     {
-        var connection = new Connection(socket);
+        var connection = new Connection(socket, settings.ConnectLimit);
         connections[connection] = 0;
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        connection.Stop = stop;
         var buffer = new byte[16384];
         var chars = new char[Encoding.UTF8.GetMaxCharCount(buffer.Length)];
         var decoder = Encoding.UTF8.GetDecoder();  // keeps multi-byte characters split across reads
@@ -207,38 +253,89 @@ public sealed class StompHub
         {
             while (socket.State == WebSocketState.Open)
             {
-                var result = await socket.ReceiveAsync(buffer, cancellationToken);
+                using var idle = CancellationTokenSource.CreateLinkedTokenSource(stop.Token);
+                idle.CancelAfter(connection.IdleLimit);
+                ValueWebSocketReceiveResult result;
+                try
+                {
+                    result = await socket.ReceiveAsync(buffer.AsMemory(), idle.Token);
+                }
+                catch (OperationCanceledException) when (!stop.IsCancellationRequested)
+                {
+                    break;  // idle past the negotiated heart-beat: the socket is dead
+                }
                 if (result.MessageType == WebSocketMessageType.Close) break;
                 text.Append(chars, 0, decoder.GetChars(buffer, 0, result.Count, chars, 0));
                 if (text.Length > 1 << 20) break;
                 foreach (var frame in StompFrame.ReadAll(text))
-                    await HandleAsync(connection, frame, relay, cancellationToken);
+                {
+                    await HandleAsync(connection, frame, relay, stop, cancellationToken);
+                    if (stop.IsCancellationRequested) break;
+                }
             }
         }
         catch (Exception error) when (error is WebSocketException or OperationCanceledException) { }
         finally
         {
+            stop.Cancel();
             connections.TryRemove(connection, out _);
+            if (connection.Token.Length > 0 && !connections.Keys.Any(c => c.Token == connection.Token))
+                relay.Logout(connection.Token);
+            try
+            {
+                if (socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
+                    await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
+            }
+            catch (Exception error) when (error is WebSocketException or ObjectDisposedException) { }
         }
     }
 
-    async Task HandleAsync(Connection connection, StompFrame frame, ChatRelay relay, CancellationToken cancellationToken)
+    /// <summary>Closes the STOMP sockets of a session (logout route); the session itself is ended by the caller.</summary>
+    public async Task DisconnectAsync(string token)
+    {
+        if (token.Length == 0) return;
+        foreach (var connection in connections.Keys.Where(c => c.Token == token))
+        {
+            try
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                if (connection.Socket.State == WebSocketState.Open)
+                    await connection.Socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, timeout.Token);
+                connection.Stop?.Cancel();
+            }
+            catch (Exception error) when (error is WebSocketException or OperationCanceledException or ObjectDisposedException) { }
+        }
+    }
+
+    /// <summary>
+    /// The session token a CONNECT carries: the authorization header, else the passcode and login
+    /// headers the client takes from subscriptionInfo; "Bearer " is optional in each.
+    /// </summary>
+    static string? ConnectToken(StompFrame frame, ChatRelay relay) =>
+        new[] { "authorization", "passcode", "login" }.Select(name => LimeWire.Token(frame.Header(name)))
+            .FirstOrDefault(token => token.Length > 0 && relay.Find(token) is not null);
+
+    async Task HandleAsync(Connection connection, StompFrame frame, ChatRelay relay, CancellationTokenSource stop,
+        CancellationToken cancellationToken)
     {
         switch (frame.Command)
         {
             case "CONNECT" or "STOMP":
-                if (relay.Find(frame.Header("authorization")) is null)
+                if (ConnectToken(frame, relay) is not { } token)
                 {
                     await SendAsync(connection, StompFrame.Create("ERROR",
-                        new Dictionary<string, string> { ["message"] = "not authenticated" }), cancellationToken);
+                        new Dictionary<string, string> { ["message"] = "not authenticated" }).Encode(), cancellationToken);
                     await connection.Socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, null, cancellationToken);
                     return;
                 }
-                connection.Token = frame.Header("authorization");
+                connection.Token = token;
+                Negotiate(connection, frame.Header("heart-beat"));
                 await SendAsync(connection, StompFrame.Create("CONNECTED", new Dictionary<string, string>
                 {
-                    ["version"] = "1.2", ["heart-beat"] = "0,0", ["server"] = "aion-local-chat/1",
-                }), cancellationToken);
+                    ["version"] = "1.2", ["heart-beat"] = $"{settings.ServerSendMs},{settings.ServerReceiveMs}",
+                    ["server"] = "aion-local-chat/1",
+                }).Encode(), cancellationToken);
+                if (connection.SendIntervalMs > 0) _ = BeatAsync(connection, stop.Token);
                 break;
             case "SUBSCRIBE":
                 lock (connection.Subscriptions)
@@ -251,7 +348,35 @@ public sealed class StompHub
         }
         if (frame.Header("receipt") is { Length: > 0 } receipt)
             await SendAsync(connection, StompFrame.Create("RECEIPT",
-                new Dictionary<string, string> { ["receipt-id"] = receipt }), cancellationToken);
+                new Dictionary<string, string> { ["receipt-id"] = receipt }).Encode(), cancellationToken);
+        if (frame.Command == "DISCONNECT") stop.Cancel();
+    }
+
+    /// <summary>
+    /// STOMP heart-beat negotiation: a direction beats only when both sides offer it, at the
+    /// larger interval. The client's beat sets the idle limit (1.5 intervals); without one the
+    /// socket gets the long fallback limit.
+    /// </summary>
+    void Negotiate(Connection connection, string clientHeartBeat)
+    {
+        var parts = clientHeartBeat.Split(',');
+        var clientSend = parts.Length > 0 && int.TryParse(parts[0], out var cx) ? Math.Max(cx, 0) : 0;
+        var clientReceive = parts.Length > 1 && int.TryParse(parts[1], out var cy) ? Math.Max(cy, 0) : 0;
+        connection.IdleLimit = clientSend > 0 && settings.ServerReceiveMs > 0
+            ? TimeSpan.FromMilliseconds(Math.Max(clientSend, settings.ServerReceiveMs) * 1.5)
+            : settings.FallbackLimit;
+        connection.SendIntervalMs = clientReceive > 0 && settings.ServerSendMs > 0 ? Math.Max(clientReceive, settings.ServerSendMs) : 0;
+    }
+
+    static async Task BeatAsync(Connection connection, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(connection.SendIntervalMs));
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+                await SendAsync(connection, "\n"u8.ToArray(), cancellationToken);
+        }
+        catch (OperationCanceledException) { }
     }
 
     public async Task DeliverAsync(IEnumerable<ChatDelivery> deliveries)
@@ -270,18 +395,18 @@ public sealed class StompHub
                     ["message-id"] = delivery.Notification.Guid, ["content-type"] = "application/json",
                     ["content-length"] = Encoding.UTF8.GetByteCount(body).ToString(),
                 }, body);
-                await SendAsync(connection, frame, CancellationToken.None);
+                await SendAsync(connection, frame.Encode(), CancellationToken.None);
             }
         }
     }
 
-    static async Task SendAsync(Connection connection, StompFrame frame, CancellationToken cancellationToken)
+    static async Task SendAsync(Connection connection, byte[] data, CancellationToken cancellationToken)
     {
         await connection.Gate.WaitAsync(cancellationToken);
         try
         {
             if (connection.Socket.State == WebSocketState.Open)
-                await connection.Socket.SendAsync(frame.Encode(), WebSocketMessageType.Text, true, cancellationToken);
+                await connection.Socket.SendAsync(data, WebSocketMessageType.Text, true, cancellationToken);
         }
         catch (WebSocketException) { }
         finally

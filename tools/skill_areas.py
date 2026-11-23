@@ -76,12 +76,31 @@ def _abnormal_effects_path():
 ABNORMAL_EFFECTS = _abnormal_effects_path()
 
 
-def _rows(path):
-    return json.loads(Path(path).read_text(encoding='utf-8'))['Properties']['Data']
+def _rows(source):
+    """WorldProbe table JSON path, or client export via ``client:Skill`` / ``client:SkillEffect``."""
+    if isinstance(source, str) and source.startswith('client:'):
+        from client_export import load_rows
+        return load_rows(source.split(':', 1)[1])
+    path = Path(source)
+    return json.loads(path.read_text(encoding='utf-8'))['Properties']['Data']
 
 
-def _optional_rows(path):
-    return _rows(path) if path is not None and Path(path).exists() else []
+def _table_source(path, export_name):
+  path = Path(path)
+  return f'client:{export_name}' if not path.is_file() else path
+
+
+def _optional_rows(source):
+    if source is None:
+        return []
+    if isinstance(source, str) and source.startswith('client:'):
+        try:
+            return _rows(source)
+        except FileNotFoundError:
+            return []
+    if not Path(source).exists():
+        return []
+    return _rows(source)
 
 
 def _enum(value):
@@ -375,8 +394,27 @@ def _npc_skill_ids(pc_summons):
     return {int(k) for k in json.loads(path.read_text(encoding='utf-8')).get('npc_skills', {})}
 
 
+def _passive_abnormal_ids():
+    """Abnormal_Passive ids from class passive skills (boxes.json passives map)."""
+    boxes = ROOT / 'tools/data/boxes.json'
+    if not boxes.is_file():
+        return set()
+    passives = json.loads(boxes.read_text(encoding='utf-8')).get('passives') or {}
+    found = set()
+    for ids in passives.values():
+        for ab in ids:
+            found.add(int(ab))
+    return found
+
+
 def build(skill_table=SKILLS, filter_table=FILTERS, projectile_table=PROJECTILES, class_skills=CLASS_SKILLS, pc_summons=PC_SUMMONS,
           world_npcs=WORLD_NPCS, effect_table=EFFECTS, abnormal_effect_table=ABNORMAL_EFFECTS, overrides=None):
+    skill_table = _table_source(skill_table, 'Skill')
+    filter_table = _table_source(filter_table, 'SkillEffectFilter')
+    projectile_table = _table_source(projectile_table, 'SkillProjectile')
+    effect_table = _table_source(effect_table, 'SkillEffect')
+    if abnormal_effect_table is None or not Path(abnormal_effect_table).is_file():
+        abnormal_effect_table = 'client:SkillAbnormalEffect'
     """Every class skill (chain steps and level / spec variants included), every summon NPC skill and every NpcData
     ActiveSkillList skill of world-npcs.json (monsters' and bosses' area attacks). 'projectiles' lists the
     SkillProjectile row of each SkillEffectTimeDataList row in order (0 for a row without one): the 0x3803 of timed row k
@@ -434,6 +472,7 @@ def build(skill_table=SKILLS, filter_table=FILTERS, projectile_table=PROJECTILES
     result = {'source': 'Skill.dat SkillEffectTimeDataList -> SkillEffectFilter.dat / SkillProjectile.dat', 'skills': out}
     abnormal_types = _abnormal_types(abnormal_effect_table)
     used = {d[0] for v in out.values() for key in ('debuffs', 'caster_debuffs', 'target_debuffs') for d in v.get(key, [])}
+    used |= _passive_abnormal_ids()
     if abnormal_types:
         result['abnormal_types'] = {str(a): abnormal_types[a] for a in sorted(used) if a in abnormal_types}
     exported = _abnormal_effects(abnormal_effect_table, used)

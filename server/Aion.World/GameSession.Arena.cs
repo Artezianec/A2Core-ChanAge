@@ -211,7 +211,15 @@ public sealed partial class GameSession
         match.Scores[killer.Key] = (k.Kills + 1, k.Deaths, k.Life);
         var v = match.Scores.GetValueOrDefault(victim.Key);
         match.Scores[victim.Key] = (v.Kills, v.Deaths + 1, Math.Max(0, v.Life - 1));
-        var packets = new List<byte[]> { PacketWriter.Opcode(ArenaDungeonKillNt).I64(killer.Session.DbId).I64(victim.Session.DbId).ToArray(), ArenaScores(match) };
+        var packets = new List<byte[]>
+        {
+            PacketWriter.Opcode(ArenaDungeonKillNt).I64(killer.Session.DbId).I64(victim.Session.DbId).ToArray(),
+            ArenaScores(match),
+        };
+        packets.AddRange(killer.Session.AchieveArenaCombat(kill: true, assist: false, died: false, match.MatchingId, now));
+        packets.AddRange(victim.Session.AchieveArenaCombat(kill: false, assist: false, died: true, match.MatchingId, now));
+        foreach (var teammate in match.Players.Where(p => p != killer && p != victim && match.TeamOf(p) == match.TeamOf(killer)))
+            packets.AddRange(teammate.Session.AchieveArenaCombat(kill: false, assist: true, died: false, match.MatchingId, now));
         foreach (var p in match.Players) p.Send(packets);
         if (match.Scores[victim.Key].Life > 0) match.RespawnAt[victim.Key] = now + ArenaRespawnMs;
         var blueOut = match.BlueTeam.All(p => match.Scores.GetValueOrDefault(p.Key).Life == 0);
@@ -253,7 +261,11 @@ public sealed partial class GameSession
             p.Send(w.ToArray());
             p.Session.pendingRewards.Add([(AbyssPointItemId, join + (won ? win : 0))]);
             p.Session.instanceExitAt = now + ArenaExitMs;
-            p.Session.pendingAchievementPackets.AddRange(won ? p.Session.Achieve("ArenaWin", 1, e => e.Values.Length == 0 || e.Has(match.MatchingId == 1 ? "SingleCombat" : "TeamCombat"), now) : []);
+            if (won)
+            {
+                var mode = match.MatchingId == 1 ? "SingleCombat" : "TeamCombat";
+                p.Session.pendingAchievementPackets.AddRange(p.Session.Emit(new AchievementEvent("ArenaWin", Keys: [mode]), now));
+            }
         }
     }
 

@@ -55,7 +55,7 @@ public sealed partial class NpcAi
                          .Where(p => p.Key != victimKey && area.Contains(cast.Centre, cast.Yaw, p.Position, PlayerRadius))
                          .OrderBy(p => p.Position.DistanceSquared(cast.Centre)).Take(others).ToList())
             {
-                var damage = Mitigated(caster, hit.Skill, DefenseOf?.Invoke(key) ?? 0, PlayerLevelOf?.Invoke(key) ?? 1);
+                var damage = RatioDamage(hit.SkillId, key, victimIsNpc: false) ?? Mitigated(caster, hit.Skill, DefenseOf?.Invoke(key) ?? 0, PlayerLevelOf?.Invoke(key) ?? 1);
                 replies.Add(GamePackets.NpcSkillHit(key, caster.Key, hit.SkillId, hit.ActionSeq, hit.Skill.Effect, damage));
                 replies.AddRange(currentHitPlayer(key, damage));
             }
@@ -67,7 +67,7 @@ public sealed partial class NpcAi
                          && area.Contains(cast.Centre, cast.Yaw, t.Position, t.Radius))
                      .OrderBy(t => t.Position.DistanceSquared(cast.Centre)).Take(others).ToList())
         {
-            var damage = Mitigated(caster, hit.Skill, t.Defense, t.Level);
+            var damage = RatioDamage(hit.SkillId, t.Key, victimIsNpc: true) ?? Mitigated(caster, hit.Skill, t.Defense, t.Level);
             replies.Add(GamePackets.NpcSkillHit(t.Key, caster.Key, hit.SkillId, hit.ActionSeq, hit.Skill.Effect, damage));
             replies.AddRange(HitNpc(current, t.Key, caster, damage, now));
         }

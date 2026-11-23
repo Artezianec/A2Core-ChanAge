@@ -1,0 +1,20 @@
+{
+  "export": {
+    "GameShop": 61,
+    "GameShopGoods": 1011,
+    "GameShopGoodsList": 120,
+    "BMShopGoods": 236,
+    "BMShopCategory": 93
+  },
+  "committed": {
+    "shops_goods": 1011,
+    "shops_shops": 53,
+    "bmshop_goods": 236,
+    "bmshop_on_sale": 208
+  },
+  "notes": [
+    "shops.json still built from WorldProbe (PR #574 may extend); this script only compares counts.",
+    "bmshop_goods.json is rebuilt from export via tools/bmshop_data.py."
+  ],
+  "bmshop_on_sale_match": true
+}

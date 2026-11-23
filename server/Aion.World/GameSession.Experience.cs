@@ -102,7 +102,7 @@ public sealed partial class GameSession
         var daevanionNodesBefore = daevanionNodes.Count;
         EnsureStartNodes();
         RefreshKitSkillLevels();
-        replies.AddRange(AchieveSet("PCLevel", level));
+        replies.AddRange(Emit(new AchievementEvent("PCLevel", SetValue: level)));
         var unlockedList = GamePackets.UnlockedContents(level).Where(t => !unlockedBefore.Contains(t)).ToList();
         if (!unlockedBefore.Contains(DaevanionContentsUnlock) && HasLevelUnlockedClassBoard())
             unlockedList.Add(DaevanionContentsUnlock);
@@ -125,6 +125,7 @@ public sealed partial class GameSession
             // Same tail as world entry and 0x383f: refresh the full 0x5100 originals before 0x5105 so the client
             // spend model matches Exp.dat totals after a quest (or kill) level-up — AddSkillList alone leaves a stale list.
             replies.AddRange(PassiveAbnormals());
+            replies.AddRange(RefreshPassiveStatBuffs(lastNow));
             replies.AddRange(SkillPointClientSync());
             // New Stigma Shards (and slots) come with the level (docs/STIGMAS.md; stigmas on only).
             replies.AddRange(StigmaShardSync());

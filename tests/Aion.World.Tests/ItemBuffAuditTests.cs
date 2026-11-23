@@ -131,8 +131,8 @@ public sealed class ItemBuffAuditTests
         var addBuff = typeof(GameSession).GetMethod("AddBuff", BindingFlags.Instance | BindingFlags.NonPublic)!;
         const int abnormalId = 21619031;
         var replies = new List<byte[]>();
-        addBuff.Invoke(session, [abnormalId, -1, 0, Now, replies, false, SelfAbnormalPath.Item]);
-        addBuff.Invoke(session, [abnormalId, -1, 0, Now + 100, replies, false, SelfAbnormalPath.Item]);
+        addBuff.Invoke(session, [abnormalId, -1, 0, Now, replies, false, SelfAbnormalPath.Item, null, false]);
+        addBuff.Invoke(session, [abnormalId, -1, 0, Now + 100, replies, false, SelfAbnormalPath.Item, null, false]);
         await session.TickAsync(Now + 101);
         Assert.Contains(abnormalId, session.ActiveBuffs);
     }

@@ -85,8 +85,9 @@ public static class OfficialShopCatalog
         return Page(rows, 1, 500, now);
     }
 
-    /// <summary>GET goods/v2.0/me/goods/policy: captured quotas (purchase counters zeroed), or a plain purchasable quota.</summary>
-    public static byte[] Policy(string? goodsIds, string? pgGoodsKeys, string? currencyGroupId, DateTimeOffset now)
+    /// <summary>GET goods/v2.0/me/goods/policy: quotas with optional live <paramref name="purchasedByGoodsId"/> counts.</summary>
+    public static byte[] Policy(string? goodsIds, string? pgGoodsKeys, string? currencyGroupId, DateTimeOffset now,
+        IReadOnlyDictionary<int, int>? purchasedByGoodsId = null)
     {
         var ids = Csv(goodsIds);
         var keys = Csv(pgGoodsKeys);
@@ -99,39 +100,66 @@ public static class OfficialShopCatalog
                 .GroupBy(g => g["goods_id"]!.GetValue<string>()).ToDictionary(x => x.Key, x => x.First());
             foreach (var id in ids)
             {
-                if (quotas.TryGetValue(id, out var q)) outList.Add(RepriceMembershipQuota(Quota(q, now)));
+                if (quotas.TryGetValue(id, out var q))
+                {
+                    var gid = int.TryParse(id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : 0;
+                    outList.Add(RepriceMembershipQuota(Quota(q, now, PurchasedCount(gid, purchasedByGoodsId))));
+                }
                 else outList.Add(RepriceMembershipQuota(DefaultQuota(id, goods.GetValueOrDefault(id), currencyGroupId)));
             }
         }
         else if (keys.Count > 0)
         {
             foreach (var q in quotas.Values)
-                if (q["pg_goods_key"]?.GetValue<string>() is { } k && keys.Contains(k)) outList.Add(RepriceMembershipQuota(Quota(q, now)));
+                if (q["pg_goods_key"]?.GetValue<string>() is { } k && keys.Contains(k))
+                {
+                    var gid = int.TryParse(q["goods_id"]?.GetValue<string>(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : 0;
+                    outList.Add(RepriceMembershipQuota(Quota(q, now, PurchasedCount(gid, purchasedByGoodsId))));
+                }
         }
         return Serialize(new JsonObject { ["quotas"] = outList });
     }
 
-    static JsonObject Quota(JsonObject q, DateTimeOffset now)
+    static int PurchasedCount(int goodsId, IReadOnlyDictionary<int, int>? purchased) =>
+        purchased is not null && purchased.TryGetValue(goodsId, out var n) ? n : 0;
+
+    static JsonObject Quota(JsonObject q, DateTimeOffset now, int purchased)
     {
         var o = q.DeepClone().AsObject();
         if (o["limit_list"] is JsonArray limits)
             for (var i = 0; i < limits.Count; i++)
             {
-                if (limits[i] is not JsonObject l || l["next_reset_time"]?.GetValue<string>() is not { } n
-                    || !DateTimeOffset.TryParse(n, CultureInfo.InvariantCulture, DateTimeStyles.None, out var next)) continue;
-                // Official field order: remaining_seconds sits right before current_reset_time.
-                var remaining = Math.Max(0, (long)(next - now).TotalSeconds).ToString(CultureInfo.InvariantCulture);
-                var copy = new JsonObject();
-                foreach (var (k, v) in l.ToList())
+                if (limits[i] is not JsonObject l) continue;
+                if (l["next_reset_time"]?.GetValue<string>() is { } n
+                    && DateTimeOffset.TryParse(n, CultureInfo.InvariantCulture, DateTimeStyles.None, out var next))
                 {
-                    if (k == "current_reset_time") copy["remaining_seconds"] = remaining;
-                    copy[k] = v?.DeepClone();
+                    // Official field order: remaining_seconds sits right before current_reset_time.
+                    var remaining = Math.Max(0, (long)(next - now).TotalSeconds).ToString(CultureInfo.InvariantCulture);
+                    var copy = new JsonObject();
+                    foreach (var (k, v) in l.ToList())
+                    {
+                        if (k == "current_reset_time") copy["remaining_seconds"] = remaining;
+                        copy[k] = v?.DeepClone();
+                    }
+                    if (!copy.ContainsKey("remaining_seconds")) copy["remaining_seconds"] = remaining;
+                    if (purchased > 0)
+                    {
+                        copy["purchased_quantity"] = purchased.ToString(CultureInfo.InvariantCulture);
+                        if (TryLimitQuantity(copy, out var cap)) copy["remaining_quantity"] = Math.Max(0, cap - purchased).ToString(CultureInfo.InvariantCulture);
+                    }
+                    limits[i] = copy;
                 }
-                if (!copy.ContainsKey("remaining_seconds")) copy["remaining_seconds"] = remaining;
-                limits[i] = copy;
+                else if (purchased > 0)
+                {
+                    l["purchased_quantity"] = purchased.ToString(CultureInfo.InvariantCulture);
+                    if (TryLimitQuantity(l, out var cap)) l["remaining_quantity"] = Math.Max(0, cap - purchased).ToString(CultureInfo.InvariantCulture);
+                }
             }
         return o;
     }
+
+    static bool TryLimitQuantity(JsonObject limit, out int cap) =>
+        int.TryParse(limit["limit_quantity"]?.GetValue<string>(), NumberStyles.Integer, CultureInfo.InvariantCulture, out cap);
 
     static JsonObject DefaultQuota(string id, JsonNode? g, string? currencyGroupId)
     {

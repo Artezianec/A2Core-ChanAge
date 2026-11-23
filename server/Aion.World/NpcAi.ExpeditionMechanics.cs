@@ -172,7 +172,7 @@ public sealed partial class NpcAi
                     state.BlueLightHits = Math.Min(orb.HitsRequired, state.BlueLightHits + 1);
             }
         }
-        foreach (var fight in brains.Values.Select(b => b.Fight).Where(f => f is not null)!)
+        foreach (var fight in brains.Values.Select(b => b.Fight).Where(f => f is { Encounter: null })!)
         {
             if (now < state.CloneLineNextMs) continue;
             var cloneLine = ExpeditionBossMechanics.KromedeCloneConfig();

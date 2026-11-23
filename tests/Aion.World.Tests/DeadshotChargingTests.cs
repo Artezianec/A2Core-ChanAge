@@ -198,6 +198,19 @@ public sealed class DeadshotChargingTests
     }
 
     [Fact]
+    public async Task Charge_release_ignores_client_step_and_uses_server_hold_ms()
+    {
+        var session = await EnterRangerAsync();
+        var mob = session.Targets![Combat.TrainingDummyKey];
+        var startAt = Now + 90_000;
+        await session.HandleAsync(ChargingStartWire(Deadshot, mob.Key, mob.Position), startAt);
+        await RepeatChargingStartAsync(session, ChargingStartWire(Deadshot, mob.Key, mob.Position), startAt + 17, startAt + 2000);
+        var release = await session.HandleAsync(ChargingEndWire(Deadshot, step: 99), startAt + 2100);
+        Assert.Equal(2, ChargingEndStep(Assert.Single(release, p => GameSessionTestHelpers.Op(p) == GameSession.SkillChargingEndRs)));
+    }
+
+
+    [Fact]
     public async Task Deadshot_charge_release_fires_skill_and_clears_charging_abnormal()
     {
         var session = await EnterRangerAsync();
@@ -304,6 +317,38 @@ public sealed class DeadshotChargingTests
     }
 
     [Fact]
+    public async Task Hold_charge_release_refused_when_target_moves_out_of_range()
+    {
+        var session = await EnterRangerAsync();
+        var mob = session.Targets![Combat.TrainingDummyKey];
+        var here = session.Position!.Value;
+        var startAt = Now + 850_000;
+        await session.HandleAsync(ChargingStartWire(Deadshot, mob.Key, mob.Position), startAt);
+        mob.Position = here with { X = here.X + 50_000 };
+        var release = await session.HandleAsync(ChargingEndWire(Deadshot), startAt + 200);
+        var end = Assert.Single(release, p => GameSessionTestHelpers.Op(p) == GameSession.SkillChargingEndRs);
+        Assert.Equal((ushort)1, BitConverter.ToUInt16(end, 3));
+        Assert.DoesNotContain(release, p => GameSessionTestHelpers.Op(p) == 0x3802);
+        Assert.False(session.HasPendingSkillChargeForTests);
+    }
+
+    [Fact]
+    public async Task Hold_charge_repeat_cancels_when_aimed_at_out_of_range_target()
+    {
+        var session = await EnterRangerAsync();
+        var mob = session.Targets![Combat.TrainingDummyKey];
+        var here = session.Position!.Value;
+        var startAt = Now + 860_000;
+        await session.HandleAsync(ChargingStartWire(Deadshot, mob.Key, mob.Position), startAt);
+        var far = here with { X = here.X + 50_000 };
+        var shifted = await session.HandleAsync(ChargingStartWire(Deadshot, mob.Key, far), startAt + 40);
+        Assert.Contains(shifted, p => GameSessionTestHelpers.Op(p) == GameSession.SkillChargingStopRs);
+        Assert.Contains(shifted, p => GameSessionTestHelpers.Op(p) == GameSession.SkillChargingStartRs
+            && BitConverter.ToUInt16(p, 2) == 1);
+        Assert.False(session.HasPendingSkillChargeForTests);
+    }
+
+    [Fact]
     public async Task Changed_aim_or_target_on_repeat_does_not_send_stop_or_restart_notify()
     {
         var session = await EnterRangerAsync();
@@ -311,7 +356,7 @@ public sealed class DeadshotChargingTests
         var at = Now + 750_000;
         await session.HandleAsync(ChargingStartWire(Deadshot, mob.Key, mob.Position), at);
         var shifted = await session.HandleAsync(
-            ChargingStartWire(Deadshot, mob.Key + 1, mob.Position with { X = mob.Position.X + 5 }), at + 40);
+            ChargingStartWire(Deadshot, mob.Key, mob.Position with { X = mob.Position.X + 5 }), at + 40);
         Assert.DoesNotContain(shifted, p => GameSessionTestHelpers.Op(p) == GameSession.SkillChargingStopRs);
         Assert.Contains(shifted, p => GameSessionTestHelpers.Op(p) == GameSession.SkillChargingStartNt);
         Assert.Single(session.SkillChargeAbnormalUidsForTests);

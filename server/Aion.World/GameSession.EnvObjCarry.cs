@@ -83,6 +83,8 @@ public sealed partial class GameSession
     {
         if (o.Carry is { } box)
         {
+            Note($"map_event:pickup_bomb:env={o.Env} idx={index} group={box.Group} map={worldMap}");
+            PlaytestDebug.Action("pickup_bomb", ("env", o.Env), ("index", index), ("map", worldMap));
             var key = WorldObjects.FirstKey + index;
             // The client's stop acknowledgement ends its interaction state even if it missed the reply (OURS, belt and braces).
             replies.Add(GamePackets.InteractEnvObjStopReply(key));

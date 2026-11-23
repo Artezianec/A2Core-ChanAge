@@ -1,0 +1,30 @@
+{
+  "source": "Private BM shop visibility and schedule policy (tools/shop_served_catalog.py)",
+  "blocked_categories": [
+    "Daily_RechargeQuna",
+    "D_Daily_RechargeQuna"
+  ],
+  "blocked_quna_grant_item_id": 535300006,
+  "blocked_currency_groups": [],
+  "allowed_currency_groups": [
+    "261"
+  ],
+  "allowed_hidden_categories": [
+    "Daily_Founderspack",
+    "D_Daily_Founderspack",
+    "Goods_Special",
+    "D_Goods_Special",
+    "Goods_Ticket",
+    "D_Goods_Ticket",
+    "Mileage_Ticket",
+    "D_Mileage_Ticket",
+    "Mileage_Material",
+    "D_Mileage_Material"
+  ],
+  "schedule": {
+    "prefer_g4l_windows": true,
+    "default_always_visible": true,
+    "fallback_effective_from": "2025-01-01T05:00:00+09:00",
+    "fallback_effective_to": "2099-12-31T23:59:59+09:00"
+  }
+}

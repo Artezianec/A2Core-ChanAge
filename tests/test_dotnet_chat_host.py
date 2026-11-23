@@ -173,6 +173,21 @@ class DotnetChatHostTests(unittest.TestCase):
             for client in clients:
                 client.close()
 
+    def test_bearer_prefix_block_list_and_logout(self):
+        token, client = self.login('1099511629056')
+        try:
+            bearer = 'Bearer ' + token
+            self.assertEqual(self.post('/gameClient/getBlockUserList', {}, bearer)['blockedUserList'], [])
+            room = {'type': 'REGION', 'serverKey': '1204', 'roomKey': 'RG'}
+            joined = self.post('/gameClient/joinRoom', {'gameRoomKeyInfo': room}, bearer)
+            self.assertEqual(joined['error'], 0)
+            self.assertIsInstance(joined['gameRoomInfo']['gameRoomId'], int)
+            self.assertIsInstance(joined['gameUserId'], int)
+            self.assertEqual(self.post('/gameLogin/logoutWithJwtToken', {}, bearer)['error'], 0)
+            self.assertNotEqual(self.post('/gameClient/joinRoom', {'gameRoomKeyInfo': room}, bearer)['error'], 0)
+        finally:
+            client.close()
+
     def test_unknown_session_is_rejected(self):
         reply = self.post('/gameClient/sendMessage', {'gameRoomKeyInfo': {}, 'gameMessageInfo': {'content': 'x'}},
                           'mtalk-unknown')
@@ -191,6 +206,9 @@ class DotnetChatHostAccountModeTests(DotnetChatHostTests):
         self.assertNotIn('mtalkToken', reply)
 
     def test_two_players_share_rooms_and_whisper_by_name(self):
+        self.round_trip(True)
+
+    def test_bearer_prefix_block_list_and_logout(self):
         self.round_trip(True)
 
 

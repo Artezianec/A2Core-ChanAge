@@ -31,6 +31,8 @@ partial class GameSession
 
     internal WorldPlayer? PvpVictimForTests(int key) => PvpVictimOf(key);
 
+    internal IReadOnlyList<GameSession> FriendlyRecipientsForTests(int skill, int targetKey) => FriendlyRecipients(skill, targetKey);
+
     internal long HateOf(Target npc) => ai.HateOf(npc, playerKey);
 
     // ---------- Scheduling ----------
@@ -86,22 +88,27 @@ partial class GameSession
     /// <summary>The sessions a friendly skill lands on: its scope (self, target, party, area), always including the caster.</summary>
     List<GameSession> FriendlyRecipients(int skill, int targetKey)
     {
-        List<GameSession> list = [this];
-        if (worldPlayer is null) return list;
+        if (worldPlayer is null) return [this];
         var range = SkillEffects.ScopeRange(skill);
-        switch (SkillEffects.Scope(skill))
+        return SkillEffects.Scope(skill) switch
         {
-            case "target" when targetKey != playerKey && targetKey >= SharedWorld.FirstPlayerKey && FriendlyPlayer(targetKey) is { } friend:
-                return [friend.Session];
-            case "party" when Social?.PartyOf(worldPlayer) is { } party:
-                list.AddRange(party.Members.Where(m => m != worldPlayer && m.Map == worldPlayer.Map && !m.Session.dead && Near(m.Position, range)).Select(m => m.Session));
-                break;
-            case "area" when worldPlayer.Map is { } map:
-                list.AddRange(map.Players.Values.Where(o => o != worldPlayer && !o.Session.dead && o.Session.profileRace == profileRace
-                    && PvpHitKind(o.Key) is null && Near(o.Position, range)).Select(o => o.Session));
-                break;
-        }
-        return list;
+            "self" => [this],
+            "target" when targetKey == playerKey => [this],
+            "target" when targetKey >= SharedWorld.FirstPlayerKey && FriendlyPlayer(targetKey) is { } friend => [friend.Session],
+            "target" => [],
+            "party" when Social?.PartyOf(worldPlayer) is { } party =>
+            [
+                this,
+                .. party.Members.Where(m => m != worldPlayer && m.Map == worldPlayer.Map && !m.Session.dead && Near(m.Position, range)).Select(m => m.Session),
+            ],
+            "area" when worldPlayer.Map is { } map =>
+            [
+                this,
+                .. map.Players.Values.Where(o => o != worldPlayer && !o.Session.dead && o.Session.profileRace == profileRace
+                    && PvpHitKind(o.Key) is null && Near(o.Position, range)).Select(o => o.Session),
+            ],
+            _ => [this],
+        };
     }
 
     /// <summary>The enemy player a cast is locked on, when the caster may fight it (a duel, an arena match, a hostile faction).</summary>
@@ -154,7 +161,7 @@ partial class GameSession
         foreach (var row in rows)
         {
             if (SkillEffects.IsHostileRow(row)) replies.AddRange(ApplyHostileRow(row, skill, pending.TargetKey, npcs, victim, now));
-            else if (row[0] == "DecreaseCooltime") replies.AddRange(AdjustCooldowns(-Math.Abs(SkillEffects.Value(row, 0)), SkillEffects.Value(row, 1), now));
+            else if (row[0] == "DecreaseCooltime") replies.AddRange(AdjustCooldowns(-PositiveEffectMs(SkillEffects.Value(row, 0)), SkillEffects.Value(row, 1), now));
         }
         return replies;
     }
@@ -185,14 +192,18 @@ partial class GameSession
             }
             case "MPBurn":
                 if (victim is not null)
-                    victim.Send(victim.Session.BurnMp(rng.Next(Math.Min(SkillEffects.Value(row, 0), SkillEffects.Value(row, 1)), Math.Max(SkillEffects.Value(row, 0), SkillEffects.Value(row, 1)) + 1)));
+                    victim.Send(victim.Session.BurnMp(RollEffectAmount(row, rng)));
+                break;
+            case "MPBurnRatio":
+                if (victim is not null)
+                    victim.Send(victim.Session.BurnMp(victim.Session.MpRatioOf(RollEffectAmount(row, rng))));
                 break;
             case "APBurn" or "APBurnRatio":
                 if (victim is not null)
                     victim.Send(victim.Session.BurnAp(row, rng));
                 break;
             case "IncreaseCooltime":
-                if (victim is not null) victim.Send(victim.Session.AdjustCooldowns(Math.Abs(SkillEffects.Value(row, 0)), SkillEffects.Value(row, 1), now));
+                if (victim is not null) victim.Send(victim.Session.AdjustCooldowns(PositiveEffectMs(SkillEffects.Value(row, 0)), SkillEffects.Value(row, 1), now));
                 break;
             case "AggroTransfer":
                 replies.AddRange(TransferAggro(SkillEffects.Value(row, 0), FriendlyPlayer(targetKey)?.Key ?? 0, now));
@@ -216,25 +227,46 @@ partial class GameSession
     List<byte[]> Heal(string[] row, long now)
     {
         if (resources is not { } r) return [];
-        int low = SkillEffects.Value(row, 0), high = SkillEffects.Value(row, 1);
-        var amount = rng.Next(Math.Min(low, high), Math.Max(low, high) + 1);
+        var amount = RollEffectAmount(row, rng);
         if (amount <= 0) return [];
         var ratio = row[0].EndsWith("Ratio", StringComparison.Ordinal);
         int Gain(int max) => ratio ? (int)((long)max * amount / 10_000) : amount;
-        switch (row[0][..2])
+        // The client spells AP APHeal / APHealRatio; the older improvised rows ApHeal.
+        var type = row[0].StartsWith("AP", StringComparison.Ordinal) ? "Ap" + row[0][2..] : row[0];
+        switch (type)
         {
-            case "Hp": r.Hp = Math.Max(0, Math.Min(r.HpMax, r.Hp + Gain(r.HpMax))); break;
-            case "Mp": r.Mp = Math.Min(r.MpMax, r.Mp + Gain(r.MpMax)); break;
-            case "Ap" when r.ApMax > 0: r.Ap = Math.Min(r.ApMax, r.Ap + Gain(r.ApMax)); break;
-            default: r.Sp = Math.Min(r.SpMax, r.Sp + Gain(r.SpMax)); break;
+            case "HpHeal" or "HpHealRatio":
+                r.Hp = ClampResource(r.Hp + Gain(r.HpMax), 0, r.HpMax); break;
+            case "MpHeal" or "MpHealRatio":
+                r.Mp = ClampResource(r.Mp + Gain(r.MpMax), 0, r.MpMax); break;
+            case "ApHeal" or "ApHealRatio" when r.ApMax > 0:
+                r.Ap = ClampResource(r.Ap + Gain(r.ApMax), 0, r.ApMax); break;
+            case "ApHeal" or "ApHealRatio":
+                break;
+            case "SpHeal" or "SpHealRatio":
+                r.Sp = ClampResource(r.Sp + Gain(r.SpMax), 0, r.SpMax); break;
         }
-        return [r.ApMax > 0 && row[0].StartsWith("Ap", StringComparison.Ordinal) ? r.ApUpdate() : r.Update()];
+        return [type.StartsWith("Ap", StringComparison.Ordinal) && r.ApMax > 0 ? r.ApUpdate() : r.Update()];
     }
+
+    static int RollEffectAmount(string[] row, Random rng)
+    {
+        int low = SkillEffects.Value(row, 0), high = SkillEffects.Value(row, 1);
+        var min = Math.Min(low, high);
+        var max = Math.Max(low, high);
+        if (max <= 0) return 0;
+        if (max == int.MaxValue) return min == int.MaxValue ? int.MaxValue : rng.Next(min, int.MaxValue);
+        return rng.Next(min, max + 1);
+    }
+
+    static int PositiveEffectMs(int ms) => ms == int.MinValue ? int.MaxValue : Math.Abs(ms);
+
+    static int ClampResource(long value, int min, int max) => (int)Math.Clamp(value, min, max);
 
     /// <summary>Removes up to <paramref name="max"/> abnormals <paramref name="which"/> names (a cleanse of crowd control or debuffs, a purge of buffs).</summary>
     internal List<byte[]> Cleanse(Func<int, bool> which, int max, long now)
     {
-        var gone = buffs.Where(b => !b.Rebirth && !b.Scripted && which(b.AbnormalId)).Take(max).ToList();
+        var gone = buffs.Where(b => !b.Rebirth && !b.Scripted && !b.PassiveHidden && which(b.AbnormalId)).Take(max).ToList();
         if (gone.Count == 0) return [];
         var speedBefore = BuffStat("MoveSpeed");
         return [.. RemoveBuffs(gone, ExpireDispel), .. BuffStatsChanged(speedBefore)];
@@ -260,11 +292,13 @@ partial class GameSession
         return [r.Update()];
     }
 
+    /// <summary>A share (1/10000) of this player's maximum MP.</summary>
+    internal int MpRatioOf(int ratio) => resources is { } r ? (int)((long)r.MpMax * ratio / 10_000) : 0;
+
     internal List<byte[]> BurnAp(string[] row, Random rng)
     {
         if (resources is not { ApMax: > 0 } r || dead) return [];
-        int low = SkillEffects.Value(row, 0), high = SkillEffects.Value(row, 1);
-        var amount = rng.Next(Math.Min(low, high), Math.Max(low, high) + 1);
+        var amount = RollEffectAmount(row, rng);
         if (amount <= 0) return [];
         if (row[0].EndsWith("Ratio", StringComparison.Ordinal))
             amount = (int)((long)r.ApMax * amount / 10_000);

@@ -31,6 +31,25 @@ partial class GameSession
 
     internal void SetPositionForTests(Vector3d at) => position = at;
 
+    /// <summary>Hold-charge 0x381a repeat and 0x381d release: Skill.dat range + projectile aim sanity (no client pass_los).</summary>
+    internal bool HoldChargeTargetValidForTests(SkillDefinition definition, int skillId, CastRequest request) =>
+        HoldChargeTargetValid(definition, skillId, request);
+
+    bool HoldChargeTargetValid(SkillDefinition definition, int skillId, CastRequest request)
+    {
+        if (!CastTargetReachValid(definition, skillId, request)) return false;
+        if (CastArea(skillId) is not { Projectile: > 0 }) return true;
+        var caster = position ?? request.Location;
+        var range = data.SkillUseRangeCm(skillId);
+        if (range <= 0) return true;
+        var max = range + CastRangeToleranceCm;
+        if (HorizontalDistance(caster, request.Location) > max) return false;
+        if (request.TargetKey >= SharedWorld.FirstPlayerKey) return true;
+        if (DestructibleEnvObjAt(request.TargetKey) is { } env) return HorizontalDistance(request.Location, env.At) <= max + env.InteractRange;
+        if (targets?.TryGetValue(request.TargetKey, out var npc) != true || npc is null) return false;
+        return HorizontalDistance(request.Location, npc.Position) <= max + npc.Radius;
+    }
+
     bool CastTargetReachValid(SkillDefinition definition, int skillId, CastRequest request)
     {
         var range = data.SkillUseRangeCm(skillId);
@@ -44,6 +63,10 @@ partial class GameSession
             if (HorizontalDistance(caster, at) > max) return false;
             return Math.Abs(caster.Z - at.Z) <= CastHeightToleranceCm;
         }
+        // Object keys (WorldObjects.FirstKey) sit above FirstPlayerKey; destructible env objects (EnvObj_Destroy) are no player or NPC targets: the range is measured to the object, as the client does.
+        if (DestructibleEnvObjAt(request.TargetKey) is { } env)
+            return HorizontalDistance(caster, env.At) <= max + env.InteractRange
+                && Math.Abs(caster.Z - env.At.Z) <= CastHeightToleranceCm;
         if (request.TargetKey == playerKey) return true;
         if (request.TargetKey >= SharedWorld.FirstPlayerKey)
         {
@@ -55,6 +78,9 @@ partial class GameSession
         return HorizontalDistance(caster, npc.Position) <= max + npc.Radius
             && Math.Abs(caster.Z - npc.Position.Z) <= CastHeightToleranceCm;
     }
+
+    WorldObject? DestructibleEnvObjAt(int key) =>
+        DestructibleEnvObjIndex(key) is { } index ? WorldObjects.ObjectsOn(worldMap)[index] : null;
 
     static double HorizontalDistance(Vector3d a, Vector3d b)
     {

@@ -2961,7 +2961,7 @@ sealed class FakeStore : INativeCharacterStore
 
     public Task<bool> ShopBuyAsync(Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, IReadOnlyList<(int TemplateId, long Count)> goods,
         IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits, IReadOnlyList<ShopOrderLine> orders, CancellationToken ct,
-        Aion.Application.Gameplay.QunaRequest? qunaSpend = null)
+        Aion.Application.Gameplay.QunaRequest? qunaSpend = null, Aion.Application.Gameplay.ShopBuyContext? context = null)
     {
         foreach (var l in limits)
             if (Purchases.Where(p => p.GoodsId == l.GoodsId && p.Target == l.Target && p.Period == l.Period).Sum(p => p.Count) + l.Count > l.Limit) return Task.FromResult(false);

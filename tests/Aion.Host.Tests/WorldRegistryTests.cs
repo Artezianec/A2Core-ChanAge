@@ -1,6 +1,7 @@
 using Aion.Application.Gameplay;
 using Aion.Host.Native;
 using Aion.Host.Worlds;
+using Aion.Protocol.Native;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 
@@ -38,6 +39,15 @@ public sealed class WorldRegistryTests
         Assert.Equal(("192.0.2.10", 13328), (list[0].Host, list[0].Port));
         Assert.Equal(("192.0.2.10", 13329), (list[1].Host, list[1].Port));
         Assert.Equal(("192.0.2.99", 13328), (list[2].Host, list[2].Port));
+    }
+
+    [Fact]
+    public void Single_world_rows_take_the_primary_worlds_name_and_keep_their_ids()
+    {
+        var rows = LoginWorldList.WithPrimaryName(LoginPackets.DefaultWorlds, [World(1204, "Israphel", 1361, 2361, WorldRecord.Primary)]);
+        Assert.Equal([(1361, "Israphel"), (2361, "Israphel")], rows.Select(r => (r.Id, r.Name)));
+        Assert.Equal(LoginPackets.DefaultWorlds.Select(r => (r.Group, r.Status, r.Load)), rows.Select(r => (r.Group, r.Status, r.Load)));
+        Assert.Same(LoginPackets.DefaultWorlds, LoginWorldList.WithPrimaryName(LoginPackets.DefaultWorlds, []));
     }
 
     [Fact]

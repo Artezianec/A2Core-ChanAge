@@ -226,7 +226,10 @@ public interface IGameplayStore
     /// </summary>
     Task<bool> ShopBuyAsync(VerifiedAccount account, Guid character, IReadOnlyList<(Guid Item, long Revision, int Count)> costs,
         IReadOnlyList<(int TemplateId, long Count)> goods, IReadOnlyList<(int Target, int GoodsId, string Period, int Count, int Limit)> limits,
-        IReadOnlyList<ShopOrderLine>? orders = null, CancellationToken ct = default, QunaRequest? qunaSpend = null);
+        IReadOnlyList<ShopOrderLine>? orders = null, CancellationToken ct = default, QunaRequest? qunaSpend = null, ShopBuyContext? context = null);
+    /// <summary>Quna request id for this purchase attempt (retry within 3s reuses the last id for the fingerprint).</summary>
+    Task<string> ResolveShopPurchaseRequestIdAsync(VerifiedAccount account, string fingerprint, long nowMs, CancellationToken ct = default);
+    Task<ShopOrderRefundResult> RefundShopOrderAsync(VerifiedAccount actor, Guid account, long orderId, int refundWindowHours, CancellationToken ct = default);
     Task<StoredMembership?> MembershipAsync(VerifiedAccount account, CancellationToken ct = default);
     Task SaveMembershipAsync(VerifiedAccount account, StoredMembership membership, CancellationToken ct = default);
     Task<IReadOnlyList<(int Target, int RecipeId, string Period, int Count)>> ConversionCountsAsync(VerifiedAccount account, Guid character, int worldId, CancellationToken ct = default);
@@ -434,6 +437,7 @@ public interface IGameplayStore
         IReadOnlyList<WeeklyRewardMail> mails, TimeSpan valid, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<(Guid, PostRecord)>?>(null);
     /// <summary>A character id by name (any account), for mail to offline players.</summary>
     Task<Guid?> CharacterByNameAsync(VerifiedAccount account, string name, CancellationToken ct = default) => Task.FromResult<Guid?>(null);
+    Task<int?> CharacterWorldIdAsync(Guid characterId, CancellationToken ct = default) => Task.FromResult<int?>(null);
     /// <summary>Sorts the bag: items ordered by template, then age, on slots 0, 1, 2, ...</summary>
     Task<bool> SortBagAsync(VerifiedAccount account, Guid character, CancellationToken ct = default);
     /// <summary>Sorts a container (bag or storage depot).</summary>

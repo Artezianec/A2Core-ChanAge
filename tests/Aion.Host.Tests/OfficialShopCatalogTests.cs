@@ -34,6 +34,16 @@ public sealed class OfficialShopCatalogTests
     }
 
     [Fact]
+    public void Policy_reflects_supplied_purchase_counts_in_quota()
+    {
+        var purchased = new Dictionary<int, int> { [1218] = 1 };
+        using var doc = JsonDocument.Parse(OfficialShopCatalog.Policy("1218", null, "145", Now, purchased));
+        var limit = doc.RootElement.GetProperty("quotas")[0].GetProperty("limit_list")[0];
+        Assert.Equal("1", limit.GetProperty("purchased_quantity").GetString());
+        Assert.Equal("1", limit.GetProperty("remaining_quantity").GetString());
+    }
+
+    [Fact]
     public void Policy_returns_quota_per_requested_goods_with_zero_purchases()
     {
         using var doc = JsonDocument.Parse(OfficialShopCatalog.Policy("1242,1213,999999", null, "145", Now));

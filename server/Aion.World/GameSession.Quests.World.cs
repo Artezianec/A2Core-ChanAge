@@ -50,6 +50,8 @@ public sealed partial class GameSession
     /// <summary>A timed interaction in progress: object index, key, when it completes.</summary>
     (int Index, int Key, long DueMs)? pendingUse;
 
+    internal void SetPendingUseForTests(int index, int key, long dueMs) => pendingUse = (index, key, dueMs);
+
     internal bool EnvObjAvailableForUse(int index, WorldObject o, long now) =>
         !usedObjects.Contains(index) && !Gathered(index, now) && !Broken(index, now) && !CarryBoxGone(index, now)
         && PlayerMayUseEnvObj(index, o);
@@ -261,6 +263,14 @@ public sealed partial class GameSession
         var objects = WorldObjects.ObjectsOn(worldMap);
         if (index >= objects.Count) return [];
         var key = WorldObjects.FirstKey + index;
+        var o = objects[index];
+        if (WorldObjects.HasCarryBoxes(worldMap) && o.Destructible && CarriedGroup is not null && position is { } plantAt
+            && !InBombPlantRange(plantAt, o))
+        {
+            Note($"Bomb plant refused at channel complete: out_of_range env={o.Env} idx={index} map={worldMap}");
+            PlaytestDebug.Action("bomb_plant_refused", ("reason", "out_of_range_channel"), ("env", o.Env), ("index", index), ("map", worldMap), ("skill", CarriedSkill));
+            return [GamePackets.InteractEnvObjReply(key, 1), GamePackets.InteractEnvObjAvailableState(key)];
+        }
         if (objects[index].Pool is not null) return await OpenCubeAsync(index, objects[index], key, now, ct);   // GameSession.Rifts.cs
         if (objects[index].Rift is not null) return await UseRiftAsync(index, objects[index], key, now, ct);
         var replies = new List<byte[]>
@@ -268,6 +278,11 @@ public sealed partial class GameSession
             GamePackets.InteractEnvObjCompleted(key, playerKey), GamePackets.InteractEnvObjFinishState(key), GamePackets.InteractEnvObjAvailableState(key),
             GamePackets.InteractEnvObjReply(key),
         };
+        if (objects[index].Carry is not null && QaBot)
+        {
+            Note($"map_event:bomb_channel_complete:env={objects[index].Env} idx={index} map={worldMap}");
+            PlaytestDebug.Action("bomb_channel_complete", ("env", objects[index].Env), ("index", index), ("map", worldMap));
+        }
         replies.AddRange(await ObjectUsedAsync(index, now, ct));
         return replies;
     }
@@ -302,8 +317,8 @@ public sealed partial class GameSession
         // A carried-item box comes back after its FinishDuration even when a map event counts it (FierceHornCave BombBox_02).
         var consumed = objects[index].Carry is null && lootTables.Length == 0
             && (CopyOwner ?? this).mapEventRuns.Any(r => r.WantsObject(EventName(objects[index])));
-        if (BombPlantMapEventCreditAllowed(objects[index]))
-            replies.AddRange(MapEventUsedObject(EventName(objects[index]), now));
+        if (MapEventBombCreditAllowed(objects[index], position))
+            replies.AddRange(MapEventUsedObject(EventName(objects[index]), now, position));
         if (consumed || destroyed)
         {
             usedObjects.Add(index);

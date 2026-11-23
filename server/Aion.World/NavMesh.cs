@@ -230,6 +230,11 @@ public sealed class NavMeshStore(string? directory)
 {
     readonly ConcurrentDictionary<int, Lazy<Task<NavMesh?>>> maps = new();
 
+    public string? Directory => directory;
+
+    public string? ExpectedPath(int mapId) => directory is null ? null
+        : Path.Combine(directory, mapId.ToString(System.Globalization.CultureInfo.InvariantCulture), "nav.bin");
+
     /// <summary>The map's mesh, loaded once on a worker thread (world maps have over a million polygons). Null when there is none.</summary>
     public Task<NavMesh?> LoadAsync(int mapId) => directory is null ? Task.FromResult<NavMesh?>(null)
         : maps.GetOrAdd(mapId, id => new Lazy<Task<NavMesh?>>(() => Task.Run(() =>
@@ -249,8 +254,11 @@ public sealed class NavMeshStore(string? directory)
         if (!string.IsNullOrWhiteSpace(configured)) return Path.GetFullPath(configured);
         for (var dir = new DirectoryInfo(start); dir is not null; dir = dir.Parent)
         {
-            var candidate = Path.Combine(dir.FullName, "research", "local", "navmesh");
-            if (Directory.Exists(candidate)) return candidate;
+            foreach (var rel in new[] { Path.Combine("data", "navmesh"), Path.Combine("research", "local", "navmesh") })
+            {
+                var candidate = Path.Combine(dir.FullName, rel);
+                if (System.IO.Directory.Exists(candidate)) return candidate;
+            }
         }
         return null;
     }

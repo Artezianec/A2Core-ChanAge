@@ -25,6 +25,9 @@ public static class QaStuckReason
     public const string DeathLoop = "death_loop";
     public const string ExploitBombRange = "exploit_bomb_range";
     public const string CarryStuck = "carry_stuck";
+    public const string BossNotSpawned = QaBossProbe.BossNotSpawned;
+    public const string BossPhaseStall = QaBossProbe.BossPhaseStall;
+    public const string BossUnkillable = QaBossProbe.BossUnkillable;
 }
 
 public sealed record QaThinkResult(IReadOnlyList<byte[]> Requests, QaStuckEvent? Stuck)
@@ -44,6 +47,7 @@ public sealed class QaQuestBrain
     readonly int race;
     readonly QaBotOptions options;
     readonly RingBuffer<string> actions;
+    readonly QaBossProbe.State bossProbeState = new();
 
     string? focusQuest;
     string lastProgressToken = "";
@@ -92,6 +96,9 @@ public sealed class QaQuestBrain
 
     public void NoteDeath(long now)
     {
+        actions.Clear();
+        driverState.PendingEnvKey = null;
+        driverState.PendingEnvUntil = 0;
         var code = focusQuest;
         var step = code is null || session.Quests?.Get(code) is not { } rec ? 0 : rec.Step;
         var key = $"{code}|{step}";
@@ -107,6 +114,11 @@ public sealed class QaQuestBrain
             deathsInWindow = 0;
         }
         deathsInWindow++;
+        driverState.PostCombatRecoverUntil = now + 18_000;
+        driverState.CombatTargetKey = null;
+        driverState.SelfDefenseFocusKey = null;
+        if (session.InstanceKey != 0 && session.MapEventRuns.Count > 0)
+            session.SyncVacatedMapEventRuns(now);
     }
 
     internal void PinQuestFocus(string code)
@@ -130,7 +142,20 @@ public sealed class QaQuestBrain
             return new([], null);
 
         if (BombRangeExploitStall(now) is { } bombExploit) return new([], bombExploit);
+        if (QaBossProbe.Tick(session, bossProbeState, options.BossProbe, now, StallEvent) is { } bossStall)
+            return new([], bossStall);
         if (QaStallEvent(now) is { } stall) return new([], stall);
+
+        if (driverState.PostCombatRecoverUntil > 0)
+        {
+            var hpRatio = session.Resource.HpMax > 0 ? (double)session.Resource.Hp / session.Resource.HpMax : 1;
+            if (now < driverState.PostCombatRecoverUntil && hpRatio < 0.92)
+            {
+                lastMoveAt = now;
+                return new([], null);
+            }
+            driverState.PostCombatRecoverUntil = 0;
+        }
 
         if (now < driverState.CombatBusyUntil)
         {
@@ -223,7 +248,8 @@ public sealed class QaQuestBrain
                     var dungeonId = MapEventTables.Embedded.DungeonIdOfMap(map);
                     if (dungeonId > 0 && session.InstanceKey == 0)
                     {
-                        var enter = session.EnterDungeonById(dungeonId, now);
+                        var copy = session.PreferredSoloDungeonCopy(map);
+                        var enter = session.EnterDungeonById(dungeonId, now, copy);
                         if (enter.Count > 0)
                             return new([], null) { Outbound = enter };
                     }
@@ -249,25 +275,56 @@ public sealed class QaQuestBrain
         if (driverState.BombProbeAttemptAt <= 0) return null;
         if (now - driverState.BombProbeAttemptAt > BombProbeExploitWindowMs)
         {
-            driverState.BombProbeGoalsBefore = null;
-            driverState.BombProbeMapEventRunId = null;
-            driverState.BombProbeAttemptAt = 0;
+            ClearBombProbeWatch();
+            return null;
+        }
+        if (session.QaLastBombTowerCreditInRange && now - session.QaLastBombTowerCreditMs <= BombProbeExploitWindowMs)
+        {
+            ClearBombProbeWatch();
             return null;
         }
         var run = session.MapEventRuns.FirstOrDefault(r => r.Id == runId);
         if (run is null)
         {
-            driverState.BombProbeGoalsBefore = null;
-            driverState.BombProbeMapEventRunId = null;
-            driverState.BombProbeAttemptAt = 0;
+            ClearBombProbeWatch();
             return null;
         }
+        var goalsAdvanced = false;
         for (var i = 0; i < before.Length && i < run.Goals.Length; i++)
         {
-            if (run.Goals[i] > before[i])
-                return StallEvent(QaStuckReason.ExploitBombRange, "map event goal advanced after far bomb plant");
+            if (run.Goals[i] <= before[i]) continue;
+            goalsAdvanced = true;
+            break;
         }
+        if (!goalsAdvanced) return null;
+        if (session.QaLastBombTowerCreditMs >= driverState.BombProbeAttemptAt && session.QaLastBombTowerCreditInRange)
+        {
+            ClearBombProbeWatch();
+            return null;
+        }
+        var probeFar = driverState.BombProbeAt is { } probeAt
+            && WorldObjects.ObjectsOn(session.MapId ?? 0).Where(IsBombTowerObj).Any(t => !GameSession.InBombPlantRange(probeAt, t));
+        if (!probeFar && session.QaLastBombTowerCreditMs < driverState.BombProbeAttemptAt)
+        {
+            ClearBombProbeWatch();
+            return null;
+        }
+        if (session.QaLastBombTowerCreditMs >= driverState.BombProbeAttemptAt && !session.QaLastBombTowerCreditInRange)
+            return StallEvent(QaStuckReason.ExploitBombRange, "server credited bomb tower while bot was out of plant range");
+        if (probeFar && session.QaLastBombTowerCreditMs >= driverState.BombProbeAttemptAt)
+            return StallEvent(QaStuckReason.ExploitBombRange, "map event goal advanced after far bomb plant");
+        ClearBombProbeWatch();
         return null;
+    }
+
+    static bool IsBombTowerObj(WorldObject o) => o.Env == GameSession.BombTowerEnvId;
+
+    void ClearBombProbeWatch()
+    {
+        driverState.BombProbeGoalsBefore = null;
+        driverState.BombProbeMapEventRunId = null;
+        driverState.BombProbeAttemptAt = 0;
+        driverState.BombProbeAt = null;
     }
 
     /// <summary>After a client cast packet is handled, drop targets that keep refusing.</summary>
@@ -275,16 +332,22 @@ public sealed class QaQuestBrain
     {
         if (actor.ConsumeQaCastRefusal() is { } refusal)
         {
-            if (refusal.Reason is "height" or "out_of_range")
+            if (refusal.Reason == "height" || refusal.Reason.StartsWith("height", StringComparison.Ordinal))
             {
                 driverState.CastHeightRepositionKey = refusal.TargetKey;
                 driverState.CastRefusalStreak.Remove(refusal.TargetKey);
                 driverState.CastRefusalBlacklisted.Remove(refusal.TargetKey);
                 return;
             }
+            if (refusal.Reason == "out_of_range" || refusal.Reason.StartsWith("out_of_range", StringComparison.Ordinal))
+            {
+                driverState.CombatTargetKey = refusal.TargetKey;
+                driverState.CastHeightRepositionKey = null;
+            }
             var streak = driverState.CastRefusalStreak.GetValueOrDefault(refusal.TargetKey) + 1;
             driverState.CastRefusalStreak[refusal.TargetKey] = streak;
-            if (streak >= QuestDriverState.CastRefusalBlacklistAfter)
+            var blacklistAfter = driverState.ActiveMapEventRunId is not null ? QuestDriverState.CastRefusalBlacklistAfter + 2 : QuestDriverState.CastRefusalBlacklistAfter;
+            if (streak >= blacklistAfter)
             {
                 driverState.CastRefusalBlacklisted.Add(refusal.TargetKey);
                 if (driverState.CombatTargetKey == refusal.TargetKey)
@@ -405,6 +468,16 @@ public sealed class QaQuestBrain
     void TrackActionStreak(string label, long now)
     {
         label = ActionStreakKey(label);
+        if (session.CarriedGroup is not null
+            && (label.Contains("walk_plant", StringComparison.Ordinal)
+                || label.Contains("pickup_bomb", StringComparison.Ordinal)
+                || label.Contains("bomb_probe", StringComparison.Ordinal)
+                || label.Contains("walk_bomb", StringComparison.Ordinal)))
+        {
+            lastCarryMoveAt = now;
+            if (session.WorldPosition is { } carryAt)
+                lastCarryPosition = carryAt;
+        }
         var goals = focusQuest is null || session.Quests?.Get(focusQuest) is not { } rec
             ? ""
             : string.Join(',', rec.Goals);
@@ -430,10 +503,14 @@ public sealed class QaQuestBrain
 
     bool ActionLoopStall(long now, string label)
     {
+        if (label.StartsWith("map_event:", StringComparison.Ordinal) && MapEventCombatWalkLabel(label))
+            return false;
         var limit = options.ActionLoopTimeoutMs;
         if (label.StartsWith("map_event:", StringComparison.Ordinal))
         {
-            limit = MapEventIdleActionLabel(label) ? options.MapEventStallTimeoutMs : options.ActionLoopTimeoutMs;
+            limit = MapEventIdleActionLabel(label) || MapEventCombatWalkLabel(label)
+                ? options.MapEventStallTimeoutMs
+                : options.ActionLoopTimeoutMs;
             if (!MapEventIdleActionLabel(label))
             {
                 if (now - actionStreakStartedAt < limit) return false;
@@ -458,6 +535,15 @@ public sealed class QaQuestBrain
         }
         return false;
     }
+
+    static bool MapEventCombatWalkLabel(string label) =>
+        label.Contains("walk_kill", StringComparison.Ordinal)
+        || label.Contains("return_battle", StringComparison.Ordinal)
+        || label.Contains("hp_remaining_walk", StringComparison.Ordinal)
+        || label.Contains("bomb_range_probe_move", StringComparison.Ordinal)
+        || label.Contains("walk_boss_spawn", StringComparison.Ordinal)
+        || label.Contains("walk_spawn", StringComparison.Ordinal)
+        || label.Contains("enter_vol", StringComparison.Ordinal);
 
     static bool MapEventIdleActionLabel(string label) =>
         label.Contains("escort_wait", StringComparison.Ordinal)
@@ -500,6 +586,12 @@ public sealed class QaQuestBrain
         }
         if (session.WorldPosition is { } p)
         {
+            if (lastPosition is { } prev && Flat(p, prev) > 3500)
+            {
+                actions.Clear();
+                driverState.PendingEnvKey = null;
+                driverState.PendingEnvUntil = 0;
+            }
             if (lastPosition is null || Flat(p, lastPosition.Value) > 30) lastMoveAt = now;
             lastPosition = p;
         }
@@ -650,8 +742,21 @@ public sealed class QaQuestBrain
         driverState.MapEventsTried.Clear();
         driverState.ObjectiveIndex = 0;
         softStuckFailures++;
-        var minutes = Math.Min(30, 1 << Math.Min(softStuckFailures, 5));
-        softStuckUntil = now + minutes * 60_000L;
+        var mapEventActive = HasActiveMapEventRun();
+        var shortMapEventPause = mapEventActive && stuck.ReasonCode is QaStuckReason.StepTimeout or QaStuckReason.NoProgress or QaStuckReason.DeathLoop or QaStuckReason.MobMissing;
+        if (shortMapEventPause)
+        {
+            softStuckUntil = now + 45_000L;
+        }
+        else
+        {
+            var mapEventAdvancing = session.MapEventRuns.Any(r => !r.Finished && (r.EverTowerCredited || r.StageOrder >= 4));
+            var minutes = mapEventAdvancing
+                ? Math.Min(4, 1 + softStuckFailures)
+                : Math.Min(30, 1 << Math.Min(softStuckFailures, 5));
+            softStuckUntil = now + minutes * 60_000L;
+        }
+        actions.Clear();
         stallSuppressUntil = now + Math.Min(options.StepTimeoutMs / 2, 60_000L);
         lastProgressAt = now;
         lastMoveAt = now;
@@ -687,6 +792,8 @@ sealed class RingBuffer<T>(int capacity)
     int count, head;
 
     public void Add(T item) { items[head] = item; head = (head + 1) % items.Length; if (count < items.Length) count++; }
+
+    public void Clear() { count = 0; head = 0; Array.Clear(items); }
 
     public IReadOnlyList<T> ToList()
     {

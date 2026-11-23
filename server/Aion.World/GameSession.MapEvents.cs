@@ -22,6 +22,10 @@ public sealed partial class GameSession : IMapEventHost
     static readonly object MapEventDebugGate = new();
 
     readonly List<MapEventRun> mapEventRuns = [];
+    readonly Dictionary<int, (int Stage, int Step)> mapEventStepLogged = [];
+    readonly HashSet<string> mapEventSnapNoFloorLog = new(StringComparer.Ordinal);
+    readonly HashSet<string> mapEventSnapDiagLogged = new(StringComparer.Ordinal);
+    readonly HashSet<string> mapEventObjectiveAuditLogged = new(StringComparer.Ordinal);
     /// <summary>DreamCrossroad_D_01 / L_01 field exit (PCTeleport to Ishalgen/Poeta): once per ascension beat, not every 200001 visit.</summary>
     readonly HashSet<string> dreamCrossroadFieldExitConsumed = new(StringComparer.OrdinalIgnoreCase);
 
@@ -319,7 +323,11 @@ public sealed partial class GameSession : IMapEventHost
         var arrival = !throughDoor && MapEventData.Volume(room.Map) is { } volume && volume.Base == worldMap && volume.Contains(at)
             ? at
             : ArrivalPoint(room) ?? at;
+        if (copy == 0 && room.MaxMember <= 1)
+            copy = PreferredSoloDungeonCopy(room.Map);
         var targetCopy = copy != 0 ? copy : playerKey;
+        if (QaBot && room.MaxMember <= 1)
+            Note($"dungeon {room.Name}: enter copy={targetCopy} (prefer vacated={LastVacatedInstanceCopy}, layer={room.Map})");
         var alreadyInCopy = instanceKey == targetCopy && worldMap == room.Map;
         if (alreadyInCopy && !reloading && !throughDoor)
             return MapEventsJoin(now, resendExistingJoins: true);
@@ -418,7 +426,12 @@ public sealed partial class GameSession : IMapEventHost
     /// PartyDungeonEnter; their replies are unrecorded); here the portal moves the player at once.
     /// </summary>
     /// <summary>Builder EnterDungeon: any dungeon by id (a party shares the copy), for the ones the client enters through unrecorded windows (raids).</summary>
-    public List<byte[]> EnterDungeonById(int dungeonId, long now) => EnterPartyDungeon([dungeonId], now);
+    public List<byte[]> EnterDungeonById(int dungeonId, long now, int preferCopy = 0)
+    {
+        if (preferCopy == 0 && MapEventData.Dungeon(dungeonId) is { MaxMember: <= 1 } room)
+            preferCopy = PreferredSoloDungeonCopy(room.Map);
+        return preferCopy != 0 ? EnterDungeon(dungeonId, now, preferCopy) : EnterPartyDungeon([dungeonId], now);
+    }
 
     /// <param name="throughDoor">Entered by using a door object (EnvObjData Usage EnterInstanceLayer/EnterDungeon, UsageValue3
     /// SeamlessDoorTeleport_*_in): the player arrives at the layer's start point behind the door, not where they stood.</param>
@@ -472,15 +485,48 @@ public sealed partial class GameSession : IMapEventHost
     }
 
     /// <summary>Keeps solo instance map-event progress on the vacated copy for re-entry (leave instance, death teleport to field).</summary>
-    internal bool LayerCopyHasDanglingRuns(int layerMap) =>
-        options.World?.Map(layerMap, instanceKey != 0 ? instanceKey : playerKey).DanglingMapEventRuns is { Count: > 0 };
+    internal bool LayerCopyHasDanglingRuns(int layerMap)
+    {
+        if (LastVacatedInstanceCopy != 0
+            && options.World?.Map(layerMap, LastVacatedInstanceCopy).DanglingMapEventRuns is { Count: > 0 })
+            return true;
+        return options.World?.Map(layerMap, instanceKey != 0 ? instanceKey : playerKey).DanglingMapEventRuns is { Count: > 0 };
+    }
+
+    internal int LayerDanglingInstanceCopy(int layerMap)
+    {
+        if (LastVacatedInstanceCopy != 0
+            && options.World?.Map(layerMap, LastVacatedInstanceCopy).DanglingMapEventRuns is { Count: > 0 })
+            return LastVacatedInstanceCopy;
+        var probe = instanceKey != 0 ? instanceKey : playerKey;
+        return options.World?.Map(layerMap, probe).DanglingMapEventRuns is { Count: > 0 } ? probe : 0;
+    }
+
+    /// <summary>Solo layer copy to enter: vacated dangling runs, else the live in-copy session, else playerKey.</summary>
+    internal int PreferredSoloDungeonCopy(int layerMap)
+    {
+        if (LastVacatedInstanceCopy != 0
+            && options.World?.Map(layerMap, LastVacatedInstanceCopy) is { } vacated
+            && vacated.DanglingMapEventRuns is { Count: > 0 }
+            && (vacated.DanglingForPlayerKey == 0 || vacated.DanglingForPlayerKey == playerKey))
+            return LastVacatedInstanceCopy;
+        if (instanceKey != 0 && worldMap == layerMap && mapEventRuns.Count > 0)
+            return instanceKey;
+        var dangling = LayerDanglingInstanceCopy(layerMap);
+        return dangling != 0 ? dangling : playerKey;
+    }
+
+    /// <summary>Solo instance copy id vacated on last layer leave (QA re-entry should reuse this, not allocate a new copy).</summary>
+    internal int LastVacatedInstanceCopy { get; private set; }
 
     internal void StashVacatedMapEventRuns(long now, int copyId = 0)
     {
         var inst = copyId != 0 ? copyId : instanceKey;
         if (inst == 0 || mapEventRuns.Count == 0) return;
+        LastVacatedInstanceCopy = inst;
         var vacated = options.World?.Map(worldMap, inst);
         if (vacated is null || vacated.Instance != inst) return;
+        SanitizeBombMapEventRuns(now, "stash_vacate");
         vacated.DanglingMapEventRuns = [.. mapEventRuns];
         vacated.DanglingForPlayerKey = playerKey;
         vacated.VacatedAtMs = now;
@@ -490,7 +536,11 @@ public sealed partial class GameSession : IMapEventHost
     void MapEventsPrepare()
     {
         DropMapEventRunsUnlessStartHolds(lastNow);
-        if (mapEventsMap == worldMap && instanceKey != 0 && mapEventRuns.Count > 0) return;
+        if (instanceKey != 0 && mapEventRuns.Count > 0)
+        {
+            mapEventsMap = worldMap;
+            return;
+        }
         // A revival inside the copy after the script's MapExit fired (HQ004: the closing bombs can kill the player in its 2 s
         // delay) reloads the same map: the way out still holds, else the player waits in the cleared layer for the hold.
         var keepExit = mapEventsMap == worldMap && instanceKey != 0 ? pendingExit : null;
@@ -547,20 +597,27 @@ public sealed partial class GameSession : IMapEventHost
         if (worldPlayer?.Map?.DanglingMapEventRuns is { Count: > 0 } dangling
             && worldPlayer.Map.DanglingForPlayerKey == playerKey && mapEventRuns.Count == 0)
         {
+            foreach (var run in dangling) run.Host = this;
+            SanitizeBombMapEventRuns(now, "dangling_restore");
             mapEventRuns.AddRange(dangling);
-            foreach (var run in mapEventRuns) run.Host = this;
-            worldPlayer.Map.DanglingMapEventRuns = null;
             mapEventsMap = worldMap;
             mapEventNow = now;
             EnsureOpenKillSpawnersForRuns();
-            SyncMapEventBombTowerCredits(now);
+            LogAllMapEventJoins("dangling", now);
+            ReconcileMapEventBombRuns(now, "dangling");
+            worldPlayer.Map.DanglingMapEventRuns = null;
             return [.. leaves, .. mapEventRuns.Select(run => GamePackets.MapEventJoin(run.Id, run.Name, (byte)run.Status, run.StageOrder, run.WireStep, run.Goals, run.StartedMs, run.Variables))];
         }
         if (mapEventsMap == worldMap && mapEventRuns.Count > 0)
         {
             mapEventNow = now;
             EnsureOpenKillSpawnersForRuns();
-            if (resendExistingJoins) SyncMapEventBombTowerCredits(now);
+            if (resendExistingJoins)
+            {
+                SanitizeBombMapEventRuns(now, "live_resend");
+                LogAllMapEventJoins("live", now);
+                ReconcileMapEventBombRuns(now, "live_resend");
+            }
             if (!resendExistingJoins) return leaves;
             return [.. leaves, .. mapEventRuns.Select(run => GamePackets.MapEventJoin(run.Id, run.Name, (byte)run.Status, run.StageOrder, run.WireStep, run.Goals, run.StartedMs, run.Variables))];
         }
@@ -584,6 +641,7 @@ public sealed partial class GameSession : IMapEventHost
             replies.Add(GamePackets.MapEventJoin(run.Id, run.Name, (byte)run.Status, run.StageOrder, run.WireStep, run.Goals, run.StartedMs, run.Variables));
             DebugMapEvent($"event start {definition.Name} run {run.Id} map {worldMap}");
             run.Start(now);
+            LogMapEventJoin(run, "fresh", now);
         }
         replies.AddRange(SyncMapEventEnvInteractFlags());
         EnsureOpenKillSpawnersForRuns();
@@ -601,7 +659,8 @@ public sealed partial class GameSession : IMapEventHost
         DailyKilled(target, now);   // a daily dungeon's points (GameSession.DailyDungeons.cs)
         if (mapEventRuns.Count == 0) return DrainMapEvents();
         mapEventNow = now;
-        var alive = targets?.Values.Any(t => string.Equals(t.Name, target.Name, StringComparison.OrdinalIgnoreCase) && !t.Dead) == true;
+        var alive = SpawnerAliveAfterKill(target);
+        if (QaBot) LogQaKillSpawnerKill(target, alive, now);
         // Boss adds and hand-made wave monsters are ours: they never count toward the script's kill objectives.
         if (!BossSummons.IsSummon(target.Key))
             foreach (var run in mapEventRuns.ToList()) run.Killed(target.NpcId, target.Name, target.Hostile, alive, now);
@@ -657,21 +716,26 @@ public sealed partial class GameSession : IMapEventHost
         return DrainMapEvents();
     }
 
-    List<byte[]> MapEventUsedObject(string spawnName, long now)
+    List<byte[]> MapEventUsedObject(string spawnName, long now, Vector3d? creditAt = null)
     {
-        if (ToCopyOwner(o => o.MapEventUsedObject(spawnName, now)) || mapEventRuns.Count == 0) return [];
-        if (MapEventObjectForName(spawnName) is { } credited && !BombPlantMapEventCreditAllowed(credited))
-        {
-            Note($"UseEnvObj {spawnName}: refused map-event credit (bomb plant out of range)");
-            return [];
-        }
+        if (ToCopyOwner(o => o.MapEventUsedObject(spawnName, now, creditAt)) || mapEventRuns.Count == 0) return [];
         mapEventNow = now;
         foreach (var run in mapEventRuns.ToList())
         {
             var before = string.Join(',', run.Goals);
             var counted = run.UsedObject(spawnName, now);
             if (counted)
-                DebugMapEvent($"UseEnvObj {spawnName}: counted {before} -> {string.Join(',', run.Goals)} step {run.StepOrder}");
+            {
+                var after = string.Join(',', run.Goals);
+                DebugMapEvent($"UseEnvObj {spawnName}: counted {before} -> {after} step {run.StepOrder}");
+                BumpBombTowerProgress(run, CountSpentBombTowers(now), BombTowerCreditsFromRun(run));
+                if (QaBot)
+                {
+                    Note($"map_event:credit:spawn={spawnName}:goals={before}->{after}:reason=UseEnvObj:run={run.Id}:stage={run.StageOrder}:step={run.StepOrder}");
+                    if (MapEventObjectForName(spawnName) is { } creditedTower)
+                        RecordQaBombTowerCredit(creditedTower, creditAt, now);
+                }
+            }
             else if (run.Step is { } step)
             {
                 var open = string.Join(", ", step.Objectives.Select((o, i) => (o, i))
@@ -827,6 +891,11 @@ public sealed partial class GameSession : IMapEventHost
     void IMapEventHost.EnsureStep(MapEventStep step, int[] goals)
     {
         if (targets is null) return;
+        if (worldMap == 220016 && step.Id == 2)
+        {
+            foreach (var sp in new[] { "S1_CarasBody_1_Dungeon_D_0016", "S1_CarasBody_2_Dungeon_D_0016" })
+                DoDespawn(sp, kill: true);
+        }
         DebugMapEvent($"step {step.Id}: {string.Join("; ", step.Objectives.Select(o => $"{o.Type} {o.Value(0)}"))}");
         for (var i = 0; i < step.Objectives.Length; i++)
         {
@@ -879,8 +948,30 @@ public sealed partial class GameSession : IMapEventHost
             if (o.Type == "KillSpawner")
             {
                 var spawner = o.Value(0);
-                if (string.IsNullOrEmpty(spawner) || SpawnerHasLivingNpc(spawner, o.Npcs)) continue;
-                DoSpawn(spawner);
+                var matched = SpawnerNpcs(spawner).ToList();
+                var living = matched.Count(t => !t.Dead && !t.CorpseRemoved);
+                if (QaBot && mapEventObjectiveAuditLogged.Add($"step:{step.Id}:KillSpawner:{spawner}"))
+                    Note($"EnsureKillSpawner {spawner}: matched={matched.Count} living={living} goal={i}/{o.Count} step={step.Id} map={worldMap}");
+                if (string.IsNullOrEmpty(spawner)) continue;
+                if (living == 0)
+                {
+                    DoSpawn(spawner);
+                    ((IMapEventHost)this).SetAggroPc(spawner);
+                }
+                foreach (var t in SpawnerNpcs(spawner).Where(t => !t.Dead && !t.CorpseRemoved && !t.Hostile))
+                    MakeKillable(t);
+            }
+            else if (o.Type == "NpcArriveWaypoint")
+            {
+                var spawner = o.Value(0);
+                var route = o.Value(1);
+                var escorts = SpawnerNpcs(spawner).ToList();
+                var scripted = escorts.Count(t => ai.Brains.TryGetValue(t.Key, out var b) && b.Mode == NpcAi.Mode.Scripted);
+                if (QaBot && mapEventObjectiveAuditLogged.Add($"step:{step.Id}:NpcArrive:{spawner}"))
+                    Note($"EnsureNpcArrive {spawner}: matched={escorts.Count} living={escorts.Count(t => !t.Dead)} scripted={scripted} route={route} map={worldMap}");
+                if (!string.IsNullOrEmpty(spawner) && !string.IsNullOrEmpty(route)
+                    && escorts.Any(t => !t.Dead) && scripted == 0)
+                    ((IMapEventHost)this).MoveNpc(spawner, route);
             }
             else if (o.Type == "HpRemaining" && o.Npcs is { Length: > 0 } ids)
             {
@@ -1082,7 +1173,45 @@ public sealed partial class GameSession : IMapEventHost
     }
 
     IEnumerable<Target> SpawnerNpcs(string spawner) =>
-        targets?.Values.Where(t => string.Equals(t.Name, spawner, StringComparison.OrdinalIgnoreCase)) ?? [];
+        targets?.Values.Where(t => MapEventRun.NameMatches(spawner, t.Name)) ?? [];
+
+    void LogQaKillSpawnerKill(Target killed, bool spawnerAliveAfter, long now)
+    {
+        foreach (var run in mapEventRuns)
+        {
+            foreach (var (idx, objective) in run.Open)
+            {
+                if (objective.Type != "KillSpawner") continue;
+                var spawner = objective.Value(0);
+                if (!MapEventRun.NameMatches(spawner, killed.Name)) continue;
+                var living = SpawnerNpcs(spawner).Count(t => !t.Dead && !t.CorpseRemoved);
+                var required = objective.Count;
+                var credited = idx < run.Goals.Length ? run.Goals[idx] : 0;
+                var willCredit = !spawnerAliveAfter;
+                PlaytestDebug.Action("kill_spawner_credit",
+                    ("spawner", spawner), ("killedKey", killed.Key), ("killed", killed.Name),
+                    ("spawnerAliveAfter", spawnerAliveAfter), ("livingAfter", living),
+                    ("required", required), ("creditedBefore", credited), ("willCredit", willCredit),
+                    ("map", worldMap), ("stage", run.StageOrder), ("step", run.StepOrder));
+            }
+        }
+    }
+
+    /// <summary>Whether any sibling of the killed NPC's spawner is still alive (KillSpawner credit when false).</summary>
+    bool SpawnerAliveAfterKill(Target killed)
+    {
+        foreach (var run in mapEventRuns)
+        {
+            foreach (var (_, objective) in run.Open)
+            {
+                if (objective.Type != "KillSpawner") continue;
+                var spawner = objective.Value(0);
+                if (!MapEventRun.NameMatches(spawner, killed.Name)) continue;
+                return SpawnerNpcs(spawner).Any(t => !t.Dead && !t.CorpseRemoved);
+            }
+        }
+        return targets?.Values.Any(t => string.Equals(t.Name, killed.Name, StringComparison.OrdinalIgnoreCase) && !t.Dead && !t.CorpseRemoved) == true;
+    }
 
     static bool EnvObjSpawnerMatches(string spawner, WorldObject o) =>
         MapEventRun.NameMatches(spawner, o.Name)
@@ -1130,6 +1259,54 @@ public sealed partial class GameSession : IMapEventHost
         DoSpawn(spawner);
     }
 
+    const double MapEventSnapMaxDzCm = 500;
+
+    bool MapGeometryFilesPresent(int geometryMap)
+    {
+        if (options.Nav?.ExpectedPath(geometryMap) is { } navPath && File.Exists(navPath)) return true;
+        if (options.Terrain?.ExpectedPath(geometryMap) is { } terrainPath && File.Exists(terrainPath)) return true;
+        return false;
+    }
+
+    void SnapSpawnedNpcToNavmesh(Target t, string? spawner = null)
+    {
+        if (QaBot) EnsureMapGeometryLoaded();
+        var geometryMap = data.GeometryMap(worldMap);
+        if (!MapGeometryFilesPresent(geometryMap))
+        {
+            if (QaBot && mapEventSnapNoFloorLog.Add($"nogeom:{worldMap}:{geometryMap}"))
+                Note($"SnapSpawnedNpcToNavmesh: skip (no geometry files) map={worldMap} geometry={geometryMap} spawner={spawner ?? "?"}");
+            return;
+        }
+        var beforeZ = t.Position.Z;
+        var floor = ai.Nav?.FloorAt(t.Position.X, t.Position.Y, t.Position.Z, 2500)
+            ?? ai.Terrain?.GroundAt(t.Position.X, t.Position.Y);
+        if (floor is not { } z)
+        {
+            if (QaBot && mapEventSnapNoFloorLog.Add($"{worldMap}:{spawner}:{t.Key}"))
+            {
+                var navHit = ai.Nav?.FloorAt(t.Position.X, t.Position.Y, t.Position.Z, 2500);
+                var terrainHit = ai.Terrain?.GroundAt(t.Position.X, t.Position.Y);
+                var diagKey = $"map:{worldMap}";
+                if (mapEventSnapDiagLogged.Add(diagKey))
+                    Note($"SnapSpawnedNpcToNavmesh: sample map={worldMap} at=({t.Position.X:F0},{t.Position.Y:F0},{t.Position.Z:F0}) nav={navHit?.ToString("F0") ?? "null"} terrain={terrainHit?.ToString("F0") ?? "null"} geometry={geometryMap}");
+                Note($"SnapSpawnedNpcToNavmesh: {t.Name} key={t.Key} no-floor z={beforeZ:F0} spawner={spawner ?? "?"} map={worldMap}");
+            }
+            return;
+        }
+        var dz = Math.Abs(z - beforeZ);
+        if (dz < 25) return;
+        if (dz > MapEventSnapMaxDzCm)
+        {
+            if (QaBot)
+                Note($"SnapSpawnedNpcToNavmesh: reject dz={dz:F0}>{MapEventSnapMaxDzCm} {t.Name} key={t.Key} z={beforeZ:F0} floor={z:F0} map={worldMap} spawner={spawner ?? "?"}");
+            return;
+        }
+        t.Position = t.Position with { Z = z };
+        if (QaBot)
+            Note($"SnapSpawnedNpcToNavmesh: {t.Name} key={t.Key} z {beforeZ:F0}->{t.Position.Z:F0} spawner={spawner ?? "?"} map={worldMap}");
+    }
+
     void DoSpawn(string spawner)
     {
         var wasDormant = dormantSpawners.Remove(spawner);
@@ -1148,6 +1325,7 @@ public sealed partial class GameSession : IMapEventHost
             t.Immune = false;
             respawnAt.Remove(t.Key);
             if (ai.Brains.TryGetValue(t.Key, out var brain)) t.Position = brain.Home;
+            SnapSpawnedNpcToNavmesh(t, spawner);
             ShowSpawned(t);
         }
         endedSpawners.Remove(spawner);
@@ -1574,7 +1752,7 @@ public sealed partial class GameSession : IMapEventHost
         }
         else
         {
-            instanceKey = playerKey;
+            instanceKey = PreferredSoloDungeonCopy(map);
             instanceExitAt = null;
             move = InstanceMove(map, at, now, after, effect);
         }
@@ -1624,7 +1802,11 @@ public sealed partial class GameSession : IMapEventHost
                 session.instanceExitAt ??= mapEventNow + hold;
             // The clear reward (RewardDungeon.dat RewardLight/RewardDark by race: sealed dungeons' kina, materials, a title), once per copy.
             if (first && room is not null && (session.profileRace == 2 ? room.RewardDark : room.RewardLight) is { Length: > 0 } reward)
+            {
                 session.pendingRewards.Add(reward.Where(r => r.Length >= 2).Select(r => ((int)r[0], r[1])).ToList());
+                if (session == this) mapEventOut.AddRange(AchieveDungeonReward(room, mapEventNow));
+                else session.worldPlayer?.Send(session.AchieveDungeonReward(room, mapEventNow));
+            }
             if (first && room is not null) session.SpendContentTickets(MapEventData.IdOf(room), "Clear", mapEventNow);
             if (first && room is not null && copy is { } scored) session.RecordSeasonClear(room, MapEventData.IdOf(room), mapEventNow - scored.StartedMs);   // GameSession.Ranking.cs
             if (first && room is not null)
@@ -1700,27 +1882,68 @@ public sealed partial class GameSession : IMapEventHost
     {
         mapEventOut.Add(GamePackets.MapEventProgress(run.Id, (byte)run.Status, run.StageOrder, run.WireStep, run.Goals, run.Variables));
         mapEventOut.AddRange(SyncMapEventEnvInteractFlags());
+        var key = (run.StageOrder, run.StepOrder);
+        var stepChanged = !mapEventStepLogged.TryGetValue(run.Id, out var prev) || prev != key;
+        if (stepChanged)
+        {
+            mapEventStepLogged[run.Id] = key;
+            mapEventObjectiveAuditLogged.Clear();
+            LogMapEventJoin(run, "step", mapEventNow);
+        }
     }
 
     bool IMapEventHost.EnvObjectUsed(string spawnName)
     {
-        var objects = WorldObjects.ObjectsOn(worldMap);
-        for (var i = 0; i < objects.Count; i++)
+        if (WorldObjects.HasCarryBoxes(worldMap) && spawnName.Contains("Tower", StringComparison.OrdinalIgnoreCase))
+        {
+            if (CountSpentBombTowers(mapEventNow) == 0) return false;
+            var objects = WorldObjects.ObjectsOn(worldMap);
+            foreach (var i in BombTowerIndices())
+            {
+                if (!usedObjects.Contains(i) && !Broken(i, mapEventNow)) continue;
+                var o = objects[i];
+                if (MapEventRun.NameMatches(spawnName, o.Name)) return true;
+                if (o.EnvName is { Length: > 0 } env && MapEventRun.NameMatches(spawnName, env)) return true;
+            }
+            return false;
+        }
+        var all = WorldObjects.ObjectsOn(worldMap);
+        for (var i = 0; i < all.Count; i++)
         {
             if (!usedObjects.Contains(i)) continue;
-            var o = objects[i];
+            var o = all[i];
             if (MapEventRun.NameMatches(spawnName, o.Name)) return true;
             if (o.EnvName is { Length: > 0 } env && MapEventRun.NameMatches(spawnName, env)) return true;
         }
         return false;
     }
 
+    /// <summary>Keep vacated solo copies aligned with reconciled in-instance runs (stale dangling was undoing restarts on rejoin).</summary>
+    internal void SyncVacatedMapEventRuns(long now)
+    {
+        if (instanceKey == 0 || options.World is null) return;
+        var vacated = options.World.Map(worldMap, instanceKey);
+        if (vacated.Instance != instanceKey) return;
+        vacated.DanglingMapEventRuns = mapEventRuns.Count > 0 ? [.. mapEventRuns] : null;
+        vacated.DanglingForPlayerKey = mapEventRuns.Count > 0 ? playerKey : 0;
+        vacated.VacatedAtMs = now;
+    }
+
     void IMapEventHost.ScriptBeat(MapEventRun run, string kind, string detail, long now)
     {
-        if (!run.Name.Contains("Starter_HQ001", StringComparison.OrdinalIgnoreCase)) return;
-        if (kind == "step-begin" && run.Step is { } step)
+        if (QaBot && kind is "step-begin" or "objective-done" or "objective-credit-early" or "goal-change" or "npc-arrive")
         {
-            var types = string.Join(';', step.Objectives.Select(o => $"{o.Type}:{o.Value(0)}"));
+            if (kind == "step-begin" && run.Step is { } step)
+            {
+                var types = string.Join(';', step.Objectives.Select(o => $"{o.Type}:{o.Value(0)}"));
+                detail = $"{detail} objectiveTypes=[{types}]";
+            }
+            Note($"map_event:{kind}:event={run.Name}:run={run.Id}:stage={run.StageOrder}:step={run.StepOrder}:goals=[{string.Join(',', run.Goals)}] {detail}");
+        }
+        if (!run.Name.Contains("Starter_HQ001", StringComparison.OrdinalIgnoreCase)) return;
+        if (kind == "step-begin" && run.Step is { } stepHq)
+        {
+            var types = string.Join(';', stepHq.Objectives.Select(o => $"{o.Type}:{o.Value(0)}"));
             detail = $"{detail} objectiveTypes=[{types}]";
         }
         Note($"HQ001 beat [{kind}] run={run.Id} stage={run.StageOrder} step={run.StepOrder} goals=[{string.Join(',', run.Goals)}] {detail}");

@@ -7,13 +7,14 @@ namespace Aion.World;
 /// </summary>
 public static class SkillEffects
 {
-    public static readonly string[] HealTypes = ["HpHeal", "HpHealRatio", "MpHeal", "MpHealRatio", "SpHeal", "SpHealRatio", "ApHeal", "ApHealRatio"];
+    public static readonly string[] HealTypes = ["HpHeal", "HpHealRatio", "MpHeal", "MpHealRatio", "SpHeal", "SpHealRatio", "ApHeal", "ApHealRatio",
+        "APHeal", "APHealRatio"];
 
     /// <summary>Rows that land on the friendly recipients (the caster, the target, the party, the players nearby).</summary>
     public static readonly string[] FriendlyTypes = [.. HealTypes, "Dispel_Cc"];
 
     /// <summary>Rows that land on enemies (monsters and the players the caster may fight).</summary>
-    public static readonly string[] HostileTypes = ["Pull", "Dispel", "MPBurn", "APBurn", "APBurnRatio", "AggroTransfer", "IncreaseCooltime"];
+    public static readonly string[] HostileTypes = ["Pull", "Dispel", "MPBurn", "MPBurnRatio", "APBurn", "APBurnRatio", "AggroTransfer", "IncreaseCooltime"];
 
     /// <summary>Rows that land on the caster's own cooldowns.</summary>
     public static readonly string[] SelfTypes = ["DecreaseCooltime"];

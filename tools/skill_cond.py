@@ -41,8 +41,11 @@ def _value(v):
     return v['Value'] if isinstance(v, dict) else v
 
 
-def _rows(path):
-    return json.loads(Path(path).read_text(encoding='utf-8'))['Properties']['Data']
+def _rows(source):
+    if isinstance(source, str) and source.startswith('client:'):
+        from client_export import load_rows
+        return load_rows(source.split(':', 1)[1])
+    return json.loads(Path(source).read_text(encoding='utf-8'))['Properties']['Data']
 
 
 def _optional_table(name_prefix):
@@ -50,19 +53,37 @@ def _optional_table(name_prefix):
     return found[-1] if found else None
 
 
+def _export_skill_cond_rows():
+    try:
+        from client_export import load_rows
+        return load_rows('SkillCond')
+    except FileNotFoundError:
+        return None
+
+
 def _skill_tables():
     skills = sorted(LOCAL.glob('skill-tables-*/table-000.json'))
     effects = sorted(LOCAL.glob('skill-tables-*/table-001.json'))
-    return (skills[-1] if skills else None, effects[-1] if effects else None)
+    skill_path = skills[-1] if skills else None
+    effect_path = effects[-1] if effects else None
+    if skill_path is None or effect_path is None:
+        try:
+            from client_export import load_rows
+            load_rows('Skill')
+            return ('client:Skill', 'client:SkillEffect')
+        except FileNotFoundError:
+            pass
+    return (skill_path, effect_path)
 
 
 def export_from_skill_cond():
     """skill_id -> cond fields from SkillCond.dat CondSkillList."""
     path = _optional_table('skillcond') or _optional_table('skill-cond')
-    if path is None:
+    export_rows = _export_skill_cond_rows() if path is None else None
+    if path is None and not export_rows:
         return {}, 'missing'
     by_skill = {}
-    for row in _rows(path):
+    for row in (_rows(path) if path else export_rows):
         cond_type = _short(row.get('CondType', 'None'))
         if cond_type in ('None', 'Max'):
             continue
@@ -78,10 +99,13 @@ def export_from_skill_cond():
             sid = int(_value(skill) or 0)
             if sid:
                 by_skill[sid] = payload
-    try:
-        rel = str(path.relative_to(ROOT))
-    except ValueError:
-        rel = str(path)
+    if path:
+        try:
+            rel = str(path.relative_to(ROOT))
+        except ValueError:
+            rel = str(path)
+    else:
+        rel = 'research/client-export/SkillCond.json.gz'
     return by_skill, rel
 
 
@@ -165,7 +189,8 @@ def patch(doc):
     if need_src != 'missing':
         parts.append(f'needs from {need_src}')
     if skill_table:
-        parts.append(f'grants from Skill.dat/SkillEffect ({skill_table.parent.name})')
+        label = skill_table if isinstance(skill_table, str) else skill_table.parent.name
+        parts.append(f'grants from Skill.dat/SkillEffect ({label})')
     if overrides['evidence']:
         parts.append('; '.join(f'{k}: {v}' for k, v in overrides['evidence'].items()))
     ev['skill_cond'] = (

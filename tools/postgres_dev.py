@@ -367,8 +367,11 @@ def role_statement(username, role, revoke=False):
     account = f"SELECT account_id FROM auth.accounts WHERE provider='local' AND subject={literal(username)}"
     if revoke:
         return f"DELETE FROM auth.account_roles WHERE role={literal(role)} AND account_id=({account}) RETURNING account_id;"
-    return (f"INSERT INTO auth.account_roles SELECT account_id,{literal(role)} FROM auth.accounts "
-            f"WHERE provider='local' AND subject={literal(username)} ON CONFLICT DO NOTHING RETURNING account_id;")
+    # Staff standing in the world is per character (migration 035): a grant also flags the account's existing characters.
+    return (f"WITH granted AS (INSERT INTO auth.account_roles SELECT account_id,{literal(role)} FROM auth.accounts "
+            f"WHERE provider='local' AND subject={literal(username)} ON CONFLICT DO NOTHING RETURNING account_id), "
+            f"flagged AS (UPDATE game.characters SET staff=true WHERE NOT staff AND account_id=({account})) "
+            "SELECT account_id FROM granted;")
 
 
 def main():

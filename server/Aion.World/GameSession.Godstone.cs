@@ -174,6 +174,10 @@ public sealed partial class GameSession
             replies.Add(GodstoneUpdatePacket(1, [(rewardId, godstoneCollection[rewardId])]));
         }
         else replies.Add(Reply(0, (byte)grade, [], []));
+        if (success)
+        {
+            replies.AddRange(Emit(new AchievementEvent("GodstoneCombineResultGrade", Keys: [GodstoneGradeName(grade)])));
+        }
         replies.AddRange(await InventoryChangesAsync(ct, 0, DecreaseItemUse));
         return replies;
     }
@@ -211,6 +215,8 @@ public sealed partial class GameSession
                 replies.Add(nt);
             }
         }
+        if (Godstones.Of(godstoneId) is { } stone)
+            replies.AddRange(Emit(new AchievementEvent("EnchantGodStoneGrade", Keys: [GodstoneGradeName(stone.Grade)])));
         return replies;
     }
 

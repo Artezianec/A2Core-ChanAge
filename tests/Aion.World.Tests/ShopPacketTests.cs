@@ -123,7 +123,6 @@ public sealed class ShopPacketTests
         Assert.Contains(store.Items, i => i.TemplateId == template && i.Location == "storage");
     }
     [Fact]
-    [Fact]
     public async Task NP_shop_quna_purchase_refreshes_wallet_packets()
     {
         const int QunaSkinSetGoods = 100106;

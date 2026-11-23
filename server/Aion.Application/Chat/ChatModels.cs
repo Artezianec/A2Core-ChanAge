@@ -36,10 +36,14 @@ public sealed record ChatMessage(string UserName, string Type, string SubType, s
     string ReceiverCharacterId = "", string ReceiverUserName = "", string ReceiverServerId = "",
     string TargetCharacterName = "");
 
-/// <summary>A received-message notification (Lime BaseNotification subset the client reads).</summary>
+/// <summary>
+/// A received-message notification (Lime BaseNotification subset the client reads).
+/// <see cref="DateCreated"/> is epoch milliseconds as text; <see cref="Faction"/> is the sender's
+/// race as the official userMetaData shows it ("" when unknown).
+/// </summary>
 public sealed record ChatNotification(string Guid, string DateCreated, int Seq, ChatRoomKey Room, string Type,
     string SubType, string Content, string Optional, string GameUserId, string ServerId, string UserName,
-    string Locale, string ReceiverCharacterId, string ReceiverUserName, string ReceiverServerId);
+    string Locale, string ReceiverCharacterId, string ReceiverUserName, string ReceiverServerId, string Faction = "");
 
 /// <summary>One notification to deliver to one session.</summary>
 public sealed record ChatDelivery(string SessionToken, ChatNotification Notification);
@@ -124,9 +128,9 @@ public sealed class AccountChatLoginVerifier(IClientHandoff handoff, IChatDirect
         return new ChatIdentity(claimed, serverKey, Locale(request.Locale), accountId, chosen.Character);
     }
 
-    /// <summary>The client's locale when it looks like one ("en_US"), else en_US.</summary>
+    /// <summary>The client's locale when it looks like one ("en-US"), else en-US.</summary>
     public static string Locale(string locale) =>
-        locale is { Length: >= 2 and <= 16 } && locale.All(c => char.IsAsciiLetter(c) || c is '_' or '-') ? locale : "en_US";
+        locale is { Length: >= 2 and <= 16 } && locale.All(c => char.IsAsciiLetter(c) || c is '_' or '-') ? locale : "en-US";
 }
 
 /// <summary>Default: rejects every chat login (no account-backed verification configured).</summary>

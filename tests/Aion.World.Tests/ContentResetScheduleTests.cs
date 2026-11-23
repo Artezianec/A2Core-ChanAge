@@ -39,6 +39,19 @@ public sealed class ContentResetScheduleTests
     }
 
     [Fact]
+    public void Next_boundary_after_daily_weekly_monthly_at_07_00_utc()
+    {
+        // Weekly anchor: Wednesday 07:00 UTC (resets.json weekday 3). Live KR maintenance often cites Wed 06:00 KST; we follow
+        // embedded GlobalSetting 57600 s from midnight KST = 07:00 UTC game-day.
+        Assert.Equal(Ms("2026-10-16T07:00:00Z"), ContentResetSchedule.NextBoundaryMs(1, Ms("2026-10-15T10:00:00Z")));
+        Assert.Equal(Ms("2026-10-16T07:00:00Z"), ContentResetSchedule.NextBoundaryMs(1, Ms("2026-10-16T06:59:59Z")));
+        Assert.Equal(Ms("2026-10-17T07:00:00Z"), ContentResetSchedule.NextBoundaryMs(1, Ms("2026-10-16T07:00:00Z")));
+        Assert.Equal(Ms("2026-10-21T07:00:00Z"), ContentResetSchedule.NextBoundaryMs(2, Ms("2026-10-16T12:00:00Z")));
+        Assert.Equal(Ms("2026-11-01T07:00:00Z"), ContentResetSchedule.NextBoundaryMs(3, Ms("2026-10-16T12:00:00Z")));
+        Assert.Equal(Ms("2026-12-01T07:00:00Z"), ContentResetSchedule.NextBoundaryMs(3, Ms("2026-11-01T07:00:00Z")));
+    }
+
+    [Fact]
     public void Coordinator_applies_each_boundary_once()
     {
         var coord = new ContentResetCoordinator();

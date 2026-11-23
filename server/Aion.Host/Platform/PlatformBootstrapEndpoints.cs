@@ -632,11 +632,17 @@ public static partial class PlatformBootstrapEndpoints
                 var groupId = int.TryParse(groupQuery, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
                     ? parsed
                     : GameSession.QunaBmCurrencyGroupId;
-                var balance = await qunaBalance.BalanceAsync(
-                    context.Connection.RemoteIpAddress,
-                    responses.SessionId ?? BearerAuth(request),
-                    request.Query["game_account_id"].FirstOrDefault(),
-                    context.RequestAborted);
+                var balance = groupId == GameSession.MileageCurrencyGroupId
+                    ? await qunaBalance.MileageBalanceAsync(
+                        context.Connection.RemoteIpAddress,
+                        responses.SessionId ?? BearerAuth(request),
+                        request.Query["game_account_id"].FirstOrDefault(),
+                        context.RequestAborted)
+                    : await qunaBalance.BalanceAsync(
+                        context.Connection.RemoteIpAddress,
+                        responses.SessionId ?? BearerAuth(request),
+                        request.Query["game_account_id"].FirstOrDefault(),
+                        context.RequestAborted);
                 var body = ShopQunaBalanceService.JsonBody(balance, groupId);
                 var bodyText = System.Text.Encoding.UTF8.GetString(body);
                 platformLog.LogInformation(

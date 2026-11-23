@@ -183,6 +183,11 @@ public sealed partial class GameSession
             foreach (var (item, count) in rewards) nt.I32(item).I32((int)Math.Min(count, int.MaxValue));
             replies.Add(nt.ToArray());
             replies.AddRange(await InventoryChangesAsync(ct, IncreaseCollectionReward, 0));
+            replies.AddRange(Emit(new AchievementEvent("PeriodCollectionTask", Keys: [$"Tab_{collection.Tab:D2}"])));
+            var supply = collection.Group.Contains("Supply", StringComparison.OrdinalIgnoreCase);
+            var misc = collection.Group.Contains("Misc", StringComparison.OrdinalIgnoreCase);
+            if (supply) replies.AddRange(Emit(new AchievementEvent("PeriodCollectionSupply", Keys: ["Rare"])));
+            else if (misc) replies.AddRange(Emit(new AchievementEvent("PeriodCollectionMisc", Keys: ["GatherResource"])));
         }
         collectionProgress[(collectionId, listId)] = state;
         await Stored(async () => await store.SaveCollectionAsync(character, collectionId, listId, state.Registered, state.Rewarded, ct) ? [[]] : []);

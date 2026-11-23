@@ -80,6 +80,7 @@ public sealed partial class NpcAi
                     var at = CastLocation(target, brain, shot.SkillId, brain.Heading);
                     replies.Add(PlayerPackets.SkillCastingStart(target.Key, shot.SkillId, victimKey, brain.Heading, at, castMs));
                     replies.AddRange(TelegraphForArea(target, shot.SkillId, (byte)shot.ActionSeq, at, brain.Heading, castMs + HitDelayMs, now));
+                    replies.AddRange(BehaviorOnCasting(target, shot.SkillId, now));
                 }
                 continue;
             }
@@ -93,6 +94,7 @@ public sealed partial class NpcAi
                 if (sk is { Cast: 0 })
                     replies.AddRange(TelegraphForArea(target, shot.SkillId, (byte)shot.ActionSeq, at, yaw, MechanicTelegraphs.NpcLandMs(sk), now));
                 if (MonsterSkillStartHook is { } hook) replies.AddRange(hook(target, shot.SkillId, now));
+                replies.AddRange(BehaviorOnSkillUse(target, shot.SkillId, now));
                 continue;
             }
             if (shot.Kind == ShotKind.End)
@@ -114,7 +116,8 @@ public sealed partial class NpcAi
             }
             if (shot.Kind != ShotKind.Hit) continue;
             var defense = brain.VictimIsNpc && current.GetValueOrDefault(victimKey) is { } prey ? prey.Defense : DefenseOf?.Invoke(victimKey) ?? 0;
-            var damage = Math.Max(1, (int)Math.Round(shot.Damage * 1000.0 / (1000 + Math.Max(0, defense))));
+            var damage = RatioDamage(shot.SkillId, victimKey, brain.VictimIsNpc)
+                ?? Math.Max(1, (int)Math.Round(shot.Damage * 1000.0 / (1000 + Math.Max(0, defense))));
             LastAttacker = target.Key;
             LastHitSkill = shot.SkillId;
             LastHitSeq = shot.Seq;

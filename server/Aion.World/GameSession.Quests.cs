@@ -315,7 +315,14 @@ public sealed partial class GameSession
             foreach (var npc in npcIds)
                 foreach (var record in questLog.Killed(npc, level)) changed[record.Code] = record;
             foreach (var mapEvent in events)
-                foreach (var record in questLog.ClearedMapEvent(mapEvent, level)) changed[record.Code] = record;
+            {
+                foreach (var record in questLog.ClearedMapEvent(mapEvent, level))
+                {
+                    changed[record.Code] = record;
+                    if (QaBot)
+                        Note($"quest:cleared_map_event event={mapEvent} quest={record.Code} step={record.Step} status={record.Status}");
+                }
+            }
             if (changed.Count > 0)
                 replies.AddRange(await Stored(() => QuestChangesAsync(changed.Values, ct)));
         }

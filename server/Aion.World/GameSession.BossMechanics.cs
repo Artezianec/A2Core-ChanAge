@@ -26,6 +26,15 @@ public sealed partial class GameSession
     IReadOnlyList<byte[]> OnMechanicTelegraphStarted(BossMechanicTelegraphEventArgs e)
     {
         var packets = new List<byte[]>();
+        if (e.SpawnEnv || e.Despawn)
+        {
+            // Engine env objects (docs/BOSS-MECHANICS-ENGINE.md "env", "cover", "orb", zone env_obj): one key per boss and slot.
+            var key = NpcAi.MechanicEnvKey(e.BossKey, e.EnvSlot);
+            foreach (var objId in e.EnvObjIds ?? [])
+                packets.Add(e.Despawn ? GamePackets.EnvObjDespawn(key)
+                    : GamePackets.EnvObjSpawn(key, objId, e.Centre, yaw: 0, e.StartedMs, uniqueKey: -Math.Abs(key), relationship: 7));
+            return packets;
+        }
         var caster = BossTelegraphCaster(e.BossKey);
         if (caster is null) return packets;
         var duration = (int)Math.Clamp(e.EndsMs - e.StartedMs, 0, 120_000);

@@ -30,7 +30,11 @@ public sealed record BossTelegraph(
     [property: JsonPropertyName("once")] bool Once = false,
     [property: JsonPropertyName("stagger_check")] bool StaggerCheck = false,
     [property: JsonPropertyName("land")] bool Land = true,
-    [property: JsonPropertyName("mechanic")] string? Mechanic = null);
+    [property: JsonPropertyName("mechanic")] string? Mechanic = null)
+{
+    /// <summary>The engine cast this slam runs (<see cref="EngineCast"/>), or null for a boss-phases.json slam.</summary>
+    [JsonIgnore] public object? Tag { get; init; }
+}
 
 /// <summary>Adds summoned around the boss: copies of a monster of the same dungeon, sent at the boss's victim.</summary>
 public sealed record BossAdds(
@@ -106,6 +110,12 @@ public sealed record BossOptions
     public int FrenzySeconds { get; init; }
     /// <summary>Scales every slam's and phase's damage (1.0: as scripted). Lower it for a casual group.</summary>
     public double DamageScale { get; init; } = 1.0;
+    /// <summary>
+    /// Bosses run on the mechanics engine (docs/BOSS-MECHANICS-ENGINE.md): authored encounters from tools/data/boss-mechanics and
+    /// every other script compiled into engine rules. Off: the legacy hand-coded path (NpcAi.Bosses phase loop and the
+    /// NpcAi.ExpeditionMechanics / KromedeFireWalls scripts).
+    /// </summary>
+    public bool Engine { get; init; } = true;
     /// <summary>ClearWave follows the wave's own monsters (off: the old 30 s fallback for every wave).</summary>
     public bool Waves { get; init; } = true;
     /// <summary>The next part of a wave comes this long after the last one even if it still lives (OURS).</summary>
@@ -121,7 +131,7 @@ public sealed record BossOptions
     }
 
     public override string ToString() => (!Phases ? "boss phases off"
-        : $"boss phases on, frenzy {(Frenzy ? FrenzySeconds > 0 ? $"after {FrenzySeconds} s" : "as scripted" : "off")}, damage x{DamageScale.ToString("0.##", CultureInfo.InvariantCulture)}")
+        : $"boss phases on ({(Engine ? "mechanics engine" : "legacy scripts")}), frenzy {(Frenzy ? FrenzySeconds > 0 ? $"after {FrenzySeconds} s" : "as scripted" : "off")}, damage x{DamageScale.ToString("0.##", CultureInfo.InvariantCulture)}")
         + (Waves ? $", waves tracked (next part after {WavePartSeconds} s)" : ", waves on the timer");
 }
 
@@ -193,6 +203,14 @@ public sealed class BossFight(BossScript script, long startedMs)
     public (BossTelegraph Slam, long DueMs, int Seq, Vector3d Centre, double Yaw)? Winding { get; set; }
     public List<int> Adds { get; } = [];
     public int Slams { get; set; }
+    /// <summary>The filler slams in order (the script's, or the engine's after a set_rotation).</summary>
+    public IReadOnlyList<BossTelegraph> Rotation { get; set; } = script.Rotation;
+    /// <summary>Skills the boss only uses as telegraphed slams, never as ordinary specials.</summary>
+    public IReadOnlySet<int> SlamSkills { get; init; } = script.SlamSkills;
+    /// <summary>The mechanics engine's state for this fight, or null on the legacy path.</summary>
+    public EncounterRun? Encounter { get; set; }
+    /// <summary>Summoned adds by the engine group that called them (also in <see cref="Adds"/>).</summary>
+    public Dictionary<string, List<int>> Groups { get; } = new(StringComparer.Ordinal);
 }
 
 /// <summary>Monsters summoned during a fight (boss adds, scripted waves): new targets on the map, never respawned.</summary>

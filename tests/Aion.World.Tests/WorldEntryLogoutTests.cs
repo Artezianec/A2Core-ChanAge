@@ -13,7 +13,7 @@ public sealed class WorldEntryLogoutTests
     [Fact]
     public void Trust_limit_notice_is_the_recorded_form()
     {
-        const string expected = "62e2" + "0704020200000000000000000065cd1d00000000872fb3b0a101000003030000000000000000ffffffffffffffff872fb3b0a1010000"
+        const string expected = "62e2" + "0704020200000000000000000065cd1d000000008095ceb4a101000003030000000000000000ffffffffffffffff872fb3b0a1010000"
             + "04040000000000000000ffffffffffffffff872fb3b0a101000005050000000000000000ffffffffffffffff872fb3b0a1010000872fb3b0a101000005000000";
         Assert.Equal(expected, Convert.ToHexString(GameSession.TrustLimitInfoNotice(0x1a1b0b32f87)).ToLowerInvariant());
     }

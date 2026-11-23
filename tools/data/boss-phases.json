@@ -47,6 +47,77 @@
         "warning_ru": "Босс Krao Cave собирает силу: отойдите подальше!"
       }
     },
+    "2300153": {
+      "name": "M_PD_DDN_BeritraA_01_V01_001",
+      "dungeon": "DeadDramataNest_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606120,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The DDN Durbati boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс DDN Durbati собирает силу: отойдите подальше!"
+      }
+    },
+    "2300154": {
+      "name": "M_PD_DDN_BeritraD_01_V01_001",
+      "dungeon": "DeadDramataNest_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1605350,
+        "every_ms": 30000,
+        "wind_up_ms": 2000,
+        "radius": 450,
+        "damage": 1.12,
+        "warning": "The DDN Durbati boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс DDN Durbati собирает силу: отойдите подальше!"
+      }
+    },
+    "2300155": {
+      "name": "M_PD_DDN_Hard_Durbati_01",
+      "dungeon": "DeadDramataNest_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1604230,
+        "every_ms": 30000,
+        "wind_up_ms": 3330,
+        "radius": 450,
+        "damage": 2.42,
+        "warning": "Durbati gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Durbati собирает силу: отойдите подальше!"
+      },
+      "behavior_client": true,
+      "behavior_spawn": "M_PD_DDN_Hard_Durbati_01"
+    },
     "2300171": {
       "name": "KraoCave_Boss_1",
       "dungeon": "KraoCave_Normal",
@@ -172,6 +243,98 @@
         "haste": 0.5,
         "notice": "Ultimate Berk goes into a frenzy!",
         "notice_ru": "Берк впадает в неистовство!"
+      }
+    },
+    "2300188": {
+      "name": "BlueBreathIsle_Single_Boss_1",
+      "dungeon": "BlueBreathIsle_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1806140,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.47,
+        "warning": "The Blue Breath Isle boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Blue Breath Isle собирает силу: отойдите подальше!"
+      }
+    },
+    "2300189": {
+      "name": "BlueBreathIsle_Single_MidBoss_1",
+      "dungeon": "BlueBreathIsle_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1805890,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 2.0,
+        "warning": "The Blue Breath Isle boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Blue Breath Isle собирает силу: отойдите подальше!"
+      }
+    },
+    "2300190": {
+      "name": "BlueBreathIsle_Single_MidBoss_2",
+      "dungeon": "BlueBreathIsle_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1607960,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.4,
+        "warning": "The Blue Breath Isle boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Blue Breath Isle собирает силу: отойдите подальше!"
+      }
+    },
+    "2300200": {
+      "name": "BlueBreathIsle_Single_Boss_1",
+      "dungeon": "BlueBreathIsle_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1806140,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.47,
+        "warning": "The Blue Breath Isle boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Blue Breath Isle собирает силу: отойдите подальше!"
       }
     },
     "2300206": {
@@ -325,6 +488,121 @@
         "haste": 0.5,
         "notice": "Divine Auldor goes into a frenzy!",
         "notice_ru": "Аулдор впадает в неистовство!"
+      }
+    },
+    "2300219": {
+      "name": "BlueBreathIsle_Single_MidBoss_1",
+      "dungeon": "BlueBreathIsle_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1805890,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 2.0,
+        "warning": "The Blue Breath Isle boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Blue Breath Isle собирает силу: отойдите подальше!"
+      }
+    },
+    "2300230": {
+      "name": "BlueBreathIsle_Single_MidBoss_2",
+      "dungeon": "BlueBreathIsle_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1607960,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.4,
+        "warning": "The Blue Breath Isle boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Blue Breath Isle собирает силу: отойдите подальше!"
+      }
+    },
+    "2300243": {
+      "name": "BlueBreathIsle_Single_Boss_1",
+      "dungeon": "BlueBreathIsle_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1806140,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.47,
+        "warning": "The Blue Breath Isle boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Blue Breath Isle собирает силу: отойдите подальше!"
+      }
+    },
+    "2300244": {
+      "name": "BlueBreathIsle_Single_MidBoss_1",
+      "dungeon": "BlueBreathIsle_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1805890,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 2.0,
+        "warning": "The Blue Breath Isle boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Blue Breath Isle собирает силу: отойдите подальше!"
+      }
+    },
+    "2300245": {
+      "name": "BlueBreathIsle_Single_MidBoss_2",
+      "dungeon": "BlueBreathIsle_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1607960,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.4,
+        "warning": "The Blue Breath Isle boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Blue Breath Isle собирает силу: отойдите подальше!"
       }
     },
     "2300310": {
@@ -664,6 +942,81 @@
         "notice_ru": "Бакарма впадает в неистовство!"
       }
     },
+    "2300507": {
+      "name": "M_PD_DDN_Easy_BeritraA_01_V01_001",
+      "dungeon": "DeadDramataNest_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606120,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The DDN Durbati boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс DDN Durbati собирает силу: отойдите подальше!"
+      },
+      "behavior_client": true,
+      "behavior_spawn": "M_PD_DDN_Easy_BeritraA_01_V01_001"
+    },
+    "2300508": {
+      "name": "M_PD_DDN_Easy_BeritraD_01_V01_001",
+      "dungeon": "DeadDramataNest_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1605350,
+        "every_ms": 30000,
+        "wind_up_ms": 2000,
+        "radius": 450,
+        "damage": 1.12,
+        "warning": "The DDN Durbati boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс DDN Durbati собирает силу: отойдите подальше!"
+      },
+      "behavior_client": true,
+      "behavior_spawn": "M_PD_DDN_Easy_BeritraD_01_V01_001"
+    },
+    "2300509": {
+      "name": "M_PD_DDN_Easy_Durbati_01",
+      "dungeon": "DeadDramataNest_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1604230,
+        "every_ms": 30000,
+        "wind_up_ms": 3330,
+        "radius": 450,
+        "damage": 2.42,
+        "warning": "Durbati gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Durbati собирает силу: отойдите подальше!"
+      },
+      "behavior_client": true,
+      "behavior_spawn": "M_PD_DDN_Easy_Durbati_01"
+    },
     "2300810": {
       "name": "BakronIsland_Single_MidBoss_1",
       "dungeon": "BakronIsland_Normal",
@@ -786,7 +1139,9 @@
         "radius_from": "skill-areas",
         "wind_up_from": "OURS",
         "warning_ru": "Вождь Kalnif собирает силу: отойдите подальше!"
-      }
+      },
+      "behavior_client": true,
+      "behavior_spawn": "M_PD_FierceHornCave_KalnifElite_01_V02_001"
     },
     "2300909": {
       "name": "M_PD_FierceHornCave_Lycan_04_V01_001",
@@ -809,7 +1164,9 @@
         "radius_from": "OURS",
         "wind_up_from": "OURS",
         "warning_ru": "Вожак Lycan собирает силу: отойдите подальше!"
-      }
+      },
+      "behavior_client": true,
+      "behavior_spawn": "M_PD_FierceHornCave_Lycan_04_V01_001"
     },
     "2300910": {
       "name": "M_PD_FierceHornCave_Ferk_01_V01",
@@ -931,7 +1288,9 @@
           "notice": "Lagta is enraged!",
           "notice_ru": "Lagta в бешенстве!"
         }
-      ]
+      ],
+      "behavior_client": true,
+      "behavior_spawn": "M_PD_ReforgedAbyss_Lagta_01_001"
     },
     "2301007": {
       "name": "M_PD_ReforgedAbyss_Kashapa_01_001",
@@ -968,7 +1327,9 @@
           "notice": "Kashapa is enraged!",
           "notice_ru": "Kashapa в бешенстве!"
         }
-      ]
+      ],
+      "behavior_client": true,
+      "behavior_spawn": "M_PD_ReforgedAbyss_Kashapa_01_001"
     },
     "2301014": {
       "name": "M_PD_ReforgedAbyss_Durbati_01_V01_001",
@@ -1028,7 +1389,331 @@
           "notice": "Durbati is enraged!",
           "notice_ru": "Durbati в бешенстве!"
         }
-      ]
+      ],
+      "behavior_client": true,
+      "behavior_spawn": "M_PD_ReforgedAbyss_Durbati_01_V01_001"
+    },
+    "2301301": {
+      "name": "CradleNihility_Single_Boss_1",
+      "dungeon": "CradleNihility_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1804240,
+        "every_ms": 30000,
+        "wind_up_ms": 4000,
+        "radius": 450,
+        "damage": 1.2,
+        "warning": "The Cradle of Nihility boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Cradle of Nihility собирает силу: отойдите подальше!"
+      }
+    },
+    "2301302": {
+      "name": "CradleNihility_Single_MidBoss_1",
+      "dungeon": "CradleNihility_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1802170,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The Cradle of Nihility boss gathers power: get out of reach!",
+        "radius_from": "OURS",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс Cradle of Nihility собирает силу: отойдите подальше!"
+      }
+    },
+    "2301303": {
+      "name": "CradleNihility_Single_MidBoss_2",
+      "dungeon": "CradleNihility_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1804060,
+        "every_ms": 30000,
+        "wind_up_ms": 1833,
+        "radius": 450,
+        "damage": 1.67,
+        "warning": "The Cradle of Nihility boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Cradle of Nihility собирает силу: отойдите подальше!"
+      }
+    },
+    "2301401": {
+      "name": "SubBoss_2_M_PD_PhantomsHall_Protect_01_V01_001",
+      "dungeon": "PhantomsHall_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1805360,
+        "every_ms": 30000,
+        "wind_up_ms": 2700,
+        "radius": 450,
+        "damage": 1.71,
+        "warning": "The Phantom's Hall boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Phantom's Hall собирает силу: отойдите подальше!"
+      }
+    },
+    "2301402": {
+      "name": "SubBoss_1_M_PD_PhantomsHall_Hiladr_01_V01_001",
+      "dungeon": "PhantomsHall_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1805630,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.75,
+        "warning": "The Phantom's Hall boss gathers power: get out of reach!",
+        "radius_from": "OURS",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Phantom's Hall собирает силу: отойдите подальше!"
+      }
+    },
+    "2301601": {
+      "name": "M_PD_DaevaCitadel_MOB_DaevaWar_05_V01",
+      "dungeon": "DaevaCitadel_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1806360,
+        "every_ms": 30000,
+        "wind_up_ms": 3630,
+        "radius": 450,
+        "damage": 1.28,
+        "warning": "The Daeva Citadel boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Daeva Citadel собирает силу: отойдите подальше!"
+      }
+    },
+    "2301602": {
+      "name": "M_PD_DaevaCitadel_MOB_Griosa_01",
+      "dungeon": "DaevaCitadel_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1609030,
+        "every_ms": 30000,
+        "wind_up_ms": 4500,
+        "radius": 450,
+        "damage": 1.15,
+        "warning": "The Daeva Citadel boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Daeva Citadel собирает силу: отойдите подальше!"
+      }
+    },
+    "2301603": {
+      "name": "M_PD_DaevaCitadel_MOB_Idris_01_V01",
+      "dungeon": "DaevaCitadel_Easy",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1808800,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The Daeva Citadel boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс Daeva Citadel собирает силу: отойдите подальше!"
+      }
+    },
+    "2301701": {
+      "name": "M_PD_DaevaCitadel_MOB_DaevaWar_05_V01",
+      "dungeon": "DaevaCitadel_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1806360,
+        "every_ms": 30000,
+        "wind_up_ms": 3630,
+        "radius": 450,
+        "damage": 1.28,
+        "warning": "The Daeva Citadel boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Daeva Citadel собирает силу: отойдите подальше!"
+      }
+    },
+    "2301702": {
+      "name": "M_PD_DaevaCitadel_MOB_Griosa_01",
+      "dungeon": "DaevaCitadel_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1609030,
+        "every_ms": 30000,
+        "wind_up_ms": 4500,
+        "radius": 450,
+        "damage": 1.15,
+        "warning": "The Daeva Citadel boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Daeva Citadel собирает силу: отойдите подальше!"
+      }
+    },
+    "2301703": {
+      "name": "M_PD_DaevaCitadel_MOB_Idris_01_V01",
+      "dungeon": "DaevaCitadel_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1808800,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The Daeva Citadel boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс Daeva Citadel собирает силу: отойдите подальше!"
+      }
+    },
+    "2301721": {
+      "name": "M_PD_DaevaCitadel_MOB_DaevaWar_05_V01",
+      "dungeon": "DaevaCitadel_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1806360,
+        "every_ms": 30000,
+        "wind_up_ms": 3630,
+        "radius": 450,
+        "damage": 1.28,
+        "warning": "The Daeva Citadel boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Daeva Citadel собирает силу: отойдите подальше!"
+      }
+    },
+    "2301722": {
+      "name": "M_PD_DaevaCitadel_MOB_Griosa_01",
+      "dungeon": "DaevaCitadel_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1609030,
+        "every_ms": 30000,
+        "wind_up_ms": 4500,
+        "radius": 450,
+        "damage": 1.15,
+        "warning": "The Daeva Citadel boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Daeva Citadel собирает силу: отойдите подальше!"
+      }
+    },
+    "2301723": {
+      "name": "M_PD_DaevaCitadel_MOB_Idris_01_V01",
+      "dungeon": "DaevaCitadel_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1808800,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The Daeva Citadel boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс Daeva Citadel собирает силу: отойдите подальше!"
+      }
     },
     "2310104": {
       "name": "KraoCave_monster_Named_1",
@@ -1665,6 +2350,77 @@
         }
       ]
     },
+    "2310507": {
+      "name": "M_PD_DDN_BeritraA_01_V01_001",
+      "dungeon": "DeadDramataNest_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606120,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The DDN Durbati boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс DDN Durbati собирает силу: отойдите подальше!"
+      }
+    },
+    "2310508": {
+      "name": "M_PD_DDN_BeritraD_01_V01_001",
+      "dungeon": "DeadDramataNest_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1605350,
+        "every_ms": 30000,
+        "wind_up_ms": 2000,
+        "radius": 450,
+        "damage": 1.12,
+        "warning": "The DDN Durbati boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс DDN Durbati собирает силу: отойдите подальше!"
+      }
+    },
+    "2310509": {
+      "name": "M_PD_DDN_Normal_Durbati_01",
+      "dungeon": "DeadDramataNest_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1604230,
+        "every_ms": 30000,
+        "wind_up_ms": 3330,
+        "radius": 450,
+        "damage": 2.42,
+        "warning": "Durbati gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Durbati собирает силу: отойдите подальше!"
+      },
+      "behavior_client": true,
+      "behavior_spawn": "M_PD_DDN_Normal_Durbati_01"
+    },
     "2310810": {
       "name": "BakronIsland_Single_MidBoss_1",
       "dungeon": "BakronIsland_Easy",
@@ -1881,6 +2637,121 @@
           "notice_ru": "Синий свет разрушения — встаньте так, чтобы бросок попал в сферу в центре (три попадания)!"
         }
       ]
+    },
+    "2311301": {
+      "name": "CradleNihility_Single_Boss_1",
+      "dungeon": "CradleNihility_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1804240,
+        "every_ms": 30000,
+        "wind_up_ms": 4000,
+        "radius": 450,
+        "damage": 1.2,
+        "warning": "The Cradle of Nihility boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Cradle of Nihility собирает силу: отойдите подальше!"
+      }
+    },
+    "2311302": {
+      "name": "CradleNihility_Single_MidBoss_1",
+      "dungeon": "CradleNihility_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1802170,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The Cradle of Nihility boss gathers power: get out of reach!",
+        "radius_from": "OURS",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс Cradle of Nihility собирает силу: отойдите подальше!"
+      }
+    },
+    "2311303": {
+      "name": "CradleNihility_Single_MidBoss_2",
+      "dungeon": "CradleNihility_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1804060,
+        "every_ms": 30000,
+        "wind_up_ms": 1833,
+        "radius": 450,
+        "damage": 1.67,
+        "warning": "The Cradle of Nihility boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Cradle of Nihility собирает силу: отойдите подальше!"
+      }
+    },
+    "2311401": {
+      "name": "SubBoss_2_M_PD_PhantomsHall_Protect_01_V01_001",
+      "dungeon": "PhantomsHall_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1805360,
+        "every_ms": 30000,
+        "wind_up_ms": 2700,
+        "radius": 450,
+        "damage": 1.71,
+        "warning": "The Phantom's Hall boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Phantom's Hall собирает силу: отойдите подальше!"
+      }
+    },
+    "2311402": {
+      "name": "SubBoss_1_M_PD_PhantomsHall_Hiladr_01_V01_001",
+      "dungeon": "PhantomsHall_Normal",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1805630,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.75,
+        "warning": "The Phantom's Hall boss gathers power: get out of reach!",
+        "radius_from": "OURS",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Phantom's Hall собирает силу: отойдите подальше!"
+      }
     },
     "2320104": {
       "name": "KraoCave_monster_Named_1",
@@ -2600,6 +3471,52 @@
         }
       ]
     },
+    "2320615": {
+      "name": "DeusCenter_Single_MidBoss_2",
+      "dungeon": "DeusCenter_G_01",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1605630,
+        "every_ms": 30000,
+        "wind_up_ms": 1766,
+        "radius": 450,
+        "damage": 2.25,
+        "warning": "The Deus Research Base boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+      }
+    },
+    "2320616": {
+      "name": "DeusCenter_Single_MidBoss_1",
+      "dungeon": "DeusCenter_G_01",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1603360,
+        "every_ms": 30000,
+        "wind_up_ms": 1660,
+        "radius": 450,
+        "damage": 1.79,
+        "warning": "The Deus Research Base boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+      }
+    },
     "2320810": {
       "name": "BakronIsland_Single_MidBoss_1",
       "dungeon": "BakronIsland_Hard",
@@ -2734,7 +3651,9 @@
         "radius_from": "skill-areas",
         "wind_up_from": "OURS",
         "warning_ru": "Вождь Kalnif собирает силу: отойдите подальше!"
-      }
+      },
+      "behavior_client": true,
+      "behavior_spawn": "M_PD_FierceHornCave_KalnifElite_01_V02_001"
     },
     "2320909": {
       "name": "M_PD_FierceHornCave_Lycan_04_V01_001",
@@ -2757,7 +3676,9 @@
         "radius_from": "OURS",
         "wind_up_from": "OURS",
         "warning_ru": "Вожак Lycan собирает силу: отойдите подальше!"
-      }
+      },
+      "behavior_client": true,
+      "behavior_spawn": "M_PD_FierceHornCave_Lycan_04_V01_001"
     },
     "2320910": {
       "name": "M_PD_FierceHornCave_Ferk_01_V01",
@@ -2842,6 +3763,167 @@
         "haste": 0.5,
         "notice": "Ferocious Horn Nuakum goes into a frenzy!",
         "notice_ru": "Нуакум впадает в неистовство!"
+      }
+    },
+    "2321301": {
+      "name": "CradleNihility_Single_Boss_1",
+      "dungeon": "CradleNihility_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1804240,
+        "every_ms": 30000,
+        "wind_up_ms": 4000,
+        "radius": 450,
+        "damage": 1.2,
+        "warning": "The Cradle of Nihility boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Cradle of Nihility собирает силу: отойдите подальше!"
+      }
+    },
+    "2321302": {
+      "name": "CradleNihility_Single_MidBoss_1",
+      "dungeon": "CradleNihility_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1802170,
+        "every_ms": 30000,
+        "wind_up_ms": 3000,
+        "radius": 450,
+        "damage": 3.0,
+        "warning": "The Cradle of Nihility boss gathers power: get out of reach!",
+        "radius_from": "OURS",
+        "wind_up_from": "OURS",
+        "warning_ru": "Босс Cradle of Nihility собирает силу: отойдите подальше!"
+      }
+    },
+    "2321303": {
+      "name": "CradleNihility_Single_MidBoss_2",
+      "dungeon": "CradleNihility_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1804060,
+        "every_ms": 30000,
+        "wind_up_ms": 1833,
+        "radius": 450,
+        "damage": 1.67,
+        "warning": "The Cradle of Nihility boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Cradle of Nihility собирает силу: отойдите подальше!"
+      }
+    },
+    "2321401": {
+      "name": "SubBoss_2_M_PD_PhantomsHall_Protect_01_V01_001",
+      "dungeon": "PhantomsHall_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1805360,
+        "every_ms": 30000,
+        "wind_up_ms": 2700,
+        "radius": 450,
+        "damage": 1.71,
+        "warning": "The Phantom's Hall boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Phantom's Hall собирает силу: отойдите подальше!"
+      }
+    },
+    "2321402": {
+      "name": "SubBoss_1_M_PD_PhantomsHall_Hiladr_01_V01_001",
+      "dungeon": "PhantomsHall_Hard",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1805630,
+        "every_ms": 30000,
+        "wind_up_ms": 1500,
+        "radius": 450,
+        "damage": 1.75,
+        "warning": "The Phantom's Hall boss gathers power: get out of reach!",
+        "radius_from": "OURS",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Phantom's Hall собирает силу: отойдите подальше!"
+      }
+    },
+    "2330707": {
+      "name": "Arkanis_G_01_Stage_1_Elite",
+      "dungeon": "Arkanis_G_01",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606100,
+        "every_ms": 30000,
+        "wind_up_ms": 2000,
+        "radius": 450,
+        "damage": 2.05,
+        "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+      }
+    },
+    "2330708": {
+      "name": "Arkanis_G_01_Stage_2_Elite",
+      "dungeon": "Arkanis_G_01",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606450,
+        "every_ms": 30000,
+        "wind_up_ms": 2500,
+        "radius": 450,
+        "damage": 1.08,
+        "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
       }
     },
     "2330709": {
@@ -2954,6 +4036,52 @@
         }
       ]
     },
+    "2340615": {
+      "name": "DeusCenter_Single_MidBoss_2",
+      "dungeon": "DeusCenter_G_03",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1605630,
+        "every_ms": 30000,
+        "wind_up_ms": 1766,
+        "radius": 450,
+        "damage": 2.25,
+        "warning": "The Deus Research Base boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+      }
+    },
+    "2340616": {
+      "name": "DeusCenter_Single_MidBoss_1",
+      "dungeon": "DeusCenter_G_03",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1603360,
+        "every_ms": 30000,
+        "wind_up_ms": 1660,
+        "radius": 450,
+        "damage": 1.79,
+        "warning": "The Deus Research Base boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+      }
+    },
     "2343601": {
       "name": "DeusCenter_Single_Boss_1",
       "dungeon": "DeusCenter_G_06",
@@ -3008,6 +4136,52 @@
           "notice_ru": "Босс Deus Research Base в бешенстве!"
         }
       ]
+    },
+    "2343615": {
+      "name": "DeusCenter_Single_MidBoss_2",
+      "dungeon": "DeusCenter_G_06",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1605630,
+        "every_ms": 30000,
+        "wind_up_ms": 1766,
+        "radius": 450,
+        "damage": 2.25,
+        "warning": "The Deus Research Base boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+      }
+    },
+    "2343616": {
+      "name": "DeusCenter_Single_MidBoss_1",
+      "dungeon": "DeusCenter_G_06",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1603360,
+        "every_ms": 30000,
+        "wind_up_ms": 1660,
+        "radius": 450,
+        "damage": 1.79,
+        "warning": "The Deus Research Base boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+      }
     },
     "2346601": {
       "name": "DeusCenter_Single_Boss_1",
@@ -3064,6 +4238,98 @@
         }
       ]
     },
+    "2346615": {
+      "name": "DeusCenter_Single_MidBoss_2",
+      "dungeon": "DeusCenter_G_09",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1605630,
+        "every_ms": 30000,
+        "wind_up_ms": 1766,
+        "radius": 450,
+        "damage": 2.25,
+        "warning": "The Deus Research Base boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+      }
+    },
+    "2346616": {
+      "name": "DeusCenter_Single_MidBoss_1",
+      "dungeon": "DeusCenter_G_09",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1603360,
+        "every_ms": 30000,
+        "wind_up_ms": 1660,
+        "radius": 450,
+        "damage": 1.79,
+        "warning": "The Deus Research Base boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Deus Research Base собирает силу: отойдите подальше!"
+      }
+    },
+    "2350707": {
+      "name": "Arkanis_G_03_Stage_1_Elite",
+      "dungeon": "Arkanis_G_03",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606100,
+        "every_ms": 30000,
+        "wind_up_ms": 2000,
+        "radius": 450,
+        "damage": 2.05,
+        "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+      }
+    },
+    "2350708": {
+      "name": "Arkanis_G_03_Stage_2_Elite",
+      "dungeon": "Arkanis_G_03",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606450,
+        "every_ms": 30000,
+        "wind_up_ms": 2500,
+        "radius": 450,
+        "damage": 1.08,
+        "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+      }
+    },
     "2350709": {
       "name": "Arkanis_G_03_Boss",
       "dungeon": "Arkanis_G_03",
@@ -3119,6 +4385,52 @@
         }
       ]
     },
+    "2353707": {
+      "name": "Arkanis_G_06_Stage_1_Elite",
+      "dungeon": "Arkanis_G_06",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606100,
+        "every_ms": 30000,
+        "wind_up_ms": 2000,
+        "radius": 450,
+        "damage": 2.05,
+        "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+      }
+    },
+    "2353708": {
+      "name": "Arkanis_G_06_Stage_2_Elite",
+      "dungeon": "Arkanis_G_06",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606450,
+        "every_ms": 30000,
+        "wind_up_ms": 2500,
+        "radius": 450,
+        "damage": 1.08,
+        "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+      }
+    },
     "2353709": {
       "name": "Arkanis_G_06_Boss",
       "dungeon": "Arkanis_G_06",
@@ -3173,6 +4485,52 @@
           "notice_ru": "Босс Shattered Arkanis в бешенстве!"
         }
       ]
+    },
+    "2356707": {
+      "name": "Arkanis_G_09_Stage_1_Elite",
+      "dungeon": "Arkanis_G_09",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606100,
+        "every_ms": 30000,
+        "wind_up_ms": 2000,
+        "radius": 450,
+        "damage": 2.05,
+        "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+      }
+    },
+    "2356708": {
+      "name": "Arkanis_G_09_Stage_2_Elite",
+      "dungeon": "Arkanis_G_09",
+      "role": "mid",
+      "phases": [
+        {
+          "at": 50,
+          "name": "fury",
+          "damage": 1.2
+        }
+      ],
+      "telegraph": {
+        "skill": 1606450,
+        "every_ms": 30000,
+        "wind_up_ms": 2500,
+        "radius": 450,
+        "damage": 1.08,
+        "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+        "radius_from": "skill-areas",
+        "wind_up_from": "client cast",
+        "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+      }
     },
     "2356709": {
       "name": "Arkanis_G_09_Boss",

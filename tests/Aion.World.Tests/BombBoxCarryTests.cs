@@ -259,6 +259,43 @@ public sealed class BombBoxCarryTests
     }
 
     [Fact]
+    public async Task Pending_interact_complete_refuses_bomb_tower_when_player_moved_out_of_range()
+    {
+        var store = new FakeCharacterStore();
+        store.Quests.Add(new QuestRecord("HQ1101040", 1101040, 100, QuestLog.Rewarded, 1, new int[6]));
+        store.Quests.Add(new QuestRecord("HQ1101050", 1101050, 101, QuestLog.Rewarded, 1, new int[6]));
+        var session = await GameSessionTestHelpers.EnterFreshSharedWorldAsync(store, Now, race: 1, level: 10);
+        await session.QuestCommandAsync("QuestAdd", "HQ1101070", default);
+        var inst = InstanceTables.Embedded.Of(100002)!;
+        var center = new Vector3d(inst.Entry.Center[0], inst.Entry.Center[1], inst.Entry.Center[2]);
+        session.Teleport(100002, center, Now + 10);
+        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 20);
+        var run = await MapEventScenarioHelpers.WaitForMapEventRunAsync(session, "World_L_Starter_InstanceLayer_2_MapEvent", Now + 500, attempts: 24);
+        Assert.NotNull(run);
+        var objects = WorldObjects.ObjectsOn(100002);
+        var tower = objects.Select((o, i) => (o, i)).First(x => x.o.Env == 1400824);
+        var box = objects.Select((o, i) => (o, i)).First(x => x.o.Carry is not null);
+        var t = Now + 20_000;
+        await MapEventScenarioHelpers.SyncPositionAsync(session, box.o.At, t);
+        await session.HandleAsync(Use(WorldObjects.FirstKey + box.i), t + 100);
+        await session.TickAsync(t + 100 + GameSession.CarryPickupMs);
+        Assert.Equal(1196, session.CarriedGroup);
+        var near = tower.o.At;
+        await MapEventScenarioHelpers.SyncPositionAsync(session, near, t + 3000);
+        var towerKey = WorldObjects.FirstKey + tower.i;
+        await session.HandleAsync(Use(WorldObjects.FirstKey + box.i), t + 3500);
+        await session.TickAsync(t + 3500 + GameSession.CarryPickupMs);
+        var channelMs = 1500;
+        session.SetPendingUseForTests(tower.i, towerKey, t + 3600 + channelMs);
+        var far = tower.o.At with { X = tower.o.At.X + GameSession.BombPlantReach(tower.o) + 2000 };
+        await MapEventScenarioHelpers.SyncPositionAsync(session, far, t + 3650);
+        var goalsBefore = run!.Goals.ToArray();
+        await session.TickAsync(t + 3600 + channelMs + 50);
+        Assert.Equal(goalsBefore, run.Goals);
+        Assert.Equal(1196, session.CarriedGroup);
+    }
+
+    [Fact]
     public async Task Ground_bomb_refused_far_from_tower()
     {
         var store = new FakeCharacterStore();

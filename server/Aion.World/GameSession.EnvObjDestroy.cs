@@ -65,6 +65,7 @@ partial class GameSession
         var key = scheduled.TargetKey;
         var taken = envObjHits[index] = envObjHits.GetValueOrDefault(index) + 1;
         if (!bomb && taken < o.HitsToBreak) return [GamePackets.EnvObjHitCount(key, taken)];
+        if (bomb && CarriedGroup is not null && position is { } hitAt && !InBombPlantRange(hitAt, o)) return [];
         var dropped = bomb ? DropCarried(ExpireEtc) : [];
         return [GamePackets.EnvObjHitCount(key, taken), .. BreakEnvObj(index, o, now), .. dropped];
     }
@@ -72,13 +73,33 @@ partial class GameSession
     /// <summary>The object breaks: gone for <see cref="BrokenEnvObjRespawnMs"/>, its use credit still to be paid (QuestKillsAsync); 0x3940 and 0x3635 state Dead.</summary>
     List<byte[]> BreakEnvObj(int index, WorldObject o, long now)
     {
-        if (CarriedGroup is not null && !BombPlantMapEventCreditAllowed(o)) return [];
+        if (WorldObjects.HasCarryBoxes(worldMap) && o.Destructible && CarriedGroup is not null && !BombPlantMapEventCreditAllowed(o))
+            return [];
         var key = WorldObjects.FirstKey + index;
         envObjHits.Remove(index);
         brokenEnvObjs[index] = now + BrokenEnvObjRespawnMs;
         shownObjects.Remove(index);
         brokenEnvObjCredit.Add((worldMap, index, o, now, position));
+        CreditMapEventEnvObjDead(o, now);
         return [GamePackets.EnvObjDie(key), GamePackets.EnvObjDespawn(key, 4, 3)];
+    }
+
+    void CreditMapEventEnvObjDead(WorldObject o, long now)
+    {
+        if (mapEventRuns.Count == 0) return;
+        mapEventNow = now;
+        var spawn = EventName(o);
+        foreach (var run in mapEventRuns.ToList())
+        {
+            run.EnvObjStateChanged(spawn, "Dead", now);
+            if (o.EnvName is { Length: > 0 } env)
+            {
+                run.EnvObjStateChanged(env, "Dead", now);
+                if (env.Contains("StoneWall_Hit", StringComparison.OrdinalIgnoreCase))
+                    run.EnvObjStateChanged("E_CoastalCave_StoneWall_Auto_001", "Dead", now);
+            }
+        }
+        _ = DrainMapEvents();
     }
 
     /// <summary>What using a broken object pays (as <see cref="CompleteUseAsync"/>): UseEnvObj progress, map events, achievements.</summary>
@@ -92,9 +113,11 @@ partial class GameSession
         {
             if (questLog is not null)
                 replies.AddRange(await Stored(() => QuestChangesAsync(questLog.UsedObject(o.Env, level), ct)));
-            if (map == worldMap && (CopyOwner ?? this).mapEventRuns.Any(r => r.WantsObject(EventName(o)))) usedObjects.Add(index);
-            if (BombPlantMapEventCreditAllowed(o, plantAt))
-                replies.AddRange(MapEventUsedObject(EventName(o), at));
+            var mapEventCredit = MapEventBombCreditAllowed(o, plantAt);
+            if (map == worldMap && mapEventCredit && (CopyOwner ?? this).mapEventRuns.Any(r => r.WantsObject(EventName(o))))
+                usedObjects.Add(index);
+            if (mapEventCredit)
+                replies.AddRange(MapEventUsedObject(EventName(o), at, plantAt));
             replies.AddRange(Achieve("UseEnvObjSpawnerName", 1, e => e.Has(o.Name), at));
             replies.AddRange(Achieve("UseEnvObj", 1, e => e.Envs?.Contains(o.Env) == true, at));
         }
