@@ -24,6 +24,16 @@ class MigrationTests(unittest.TestCase):
         self.assertIn('\\if :apply', script)
         self.assertTrue(script.endswith('COMMIT;'))
 
+    def test_quna_kind_backfill_disables_append_only_trigger(self):
+        body = (ROOT / 'database/migrations/141_shop_feature_layer.sql').read_text(encoding='utf-8')
+        update = "UPDATE game.quna_ledger SET quna_kind"
+        pos = body.find(update)
+        self.assertGreaterEqual(pos, 0, 'expected quna_kind backfill UPDATE in migration 141')
+        before = body[:pos]
+        after = body[pos:]
+        self.assertIn('DISABLE TRIGGER quna_ledger_append_only', before)
+        self.assertIn('ENABLE TRIGGER quna_ledger_append_only', after)
+
 
 @unittest.skipUnless(os.environ.get('AION_POSTGRES_TESTS') == '1', 'Requires local PostgreSQL and imported catalogue')
 class PostgreSQLTests(unittest.TestCase):

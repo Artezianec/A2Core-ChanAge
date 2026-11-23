@@ -53,6 +53,20 @@ public sealed record FieldBossOptions
     /// </summary>
     public bool SharedLoot { get; init; } = true;
 
+    /// <summary>
+    /// The public guides' after-kill timers (tools/data/field-boss-guide.json: Gartua and Lagta 11 h, Dartan and Kashapa 6 h, each
+    /// plus up to 10 minutes) and their English/Russian titles, ahead of the generic windows. Off: the generic windows and the
+    /// names made from the spawn names, as before.
+    /// </summary>
+    public bool GuideTimers { get; init; } = true;
+    /// <summary>
+    /// The Abyss bosses (Kaira, Argo, Nahma, the executors, the Middle Reshanta bosses) come at fixed server-clock slots instead
+    /// of a time after the kill (guide values, tools/data/field-boss-guide.json); Watcher Kaira picks one of its placements each time.
+    /// </summary>
+    public bool Schedules { get; init; } = true;
+    /// <summary>The server clock's offset from UTC in hours for the schedules; null: the guide's UTC+9 (a GUESS: Global is believed to share the KR clock).</summary>
+    public int? ServerUtcOffsetHours { get; init; }
+
     public static FieldBossOptions Default { get; } = new();
 
     public FieldBossBroadcastScope EffectiveScope()
@@ -82,6 +96,8 @@ public sealed record FieldBossOptions
         if (RespawnMinutesByName.Any(p => string.IsNullOrWhiteSpace(p.Key) || p.Value is < 1 or > 48 * 60))
             throw new InvalidOperationException("Aion:FieldBosses:RespawnMinutesByName values must be 1..2880 minutes.");
         _ = ParseScope(AnnouncementScope);
+        if (ServerUtcOffsetHours is < -12 or > 14)
+            throw new InvalidOperationException("Aion:FieldBosses:ServerUtcOffsetHours must be -12..14.");
         return this;
     }
 
@@ -93,6 +109,7 @@ public sealed record FieldBossOptions
           + (names.Length == 0 ? "" : ", " + names)
           + $"; named {NamedRespawnMinMinutes}-{NamedRespawnMaxMinutes} min; broadcast {EffectiveScope().ToString().ToLowerInvariant()}"
           + (ChatBroadcast ? "+chat" : "")
+          + $"; guide timers {(GuideTimers ? "on" : "off")}, schedules {(Schedules ? "on" : "off")}"
           + $"; participant notices {(ParticipantNotices ? "on" : "off")}; personal rewards {(SharedLoot ? "on" : "off")})";
     }
 }
@@ -175,6 +192,9 @@ public static class FieldBosses
             target.Position.X, target.Position.Y, target.Position.Z, Spawned: true, RespawnAtMs: 0);
     }
 
+    /// <summary>Forgets a clock (a boss that comes back at another of its placements).</summary>
+    public static void Forget(int mapId, int entityKey) => clocks.TryRemove((mapId, entityKey), out _);
+
     /// <summary>Live clocks for one map (killed bosses still waiting, and any marked spawned). Unseen bosses are not listed.</summary>
     public static IReadOnlyList<FieldBossState> StatesOnMap(int mapId) =>
         [.. clocks.Values.Where(s => s.MapId == mapId).OrderBy(s => s.EntityKey)];
@@ -213,6 +233,7 @@ public static class FieldBosses
     /// </summary>
     public static string DisplayName(string spawnName)
     {
+        if (options.GuideTimers && FieldBossGuide.Embedded.TitleOfSpawn(spawnName) is { } title) return title.English;
         var words = spawnName.Split('_', StringSplitOptions.RemoveEmptyEntries).Where(w => !Noise.IsMatch(w)).ToList();
         if (words.Count == 0) return spawnName;
         var text = new StringBuilder();
@@ -238,7 +259,8 @@ public static class FieldBosses
         ["Pretor Boss"] = "Претор",
     };
 
-    public static string RussianName(string displayName) => RussianNames.GetValueOrDefault(displayName, displayName);
+    public static string RussianName(string displayName) =>
+        (options.GuideTimers ? FieldBossGuide.Embedded.RussianOf(displayName) : null) ?? RussianNames.GetValueOrDefault(displayName, displayName);
 
     /// <summary>The side of a base map: 10xx the Light lands, 11xx the Dark lands, the rest the Abyss.</summary>
     public static (string English, string Russian) Region(int mapId) => (mapId / 100) switch

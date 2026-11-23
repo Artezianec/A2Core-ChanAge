@@ -1,0 +1,360 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "ddn_durbati",
+  "display": "Decayed Durbati",
+  "display_ru": "Дурбати",
+  "dungeon": "DeadDramataNest",
+  "source": "official client data (NpcData / Skill / SkillAbnormal exports, npc-behavior-cases barks); mechanics from the research notes, GUESS values are labelled",
+  "note": "Final boss of Dying Dramata's Nest. Poison Rain on every player, the Venom Swamp rock check on the dungeon's real pillars, fear roar.",
+  "npcs": {
+    "Easy": [
+      2300509
+    ],
+    "Normal": [
+      2310509
+    ],
+    "Hard": [
+      2300155
+    ]
+  },
+  "vars": {
+    "frenzy_ms": 300000
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1604060,
+      "every_ms": 14000,
+      "wind_up_ms": 700,
+      "radius": 300
+    },
+    {
+      "type": "cast",
+      "skill": 1604100,
+      "every_ms": 30000,
+      "wind_up_ms": 1100,
+      "radius": 300,
+      "warning": "Durbati bites: the poison lasts 20 s, tanks stay close!",
+      "warning_ru": "Дурбати кусает: яд длится 20 с!"
+    },
+    {
+      "type": "cast",
+      "skill": 1604190,
+      "every_ms": 35000,
+      "wind_up_ms": 2230,
+      "radius": 750,
+      "warning": "Durbati sweeps his tail: get behind him!",
+      "warning_ru": "Дурбати бьёт хвостом: уйдите за спину!"
+    },
+    {
+      "type": "cast",
+      "skill": 1604230,
+      "every_ms": 60000,
+      "wind_up_ms": 3330,
+      "radius": 400,
+      "warning": "Poison Rain: leave your marker, it falls four times!",
+      "warning_ru": "Ядовитый дождь: уходите с метки, она падает четыре раза!",
+      "damage": {
+        "scale": 2.42
+      },
+      "during": [
+        {
+          "type": "decal",
+          "skill": 1604230,
+          "at": "each_player",
+          "duration_ms": 3330
+        }
+      ],
+      "on_land": [
+        {
+          "type": "repeat",
+          "every_ms": 1500,
+          "count": 3,
+          "do": [
+            {
+              "type": "telegraph",
+              "at": "each_player",
+              "skill": 1604230,
+              "delay_ms": 1300,
+              "damage": {
+                "skill": 1604230,
+                "scale": 2.42
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "cast",
+      "skill": 1604330,
+      "every_ms": 60000,
+      "wind_up_ms": 2000,
+      "warning": "Durbati roars: stay close to him or you are feared!",
+      "warning_ru": "Дурбати рычит: держитесь рядом, иначе вас охватит страх!",
+      "on_land": [
+        {
+          "type": "telegraph",
+          "id": "fear_roar",
+          "at": "boss",
+          "shape": "donut",
+          "inner": 0,
+          "radius": 700,
+          "invert": true,
+          "delay_ms": 0,
+          "decal": false,
+          "on_hit": [
+            {
+              "type": "debuff",
+              "debuff": "fear",
+              "target": "event",
+              "duration_ms": 3000,
+              "abnormal": 16043307
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "modify",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "Kept from the compiled boss-phases.json script: 1.2x damage at 50% HP."
+    },
+    {
+      "id": "venom_swamp",
+      "when": {
+        "type": "timer",
+        "after_ms": 45000,
+        "every_ms": 120000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_DeadDramataNest_03"
+        },
+        {
+          "type": "move",
+          "to": "arena_centre"
+        },
+        {
+          "type": "cast",
+          "skill": 1604280,
+          "wind_up_ms": 4000,
+          "land": false,
+          "warning": "Venom Swamp: climb onto a rock before the timer ends!",
+          "warning_ru": "Ядовитое болото: заберитесь на камень до конца отсчёта!",
+          "on_land": [
+            {
+              "type": "telegraph",
+              "id": "swamp_breath",
+              "at": "arena_centre",
+              "shape": "circle",
+              "radius": 450,
+              "invert": true,
+              "offsets": [
+                [
+                  -3586,
+                  1369
+                ],
+                [
+                  -2909,
+                  -2710
+                ],
+                [
+                  3286,
+                  -2816
+                ],
+                [
+                  1046,
+                  3557
+                ]
+              ],
+              "decal": false,
+              "delay_ms": 0,
+              "damage": {
+                "hp_ratio": 20000,
+                "factor": [
+                  60000,
+                  60000
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "Climb onto a rock in 4 seconds!",
+          "text_ru": "Заберитесь на камень за 4 секунды!"
+        }
+      ],
+      "note": "Skill09 spawns hidden helpers (no templates). The rocks are the dungeon's own env objects (Test_Dramata_Pillar, same layout on every difficulty); which of the two pillar types counts as the high rock is a GUESS (the four 02_4 ones used). Damage 200% max HP is a GUESS (client has no rows for the helpers). One-player-per-rock on Hard is not implemented.",
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ]
+    },
+    {
+      "id": "venom_swamp_easy",
+      "when": {
+        "type": "timer",
+        "after_ms": 45000,
+        "every_ms": 120000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_DeadDramataNest_Easy_03"
+        },
+        {
+          "type": "move",
+          "to": "arena_centre"
+        },
+        {
+          "type": "cast",
+          "skill": 1604280,
+          "wind_up_ms": 4000,
+          "land": false,
+          "warning": "Venom Swamp: climb onto a rock before the timer ends!",
+          "warning_ru": "Ядовитое болото: заберитесь на камень до конца отсчёта!",
+          "on_land": [
+            {
+              "type": "telegraph",
+              "id": "swamp_breath",
+              "at": "arena_centre",
+              "shape": "circle",
+              "radius": 450,
+              "invert": true,
+              "offsets": [
+                [
+                  -3586,
+                  1369
+                ],
+                [
+                  -2909,
+                  -2710
+                ],
+                [
+                  3286,
+                  -2816
+                ],
+                [
+                  1046,
+                  3557
+                ]
+              ],
+              "decal": false,
+              "delay_ms": 0,
+              "damage": {
+                "hp_ratio": 20000,
+                "factor": [
+                  60000,
+                  60000
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "Climb onto a rock in 4 seconds!",
+          "text_ru": "Заберитесь на камень за 4 секунды!"
+        }
+      ],
+      "note": "Skill09 spawns hidden helpers (no templates). The rocks are the dungeon's own env objects (Test_Dramata_Pillar, same layout on every difficulty); which of the two pillar types counts as the high rock is a GUESS (the four 02_4 ones used). Damage 200% max HP is a GUESS (client has no rows for the helpers). One-player-per-rock on Hard is not implemented.",
+      "difficulty": [
+        "Easy"
+      ]
+    },
+    {
+      "id": "venom_swamp_hatch",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "cast",
+          "skill": 1604290,
+          "wind_up_ms": 4000,
+          "land": false,
+          "warning": "Durbati's brood hatches!",
+          "warning_ru": "Потомство Дурбати вылупляется!"
+        }
+      ],
+      "note": "Skill09_02 spawns hidden hatchlings (npc 2920384/83/58, no templates): no adds yet."
+    },
+    {
+      "id": "stomps",
+      "when": {
+        "type": "timer",
+        "after_ms": 30000,
+        "every_ms": 120000
+      },
+      "do": [
+        {
+          "type": "notice",
+          "text": "Durbati stomps: stay close to him!",
+          "text_ru": "Дурбати топает: держитесь ближе к нему!"
+        },
+        {
+          "type": "telegraph",
+          "id": "stomp_floor",
+          "at": "boss",
+          "shape": "circle",
+          "radius": 1000,
+          "invert": true,
+          "delay_ms": 3500,
+          "decal": true,
+          "skill": 1604230,
+          "damage": {
+            "factor": [
+              20000,
+              22000
+            ]
+          }
+        }
+      ],
+      "note": "Research: right/left stomp drops personal floors on players far away. Radius 1000 and 20000-22000 (the tail-swipe row) are GUESSES."
+    },
+    {
+      "id": "frenzy",
+      "when": {
+        "type": "enrage_timer",
+        "after_ms": "$frenzy_ms"
+      },
+      "do": [
+        {
+          "type": "enrage",
+          "damage_mul": 3.0,
+          "haste_mul": 0.5,
+          "text": "Enrage! The boss moves and strikes twice as fast and hits three times as hard!",
+          "text_ru": "Берсерк! Босс двигается вдвое быстрее и бьёт втрое сильнее!"
+        }
+      ],
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ],
+      "note": "Client NpcData: bUseBossBerserk, BossBerserkInvokeTime 300 s on Normal and Hard, none on Exploration; abnormal 10000008 = +100% move/cast/combat speed and AmplifyAllDamage +20000 (x3). 240 s on Hard is the official patch value for six older expeditions; this dungeon is not in that notice, so client data (300 s) stands."
+    }
+  ],
+  "difficulty": {
+    "Easy": {
+      "rules_remove": [
+        "frenzy"
+      ],
+      "note": "Exploration: no enrage (client NpcData bUseBossBerserk is false)."
+    }
+  }
+}

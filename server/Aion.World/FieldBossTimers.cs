@@ -37,6 +37,7 @@ public sealed class FieldBossTimers
     readonly Lock gate = new();
     readonly Dictionary<int, State> states = [];
     readonly Random random;
+    readonly FieldBossGuide guide = FieldBossGuide.Embedded;
     readonly Channel<Func<IFieldBossStore, Task>> writes = Channel.CreateUnbounded<Func<IFieldBossStore, Task>>(new() { SingleReader = true });
     IFieldBossStore? store;
 
@@ -65,30 +66,51 @@ public sealed class FieldBossTimers
 
     /// <summary>
     /// The respawn range in minutes: a stored custom range, else a fixed <see cref="FieldBossOptions.RespawnMinutesByName"/>
-    /// match, else the configured named or boss window (which defaults to the official CANDIDATE ranges).
+    /// match, else the guide's timer (<see cref="FieldBossOptions.GuideTimers"/>), else the configured named or boss window (which
+    /// defaults to the official CANDIDATE ranges).
     /// </summary>
-    public (int Min, int Max) Range(int code)
+    public (int Min, int Max) Range(int code) => Resolve(code).Range;
+
+    (( int Min, int Max) Range, bool FromGuide) Resolve(int code)
     {
         var d = ByCode[code];
         lock (gate)
             if (states.TryGetValue(code, out var s) && s.MinMinutes is { } min && s.MaxMinutes is { } max)
-                return (min, max);
+                return ((min, max), false);
         foreach (var (part, minutes) in FieldBosses.Options.RespawnMinutesByName.OrderByDescending(p => p.Key.Length))
-            if (d.Name.Contains(part, StringComparison.OrdinalIgnoreCase)) return (minutes, minutes);
+            if (d.Name.Contains(part, StringComparison.OrdinalIgnoreCase)) return ((minutes, minutes), false);
         var o = FieldBosses.Options;
-        return d.Kind == "boss"
+        if (o.GuideTimers && guide.RespawnMinutesOf(d.NpcId) is { } guided) return ((guided, guided), true);
+        return (d.Kind == "boss"
             ? (o.BossRespawnMinMinutes, o.BossRespawnMaxMinutes)
-            : (o.NamedRespawnMinMinutes, o.NamedRespawnMaxMinutes);
+            : (o.NamedRespawnMinMinutes, o.NamedRespawnMaxMinutes), false);
     }
 
-    /// <summary>The boss died now: its respawn time (Unix ms), drawn from its range, stored.</summary>
+    /// <summary>The fixed-slot schedule of a boss (the Abyss bosses) when schedules are on and no custom range was stored for it.</summary>
+    public FieldBossSchedule? ScheduleOf(int code)
+    {
+        if (!FieldBosses.Options.Schedules || !ByCode.TryGetValue(code, out var d)) return null;
+        lock (gate)
+            if (states.TryGetValue(code, out var s) && s.MinMinutes is not null) return null;
+        foreach (var (part, _) in FieldBosses.Options.RespawnMinutesByName)
+            if (d.Name.Contains(part, StringComparison.OrdinalIgnoreCase)) return null;
+        return guide.ScheduleOf(d.NpcId);
+    }
+
+    /// <summary>The server clock's offset from UTC (hours) the schedules run on.</summary>
+    public int UtcOffsetHours => FieldBosses.Options.ServerUtcOffsetHours ?? guide.DefaultUtcOffsetHours;
+
+    /// <summary>The boss died now: its respawn time (Unix ms), drawn from its range (or its next schedule slot), stored.</summary>
     public long Killed(int code, long now)
     {
-        var (min, max) = Range(code);
+        var schedule = ScheduleOf(code);
+        var ((min, max), fromGuide) = Resolve(code);
         long respawn;
         lock (gate)
         {
-            respawn = now + (long)((min + random.NextDouble() * (max - min)) * 60_000);
+            respawn = schedule is not null
+                ? schedule.NextSlotAfter(now, UtcOffsetHours)
+                : now + (long)((min + random.NextDouble() * (max - min)) * 60_000) + (fromGuide ? (long)(random.NextDouble() * guide.SpawnWindowMinutes * 60_000) : 0);
             var s = StateOf(code);
             s.KilledAt = now;
             s.RespawnAt = respawn;
@@ -243,6 +265,7 @@ public sealed partial class MapInstance
 {
     Dictionary<int, int> fieldBossCodes = [];   // target key → code
     Dictionary<int, int> fieldBossKeys = [];    // code → target key
+    Dictionary<int, List<int>> fieldBossSpots = [];   // code → every placement's key, for a boss that comes at one random spot
     FieldBossTimers? fieldBossTimers;
 
     /// <summary>Finds this map's official field bosses and keeps the stored dead ones dead until their time (shared maps only).</summary>
@@ -256,6 +279,25 @@ public sealed partial class MapInstance
                 {
                     fieldBossCodes[t.Key] = d.Code;
                     fieldBossKeys[d.Code] = t.Key;
+                    if (timers.ScheduleOf(d.Code) is { RandomSpot: true })
+                    {
+                        // Watcher Kaira: six placements, one is up at a time; the others wait (dead, never respawning on their own).
+                        var spots = Targets.Values.Where(x => x.NpcId == d.NpcId && x.OwnerKey == 0).Select(x => x.Key).Order().ToList();
+                        if (spots.Count > 1)
+                        {
+                            fieldBossSpots[d.Code] = spots;
+                            var chosen = spots[Random.Shared.Next(spots.Count)];
+                            fieldBossKeys[d.Code] = chosen;
+                            foreach (var key in spots)
+                            {
+                                fieldBossCodes[key] = d.Code;
+                                if (key == chosen || Targets[key].Dead && Targets[key].CorpseRemoved) continue;
+                                Targets[key].Hp = 0;
+                                Targets[key].CorpseRemoved = true;
+                                RespawnAt.Remove(key);
+                            }
+                        }
+                    }
                 }
         if (!FieldBosses.Options.Enabled) return;
         var packets = new List<byte[]>();
@@ -276,6 +318,22 @@ public sealed partial class MapInstance
                 t.Position.X, t.Position.Y, t.Position.Z, Spawned: false, RespawnAtMs: until));
         }
         BroadcastAll(packets);
+    }
+
+    /// <summary>
+    /// A boss that comes at one of several placements (Watcher Kaira) is about to return: the target to revive, a random placement
+    /// other than where it died when it has several. The target itself for every other monster.
+    /// </summary>
+    public Target SpotToRespawn(Target dead)
+    {
+        if (!fieldBossCodes.TryGetValue(dead.Key, out var code) || !fieldBossSpots.TryGetValue(code, out var spots)) return dead;
+        var others = spots.Where(k => k != dead.Key).ToList();
+        var key = others[Random.Shared.Next(others.Count)];
+        if (!Targets.TryGetValue(key, out var next)) return dead;
+        fieldBossKeys[code] = key;
+        FieldBosses.Forget(MapId, dead.Key);
+        dead.CorpseRemoved = true;
+        return next;
     }
 
     /// <summary>The official boss's target on this map (null when the map has none).</summary>

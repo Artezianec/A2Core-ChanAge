@@ -1,0 +1,100 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "field_gartua",
+  "display": "Gartua",
+  "display_ru": "Гартуа",
+  "dungeon": "FieldBoss",
+  "source": "client NpcData skills + Skill.dat cast times and cooldowns (world-npcs.json) for the rotation; the CC abnormals (knockdown 2 s on 1601110, stun 2.5 s on 1601150) are the client's own NPC skill abnormals (ported-skill-abnormals.json) and match the guide's game-file list (MB-x eternal-gartua). Odyle Absorption: client cast 15 s and self abnormal 12000063 (PhysicDamageRatio / MagicDamageRatio +2000, read as +20%: the unit is a GUESS). The interval and the length of the buff are GUESSES.",
+  "note": "Eternal (Verteron, 2101074) and Immortal (Altgard, 2400800) Gartua share one skill list. The long 15 s Odyle Absorption cast is the interrupt window (stagger it); if it lands Gartua hits harder for a while.",
+  "npcs": {
+    "Normal": [2101074, 2400800]
+  },
+  "vars": {
+    "absorb_after_ms": 60000,
+    "absorb_every_ms": 75000,
+    "absorb_buff_ms": 30000,
+    "absorb_damage_mul": 1.2
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1601160,
+      "every_ms": 15000,
+      "warning": "Gartua gathers Annihilation: get out of the marked area!",
+      "warning_ru": "Гартуа готовит Уничтожение: выйдите из отмеченной зоны!"
+    },
+    {
+      "type": "cast",
+      "skill": 1601150,
+      "every_ms": 18000,
+      "warning": "Gartua winds up Compression: it stuns for 2.5 s!",
+      "warning_ru": "Гартуа готовит Сжатие: оглушение на 2,5 с!"
+    },
+    {
+      "type": "cast",
+      "skill": 1601110,
+      "every_ms": 30000,
+      "warning": "Gartua leaps in Interstellar Flight: it knocks down for 2 s!",
+      "warning_ru": "Гартуа взлетает: Межзвёздный полёт сбивает с ног на 2 с!"
+    },
+    {
+      "type": "cast",
+      "skill": 1601200,
+      "every_ms": 16000,
+      "warning": "Gartua prepares Break!",
+      "warning_ru": "Гартуа готовит Разлом!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "odyle_absorption",
+      "when": {
+        "type": "timer",
+        "after_ms": "$absorb_after_ms",
+        "every_ms": "$absorb_every_ms"
+      },
+      "do": [
+        {
+          "type": "cast",
+          "id": "absorb",
+          "skill": 1601205,
+          "wind_up_ms": 15000,
+          "land": false,
+          "stagger_check": true,
+          "warning": "Gartua draws in Odyle (15 s): stagger him to stop it!",
+          "warning_ru": "Гартуа поглощает Одил (15 с): собейте ему равновесие, чтобы прервать!",
+          "on_break": [
+            {
+              "type": "notice",
+              "text": "Odyle Absorption interrupted!",
+              "text_ru": "Поглощение Одила прервано!"
+            }
+          ],
+          "on_land": [
+            {
+              "type": "notice",
+              "text": "Gartua absorbed the Odyle: his attacks are stronger!",
+              "text_ru": "Гартуа поглотил Одил: его удары сильнее!"
+            },
+            {
+              "type": "modify",
+              "damage_mul": "$absorb_damage_mul",
+              "mode": "set"
+            },
+            {
+              "type": "delay",
+              "ms": "$absorb_buff_ms",
+              "do": [
+                {
+                  "type": "modify",
+                  "damage_mul": 1,
+                  "mode": "set"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

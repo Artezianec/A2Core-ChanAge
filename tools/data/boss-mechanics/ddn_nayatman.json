@@ -1,0 +1,237 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "ddn_nayatman",
+  "display": "Hatching Nayatman",
+  "display_ru": "Наятман",
+  "dungeon": "DeadDramataNest",
+  "source": "official client data (NpcData / Skill / SkillAbnormal exports, npc-behavior-cases barks); mechanics from the research notes, GUESS values are labelled",
+  "note": "Mid-boss of Dying Dramata's Nest. Real client skills as the rotation, spear throw and wisps as rules.",
+  "npcs": {
+    "Easy": [
+      2300507
+    ],
+    "Normal": [
+      2310507
+    ],
+    "Hard": [
+      2300153
+    ]
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1606120,
+      "every_ms": 30000,
+      "wind_up_ms": 3000,
+      "radius": 450,
+      "warning": "Hatching Nayatman gathers power: get out of reach!",
+      "warning_ru": "Наятман собирает силу: отойдите подальше!",
+      "damage": {
+        "scale": 3.0
+      }
+    },
+    {
+      "type": "cast",
+      "skill": 1606130,
+      "every_ms": 28000,
+      "wind_up_ms": 600,
+      "radius": 800,
+      "warning": "Nayatman lunges: get away from the landing!",
+      "warning_ru": "Наятман прыгает: отойдите от места приземления!"
+    },
+    {
+      "type": "cast",
+      "skill": 1606140,
+      "every_ms": 8000,
+      "wind_up_ms": 540,
+      "radius": 300
+    },
+    {
+      "type": "cast",
+      "skill": 1606160,
+      "every_ms": 20000,
+      "wind_up_ms": 700,
+      "radius": 1000,
+      "warning": "Nayatman stomps: leave the circle!",
+      "warning_ru": "Наятман топает: выйдите из круга!"
+    },
+    {
+      "type": "cast",
+      "skill": 1606170,
+      "every_ms": 12000,
+      "wind_up_ms": 1000,
+      "radius": 650,
+      "warning": "Nayatman thrusts a lane: step aside!",
+      "warning_ru": "Наятман бьёт полосой: отойдите в сторону!"
+    },
+    {
+      "type": "cast",
+      "skill": 1606180,
+      "every_ms": 15000,
+      "wind_up_ms": 540,
+      "radius": 500,
+      "warning": "Nayatman marks a spot: step off it!",
+      "warning_ru": "Наятман бьёт по точке: отойдите!"
+    },
+    {
+      "type": "cast",
+      "skill": 1606210,
+      "every_ms": 17000,
+      "wind_up_ms": 800,
+      "radius": 600
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "modify",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "Kept from the compiled boss-phases.json script: 1.2x damage at 50% HP."
+    },
+    {
+      "id": "hatching_shell",
+      "when": {
+        "type": "timer",
+        "after_ms": 18000,
+        "every_ms": 40000
+      },
+      "do": [
+        {
+          "type": "cast",
+          "skill": 1606150,
+          "wind_up_ms": 1000,
+          "land": false,
+          "warning": "Nayatman hardens his shell: hit him harder, the shell is temporary!",
+          "warning_ru": "Наятман закаляет панцирь: бейте сильнее, он временный!"
+        }
+      ],
+      "note": "Skill03 self abnormal 12197301 for 10 s (client). The red/blue chain pair of the guide needs per-player barrier abnormals that are not in the client tables: not implemented."
+    },
+    {
+      "id": "lightning_wisps",
+      "when": {
+        "type": "timer",
+        "after_ms": 14000,
+        "every_ms": 24000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_DeadDramataNest_12"
+        },
+        {
+          "type": "notice",
+          "text": "Lightning wisps drift toward you: move away before they burst!",
+          "text_ru": "Молниевые огоньки летят к вам: уходите, пока они не взорвались!"
+        },
+        {
+          "type": "telegraph",
+          "id": "wisp",
+          "at": "random_player",
+          "shape": "circle",
+          "radius": 500,
+          "delay_ms": 3200,
+          "count": 4,
+          "interval_ms": 700,
+          "decal": true,
+          "skill": 1606180,
+          "damage": {
+            "skill": 1606180
+          }
+        }
+      ],
+      "note": "Skill08_02B spawns hidden wisp NPC 2920391 (no template, cannot be summoned): the burst is a delayed telegraph on a random player (radius 500 = Skill06, GUESS for the wisp).",
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ]
+    },
+    {
+      "id": "lightning_wisps_easy",
+      "when": {
+        "type": "timer",
+        "after_ms": 14000,
+        "every_ms": 24000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_DeadDramataNest_Easy_NPC_20"
+        },
+        {
+          "type": "notice",
+          "text": "Lightning wisps drift toward you: move away before they burst!",
+          "text_ru": "Молниевые огоньки летят к вам: уходите, пока они не взорвались!"
+        },
+        {
+          "type": "telegraph",
+          "id": "wisp",
+          "at": "random_player",
+          "shape": "circle",
+          "radius": 500,
+          "delay_ms": 3200,
+          "count": 4,
+          "interval_ms": 700,
+          "decal": true,
+          "skill": 1606180,
+          "damage": {
+            "skill": 1606180
+          }
+        }
+      ],
+      "note": "Skill08_02B spawns hidden wisp NPC 2920391 (no template, cannot be summoned): the burst is a delayed telegraph on a random player (radius 500 = Skill06, GUESS for the wisp).",
+      "difficulty": [
+        "Easy"
+      ]
+    },
+    {
+      "id": "spear_throw",
+      "when": {
+        "type": "timer",
+        "after_ms": 26000,
+        "every_ms": 60000
+      },
+      "do": [
+        {
+          "type": "cast",
+          "skill": 1606200,
+          "radius": 300,
+          "wind_up_ms": 1000,
+          "warning": "Nayatman throws a spear: leave the impact!",
+          "warning_ru": "Наятман бросает копьё: отойдите от места падения!"
+        },
+        {
+          "type": "delay",
+          "ms": 1500,
+          "do": [
+            {
+              "type": "telegraph",
+              "at": "victim",
+              "shape": "donut",
+              "inner": 0,
+              "radius": 1500,
+              "delay_ms": 1500,
+              "decal": false,
+              "damage": {
+                "factor": [
+                  9000,
+                  10000
+                ]
+              },
+              "id": "spear_burst"
+            }
+          ]
+        }
+      ],
+      "note": "Skill07 single target spear (client); the expanding blast after the landing is the research description, 1500 radius GUESS."
+    }
+  ]
+}

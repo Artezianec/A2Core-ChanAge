@@ -1,0 +1,240 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "azure_baumnute",
+  "display": "Wise Baumnute",
+  "display_ru": "Мудрый Баумнут",
+  "dungeon": "BlueBreathIsle",
+  "source": "official client data (NpcData / Skill / SkillAbnormal exports, npc-behavior-cases barks); mechanics from the research notes, GUESS values are labelled",
+  "note": "Mid-boss of Azure Breath Island: the Veil check at the official 8 m radius, lightning rain.",
+  "npcs": {
+    "Easy": [
+      2300189
+    ],
+    "Normal": [
+      2300219
+    ],
+    "Hard": [
+      2300244
+    ]
+  },
+  "vars": {
+    "veil_radius": 800
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1805890,
+      "every_ms": 30000,
+      "wind_up_ms": 1500,
+      "radius": 700,
+      "warning": "Wise Baumnute gathers power: get out of reach!",
+      "warning_ru": "Мудрый Баумнут собирает силу: отойдите подальше!",
+      "damage": {
+        "scale": 2.0
+      }
+    },
+    {
+      "type": "cast",
+      "skill": 1805870,
+      "every_ms": 10000,
+      "wind_up_ms": 1000,
+      "radius": 700,
+      "warning": "Baumnute slams two circles: step out!",
+      "warning_ru": "Баумнут бьёт двумя кругами: выйдите!"
+    },
+    {
+      "type": "cast",
+      "skill": 1805900,
+      "every_ms": 21000,
+      "wind_up_ms": 1333,
+      "radius": 500,
+      "warning": "Baumnute stomps: leave the circle!",
+      "warning_ru": "Баумнут топает: выйдите из круга!"
+    },
+    {
+      "type": "cast",
+      "skill": 1805910,
+      "every_ms": 11000,
+      "wind_up_ms": 830,
+      "radius": 700
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "modify",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "Kept from the compiled boss-phases.json script: 1.2x damage at 50% HP."
+    },
+    {
+      "id": "veil",
+      "when": {
+        "type": "timer",
+        "after_ms": 20000,
+        "every_ms": 45000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_BlueBreathIsle_Agrint_02"
+        },
+        {
+          "type": "cast",
+          "skill": 1805880,
+          "wind_up_ms": 3500,
+          "land": false,
+          "stagger_check": true,
+          "warning": "Veil: stay within 8 m of Baumnute or be struck by lightning, or stagger him to cancel it!",
+          "warning_ru": "Покров: оставайтесь в 8 м от Баумнута, иначе вас поразит молния, либо собьёте его концентрацию!",
+          "during": [
+            {
+              "type": "decal",
+              "skill": 1805880,
+              "at": "boss",
+              "duration_ms": 3500
+            }
+          ],
+          "on_land": [
+            {
+              "type": "telegraph",
+              "id": "veil_lightning",
+              "at": "boss",
+              "shape": "circle",
+              "radius": "$veil_radius",
+              "invert": true,
+              "decal": false,
+              "delay_ms": 300,
+              "damage": {
+                "hp_ratio": 6000,
+                "factor": [
+                  30000,
+                  30000
+                ]
+              }
+            }
+          ],
+          "on_break": [
+            {
+              "type": "notice",
+              "text": "The veil is broken!",
+              "text_ru": "Покров разрушен!"
+            }
+          ]
+        }
+      ],
+      "note": "Client 1805880: 3.5 s projectile cast, MaxHPRatio 6000 on the target. The veil radius is the OFFICIAL 5 m -> 8 m patch value (8 m, $veil_radius); the inverted circle (everyone outside is struck) and the stagger cancel are the research's reading.",
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ]
+    },
+    {
+      "id": "veil_easy",
+      "when": {
+        "type": "timer",
+        "after_ms": 20000,
+        "every_ms": 45000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_BlueBreathIsle_Easy_NPC_22"
+        },
+        {
+          "type": "cast",
+          "skill": 1805880,
+          "wind_up_ms": 3500,
+          "land": false,
+          "stagger_check": true,
+          "warning": "Veil: stay within 8 m of Baumnute or be struck by lightning, or stagger him to cancel it!",
+          "warning_ru": "Покров: оставайтесь в 8 м от Баумнута, иначе вас поразит молния, либо собьёте его концентрацию!",
+          "during": [
+            {
+              "type": "decal",
+              "skill": 1805880,
+              "at": "boss",
+              "duration_ms": 3500
+            }
+          ],
+          "on_land": [
+            {
+              "type": "telegraph",
+              "id": "veil_lightning",
+              "at": "boss",
+              "shape": "circle",
+              "radius": "$veil_radius",
+              "invert": true,
+              "decal": false,
+              "delay_ms": 300,
+              "damage": {
+                "hp_ratio": 6000,
+                "factor": [
+                  30000,
+                  30000
+                ]
+              }
+            }
+          ],
+          "on_break": [
+            {
+              "type": "notice",
+              "text": "The veil is broken!",
+              "text_ru": "Покров разрушен!"
+            }
+          ]
+        }
+      ],
+      "note": "Client 1805880: 3.5 s projectile cast, MaxHPRatio 6000 on the target. The veil radius is the OFFICIAL 5 m -> 8 m patch value (8 m, $veil_radius); the inverted circle (everyone outside is struck) and the stagger cancel are the research's reading.",
+      "difficulty": [
+        "Easy"
+      ]
+    },
+    {
+      "id": "lightning_rain",
+      "when": {
+        "type": "timer",
+        "after_ms": 14000,
+        "every_ms": 28000
+      },
+      "do": [
+        {
+          "type": "cast",
+          "skill": 1805960,
+          "wind_up_ms": 1500,
+          "land": false,
+          "warning": "Lightning rains down: keep moving!",
+          "warning_ru": "С неба падают молнии: не стойте на месте!",
+          "on_land": [
+            {
+              "type": "telegraph",
+              "id": "bolt",
+              "at": "random_player",
+              "shape": "circle",
+              "radius": 420,
+              "delay_ms": 1200,
+              "count": 10,
+              "interval_ms": 450,
+              "decal": true,
+              "skill": 1805870,
+              "damage": {
+                "factor": [
+                  13500,
+                  16500
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "note": "Skill07 spawns ten hidden bolt NPCs (2921002, no template) over 80 m: ten delayed circles on random players (radius 420 / damage = Skill03 row; GUESS for the bolts)."
+    }
+  ]
+}

@@ -1,0 +1,252 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "ddn_nazium",
+  "display": "Administrator Nazium",
+  "display_ru": "Назиум",
+  "dungeon": "DeadDramataNest",
+  "source": "official client data (NpcData / Skill / SkillAbnormal exports, npc-behavior-cases barks); mechanics from the research notes, GUESS values are labelled",
+  "note": "Mid-boss of Dying Dramata's Nest. Homing blades (hidden helper NPC replaced by chasing telegraphs) and lingering spear fields.",
+  "npcs": {
+    "Easy": [
+      2300508
+    ],
+    "Normal": [
+      2310508
+    ],
+    "Hard": [
+      2300154
+    ]
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1605350,
+      "every_ms": 30000,
+      "wind_up_ms": 2000,
+      "radius": 840,
+      "warning": "Administrator Nazium sweeps in rings: stand between them!",
+      "warning_ru": "Назиум бьёт кольцами: встаньте между ними!",
+      "damage": {
+        "scale": 1.12
+      }
+    },
+    {
+      "type": "cast",
+      "skill": 1605310,
+      "every_ms": 18000,
+      "wind_up_ms": 1300,
+      "radius": 840
+    },
+    {
+      "type": "cast",
+      "skill": 1605320,
+      "every_ms": 8000,
+      "wind_up_ms": 1300,
+      "radius": 480
+    },
+    {
+      "type": "cast",
+      "skill": 1605330,
+      "every_ms": 11000,
+      "wind_up_ms": 1000,
+      "radius": 720,
+      "warning": "Nazium charges: leave the landing!",
+      "warning_ru": "Назиум совершает рывок: отойдите от места удара!"
+    },
+    {
+      "type": "cast",
+      "skill": 1605360,
+      "every_ms": 28000,
+      "wind_up_ms": 800,
+      "radius": 480,
+      "warning": "Nazium thrusts three lanes: step aside!",
+      "warning_ru": "Назиум бьёт тремя полосами: отойдите в сторону!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "modify",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "Kept from the compiled boss-phases.json script: 1.2x damage at 50% HP."
+    },
+    {
+      "id": "homing_blades",
+      "when": {
+        "type": "timer",
+        "after_ms": 15000,
+        "every_ms": 32000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_DeadDramataNest_07"
+        },
+        {
+          "type": "cast",
+          "skill": 1605340,
+          "wind_up_ms": 1500,
+          "land": false,
+          "warning": "Nazium looses homing blades: lead them away and keep moving!",
+          "warning_ru": "Назиум выпускает самонаводящиеся клинки: уводите их и не стойте!"
+        },
+        {
+          "type": "delay",
+          "ms": 1500,
+          "do": [
+            {
+              "type": "telegraph",
+              "id": "blade",
+              "at": "each_player",
+              "shape": "circle",
+              "radius": 400,
+              "delay_ms": 1300,
+              "count": 3,
+              "interval_ms": 1800,
+              "decal": false,
+              "damage": {
+                "factor": [
+                  18500,
+                  20500
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "note": "Skill04 spawns hidden blade NPC 2920407 (no template): each blade is three delayed circles that re-aim at the player (Skill05 damage row, radius 400 = Skill08). Breaking blades on the stone pillars is not implemented.",
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ]
+    },
+    {
+      "id": "homing_blades_easy",
+      "when": {
+        "type": "timer",
+        "after_ms": 15000,
+        "every_ms": 32000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_DeadDramataNest_Easy_NPC_18"
+        },
+        {
+          "type": "cast",
+          "skill": 1605340,
+          "wind_up_ms": 1500,
+          "land": false,
+          "warning": "Nazium looses homing blades: lead them away and keep moving!",
+          "warning_ru": "Назиум выпускает самонаводящиеся клинки: уводите их и не стойте!"
+        },
+        {
+          "type": "delay",
+          "ms": 1500,
+          "do": [
+            {
+              "type": "telegraph",
+              "id": "blade",
+              "at": "each_player",
+              "shape": "circle",
+              "radius": 400,
+              "delay_ms": 1300,
+              "count": 3,
+              "interval_ms": 1800,
+              "decal": false,
+              "damage": {
+                "factor": [
+                  18500,
+                  20500
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "note": "Skill04 spawns hidden blade NPC 2920407 (no template): each blade is three delayed circles that re-aim at the player (Skill05 damage row, radius 400 = Skill08). Breaking blades on the stone pillars is not implemented.",
+      "difficulty": [
+        "Easy"
+      ]
+    },
+    {
+      "id": "spear_field_a",
+      "when": {
+        "type": "timer",
+        "after_ms": 10000,
+        "every_ms": 16000
+      },
+      "do": [
+        {
+          "type": "cast",
+          "skill": 1605380,
+          "radius": 400,
+          "wind_up_ms": 1430,
+          "warning": "Nazium plants her spear: do not stand in the lingering field!",
+          "warning_ru": "Назиум втыкает копьё: не стойте в оставшемся поле!",
+          "on_land": [
+            {
+              "type": "zone",
+              "at": "cast_centre",
+              "shape": "circle",
+              "radius": 400,
+              "duration_ms": 12000,
+              "tick_ms": 1000,
+              "damage": {
+                "fixed": [
+                  2500,
+                  3500
+                ]
+              },
+              "decal": false
+            }
+          ]
+        }
+      ],
+      "note": "The lingering zone after the spear is from the research ('her spear leaves a lasting damage zone'); tick 2500-3500 and 12 s are GUESSES."
+    },
+    {
+      "id": "spear_field_b",
+      "when": {
+        "type": "timer",
+        "after_ms": 24000,
+        "every_ms": 32000
+      },
+      "do": [
+        {
+          "type": "cast",
+          "skill": 1605390,
+          "radius": 400,
+          "wind_up_ms": 1430,
+          "warning": "Nazium throws two spears: leave both fields!",
+          "warning_ru": "Назиум бросает два копья: покиньте оба поля!",
+          "on_land": [
+            {
+              "type": "zone",
+              "at": "cast_centre",
+              "shape": "circle",
+              "radius": 400,
+              "duration_ms": 12000,
+              "tick_ms": 1000,
+              "damage": {
+                "fixed": [
+                  2500,
+                  3500
+                ]
+              },
+              "decal": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -6,6 +6,7 @@
         "phase": 1,
         "spawner_group": null,
         "spawners": [],
+        "npcs": [],
         "ends": [
           {
             "type": "Time",
@@ -17,8 +18,35 @@
       },
       {
         "phase": 2,
-        "spawner_group": null,
-        "spawners": [],
+        "spawner_group": "Phase_1",
+        "spawners": [
+          "AR1_RiftBoss_WH4_006",
+          "AR1_RiftBoss_WH4_007",
+          "AR1_RiftBoss_WH4_011",
+          "AR1_RiftBoss_WH4_012",
+          "AR1_RiftBoss_WH4_016",
+          "AR1_RiftBoss_WH4_017",
+          "AR1_RiftBoss_WH4_032",
+          "AR1_RiftBoss_WH4_050",
+          "AR1_RiftBoss_WH4_073",
+          "AR1_RiftBoss_WH4_098",
+          "AR1_RiftBoss_WH4_101",
+          "AR1_RiftBoss_WH4_104"
+        ],
+        "npcs": [
+          2670006,
+          2670007,
+          2670011,
+          2670012,
+          2670016,
+          2670017,
+          2670032,
+          2670050,
+          2670073,
+          2670098,
+          2670101,
+          2670104
+        ],
         "ends": [
           {
             "type": "KillNpcCount",
@@ -30,8 +58,19 @@
       },
       {
         "phase": 3,
-        "spawner_group": null,
-        "spawners": [],
+        "spawner_group": "Phase_2",
+        "spawners": [
+          "AR1_RiftBoss_WH5_042",
+          "AR1_RiftBoss_WH5_061",
+          "AR1_RiftBoss_WH5_087",
+          "AR1_RiftBoss_WH5_092"
+        ],
+        "npcs": [
+          2670042,
+          2670061,
+          2670087,
+          2670092
+        ],
         "ends": [
           {
             "type": "KillNpcCount",
@@ -43,8 +82,23 @@
       },
       {
         "phase": 4,
-        "spawner_group": null,
-        "spawners": [],
+        "spawner_group": "Phase_3",
+        "spawners": [
+          "AR1_RiftBoss_WH4_075",
+          "AR1_RiftBoss_WH4_076",
+          "AR1_RiftBoss_WH4_077",
+          "AR1_RiftBoss_WH4_078",
+          "AR1_RiftBoss_WH5_089",
+          "AR1_RiftBoss_WH5_090"
+        ],
+        "npcs": [
+          2670075,
+          2670076,
+          2670077,
+          2670078,
+          2670089,
+          2670090
+        ],
         "ends": [
           {
             "type": "KillNpcCount",
@@ -56,8 +110,31 @@
       },
       {
         "phase": 5,
-        "spawner_group": null,
-        "spawners": [],
+        "spawner_group": "Phase_4",
+        "spawners": [
+          "AR1_RiftBoss_WH4_008",
+          "AR1_RiftBoss_WH4_020",
+          "AR1_RiftBoss_WH4_024",
+          "AR1_RiftBoss_WH4_027",
+          "AR1_RiftBoss_WH4_028",
+          "AR1_RiftBoss_WH4_034",
+          "AR1_RiftBoss_WH4_051",
+          "AR1_RiftBoss_WH5_086",
+          "AR1_RiftBoss_WH4_100",
+          "AR1_RiftBoss_WH5_111"
+        ],
+        "npcs": [
+          2670008,
+          2670020,
+          2670024,
+          2670027,
+          2670028,
+          2670034,
+          2670051,
+          2670086,
+          2670100,
+          2670111
+        ],
         "ends": [
           {
             "type": "KillNpcCount",
@@ -69,8 +146,27 @@
       },
       {
         "phase": 6,
-        "spawner_group": null,
-        "spawners": [],
+        "spawner_group": "Phase_5",
+        "spawners": [
+          "AR1_RiftBoss_WH5_045",
+          "AR1_RiftBoss_WH5_108",
+          "AR1_RiftBoss_WH5_109",
+          "AR1_RiftBoss_WH5_110",
+          "AR1_RiftBoss_WH6_113",
+          "AR1_RiftBoss_WH6_115",
+          "AR1_RiftBoss_WH6_116",
+          "AR1_RiftBoss_WH6_117"
+        ],
+        "npcs": [
+          2670045,
+          2670108,
+          2670109,
+          2670110,
+          2670113,
+          2670115,
+          2670116,
+          2670117
+        ],
         "ends": [
           {
             "type": "KillNpcCount",
@@ -82,8 +178,51 @@
       },
       {
         "phase": 7,
-        "spawner_group": null,
-        "spawners": [],
+        "spawner_group": "Phase_6",
+        "spawners": [
+          "AR1_RiftBoss_WH4_009",
+          "AR1_RiftBoss_WH4_010",
+          "AR1_RiftBoss_WH4_013",
+          "AR1_RiftBoss_WH4_018",
+          "AR1_RiftBoss_WH4_021",
+          "AR1_RiftBoss_WH4_031",
+          "AR1_RiftBoss_WH4_035",
+          "AR1_RiftBoss_WH4_047",
+          "AR1_RiftBoss_WH4_048",
+          "AR1_RiftBoss_WH5_060",
+          "AR1_RiftBoss_WH4_072",
+          "AR1_RiftBoss_WH4_080",
+          "AR1_RiftBoss_WH4_083",
+          "AR1_RiftBoss_WH4_084",
+          "AR1_RiftBoss_WH5_088",
+          "AR1_RiftBoss_WH4_096",
+          "AR1_RiftBoss_WH4_097",
+          "AR1_RiftBoss_WH4_099",
+          "AR1_RiftBoss_WH4_102",
+          "AR1_RiftBoss_WH4_105"
+        ],
+        "npcs": [
+          2670009,
+          2670010,
+          2670013,
+          2670018,
+          2670021,
+          2670031,
+          2670035,
+          2670047,
+          2670048,
+          2670060,
+          2670072,
+          2670080,
+          2670083,
+          2670084,
+          2670088,
+          2670096,
+          2670097,
+          2670099,
+          2670102,
+          2670105
+        ],
         "ends": [
           {
             "type": "Time",
@@ -95,8 +234,19 @@
       },
       {
         "phase": 8,
-        "spawner_group": null,
-        "spawners": [],
+        "spawner_group": "Phase_7",
+        "spawners": [
+          "AR1_RiftBoss_WH6_066",
+          "AR1_RiftBoss_WH6_067",
+          "AR1_RiftBoss_WH6_114",
+          "AR1_RiftBoss_WH6_118"
+        ],
+        "npcs": [
+          2670066,
+          2670067,
+          2670114,
+          2670118
+        ],
         "ends": [
           {
             "type": "KillNpc",

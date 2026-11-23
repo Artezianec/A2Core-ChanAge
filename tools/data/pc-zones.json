@@ -1,5 +1,5 @@
 {
-  "source": "Built by tools/pc_zones.py from research/client-export/2026-11-22",
+  "source": "Built by tools/pc_zones.py from a local client export (2026-11-22)",
   "zones": {
     "15280000": {
       "name": "Bittercold Wind",

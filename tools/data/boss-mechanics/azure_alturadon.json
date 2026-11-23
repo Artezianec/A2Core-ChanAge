@@ -1,0 +1,818 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "azure_alturadon",
+  "display": "Awakened Alturadon",
+  "display_ru": "Пробуждённый Алтурадон",
+  "dungeon": "BlueBreathIsle",
+  "source": "official client data (NpcData / Skill / SkillAbnormal exports, npc-behavior-cases barks); mechanics from the research notes, GUESS values are labelled",
+  "note": "Final boss of Azure Breath Island: Blue Breath orb race (10 stacks wipe), Thunder Dash, Blue Beam from 50%, enrage.",
+  "npcs": {
+    "Easy": [
+      2300188
+    ],
+    "Normal": [
+      2300200
+    ],
+    "Hard": [
+      2300243
+    ]
+  },
+  "vars": {
+    "frenzy_ms": 300000
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1806140,
+      "every_ms": 30000,
+      "wind_up_ms": 1500,
+      "radius": 1000,
+      "warning": "Awakened Alturadon gathers power: get out of reach!",
+      "warning_ru": "Пробуждённый Алтурадон собирает силу: отойдите подальше!",
+      "damage": {
+        "scale": 1.47
+      }
+    },
+    {
+      "type": "cast",
+      "skill": 1806090,
+      "every_ms": 20000,
+      "wind_up_ms": 1200,
+      "radius": 1200,
+      "warning": "Thunder Dash: leave the landing and the ring!",
+      "warning_ru": "Грозовой рывок: отойдите от места удара и кольца!"
+    },
+    {
+      "type": "cast",
+      "skill": 1806120,
+      "every_ms": 10000,
+      "wind_up_ms": 900,
+      "radius": 700
+    },
+    {
+      "type": "cast",
+      "skill": 1806130,
+      "every_ms": 60000,
+      "wind_up_ms": 1500,
+      "radius": 400,
+      "warning": "Alturadon strikes a distant target!",
+      "warning_ru": "Алтурадон бьёт дальнюю цель!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "modify",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "Kept from the compiled boss-phases.json script: 1.2x damage at 50% HP."
+    },
+    {
+      "id": "blue_breath",
+      "when": {
+        "type": "timer",
+        "after_ms": 20000,
+        "every_ms": 60000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_BlueBreathIsle_Alturadon_11"
+        },
+        {
+          "type": "cast",
+          "skill": 1806190,
+          "wind_up_ms": 1000,
+          "land": false
+        },
+        {
+          "type": "notice",
+          "text": "Blue Breath orbs appear! Take them before Alturadon does!",
+          "text_ru": "Появились сферы Голубого Дыхания! Заберите их раньше Алтурадона!"
+        },
+        {
+          "type": "orb",
+          "id": "breath_0",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              0,
+              3500
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_1",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              -2057,
+              2832
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_2",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              -3329,
+              1082
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_3",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              -3329,
+              -1082
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_4",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              -2057,
+              -2832
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_5",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              0,
+              -3500
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_6",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              2057,
+              -2832
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_7",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              3329,
+              -1082
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_8",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              3329,
+              1082
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_9",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              2057,
+              2832
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        }
+      ],
+      "note": "Official: Alturadon absorbs the small blue Breath orbs; every orb left standing gives him a stack and 10 stacks wipe the party (the client wipes on all tiers; one write-up says even at 0 HP: GUESS). Client Skill11 spawns ten orbs (hidden npc 2921031) at random; here ten fixed orbs on a ring of 3500, each gives a stack after 15 s (both GUESSES). The boss's own stack buff abnormal (18060805) has no engine support for NPCs: the stacks are the encounter counter blue_breath.",
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ]
+    },
+    {
+      "id": "blue_breath_easy",
+      "when": {
+        "type": "timer",
+        "after_ms": 20000,
+        "every_ms": 60000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_BlueBreathIsle_Easy_NPC_28"
+        },
+        {
+          "type": "cast",
+          "skill": 1806190,
+          "wind_up_ms": 1000,
+          "land": false
+        },
+        {
+          "type": "notice",
+          "text": "Blue Breath orbs appear! Take them before Alturadon does!",
+          "text_ru": "Появились сферы Голубого Дыхания! Заберите их раньше Алтурадона!"
+        },
+        {
+          "type": "orb",
+          "id": "breath_0",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              0,
+              3500
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_1",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              -2057,
+              2832
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_2",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              -3329,
+              1082
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_3",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              -3329,
+              -1082
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_4",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              -2057,
+              -2832
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_5",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              0,
+              -3500
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_6",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              2057,
+              -2832
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_7",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              3329,
+              -1082
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_8",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              3329,
+              1082
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "breath_9",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              2057,
+              2832
+            ]
+          ],
+          "radius": 500,
+          "required": 1,
+          "window_ms": 15000,
+          "skill": 1806100,
+          "on_fail": [
+            {
+              "type": "counter",
+              "counter": "blue_breath",
+              "add": 1
+            },
+            {
+              "type": "notice",
+              "text": "Alturadon absorbs a Breath orb!",
+              "text_ru": "Алтурадон поглощает сферу Дыхания!",
+              "size": 18
+            }
+          ]
+        }
+      ],
+      "note": "Official: Alturadon absorbs the small blue Breath orbs; every orb left standing gives him a stack and 10 stacks wipe the party (the client wipes on all tiers; one write-up says even at 0 HP: GUESS). Client Skill11 spawns ten orbs (hidden npc 2921031) at random; here ten fixed orbs on a ring of 3500, each gives a stack after 15 s (both GUESSES). The boss's own stack buff abnormal (18060805) has no engine support for NPCs: the stacks are the encounter counter blue_breath.",
+      "difficulty": [
+        "Easy"
+      ]
+    },
+    {
+      "id": "blue_breath_wipe",
+      "when": {
+        "type": "counter_reached",
+        "counter": "blue_breath",
+        "value": 10
+      },
+      "do": [
+        {
+          "type": "notice",
+          "text": "Alturadon drinks the last of the Breath!",
+          "text_ru": "Алтурадон выпивает последнее Дыхание!"
+        },
+        {
+          "type": "wipe",
+          "text": "Ten stacks of Blue Breath."
+        }
+      ]
+    },
+    {
+      "id": "p2_enter",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "phase",
+          "phase": "p2"
+        },
+        {
+          "type": "notice",
+          "text": "Alturadon takes a deep breath!",
+          "text_ru": "Алтурадон делает глубокий вдох!"
+        }
+      ]
+    },
+    {
+      "id": "blue_beam",
+      "when": {
+        "type": "timer",
+        "after_ms": 8000,
+        "every_ms": 60000,
+        "from": "phase"
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_BlueBreathIsle_Alturadon_10"
+        },
+        {
+          "type": "cast",
+          "skill": 1806180,
+          "wind_up_ms": 5000,
+          "warning": "Blue Beam: step out of the lane (both sides)!",
+          "warning_ru": "Голубой луч: отойдите с линии (в обе стороны)!"
+        }
+      ],
+      "phase": "p2",
+      "note": "Client 1806180: 5 s cast, a 100 m x 4 m lane through the boss, MaxHPRatio 20000. From 50% HP is a GUESS (the cooldown is 60 s).",
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ]
+    },
+    {
+      "id": "blue_beam_easy",
+      "when": {
+        "type": "timer",
+        "after_ms": 8000,
+        "every_ms": 60000,
+        "from": "phase"
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_BlueBreathIsle_Easy_NPC_27"
+        },
+        {
+          "type": "cast",
+          "skill": 1806180,
+          "wind_up_ms": 5000,
+          "warning": "Blue Beam: step out of the lane (both sides)!",
+          "warning_ru": "Голубой луч: отойдите с линии (в обе стороны)!"
+        }
+      ],
+      "phase": "p2",
+      "note": "Client 1806180: 5 s cast, a 100 m x 4 m lane through the boss, MaxHPRatio 20000. From 50% HP is a GUESS (the cooldown is 60 s).",
+      "difficulty": [
+        "Easy"
+      ]
+    },
+    {
+      "id": "frenzy",
+      "when": {
+        "type": "enrage_timer",
+        "after_ms": "$frenzy_ms"
+      },
+      "do": [
+        {
+          "type": "enrage",
+          "damage_mul": 3.0,
+          "haste_mul": 0.5,
+          "text": "Enrage! The boss moves and strikes twice as fast and hits three times as hard!",
+          "text_ru": "Берсерк! Босс двигается вдвое быстрее и бьёт втрое сильнее!"
+        }
+      ],
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ],
+      "note": "Client NpcData: bUseBossBerserk, BossBerserkInvokeTime 300 s on Normal and Hard, none on Exploration; abnormal 10000008 = +100% move/cast/combat speed and AmplifyAllDamage +20000 (x3). 240 s on Hard is the official patch value for six older expeditions; this dungeon is not in that notice, so client data (300 s) stands."
+    }
+  ],
+  "difficulty": {
+    "Easy": {
+      "rules_remove": [
+        "frenzy"
+      ],
+      "note": "Exploration: no enrage (client NpcData bUseBossBerserk is false)."
+    }
+  }
+}

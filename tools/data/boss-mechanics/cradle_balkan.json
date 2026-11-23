@@ -1,0 +1,420 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "cradle_balkan",
+  "display": "Solemn Balkan",
+  "display_ru": "Балкан",
+  "dungeon": "CradleNihility",
+  "source": "official client data (NpcData / Skill / SkillAbnormal exports, npc-behavior-cases barks); mechanics from the research notes, GUESS values are labelled",
+  "note": "Second boss of the Cradle of Nihility: coloured pillar charge at 80% and 20%.",
+  "npcs": {
+    "Easy": [
+      2301303
+    ],
+    "Normal": [
+      2311303
+    ],
+    "Hard": [
+      2321303
+    ]
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1804060,
+      "every_ms": 30000,
+      "wind_up_ms": 1833,
+      "radius": 450,
+      "warning": "Solemn Balkan gathers power: get out of reach!",
+      "warning_ru": "Балкан собирает силу: отойдите подальше!",
+      "damage": {
+        "scale": 1.67
+      }
+    },
+    {
+      "type": "cast",
+      "skill": 1804020,
+      "every_ms": 30000,
+      "wind_up_ms": 900,
+      "radius": 600,
+      "warning": "Balkan pulls you in: break free!",
+      "warning_ru": "Балкан притягивает: вырывайтесь!"
+    },
+    {
+      "type": "cast",
+      "skill": 1804010,
+      "every_ms": 14000,
+      "wind_up_ms": 1300,
+      "radius": 400,
+      "warning": "Balkan charges: leave the landing!",
+      "warning_ru": "Балкан совершает рывок: отойдите от места удара!"
+    },
+    {
+      "type": "cast",
+      "skill": 1804030,
+      "every_ms": 18000,
+      "wind_up_ms": 1000,
+      "radius": 600
+    },
+    {
+      "type": "cast",
+      "skill": 1804050,
+      "every_ms": 24000,
+      "wind_up_ms": 1000,
+      "radius": 600,
+      "warning": "Balkan slams rings: stand between them!",
+      "warning_ru": "Балкан бьёт кольцами: встаньте между ними!"
+    },
+    {
+      "type": "cast",
+      "skill": 1804160,
+      "every_ms": 90000,
+      "wind_up_ms": 900,
+      "land": false
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "modify",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "Kept from the compiled boss-phases.json script: 1.2x damage at 50% HP."
+    },
+    {
+      "id": "pillar_charge_80",
+      "when": {
+        "type": "hp_below",
+        "pct": 80
+      },
+      "do": [
+        {
+          "type": "notice",
+          "text": "Pillar charge! The marked player baits each charge into the called colour!",
+          "text_ru": "Рывок к столбам! Отмеченный игрок заманивает каждый рывок в столб названного цвета!"
+        },
+        {
+          "type": "cast",
+          "skill": 1804100,
+          "wind_up_ms": 1600,
+          "land": false,
+          "once": true,
+          "warning": "Balkan calls a colour: stand at a pillar of that colour!",
+          "warning_ru": "Балкан называет цвет: встаньте у столба этого цвета!",
+          "during": [
+            {
+              "type": "decal",
+              "skill": 1804100,
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  0,
+                  3600
+                ],
+                [
+                  -3118,
+                  -1800
+                ],
+                [
+                  3118,
+                  -1800
+                ]
+              ],
+              "duration_ms": 1600
+            }
+          ],
+          "on_land": [
+            {
+              "type": "repeat",
+              "every_ms": 8000,
+              "count": 3,
+              "delay_ms": 0,
+              "do": [
+                {
+                  "type": "random",
+                  "choices": [
+                    {
+                      "do": [
+                        {
+                          "type": "caption",
+                          "talk": "PD_CradleNihility_Vallkan_05"
+                        },
+                        {
+                          "type": "notice",
+                          "text": "Red! Bait the charge into a red pillar!",
+                          "text_ru": "Красный! Заманите рывок в красный столб!"
+                        },
+                        {
+                          "type": "mark",
+                          "name": "bait",
+                          "target": "random_player"
+                        },
+                        {
+                          "type": "soak",
+                          "id": "pillar_bait",
+                          "at": "arena_centre",
+                          "offsets": [
+                            [
+                              0,
+                              3600
+                            ],
+                            [
+                              3118,
+                              -1800
+                            ]
+                          ],
+                          "radius": 700,
+                          "min_players": 1,
+                          "delay_ms": 6500,
+                          "decal": false,
+                          "on_fail": [
+                            {
+                              "type": "telegraph",
+                              "at": "arena_centre",
+                              "shape": "circle",
+                              "radius": 20000,
+                              "decal": false,
+                              "delay_ms": 0,
+                              "damage": {
+                                "hp_ratio": 7000,
+                                "factor": [
+                                  30000,
+                                  30000
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "do": [
+                        {
+                          "type": "caption",
+                          "talk": "PD_CradleNihility_Vallkan_06"
+                        },
+                        {
+                          "type": "notice",
+                          "text": "Blue! Bait the charge into a blue pillar!",
+                          "text_ru": "Синий! Заманите рывок в синий столб!"
+                        },
+                        {
+                          "type": "mark",
+                          "name": "bait",
+                          "target": "random_player"
+                        },
+                        {
+                          "type": "soak",
+                          "id": "pillar_bait",
+                          "at": "arena_centre",
+                          "offsets": [
+                            [
+                              -3118,
+                              -1800
+                            ]
+                          ],
+                          "radius": 700,
+                          "min_players": 1,
+                          "delay_ms": 6500,
+                          "decal": false,
+                          "on_fail": [
+                            {
+                              "type": "telegraph",
+                              "at": "arena_centre",
+                              "shape": "circle",
+                              "radius": 20000,
+                              "decal": false,
+                              "delay_ms": 0,
+                              "damage": {
+                                "hp_ratio": 7000,
+                                "factor": [
+                                  30000,
+                                  30000
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "note": "Client: Skill06 pillars deal MaxHPRatio 7000 (hidden helpers 1804120/25) and Skill07 glows the boss red (18041401) or blue (18041501), with the Vallkan_05/06 barks. Pillar positions (ring 3600, three pillars, colours red/blue/red then random) and the chosen soak geometry are GUESSES: the engine cannot read the boss's charge end point, so the check is whether anybody stands at a pillar of the called colour when the charge lands."
+    },
+    {
+      "id": "pillar_charge_20",
+      "when": {
+        "type": "hp_below",
+        "pct": 20
+      },
+      "do": [
+        {
+          "type": "notice",
+          "text": "Pillar charge! The marked player baits each charge into the called colour!",
+          "text_ru": "Рывок к столбам! Отмеченный игрок заманивает каждый рывок в столб названного цвета!"
+        },
+        {
+          "type": "cast",
+          "skill": 1804100,
+          "wind_up_ms": 1600,
+          "land": false,
+          "once": true,
+          "warning": "Balkan calls a colour: stand at a pillar of that colour!",
+          "warning_ru": "Балкан называет цвет: встаньте у столба этого цвета!",
+          "during": [
+            {
+              "type": "decal",
+              "skill": 1804100,
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  0,
+                  3600
+                ],
+                [
+                  -3118,
+                  -1800
+                ],
+                [
+                  3118,
+                  -1800
+                ]
+              ],
+              "duration_ms": 1600
+            }
+          ],
+          "on_land": [
+            {
+              "type": "repeat",
+              "every_ms": 8000,
+              "count": 3,
+              "delay_ms": 0,
+              "do": [
+                {
+                  "type": "random",
+                  "choices": [
+                    {
+                      "do": [
+                        {
+                          "type": "caption",
+                          "talk": "PD_CradleNihility_Vallkan_05"
+                        },
+                        {
+                          "type": "notice",
+                          "text": "Red! Bait the charge into a red pillar!",
+                          "text_ru": "Красный! Заманите рывок в красный столб!"
+                        },
+                        {
+                          "type": "mark",
+                          "name": "bait",
+                          "target": "random_player"
+                        },
+                        {
+                          "type": "soak",
+                          "id": "pillar_bait",
+                          "at": "arena_centre",
+                          "offsets": [
+                            [
+                              0,
+                              3600
+                            ],
+                            [
+                              3118,
+                              -1800
+                            ]
+                          ],
+                          "radius": 700,
+                          "min_players": 1,
+                          "delay_ms": 6500,
+                          "decal": false,
+                          "on_fail": [
+                            {
+                              "type": "telegraph",
+                              "at": "arena_centre",
+                              "shape": "circle",
+                              "radius": 20000,
+                              "decal": false,
+                              "delay_ms": 0,
+                              "damage": {
+                                "hp_ratio": 7000,
+                                "factor": [
+                                  30000,
+                                  30000
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "do": [
+                        {
+                          "type": "caption",
+                          "talk": "PD_CradleNihility_Vallkan_06"
+                        },
+                        {
+                          "type": "notice",
+                          "text": "Blue! Bait the charge into a blue pillar!",
+                          "text_ru": "Синий! Заманите рывок в синий столб!"
+                        },
+                        {
+                          "type": "mark",
+                          "name": "bait",
+                          "target": "random_player"
+                        },
+                        {
+                          "type": "soak",
+                          "id": "pillar_bait",
+                          "at": "arena_centre",
+                          "offsets": [
+                            [
+                              -3118,
+                              -1800
+                            ]
+                          ],
+                          "radius": 700,
+                          "min_players": 1,
+                          "delay_ms": 6500,
+                          "decal": false,
+                          "on_fail": [
+                            {
+                              "type": "telegraph",
+                              "at": "arena_centre",
+                              "shape": "circle",
+                              "radius": 20000,
+                              "decal": false,
+                              "delay_ms": 0,
+                              "damage": {
+                                "hp_ratio": 7000,
+                                "factor": [
+                                  30000,
+                                  30000
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

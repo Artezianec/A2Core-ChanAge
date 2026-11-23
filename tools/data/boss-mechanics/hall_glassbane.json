@@ -1,0 +1,205 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "hall_glassbane",
+  "display": "Glassbane",
+  "display_ru": "Стеклянный страж",
+  "dungeon": "PhantomsHall",
+  "source": "official client data (NpcData / Skill / SkillAbnormal exports, npc-behavior-cases barks); mechanics from the research notes, GUESS values are labelled",
+  "note": "First boss of the Hall of Illusion. Rotation from the client skills, ghost eyes / white light check as a rule.",
+  "npcs": {
+    "Easy": [
+      2301401
+    ],
+    "Normal": [
+      2311401
+    ],
+    "Hard": [
+      2321401
+    ]
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1805360,
+      "every_ms": 30000,
+      "wind_up_ms": 2700,
+      "radius": 450,
+      "warning": "Glassbane gathers power: get out of reach!",
+      "warning_ru": "Стеклянный страж собирает силу: отойдите подальше!",
+      "damage": {
+        "scale": 1.71
+      }
+    },
+    {
+      "type": "cast",
+      "skill": 1805260,
+      "every_ms": 18000,
+      "wind_up_ms": 1000,
+      "radius": 1300,
+      "warning": "Glassbane sweeps a wide arc: get behind him!",
+      "warning_ru": "Страж бьёт широкой дугой: зайдите за спину!"
+    },
+    {
+      "type": "cast",
+      "skill": 1805270,
+      "every_ms": 21000,
+      "wind_up_ms": 900,
+      "radius": 500
+    },
+    {
+      "type": "cast",
+      "skill": 1805290,
+      "every_ms": 40000,
+      "wind_up_ms": 900,
+      "radius": 400,
+      "warning": "Glassbane dashes through: leave the lane!",
+      "warning_ru": "Страж проносится насквозь: отойдите с линии!"
+    },
+    {
+      "type": "cast",
+      "skill": 1805300,
+      "every_ms": 30000,
+      "wind_up_ms": 800,
+      "radius": 800
+    },
+    {
+      "type": "cast",
+      "skill": 1805310,
+      "every_ms": 22000,
+      "wind_up_ms": 1100,
+      "radius": 1200
+    },
+    {
+      "type": "cast",
+      "skill": 1805320,
+      "every_ms": 20000,
+      "wind_up_ms": 900,
+      "radius": 1000,
+      "warning": "Glassbane blasts a ring: stand inside or outside it!",
+      "warning_ru": "Страж бьёт кольцом: встаньте внутри или снаружи!"
+    },
+    {
+      "type": "cast",
+      "skill": 1805830,
+      "every_ms": 40000,
+      "wind_up_ms": 900,
+      "radius": 400
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "modify",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "Kept from the compiled boss-phases.json script: 1.2x damage at 50% HP."
+    },
+    {
+      "id": "ghost_eyes",
+      "when": {
+        "type": "timer",
+        "after_ms": 30000,
+        "every_ms": 64000
+      },
+      "do": [
+        {
+          "type": "cast",
+          "skill": 1805800,
+          "wind_up_ms": 1500,
+          "land": false,
+          "warning": "Ghost eyes! Marked players are feared: run to the white lights!",
+          "warning_ru": "Призрачные глаза! Отмеченные в страхе: бегите к белым кругам!"
+        },
+        {
+          "type": "cast",
+          "skill": 1805340,
+          "wind_up_ms": 600,
+          "land": false,
+          "warning": "Glassbane retreats to his spawn.",
+          "warning_ru": "Страж отступает на своё место.",
+          "on_land": [
+            {
+              "type": "move",
+              "to": "home"
+            }
+          ]
+        },
+        {
+          "type": "cast",
+          "skill": 1805350,
+          "wind_up_ms": 3500,
+          "land": false,
+          "warning": "Gaze burst: stand inside a white light circle or die!",
+          "warning_ru": "Взрыв взгляда: встаньте в белый круг или умрёте!",
+          "during": [
+            {
+              "type": "decal",
+              "skill": 1805800,
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  1061,
+                  1061
+                ],
+                [
+                  -1061,
+                  1061
+                ],
+                [
+                  -1061,
+                  -1061
+                ],
+                [
+                  1061,
+                  -1061
+                ]
+              ],
+              "duration_ms": 3500
+            }
+          ],
+          "on_land": [
+            {
+              "type": "telegraph",
+              "id": "gaze_burst",
+              "at": "arena_centre",
+              "shape": "circle",
+              "radius": 500,
+              "invert": true,
+              "offsets": [
+                [
+                  1061,
+                  1061
+                ],
+                [
+                  -1061,
+                  1061
+                ],
+                [
+                  -1061,
+                  -1061
+                ],
+                [
+                  1061,
+                  -1061
+                ]
+              ],
+              "decal": false,
+              "delay_ms": 0,
+              "damage": {
+                "lethal": true
+              }
+            }
+          ]
+        }
+      ],
+      "note": "Client: Skill08 (1805800) applies a 3.5 s abnormal to everything within 90 m, Skill06_02 (1805350) is a 3.5 s cast with a raid-wide MaxHPRatio 50000 (lethal) hit. The four white light circles at 3/6/9/12 o'clock come from the research (Eye Phantom); their ring distance (1500) and radius (450) and the lethal rule outside them are GUESSES. The ghost eyes themselves (hidden helper NPCs) are not spawned."
+    }
+  ]
+}

@@ -67,12 +67,12 @@ ROUTE_SPAWN_WORDS = ('onway', 'roam')
 
 
 def extra_template_ids():
-    """NpcData ids with no placement that the server spawns (tools/bosschallenge_data.py's bosses)."""
+    """NpcData ids with no placement that the server spawns (tools/bosschallenge_data.py's bosses, the Abyss rift monsters)."""
     try:
         from bosschallenge_data import boss_npc_ids
-        return boss_npc_ids()
+        return sorted({*boss_npc_ids(), *rift_npc_ids()})
     except Exception:   # a partial research transfer without the tables
-        return []
+        return rift_npc_ids()
 
 
 def field_mapdata(maps=FIELD_MAPS + INSTANCE_MAPS, source=ALL_MAPDATA):
@@ -299,6 +299,56 @@ def route_for(name, position, map_routes):
     return best if distance(map_routes[best]) <= ROUTE_LINK_RANGE else -1
 
 
+def extra_template(row, shapes):
+    """The template of an NpcData row for an NPC the server spawns itself (no MapData placement)."""
+    relationship = row['RelationshipEntity'].split('::')[1]
+    skills = [s['Value'] for s in row.get('ActiveSkillList', []) if s['Value']]
+    return {'level': row['Level'], 'type': row['NpcType'].split('::')[1], 'relationship': RELATIONSHIP.get(relationship, 6),
+            'aggressive': row['AggroType'].endswith(('Aggro_A', 'Aggro_A_SearchOnlyPC')), 'walk_speed': row.get('BaseWalkSpeed', 0.0),
+            'run_speed': row.get('BaseMoveSpeed', 0.0), 'radius': row.get('CollisionCylinderRadius', 0),
+            'function': row.get('FunctionType', 'ENpcFuncType::None').split('::')[-1], 'aggro_type': _enum(row.get('AggroType', 'EAggroType::None')),
+            'aggro': shapes.get(row.get('AggroDetectRange')), 'skills': skills, 'height': row.get('CollisionCylinderHeight', 0),
+            'no_rotation': bool(row.get('bNoRotation', False)), 'rotate_max': row.get('RotateAngleMax', 0),
+            'sub_type': _enum(row.get('NpcSubType', 'ENpcSubType::NormalMonster')), 'grade': int(row.get('Grade') or 3),
+            **({'air': True} if row.get('ObjectTerrainType', '').endswith('::Air') else {}),
+            **({'hp_max': COMPANION_HP} if companion_hp(row) else {}),
+            **hit_count(row),
+            **({'untouchable': True} if untouchable(row) else {}),
+            **_groggy_guard_max(row)}
+
+
+def rift_npc_ids():
+    """The Abyss rift monsters (tools/data/abyss-rift-phases.json): placed nowhere, the server spawns them."""
+    try:
+        data = json.loads((ROOT / 'tools/data/abyss-rift-phases.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return []
+    return sorted({n for phases in data.get('rifts', {}).values() for p in phases for n in p.get('npcs', [])})
+
+
+def extend(ids=None):
+    """Adds the NpcData templates (and their skills and hits) of NPCs the server spawns itself to world-npcs.json from the client
+    export, leaving every existing entry untouched. Runs without the research/local tables the full build needs."""
+    out = json.loads(DATA.read_text(encoding='utf-8'))
+    ids = sorted(ids if ids is not None else rift_npc_ids())
+    npcs = {row['ID']['Value']: row for row in _rows('client:NpcData') if row['ID']['Value'] in set(ids)}
+    shapes = {row['AggroDetectType']: aggro_shape(row) for row in _rows('client:NpcAggroData')}
+    skills = set()
+    added = []
+    for npc_id in ids:
+        row = npcs.get(npc_id)
+        if row is None or str(npc_id) in out['templates']:
+            continue
+        out['templates'][str(npc_id)] = extra_template(row, shapes)
+        skills.update(s['Value'] for s in row.get('ActiveSkillList', []) if s['Value'])
+        added.append(npc_id)
+    missing = {s for s in skills if str(s) not in out['npc_skills']}
+    if missing:
+        out['npc_skills'].update(npc_skills(missing, 'client:Skill', 'client:SkillEffect'))
+        out['skill_hits'].update(skill_hits_catalog(missing, 'client:Skill', 'client:SkillEffect'))
+    return out, added
+
+
 def build(maps=MAPDATA, npc_table=NPCDATA, aggro_table=AGGRODATA, skill_table=SKILLDATA, effect_table=EFFECTDATA, social=SOCIAL_ACTIONS):
     npcs = {row['ID']['Value']: row for row in _rows(npc_table)}
     shapes = {row['AggroDetectType']: aggro_shape(row) for row in _rows(aggro_table)}
@@ -372,20 +422,8 @@ def build(maps=MAPDATA, npc_table=NPCDATA, aggro_table=AGGRODATA, skill_table=SK
         row = npcs.get(npc_id)
         if row is None or str(npc_id) in templates:
             continue
-        relationship = row['RelationshipEntity'].split('::')[1]
         skills = [s['Value'] for s in row.get('ActiveSkillList', []) if s['Value']]
-        templates[str(npc_id)] = {'level': row['Level'], 'type': row['NpcType'].split('::')[1], 'relationship': RELATIONSHIP.get(relationship, 6),
-                                  'aggressive': row['AggroType'].endswith(('Aggro_A', 'Aggro_A_SearchOnlyPC')), 'walk_speed': row.get('BaseWalkSpeed', 0.0),
-                                  'run_speed': row.get('BaseMoveSpeed', 0.0), 'radius': row.get('CollisionCylinderRadius', 0),
-                                  'function': row.get('FunctionType', 'ENpcFuncType::None').split('::')[-1], 'aggro_type': _enum(row.get('AggroType', 'EAggroType::None')),
-                                  'aggro': shapes.get(row.get('AggroDetectRange')), 'skills': skills, 'height': row.get('CollisionCylinderHeight', 0),
-                                  'no_rotation': bool(row.get('bNoRotation', False)), 'rotate_max': row.get('RotateAngleMax', 0),
-                                  'sub_type': _enum(row.get('NpcSubType', 'ENpcSubType::NormalMonster')), 'grade': int(row.get('Grade') or 3),
-                                  **({'air': True} if row.get('ObjectTerrainType', '').endswith('::Air') else {}),
-                                   **({'hp_max': COMPANION_HP} if companion_hp(row) else {}),
-                                   **hit_count(row),
-                                   **({'untouchable': True} if untouchable(row) else {}),
-                                   **_groggy_guard_max(row)}
+        templates[str(npc_id)] = extra_template(row, shapes)
         used_skills.update(skills)
     out['templates'] = templates
     out['npc_skills'] = npc_skills(used_skills, skill_table, effect_table)
@@ -499,6 +537,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest='command')
     sub.add_parser('build', help='write tools/data/world-npcs.json')
+    sub.add_parser('extend', help='add the Abyss rift monsters to tools/data/world-npcs.json from the client export (no research/local needed)')
+    sub.add_parser('check-extend', help='exit 1 when world-npcs.json lacks a rift monster template')
     hits = sub.add_parser('hits', help='skill hit catalog from Skill.dat')
     hits.add_argument('--catalog', action='store_true', help='print skill_hits json for npc_skills')
     args = parser.parse_args()
@@ -508,6 +548,15 @@ def main():
         out['skill_hits'] = skill_hits_catalog(used, skill_table=SKILLDATA, effect_table=EFFECTDATA)
         write_data_json(DATA, out)
         print({map_id: len(spawns) for map_id, spawns in out['maps'].items()}, 'spawns ->', DATA.relative_to(ROOT))
+    elif args.command == 'extend':
+        out, added = extend()
+        write_data_json(DATA, out)
+        print(len(added), 'templates added ->', DATA.relative_to(ROOT))
+    elif args.command == 'check-extend':
+        _, added = extend()
+        if added:
+            print('world-npcs.json lacks templates:', added)
+            raise SystemExit(1)
     elif args.command == 'hits' and args.catalog:
         print(json.dumps(hits_catalog(), indent=2, sort_keys=True))
     else:

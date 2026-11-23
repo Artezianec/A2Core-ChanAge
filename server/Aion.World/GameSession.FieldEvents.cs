@@ -97,6 +97,7 @@ public sealed partial class GameSession
                 if (open > now) continue;
                 var start = open + e.ReadySeconds * 1000L;
                 var end = start + FieldEventProgressMs(e);
+                if (e.Kind == "Invasion" && !InvasionRunsAt(e, open)) return (FieldEventNone, 0, 0, 0);
                 return (now < start ? FieldEventPrepare : now < end ? FieldEventProgress : FieldEventEnd, open, start, end);
             }
         }
@@ -120,6 +121,30 @@ public sealed partial class GameSession
         return 0;
     }
 
+    /// <summary>Aion:FieldEvents for every session of this host (Program.cs; tests set it back with <see cref="FieldEventOptions.Default"/>).</summary>
+    public static FieldEventOptions FieldEventSettings { get; set; } = FieldEventOptions.Default;
+
+    /// <summary>
+    /// Dimensional Invasion (FieldEvent kind Invasion, one Direct-entrance event per variant: x01 Beritra Air Raid, x02 Broken Sword,
+    /// x03 Spirit Attack; map 500032/500031/500033 for the Light, 510027/510026/510028 for the Dark). The three variants share the
+    /// hourly :30 schedule of their group (EventSchedule 1001 / 2001), so only one of them can run per slot: the variant of the
+    /// slot is the server-clock hour modulo 3 (GUESS: OBSERVED only 220101, the Beritra one, at 12:30 for an Asmodian).
+    /// </summary>
+    public static bool InvasionRunsAt(Systems2Tables.FieldEvent e, long open)
+    {
+        if (!FieldEventSettings.Invasions) return false;
+        var hour = (int)(DateTimeOffset.FromUnixTimeMilliseconds(open + FieldEventKstOffsetHours * 3_600_000L).UtcDateTime.Hour);
+        return hour % 3 == e.Id / 100 % 10 - 1;
+    }
+
+    /// <summary>The Dimensional Invasion events a player of the race can enter from the event list (the Direct-entrance ones).</summary>
+    public static IReadOnlyList<Systems2Tables.FieldEvent> InvasionEventsOf(int race) =>
+        Systems2Tables.Embedded.FieldEvents.Where(e => e.Kind == "Invasion" && e.Entrance == "Direct" && e.Id / 100_000 == race).OrderBy(e => e.Id).ToList();
+
+    /// <summary>Every event of the race the list (0x6000/0x6001) can carry: the festival's, then the invasions'.</summary>
+    static IEnumerable<Systems2Tables.FieldEvent> ListedEventsOf(int race) =>
+        FieldEventSettings.Invasions ? FestaEventsOf(race).Concat(InvasionEventsOf(race)) : FestaEventsOf(race);
+
     /// <summary>The festival events the official server lists for a race (FieldEvent kind ShugoFesta, ids race x 100000 + ...), in its order.</summary>
     public static IReadOnlyList<Systems2Tables.FieldEvent> FestaEventsOf(int race)
     {
@@ -140,7 +165,7 @@ public sealed partial class GameSession
 
     /// <summary>FieldEventInfo_NT 0x6000 at the entry: the race's festival events running now (OBSERVED "00" when none).</summary>
     public static byte[] FieldEventInfo(int race, long now) =>
-        FieldEventInfo(FestaEventsOf(race).Select(e => (e, FieldEventState(e, now))).Where(x => x.Item2.State is FieldEventPrepare or FieldEventProgress).ToList());
+        FieldEventInfo(ListedEventsOf(race).Select(e => (e, FieldEventState(e, now))).Where(x => x.Item2.State is FieldEventPrepare or FieldEventProgress).ToList());
 
     /// <summary>FieldEventInfo_NT 0x6000 {varint count, entries} of these runs.</summary>
     public static byte[] FieldEventInfo(IReadOnlyList<(Systems2Tables.FieldEvent Event, (byte State, long Open, long Start, long End) Run)> running)
@@ -164,7 +189,7 @@ public sealed partial class GameSession
     byte[] FieldEventInfoAtEntry(long now)
     {
         fieldEventsShown = [];
-        foreach (var e in FestaEventsOf(profileRace))
+        foreach (var e in ListedEventsOf(profileRace))
         {
             var run = FieldEventState(e, now);
             if (run.State is FieldEventPrepare or FieldEventProgress) fieldEventsShown[e.Id] = (run.State, run.Open);
@@ -177,7 +202,7 @@ public sealed partial class GameSession
     {
         if (fieldEventsShown is not { } shown) return [];
         List<byte[]>? changes = null;
-        foreach (var e in FestaEventsOf(profileRace))
+        foreach (var e in ListedEventsOf(profileRace))
         {
             var run = FieldEventState(e, now);
             var running = run.State is FieldEventPrepare or FieldEventProgress;
@@ -230,6 +255,15 @@ public sealed partial class GameSession
     /// </summary>
     bool FieldEventEntryClosed(int mapId, long now) =>
         !IsAdmin && FieldEventOfMap(mapId) is { } e && ScheduleOf(e.Group) is not null && FieldEventState(e, now).State != FieldEventPrepare;
+}
+
+/// <summary>Aion:FieldEvents: the scheduled field events beyond the Shugo festival.</summary>
+public sealed record FieldEventOptions
+{
+    /// <summary>Dimensional Invasion (Beritra Air Raid and its two sister variants) is listed and enterable on its hourly :30 schedule (default on).</summary>
+    public bool Invasions { get; init; } = true;
+
+    public static FieldEventOptions Default { get; } = new();
 }
 
 /// <summary>EResult values of the festival entrance (client usmap EResult).</summary>

@@ -1,0 +1,38 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "abyss_rift_wh6",
+  "display": "Rift boss",
+  "display_ru": "Босс разлома",
+  "dungeon": "AbyssRift",
+  "source": "Guide (aion2hub 2026-09-09 patch notes): 8 Abyss Rift Zone bosses become invulnerable for 25 s below an HP threshold, at most twice each. The 8 are the grade-6 (WH6) rift monsters of tools/data/abyss-rift-phases.json (phase 5 and phase 8 groups): that mapping and both thresholds (66 % and 33 %) are GUESSES.",
+  "note": "Used by the Abyss Rift Zone event (docs/ABYSS-RIFT-ZONE.md).",
+  "npcs": {
+    "Normal": [2670066, 2670067, 2670113, 2670114, 2670115, 2670116, 2670117, 2670118]
+  },
+  "rules": [
+    {
+      "id": "ward_66",
+      "when": { "type": "hp_below", "pct": 66 },
+      "do": [
+        {
+          "type": "notice",
+          "text": "The rift boss is invulnerable for 25 seconds!",
+          "text_ru": "Босс разлома неуязвим 25 секунд!"
+        },
+        { "type": "shield", "id": "ward_a", "invuln": true, "duration_ms": 25000 }
+      ]
+    },
+    {
+      "id": "ward_33",
+      "when": { "type": "hp_below", "pct": 33 },
+      "do": [
+        {
+          "type": "notice",
+          "text": "The rift boss is invulnerable for 25 seconds!",
+          "text_ru": "Босс разлома неуязвим 25 секунд!"
+        },
+        { "type": "shield", "id": "ward_b", "invuln": true, "duration_ms": 25000 }
+      ]
+    }
+  ]
+}

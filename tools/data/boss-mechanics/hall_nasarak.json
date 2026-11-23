@@ -1,0 +1,190 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "hall_nasarak",
+  "display": "Nasarak",
+  "display_ru": "Насарак",
+  "dungeon": "PhantomsHall",
+  "source": "official client data (NpcData / Skill / SkillAbnormal exports, npc-behavior-cases barks); mechanics from the research notes, GUESS values are labelled",
+  "note": "Second boss of the Hall of Illusion: client rotation and the lethal Annihilation Ring.",
+  "npcs": {
+    "Easy": [
+      2301402
+    ],
+    "Normal": [
+      2311402
+    ],
+    "Hard": [
+      2321402
+    ]
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1805630,
+      "every_ms": 30000,
+      "wind_up_ms": 1500,
+      "radius": 450,
+      "warning": "Nasarak gathers power: get out of reach!",
+      "warning_ru": "Насарак собирает силу: отойдите подальше!",
+      "damage": {
+        "scale": 1.75
+      }
+    },
+    {
+      "type": "cast",
+      "skill": 1805610,
+      "every_ms": 14000,
+      "wind_up_ms": 800,
+      "radius": 700,
+      "warning": "Nasarak slashes a half circle and an arc: step aside!",
+      "warning_ru": "Насарак бьёт полукругом и дугой: отойдите!"
+    },
+    {
+      "type": "cast",
+      "skill": 1805620,
+      "every_ms": 25000,
+      "wind_up_ms": 900,
+      "radius": 300
+    },
+    {
+      "type": "cast",
+      "skill": 1805640,
+      "every_ms": 40000,
+      "wind_up_ms": 1300,
+      "radius": 900,
+      "warning": "Nasarak blinks to a player: leave the landing!",
+      "warning_ru": "Насарак телепортируется к игроку: отойдите от места удара!"
+    },
+    {
+      "type": "cast",
+      "skill": 1805650,
+      "every_ms": 35000,
+      "wind_up_ms": 1000,
+      "land": false
+    },
+    {
+      "type": "cast",
+      "skill": 1805670,
+      "every_ms": 37000,
+      "wind_up_ms": 900,
+      "radius": 700,
+      "warning": "Nasarak calls a spear: leave the circle!",
+      "warning_ru": "Насарак призывает копьё: выйдите из круга!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "modify",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "Kept from the compiled boss-phases.json script: 1.2x damage at 50% HP."
+    },
+    {
+      "id": "annihilation_ring",
+      "when": {
+        "type": "timer",
+        "after_ms": 40000,
+        "every_ms": 60000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "M_PD_PhantomsHall_Nasarak_03"
+        },
+        {
+          "type": "cast",
+          "skill": 1805680,
+          "wind_up_ms": 6000,
+          "land": false,
+          "warning": "Annihilation Ring: stay within 5 m of Nasarak!",
+          "warning_ru": "Кольцо аннигиляции: оставайтесь в 5 м от Насарака!",
+          "during": [
+            {
+              "type": "decal",
+              "skill": 1805680,
+              "at": "boss",
+              "duration_ms": 8000
+            }
+          ],
+          "on_land": [
+            {
+              "type": "telegraph",
+              "id": "annihilation",
+              "at": "boss",
+              "shape": "donut",
+              "inner": 500,
+              "radius": 7000,
+              "decal": false,
+              "delay_ms": 2000,
+              "damage": {
+                "lethal": true
+              }
+            }
+          ]
+        }
+      ],
+      "note": "Client 1805680: 6 s cast, ring 5 m..70 m, 8 s notice, MaxHPRatio 50000 (lethal) and a 20 s abnormal. The 60 s repeat is a GUESS (the client cooldown is 20 s). The illusion clones of the research (2921213 / 2921126, hidden helpers) are not spawned.",
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ]
+    },
+    {
+      "id": "annihilation_ring_easy",
+      "when": {
+        "type": "timer",
+        "after_ms": 40000,
+        "every_ms": 60000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_PhantomsHall_Easy_NPC_27"
+        },
+        {
+          "type": "cast",
+          "skill": 1805680,
+          "wind_up_ms": 6000,
+          "land": false,
+          "warning": "Annihilation Ring: stay within 5 m of Nasarak!",
+          "warning_ru": "Кольцо аннигиляции: оставайтесь в 5 м от Насарака!",
+          "during": [
+            {
+              "type": "decal",
+              "skill": 1805680,
+              "at": "boss",
+              "duration_ms": 8000
+            }
+          ],
+          "on_land": [
+            {
+              "type": "telegraph",
+              "id": "annihilation",
+              "at": "boss",
+              "shape": "donut",
+              "inner": 500,
+              "radius": 7000,
+              "decal": false,
+              "delay_ms": 2000,
+              "damage": {
+                "lethal": true
+              }
+            }
+          ]
+        }
+      ],
+      "note": "Client 1805680: 6 s cast, ring 5 m..70 m, 8 s notice, MaxHPRatio 50000 (lethal) and a 20 s abnormal. The 60 s repeat is a GUESS (the client cooldown is 20 s). The illusion clones of the research (2921213 / 2921126, hidden helpers) are not spawned.",
+      "difficulty": [
+        "Easy"
+      ]
+    }
+  ]
+}

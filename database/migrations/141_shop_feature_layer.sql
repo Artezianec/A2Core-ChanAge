@@ -2,7 +2,10 @@
 
 ALTER TABLE game.quna_ledger ADD COLUMN IF NOT EXISTS quna_kind text
     CHECK (quna_kind IS NULL OR quna_kind IN ('paid', 'free'));
+-- One-time backfill: ledger rows are runtime-append-only; disable only for this migration body.
+ALTER TABLE game.quna_ledger DISABLE TRIGGER quna_ledger_append_only;
 UPDATE game.quna_ledger SET quna_kind = CASE WHEN reason = 'purchase' THEN 'paid' ELSE 'free' END WHERE quna_kind IS NULL;
+ALTER TABLE game.quna_ledger ENABLE TRIGGER quna_ledger_append_only;
 
 CREATE OR REPLACE FUNCTION game.quna_apply(p_account uuid, p_request text, p_delta bigint, p_reason text, p_world integer, p_character uuid, p_details jsonb)
 RETURNS TABLE (ok boolean, balance bigint, entry_id bigint, error text, repeated boolean)

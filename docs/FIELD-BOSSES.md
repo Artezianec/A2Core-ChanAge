@@ -73,9 +73,41 @@ From the official client in those videos, not inferred:
 | `ChatBroadcast` | `false` | Also send a configured broadcast to chat in English. Official: off. |
 | `ParticipantNotices` | `true` | "Defeated {name}." and "Reward collected." to each contributor. |
 | `SharedLoot` | `true` | Personal participant-table reward in the bag for every contributor. |
+| `GuideTimers` | `true` | The 13 timed field bosses use the guide's fixed respawn (`tools/data/field-boss-guide.json`, below) instead of the CANDIDATE window. `false`: the older window only. |
+| `Schedules` | `true` | The Abyss bosses with a fixed server-clock slot (Kaira, Argo, Nahma, the executors, the Middle Reshanta bosses) come at that slot, with a 10-minute spawn window. `false`: after the kill, like the rest. |
+| `ServerUtcOffsetHours` | unset | The server clock for `Schedules`. Unset: the guide's UTC+9 (a GUESS: Global is believed to share the KR clock). |
 
 Environment form: `Aion__FieldBosses__RespawnMinutesByName__Kashapa=360`,
 `Aion__FieldBosses__AnnouncementScope=Zone`. The startup log prints the values.
+
+## Guide timers, schedules and titles (2026-11-23)
+
+Source: the public guide in `research/field-bosses-2026-11-23` (a research branch, not copied here), collected into
+`tools/data/field-boss-guide.json` (`server/Aion.World/FieldBossGuide.cs`). The client carries no timer, so every value is a guide
+value (confidence per row in the file: **confirmed** = two sources agree, **likely** = one, **guess**). Nothing here replaces the
+stored official `WorldMapFieldNamed` list; it only fills the empty timers.
+
+| Boss (NpcData) | Respawn after the kill | Confidence |
+|---|---|---|
+| Eternal Gartua 2101074, Odium/Immortal Gartua 2400800 | 11 h | confirmed |
+| High Commander Lagta 2101131, Ragta 2400853 | 11 h | confirmed |
+| Silent Dartan 2101120 / 2400855, Soul Ruler Kashapa 2101122 / 2400854 | 6 h | likely |
+| Watcher Kaira | every 3 h from 01:00, one of its six placements at random | likely |
+| Argo Spirit King | daily 10:30 and 22:30 | likely |
+| Guardian Lord Nahma, Enraged Guardian Lord Nahma | Fri and Sun 21:00 | likely |
+| Executors | Thu and Sat 21:30 | likely |
+| Middle Reshanta trio (Turncoat Ducal and two more) | Mon, Thu, Sat 21:30 | likely |
+
+Official display titles from the guide replace the short spawn name in the kill notice where the spawn name is known (8 bosses).
+Mechanics are data on the boss engine, not code: `field_gartua.json` (Annihilation, Compression, two more client casts and the 15 s Odyle
+Absorption stagger check, the intervals after the client cooldowns are GUESSES) and `field_ducal.json` (Smite Ground, Greatsword
+Plunge; intervals GUESS). See [BOSS-MECHANICS-ENGINE.md](BOSS-MECHANICS-ENGINE.md).
+
+**Not in the data (so not done, and why):** the 20 + 19 level 45 zone bosses have no timer in any source and no English title in
+the client to tie the guide names to NpcData rows (they keep the named 1.5–6 h window); Melted Danar (1 h) cannot be tied to a
+row; the Dramos / Marakha NPC assignment is unknown; Eltnen / Morheim level 80 bosses have names only; **no field boss bark or
+spawn announcement exists in the client strings** (the official server does not broadcast, which is also our default);
+the Odyle Absorption icon needs an `abnormal` id on the rule (`MechanicDebuffHook` is now wired to `EngineApplyAbnormal`).
 
 ## Not done
 

@@ -1,0 +1,360 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "hall_nathara",
+  "display": "Nathara",
+  "display_ru": "Натхара",
+  "dungeon": "PhantomsHall",
+  "source": "official client data (NpcData / Skill / SkillAbnormal exports, npc-behavior-cases barks); mechanics from the research notes, GUESS values are labelled",
+  "note": "Final boss of the Hall of Illusion: laser, shard reflect, Split Illusion, enrage.",
+  "npcs": {
+    "Easy": [
+      2301403
+    ],
+    "Normal": [
+      2311403
+    ],
+    "Hard": [
+      2321403
+    ]
+  },
+  "vars": {
+    "frenzy_ms": 300000
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1805560,
+      "every_ms": 27000,
+      "wind_up_ms": 1766,
+      "radius": 400,
+      "warning": "Nathara lashes a distant target!",
+      "warning_ru": "Натхара бьёт дальнюю цель!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "modify",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "Kept from the compiled boss-phases.json script: 1.2x damage at 50% HP."
+    },
+    {
+      "id": "laser_sweep",
+      "when": {
+        "type": "timer",
+        "after_ms": 12000,
+        "every_ms": 28000
+      },
+      "do": [
+        {
+          "type": "telegraph",
+          "id": "laser",
+          "at": "boss",
+          "shape": "rect",
+          "length": 3000,
+          "width": 800,
+          "delay_ms": 800,
+          "decal": false,
+          "damage": {
+            "factor": [
+              18500,
+              20500
+            ]
+          }
+        },
+        {
+          "type": "notice",
+          "text": "Nathara fires a laser: step out of the lane!",
+          "text_ru": "Натхара стреляет лазером: уйдите с линии!",
+          "size": 20
+        }
+      ],
+      "note": "Hidden helper skill 1805460 (rect 30 m x 8 m, 18500-20500, 8 s abnormal); the 300/330 degree sweep of the guides is not in the data."
+    },
+    {
+      "id": "shard_reflect",
+      "when": {
+        "type": "timer",
+        "after_ms": 40000,
+        "every_ms": 90000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "M_PD_PhantomsHall_Nathara_004"
+        },
+        {
+          "type": "notice",
+          "text": "Shards! Touch every prism before the beam lands!",
+          "text_ru": "Осколки! Коснитесь каждой призмы до удара луча!"
+        },
+        {
+          "type": "orb",
+          "id": "shard",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              0,
+              2500
+            ],
+            [
+              -2165,
+              -1250
+            ],
+            [
+              2165,
+              -1250
+            ]
+          ],
+          "radius": 600,
+          "required": 3,
+          "window_ms": 8000,
+          "on_fail": [
+            {
+              "type": "telegraph",
+              "at": "arena_centre",
+              "shape": "circle",
+              "radius": 8000,
+              "decal": false,
+              "delay_ms": 0,
+              "damage": {
+                "hp_ratio": 9000,
+                "factor": [
+                  40000,
+                  40000
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "note": "Client Skill08 (1805490 start, 1805510 end): a 1.5 s cast, 8 s abnormal on everybody, then MaxHPRatio rows 7000/9000/50000 depending on state. Three prisms (ring 2500) and 90% as the failure hit are GUESSES (the lethal row is not applied).",
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ]
+    },
+    {
+      "id": "shard_reflect_easy",
+      "when": {
+        "type": "timer",
+        "after_ms": 40000,
+        "every_ms": 90000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_PhantomsHall_Easy_NPC_28"
+        },
+        {
+          "type": "notice",
+          "text": "Shards! Touch every prism before the beam lands!",
+          "text_ru": "Осколки! Коснитесь каждой призмы до удара луча!"
+        },
+        {
+          "type": "orb",
+          "id": "shard",
+          "at": "arena_centre",
+          "offsets": [
+            [
+              0,
+              2500
+            ],
+            [
+              -2165,
+              -1250
+            ],
+            [
+              2165,
+              -1250
+            ]
+          ],
+          "radius": 600,
+          "required": 3,
+          "window_ms": 8000,
+          "on_fail": [
+            {
+              "type": "telegraph",
+              "at": "arena_centre",
+              "shape": "circle",
+              "radius": 8000,
+              "decal": false,
+              "delay_ms": 0,
+              "damage": {
+                "hp_ratio": 9000,
+                "factor": [
+                  40000,
+                  40000
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "note": "Client Skill08 (1805490 start, 1805510 end): a 1.5 s cast, 8 s abnormal on everybody, then MaxHPRatio rows 7000/9000/50000 depending on state. Three prisms (ring 2500) and 90% as the failure hit are GUESSES (the lethal row is not applied).",
+      "difficulty": [
+        "Easy"
+      ]
+    },
+    {
+      "id": "split_illusion",
+      "when": {
+        "type": "hp_below",
+        "pct": 60
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "M_PD_PhantomsHall_Nathara_005"
+        },
+        {
+          "type": "summon",
+          "npc": 0,
+          "count": 2,
+          "radius": 1500,
+          "group": "illusions",
+          "at": "boss"
+        },
+        {
+          "type": "shield",
+          "id": "illusion_ward",
+          "invuln": true,
+          "until": "adds_dead:illusions",
+          "duration_ms": 30000,
+          "on_expire": [
+            {
+              "type": "notice",
+              "text": "The illusions are not dead! Wipe in 5 seconds!",
+              "text_ru": "Иллюзии не убиты! Гибель через 5 секунд!"
+            },
+            {
+              "type": "delay",
+              "ms": 5000,
+              "do": [
+                {
+                  "type": "wipe",
+                  "text": "The illusion consumed you."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "Kill both illusions within 30 seconds!",
+          "text_ru": "Убейте обе иллюзии за 30 секунд!"
+        }
+      ],
+      "note": "Client Skill09 (1805530) spawns two clones (hidden npc 2920935), its End (1805540) is a raid-wide MaxHPRatio 50000. Research: 30 s to kill both, then a 5 s wipe cast. The clones are copies of Nathara (npc 0) and 60% HP is a GUESS.",
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ]
+    },
+    {
+      "id": "split_illusion_easy",
+      "when": {
+        "type": "hp_below",
+        "pct": 60
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_PhantomsHall_Easy_NPC_30"
+        },
+        {
+          "type": "summon",
+          "npc": 0,
+          "count": 2,
+          "radius": 1500,
+          "group": "illusions",
+          "at": "boss"
+        },
+        {
+          "type": "shield",
+          "id": "illusion_ward",
+          "invuln": true,
+          "until": "adds_dead:illusions",
+          "duration_ms": 30000,
+          "on_expire": [
+            {
+              "type": "notice",
+              "text": "The illusions are not dead! Wipe in 5 seconds!",
+              "text_ru": "Иллюзии не убиты! Гибель через 5 секунд!"
+            },
+            {
+              "type": "delay",
+              "ms": 5000,
+              "do": [
+                {
+                  "type": "wipe",
+                  "text": "The illusion consumed you."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "Kill both illusions within 30 seconds!",
+          "text_ru": "Убейте обе иллюзии за 30 секунд!"
+        }
+      ],
+      "note": "Client Skill09 (1805530) spawns two clones (hidden npc 2920935), its End (1805540) is a raid-wide MaxHPRatio 50000. Research: 30 s to kill both, then a 5 s wipe cast. The clones are copies of Nathara (npc 0) and 60% HP is a GUESS.",
+      "difficulty": [
+        "Easy"
+      ]
+    },
+    {
+      "id": "illusions_dead",
+      "when": {
+        "type": "adds_dead",
+        "group": "illusions"
+      },
+      "do": [
+        {
+          "type": "notice",
+          "text": "The illusions fall!",
+          "text_ru": "Иллюзии пали!"
+        }
+      ]
+    },
+    {
+      "id": "frenzy",
+      "when": {
+        "type": "enrage_timer",
+        "after_ms": "$frenzy_ms"
+      },
+      "do": [
+        {
+          "type": "enrage",
+          "damage_mul": 3.0,
+          "haste_mul": 0.5,
+          "text": "Enrage! The boss moves and strikes twice as fast and hits three times as hard!",
+          "text_ru": "Берсерк! Босс двигается вдвое быстрее и бьёт втрое сильнее!"
+        }
+      ],
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ],
+      "note": "Client NpcData: bUseBossBerserk, BossBerserkInvokeTime 300 s on Normal and Hard, none on Exploration; abnormal 10000008 = +100% move/cast/combat speed and AmplifyAllDamage +20000 (x3). 240 s on Hard is the official patch value for six older expeditions; this dungeon is not in that notice, so client data (300 s) stands."
+    }
+  ],
+  "difficulty": {
+    "Easy": {
+      "rules_remove": [
+        "frenzy"
+      ],
+      "note": "Exploration: no enrage (client NpcData bUseBossBerserk is false)."
+    }
+  }
+}

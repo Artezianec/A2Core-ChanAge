@@ -16,7 +16,7 @@ public sealed partial class NpcAi
     /// <summary>Damage that kills outright (wipe, lethal telegraphs); the host clamps it to the player's HP.</summary>
     public const int LethalDamage = 99_999_999;
 
-    /// <summary>Optional visual for engine debuff stacks: (player key, client abnormal id, stacks, duration ms) to packets. Unwired by default.</summary>
+    /// <summary>Optional visual for engine debuff stacks: (player key, client abnormal id, stacks, duration ms) to packets. GameSession wires it to the skill-effect engine (EngineApplyAbnormal) for abnormals that exist in the ported tables.</summary>
     public Func<int, int, int, long, IReadOnlyList<byte[]>>? MechanicDebuffHook { get; set; }
 
     readonly HashSet<int> activeRuns = [];
@@ -239,7 +239,7 @@ public sealed partial class NpcAi
             var t = rule.When;
             var shape = ShapeOf(t.Area!, null, run.Encounter, 0);
             var centres = Points(t.At, ctx);
-            var count = currentPlayers.Count(p => centres.Any(c => Inside(shape, c.At, c.Yaw, p.Position)));
+            var count = currentPlayers.Count(p => InsideAny(shape, centres.Select(c => (c.At, c.Yaw)), p.Position));
             var met = count >= (t.Min ?? 0) && count <= (t.Max ?? int.MaxValue);
             if (!met) { run.AreaWasMet[rule.Id] = false; run.AreaMetSinceMs.Remove(rule.Id); continue; }
             if (!run.AreaMetSinceMs.ContainsKey(rule.Id)) run.AreaMetSinceMs[rule.Id] = now;
@@ -423,6 +423,16 @@ public sealed partial class NpcAi
         return inside != s.Invert;
     }
 
+    /// <summary>
+    /// Inside any of the placed copies of a shape. An inverted shape placed at several points (offsets) is a set of safe spots:
+    /// it hits only a player outside every copy (rocks, coloured shields), not one outside any single copy.
+    /// </summary>
+    static bool InsideAny(ShapeSpec s, IEnumerable<(Vector3d At, double Yaw)> centres, Vector3d at)
+    {
+        var list = centres as IList<(Vector3d At, double Yaw)> ?? centres.ToList();
+        return s.Invert && list.Count > 1 ? list.All(c => Inside(s, c.At, c.Yaw, at)) : list.Any(c => Inside(s, c.At, c.Yaw, at));
+    }
+
     static bool InCover(Vector3d boss, MechanicCover cover, Vector3d player)
     {
         double toBossX = boss.X - cover.At.X, toBossY = boss.Y - cover.At.Y, toPlayerX = player.X - cover.At.X, toPlayerY = player.Y - cover.At.Y;
@@ -443,6 +453,8 @@ public sealed partial class NpcAi
         if (d is null) return 0;
         if (d.Lethal) return LethalDamage;
         var run = ctx.Run;
+        if (d.HpRatio is { } share && SkillEffectEngine.NpcRatioDamage && PlayerHpOf?.Invoke(playerKey) is { HpMax: > 0 } hp)
+            return (int)Math.Clamp(hp.HpMax * run.N(share) / 10_000 * run.N(d.Scale, 1) * run.Encounter.DamageScale, 1, LethalDamage);
         double raw;
         var defense = !d.IgnoreDefense;
         if (d.Fixed is { Length: 2 } f)
@@ -647,7 +659,7 @@ public sealed partial class NpcAi
         List<byte[]> Resolve(long now)
         {
             var c = ctx with { Now = now };
-            var hits = currentPlayers.Where(p => points.Any(pt => Inside(shape, pt.At, pt.Yaw, p.Position))).ToList();
+            var hits = currentPlayers.Where(p => InsideAny(shape, points.Select(pt => (pt.At, pt.Yaw)), p.Position)).ToList();
             var packets = new List<byte[]>();
             if (shape.Skill > 0 && a.Damage is not null && points.Count > 0)
                 packets.Add(GamePackets.SkillStart(shape.Skill, seq, points[0].Yaw, points[0].At, targetKey: Victim(ctx.Brain), actorKey: ctx.Boss.Key));
@@ -704,7 +716,7 @@ public sealed partial class NpcAi
     {
         if (zone.Def.Grid is not null) return zone.Walls.Any(w => w.Contains(at));
         var shape = ShapeOf(zone.Def, enc, 0);
-        return zone.Centres.Any(c => Inside(shape, c.Centre, c.Yaw, at));
+        return InsideAny(shape, zone.Centres.Select(c => (c.Centre, c.Yaw)), at);
     }
 
     List<byte[]> TickZones(MechanicCtx ctx)
@@ -761,7 +773,7 @@ public sealed partial class NpcAi
             var anchors = Points(anchor, c, a);
             if (anchors.Count == 0) { Note(c, a, 0, "no anchor"); return packets; }
             var centre = anchors[0];
-            var inside = currentPlayers.Where(p => Distance(centre.At, Flat(p.Position)) <= radius).ToList();
+            var inside = currentPlayers.Where(p => anchors.Any(an => Distance(an.At, Flat(p.Position)) <= radius)).ToList();
             var min = a.MinPlayers ?? 1;
             var split = a.Split ?? stack;
             var roller = centre.Player ?? inside.Select(p => p.Key).DefaultIfEmpty(PlayerKey).First();

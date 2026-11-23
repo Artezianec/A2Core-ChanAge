@@ -6,7 +6,7 @@ an encounter names exists in the client/tool data:
   skills     world-npcs.json npc_skills or skill-areas.json skills (cast, telegraph, zone, decal, damage.skill, skill_remap)
   NPCs       world-npcs.json templates (npcs, summon npc, npc_killed)
   env        world-objects.json maps[].objects[].env (env_obj)
-  talks      npc-talks.json talks (caption)
+  talks      npc-talks.json talks + npc-behavior-cases.json bark keys (caption)
   waves      boss-phases.json waves or map-events.json event names (summon wave)
 
 Vocabulary (trigger, action, shape, anchor names) comes from tools/data/boss-mechanics.schema.json, the same lists the server
@@ -127,6 +127,8 @@ class ClientData:
         talks = json.loads((DATA / "npc-talks.json").read_text(encoding="utf-8"))
         phases = json.loads((DATA / "boss-phases.json").read_text(encoding="utf-8"))
         events = json.loads((DATA / "map-events.json").read_text(encoding="utf-8"))
+        cases = json.loads((DATA / "npc-behavior-cases.json").read_text(encoding="utf-8"))
+        bark_keys = {c["talk"] for lst in cases["by_spawn_name"].values() for c in lst if c.get("talk")}
         env = {o["env"] for m in objects["maps"].values() for o in m.get("objects", []) if "env" in o}
         waves = set(phases.get("waves") or {})
         for e in events.get("events") or []:
@@ -136,7 +138,7 @@ class ClientData:
             skills={int(k) for k in world["npc_skills"]} | {int(k) for k in areas["skills"] if str(k).isdigit()},
             npcs={int(k) for k in world["templates"]},
             env=env,
-            talks=set(talks["talks"]),
+            talks=set(talks["talks"]) | bark_keys,
             waves=waves,
             scripted_npcs={int(k) for k in phases["bosses"]},
         )
@@ -274,6 +276,7 @@ class Validator:
                     for n in d.get(key) or []:
                         self.num(n, at, f"damage.{key}", r, vars_)
                 self.num(d.get("scale"), at, "damage.scale", r, vars_)
+                self.num(d.get("hp_ratio"), at, "damage.hp_ratio", r, vars_)
                 self.skill(d.get("skill"), f"{at}/damage", r)
             if isinstance(a.get("grid"), dict):
                 for n in ("arena_half_extent", "cell_size", "wall_half_thickness", "step_interval_ms"):

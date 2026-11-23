@@ -110,7 +110,9 @@ Where an action happens (`at`, `toward`, `to`, `target`):
 
 Placement modifiers on any placing action: `toward` + `distance` (move the anchor that far toward another anchor; without
 `toward`, `distance` moves forward along the facing), `offsets: [[x, y], ...]` (one copy per offset; `offset_space`
-`world`, default, or `facing` = [forward, right]).
+`world`, default, or `facing` = [forward, right]). An **inverted** shape (`invert`, `safe_zone`) with several offsets is a set of safe
+spots: it hits only players outside **every** copy (rocks, shields, white-light circles). `soak` / `stack` with several offsets succeed when
+enough players stand in **any** of the circles (pillar baits).
 
 ## Shapes
 
@@ -143,6 +145,7 @@ Placement modifiers on any placing action: `toward` + `distance` (move the ancho
 | `factor: [min, max]` | Same formula with an authored row (1/10000 of the NPC fixing damage) when the client has none. |
 | `fixed: [min, max]` | Flat damage (DoTs, puddles). Not scaled, no defense. |
 | `scale` | Multiplier on the result. Difficulty `damage_scale` multiplies too. |
+| `hp_ratio` | A share of the victim's maximum HP in 1/10000 (the client Damage row calc type MaxHPRatio: 10000 = all of it, 50000 = lethal), through `SkillEffectEngine.NpcRatioDamage` (`AION_NPC_RATIO_DAMAGE`); with the flag off the other fields apply, so give a `factor` fallback. `scale` and `damage_scale` multiply it. With `split` (`stack`, `soak`) the share is divided between the players in it: `hp_ratio: 15000` split reproduces the client's 150 / 75 / 50 / 30% rows for 1 / 2 / 3 / 5 players. |
 | `lethal: true` | Kills (wipes). |
 | `ignore_defense: true` | Skip the victim's defense reduction. |
 
@@ -194,7 +197,7 @@ Every action is `{ "type": ..., "id"?: ..., "note"?: ..., fields }`. An `id` nam
 
 | Action | Fields | Does |
 |---|---|---|
-| `debuff` | `debuff`, `target`, `stacks` (1), `max`, `duration_ms`, `abnormal`, `on_max` | Engine-tracked stacks on players (fires `stacks_reached`). `abnormal` shows a client abnormal through `NpcAi.MechanicDebuffHook` when wired. |
+| `debuff` | `debuff`, `target`, `stacks` (1), `max`, `duration_ms`, `abnormal`, `on_max` | Engine-tracked stacks on players (fires `stacks_reached`). `abnormal` applies a client abnormal to the player through `NpcAi.MechanicDebuffHook`, which `GameSession` wires to `EngineApplyAbnormal` (stacking rules, immunities, client packet) for abnormal ids in the ported skill tables. |
 | `cleanse` | `debuff`, `target` (default everyone) | Clears stacks. |
 | `tank_swap` | `debuff`, `max` (2), `duration_ms` | The victim gains a stack; at `max` the boss turns to the top-threat present player without the debuff. |
 | `mark` | `name`, `target` (default victim), `text` | Remembers a player for `mark:<name>` (with an optional notice). |
@@ -335,6 +338,15 @@ From "Patterns that repeat across the series" in the research doc:
 | Kromede (Fire Temple) 2300371 / 2310371 / 2320371 | **Authored** `kromede.json`: fire-wall `grid` zone (75%, 25% with pattern offset), clones `summon` + clone-line `telegraph` timer, Hard remap and wind-up. |
 | Bakarma (Draupnir) 2300471 / 2310471 / 2320471 | **Authored** `bakarma.json`: Wave of Death stagger cast with edge `displace` and ring `repeat` (70%, 30%), whirlpool `zone` below 30%. |
 | Nuakum (Horn Cave) 2300910 / 2310910 / 2320910 | **Authored** `nuakum.json`: hunt clone `summon` (75%, 55%), Blue Light `orb` (30%). |
+| Dying Dramata's Nest: Nayatman 2300507 / 2310507 / 2300153, Nazium 2300508 / 2310508 / 2300154, Durbati 2300509 / 2310509 / 2300155 | **Authored** `ddn_*.json`: wisps, spears, homing blades as chasing telegraphs, Durbati Poison Rain on every player, Venom Swamp rock check on the dungeon's own pillars, fear roar, enrage. |
+| Cradle of Nihility: Beltiras 2301302 / 2311302 / 2321302, Balkan 2301303 / 2311303 / 2321303, Bakarma 2301301 / 2311301 / 2321301 | **Authored** `cradle_*.json`: Nebula Collapse orbs (80%, 20%), Supernova shields (40%), coloured pillar charge (80%, 20%), Bakarma pizza cast pair, line share, area restriction, enrage. |
+| Hall of Illusion: Glassbane 2301401 / 2311401 / 2321401, Nasarak 2301402 / 2311402 / 2321402, Nathara 2301403 / 2311403 / 2321403 | **Authored** `hall_*.json`: ghost eyes / white-light check, Annihilation Ring, Nathara laser, shard prisms, Split Illusion (boss copies + 30 s ward), enrage. |
+| Azure Breath Island: Baumnute 2300189 / 2300219 / 2300244, Xyrepe 2300190 / 2300230 / 2300245, Alturadon 2300188 / 2300200 / 2300243 | **Authored** `azure_*.json`: Veil at the official 8 m, lightning rain, mushroom pools, Alturadon Blue Breath (10 stacks wipe), Blue Beam from 50%, enrage. |
+| Citadel of the Fallen Daeva: Turgen 2301601 / 2301701 / 2301721, Griosa 2301602 / 2301702 / 2301722, Basilus 2301603 / 2301703 / 2301723 | **Authored** `citadel_*.json`: sword fields, Commence Hunt shared hit, Basilus Field of Judgment golden circles (two explosions wipe), enrage. |
+| Corrupted Deus Research Base | **Blocked**: the pinned client export has no NpcData, spawns or dungeon entry for it (Gromkas, Zylarus, Atiel), so there is no id to attach an encounter to. Authoring it needs a newer export (the CC-gauge Earth Collapse wipe maps to `cast` + `stagger_check`, the falling floor to `displace`). |
+| Odium / Eternal Gartua 2400800 / 2101074 (field boss) | **Authored** `field_gartua.json`: 4-skill rotation, the 15 s Odyle Absorption stagger check (`on_break`: the cast is stopped; `on_land`: +20% damage for 30 s). Intervals GUESS. |
+| Turncoat Ducal 2600521 (Middle Reshanta) | **Authored** `field_ducal.json`: Smite Ground and Greatsword Plunge from the client casts. Intervals GUESS. |
+| Abyss rift grade 6 bosses 2670066 / 067 / 113-118 | **Authored** `abyss_rift_wh6.json`: invulnerable for 25 s at 66% and 33% HP (OFFICIAL: 8 bosses, 25 s, at most twice; the mapping to these 8 NPCs and the thresholds are GUESSES). |
 
 Deliberate differences from the hand-coded fights (all small; tests pin the rest):
 
@@ -362,11 +374,21 @@ Deliberate differences from the hand-coded fights (all small; tests pin the rest
 
 ## Known gaps and CANDIDATE values
 
-- No client packet for engine marks and debuff stacks yet (`MechanicDebuffHook` is unwired): players see the notice, not an icon.
+- Engine `mark`s and debuffs **without** an `abnormal` id still have no client icon (players see the notice); debuffs with an `abnormal` id use the skill-effect engine's real abnormal.
+- A `cast` with no Skill.dat damage row (Odyle Absorption 1601205, damage 0) ignores the client cast time: give `wind_up_ms` explicitly.
 - `parts` credit the boss's HP loss to the first unbroken part; there is no per-part hit wire yet.
 - Skills with no Skill.dat damage row deal 1 (Auldor 1601030 / 1601035, Bakarma 1800655): use `damage.factor` when a real
   number is known. The migrated finals keep 1 to match the legacy fight.
 - `cover` is a wedge behind the object, not real line of sight.
 - Nuakum's stack/spread circles and throw skill, Kromede's Hard earlier clones: not in the data yet.
+- The expedition dungeons' encounter files (`ddn_*`, `cradle_*`, `hall_*`, `azure_*`, `citadel_*`) use the client's real skill ids, cooldowns, cast times and
+  area shapes for the rotation. Mechanics that the client implements with hidden helper NPCs (almost none are in `world-npcs.json` `templates`) are
+  authored as `telegraph` / `zone` / `orb` / `counter` rules with explicit shapes; every number that is not a client row is labelled **GUESS** in the
+  rule's `note`. Not implemented: Durbati eggs and one-player-per-rock (Hard), Nayatman's chain and barrier pair, Nazium's pillar-breaking, Balkan's
+  real charge end point, Bakarma's rotating 4-wedge sweep (the 1804240 / 1804241 pair alternates instead), Beltiras's homing circle and tornado,
+  Nasarak's illusion clones, Turgen's arrow lines, Basilus's Eclipse / Ordeal states and Hard colour assignment, the Alturadon stack buff icon.
+- Enrage on the expedition finals uses the client's numbers: 300 s on Normal and Hard (`BossBerserkInvokeTime`), none on Exploration, damage x3 and haste 0.5
+  (abnormal 10000008). The official patch notes give 4 minutes on Hard for six older expeditions only; Nathara / Alturadon datamine 5:00. Override
+  `frenzy_ms` in a difficulty block if the 4 minute rule turns out to apply.
 - Numbers in `expedition-boss-mechanics.json`, `kromede-fire-walls.json` and the five encounter files are CANDIDATE
   (guides and videos, `docs/BOSS-MECHANICS.md`).

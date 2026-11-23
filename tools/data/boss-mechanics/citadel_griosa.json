@@ -1,0 +1,146 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "citadel_griosa",
+  "display": "Forbidden Hexbeast Griosa",
+  "display_ru": "Гриоса",
+  "dungeon": "DaevaCitadel",
+  "source": "official client data (NpcData / Skill / SkillAbnormal exports, npc-behavior-cases barks); mechanics from the research notes, GUESS values are labelled",
+  "note": "Second boss of the Citadel of the Fallen Daeva: Storm of Doom, Commence Hunt shared hit.",
+  "npcs": {
+    "Easy": [
+      2301602
+    ],
+    "Normal": [
+      2301702
+    ],
+    "Hard": [
+      2301722
+    ]
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1609030,
+      "every_ms": 30000,
+      "wind_up_ms": 4500,
+      "radius": 450,
+      "warning": "Storm of Doom: get out of the cone or be knocked down!",
+      "warning_ru": "Буря рока: уйдите из конуса, иначе будете сбиты с ног!",
+      "damage": {
+        "scale": 1.15
+      }
+    },
+    {
+      "type": "cast",
+      "skill": 1608980,
+      "every_ms": 22000,
+      "wind_up_ms": 2000,
+      "radius": 300,
+      "warning": "Griosa fires at a distant target!",
+      "warning_ru": "Гриоса стреляет по дальней цели!"
+    },
+    {
+      "type": "cast",
+      "skill": 1608990,
+      "every_ms": 21000,
+      "wind_up_ms": 1000,
+      "radius": 600
+    },
+    {
+      "type": "cast",
+      "skill": 1609000,
+      "every_ms": 30000,
+      "wind_up_ms": 2000,
+      "radius": 400,
+      "warning": "Griosa sweeps a cone and a lane!",
+      "warning_ru": "Гриоса бьёт конусом и полосой!"
+    },
+    {
+      "type": "cast",
+      "skill": 1609020,
+      "every_ms": 25000,
+      "wind_up_ms": 1800,
+      "radius": 600
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "modify",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "Kept from the compiled boss-phases.json script: 1.2x damage at 50% HP."
+    },
+    {
+      "id": "commence_hunt",
+      "when": {
+        "type": "timer",
+        "after_ms": 20000,
+        "every_ms": 60000
+      },
+      "do": [
+        {
+          "type": "mark",
+          "name": "prey",
+          "target": "victim"
+        },
+        {
+          "type": "cast",
+          "skill": 1609010,
+          "wind_up_ms": 3000,
+          "land": false,
+          "warning": "Commence Hunt: everybody stack on the marked player!",
+          "warning_ru": "Начало охоты: все встаньте к отмеченному игроку!",
+          "on_land": [
+            {
+              "type": "telegraph",
+              "id": "hunt_ring",
+              "at": "boss",
+              "shape": "donut",
+              "inner": 1800,
+              "radius": 2600,
+              "delay_ms": 0,
+              "decal": false,
+              "damage": {
+                "skill": 1609010
+              },
+              "on_hit": [
+                {
+                  "type": "debuff",
+                  "debuff": "electrocution",
+                  "target": "event",
+                  "duration_ms": 20000,
+                  "abnormal": 16089700
+                }
+              ]
+            },
+            {
+              "type": "stack",
+              "id": "hunt_share",
+              "at": "mark:prey",
+              "radius": 550,
+              "delay_ms": 800,
+              "min_players": 1,
+              "decal": false,
+              "damage": {
+                "hp_ratio": 10000,
+                "factor": [
+                  40000,
+                  40000
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "note": "Client 1609010: 3 s cast, ring 18-26 m, 2.5 s stun and a 20 s Electrocution (16089700), then a circle of 550 on the target with count-based rows (500/50/30/15/15%). Reproduced as a shared 100% hit (10000 split) on the marked player."
+    }
+  ]
+}

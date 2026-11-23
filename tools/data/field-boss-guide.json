@@ -1,0 +1,174 @@
+{
+  "source": "Public guides compiled 2026-11-23 (metabot, timesaver, allthings, aion2hub; see docs/FIELD-BOSSES.md). The NPC ids come from the client export (WorldMapFieldNamed -> NpcData, tools/data/field-boss-guide.json 'npcs' are checked against tools/data/field-bosses.json by FieldBossGuideTests). Timers and schedules are GUIDE values for the Global/EU service after the 2026-11-04 patch, not client data: the client has no respawn period (WorldMapFieldNamed.PeriodSpawnId names a server table).",
+  "confidence": {
+    "confirmed": "two or more guide sources agree, or a game-file based site (metabot) says so",
+    "likely": "one good source",
+    "guess": "our inference (marked in the entry)"
+  },
+  "server_utc_offset_hours": 9,
+  "server_utc_offset_note": "GUESS: Global shares one clock, believed to be UTC+9 (community-derived, not official). Aion:FieldBosses:ServerUtcOffsetHours overrides it.",
+  "spawn_window_minutes": 10,
+  "spawn_window_note": "LIKELY (timesaver, redwendy): after the countdown ends the boss can appear at any point in the next ~10 minutes. Added to every guide after-kill timer, at the kill.",
+  "timers": [
+    {
+      "id": "eternal_gartua",
+      "npcs": [2101074],
+      "name": "Eternal Gartua",
+      "name_ru": "Вечный Гартуа",
+      "respawn_minutes": 660,
+      "confidence": "confirmed",
+      "note": "11 h after the kill (12 h before the Global 2026-11-04 patch). Lv 51, Hero, Natura, attacks on sight. MB-x, MB-KO, TS."
+    },
+    {
+      "id": "immortal_gartua",
+      "npcs": [2400800],
+      "name": "Immortal Gartua",
+      "name_ru": "Бессмертный Гартуа",
+      "respawn_minutes": 660,
+      "confidence": "confirmed",
+      "note": "Altgard's Gartua: same drop table and (probably) the same skills (the client NpcData lists the same nine). MB-WB, MB-KO, TS."
+    },
+    {
+      "id": "high_commander_lagta",
+      "npcs": [2101131, 2400853],
+      "name": "High Commander Lagta",
+      "name_ru": "Командир легиона Лагта",
+      "respawn_minutes": 660,
+      "confidence": "confirmed",
+      "note": "11 h after the kill (Global 2026-11-04). KR history 24 h -> 12 h (2025-12-17). Lv 48. MB-x, ATH-T, RW, TS."
+    },
+    {
+      "id": "silent_dartan",
+      "npcs": [2101120, 2400855],
+      "name": "Silent Dartan",
+      "name_ru": "Безмолвный Тартан",
+      "respawn_minutes": 360,
+      "confidence": "likely",
+      "note": "6 h after the kill (ATH-T; metabot shows no timer). Lv 48. The Altgard row is NpcData M_D1_FieldBoss_BeritraD_01_001 (guide: Basfelt Ruins)."
+    },
+    {
+      "id": "soul_ruler_kashapa",
+      "npcs": [2101122, 2400854],
+      "name": "Soul Ruler Kashapa",
+      "name_ru": "Повелитель душ Кашапа",
+      "respawn_minutes": 360,
+      "confidence": "likely",
+      "note": "6 h after the kill (ATH-T). Lv 48. MB-x."
+    }
+  ],
+  "titles": [
+    {
+      "npcs": [2600068],
+      "name": "Argo, the Spirit King",
+      "name_ru": "Король духов Арго",
+      "confidence": "guess",
+      "note": "GUESS which of the two EleKing_V02 rows (…_001 / …_002, Siel's Wings archipelago) is the Spirit King and which the Executor; both are level 65 grade 2."
+    },
+    {
+      "npcs": [2600097],
+      "name": "Executor Argo",
+      "name_ru": "Палач Арго",
+      "confidence": "guess"
+    },
+    {
+      "npcs": [2600089],
+      "name": "Watcher Kaira",
+      "name_ru": "Страж Кайра",
+      "confidence": "likely",
+      "note": "Six placements in the client MapData (the guide: one of 6 random points per spawn)."
+    },
+    {
+      "npcs": [2600098],
+      "name": "Executor Kaira",
+      "name_ru": "Палач Кайра",
+      "confidence": "likely",
+      "note": "The single placement of the other BeritraD row (guide: Sulfur Tree Island)."
+    },
+    {
+      "npcs": [2600084, 2600093, 2600094],
+      "name": "Guardian Lord Nahma",
+      "name_ru": "Страж-владыка Нахма",
+      "confidence": "likely",
+      "note": "M_AR1_RR_AbBoss_01_001..003: three placements (guide: Reshanta's Root, Devastated Remnants, Black Fragments)."
+    },
+    {
+      "npcs": [2600096],
+      "name": "Executor Tamasa",
+      "name_ru": "Палач Тамаса",
+      "confidence": "guess",
+      "note": "GUESS: the one remaining level-65 Abyss named row (Radvima_01_CV02) for the third executor."
+    },
+    {
+      "npcs": [2600479, 2600480],
+      "name": "Enraged Guardian Lord Nahma",
+      "name_ru": "Разгневанный страж-владыка Нахма",
+      "confidence": "likely",
+      "note": "M_AR3_AbBoss_01_002/003, Middle Reshanta, two placements (guide: 2 spawns)."
+    },
+    {
+      "npcs": [2600521],
+      "name": "Turncoat Ducal",
+      "name_ru": "Предатель Дукаль",
+      "confidence": "confirmed",
+      "note": "The only Middle row whose client skills match the guide's game-file list: instant ranged strike (1808240), a 1.5 s skill with a 2 s abnormal (1808250) and a 2 s cast (1808270)."
+    }
+  ],
+  "schedules": [
+    {
+      "id": "watcher_kaira",
+      "npcs": [2600089],
+      "days": "daily",
+      "times": ["01:00", "04:00", "07:00", "10:00", "13:00", "16:00", "19:00", "22:00"],
+      "random_spot": true,
+      "confidence": "confirmed",
+      "note": "Global: every 3 h from 01:00 server time (MB-WB, AH, TS). KR/TW differ (every 4 h from 00:00 since 2026-09-02). One of the 6 client placements each time (MB-x, ATH-T, AH-0902)."
+    },
+    {
+      "id": "argo_spirit_king",
+      "npcs": [2600068],
+      "days": "daily",
+      "times": ["10:30", "22:30"],
+      "confidence": "confirmed",
+      "note": "Global every 12 h (MB-WB, TS). KR fixes it at 09:00/21:00 since 2026-10-28 (INV-2371)."
+    },
+    {
+      "id": "guardian_lord_nahma",
+      "npcs": [2600084, 2600093, 2600094],
+      "days": ["Friday", "Sunday"],
+      "times": ["21:00"],
+      "confidence": "confirmed",
+      "note": "Global Friday and Sunday 21:00 (MB-WB, ATH-N, TS); the three placements spawn together."
+    },
+    {
+      "id": "executors",
+      "npcs": [2600097, 2600098, 2600096],
+      "days": ["Thursday", "Saturday"],
+      "times": ["21:30"],
+      "confidence": "confirmed",
+      "note": "Global 30 minutes after the Artifact Siege (Thursday and Saturday since 2026-11-04; Monday dropped). MB-WB, TS, ATH-K. Tamasa's NPC id is a GUESS (see titles)."
+    },
+    {
+      "id": "enraged_guardian_lord_nahma",
+      "npcs": [2600479, 2600480],
+      "days": ["Friday", "Sunday"],
+      "times": ["21:00"],
+      "confidence": "confirmed",
+      "note": "Middle Reshanta, Global Friday and Sunday 21:00 (MB-WB, ATH-M)."
+    },
+    {
+      "id": "middle_reshanta_trio",
+      "npcs": [2600520, 2600521, 2600522],
+      "days": ["Monday", "Thursday", "Saturday"],
+      "times": ["21:30"],
+      "confidence": "likely",
+      "note": "Executioner Dramos, Ravager Marakha, Turncoat Ducal: Global Monday, Thursday and Saturday 21:30 (MB-WB, ATH-M; metabot's row may be outdated). Which of 2600520/2600522 is Dramos and which Marakha is unknown (no client strings), so only Ducal has a title."
+    }
+  ],
+  "gaps": [
+    "The 20 + 19 Lv 45 zone bosses have no published timer (except Melted Danar, 1 h) and the client carries no English titles to map the guide names to NpcData rows: they keep the 1.5-6 h named window.",
+    "Melted Danar (1 h after the kill) cannot be tied to an NpcData row.",
+    "Eltnen/Morheim Lv 80 bosses (2101600, 2101601, 2406990, 2406991 and the Lv 80 named rows): names and levels only, no timers.",
+    "Kaira / Argo / Nahma are not despawned if nobody kills them before the next slot (despawn time unknown); a killed boss returns at the next slot.",
+    "The kill achievements, titles and loot of the guide are not part of this file (loot tables are their own data)."
+  ]
+}

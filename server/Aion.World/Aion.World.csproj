@@ -40,6 +40,7 @@
     <EmbeddedResource Include="../../tools/data/levels.json" LogicalName="levels.json" />
     <EmbeddedResource Include="../../tools/data/resurrect.json" LogicalName="resurrect.json" />
     <EmbeddedResource Include="../../tools/data/field-bosses.json" LogicalName="field-bosses.json" />
+    <EmbeddedResource Include="../../tools/data/field-boss-guide.json" LogicalName="field-boss-guide.json" />
     <EmbeddedResource Include="../../tools/data/loot.json" LogicalName="loot.json" />
     <!-- OURS (ported from ckrealm/A2Core): generic loot and Kinah for monsters without client tables, tools/fallback_loot.py. -->
     <EmbeddedResource Include="../../tools/data/fallback-loot.json" LogicalName="fallback-loot.json" />

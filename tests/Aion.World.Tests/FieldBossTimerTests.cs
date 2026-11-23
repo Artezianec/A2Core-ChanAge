@@ -71,7 +71,7 @@ public sealed class FieldBossTimerTests : IDisposable
         Assert.Equal(85, timers.Definitions.Count);
         Assert.Equal(("boss", 1010, 2101120, "M_L1_FieldBoss_Dragon_01_1"), (timers.ByCode[Dartan].Kind, timers.ByCode[Dartan].MapId, timers.ByCode[Dartan].NpcId, timers.ByCode[Dartan].Name));
         Assert.Equal("named", timers.ByCode[Neikel].Kind);
-        Assert.Equal((FieldBossTimers.BossMinMinutes, FieldBossTimers.BossMaxMinutes), timers.Range(Dartan));
+        Assert.Equal((360, 360), timers.Range(Dartan));   // the guide's 6 h (GuideTimers); the generic window with it off
         Assert.Equal((FieldBossTimers.NamedMinMinutes, FieldBossTimers.NamedMaxMinutes), timers.Range(Neikel));
         Assert.Equal(Kashapa, timers.ByNpcAndMap[(1010, 2101122)].Code);
         var map = new SharedWorld(GameData.Embedded) { Clock = () => Now }.Map(1010);
@@ -205,6 +205,8 @@ public sealed class FieldBossTimerTests : IDisposable
         FieldBosses.Configure(new FieldBossOptions { RespawnMinutesByName = new() { ["Dragon"] = 45 } });
         var timers = new FieldBossTimers(GameData.Embedded);
         Assert.Equal((45, 45), timers.Range(Dartan));
+        Assert.Equal((360, 360), timers.Range(Kashapa));   // the guide's 6 h
+        FieldBosses.Configure(new FieldBossOptions { GuideTimers = false });
         Assert.Equal((FieldBossTimers.BossMinMinutes, FieldBossTimers.BossMaxMinutes), timers.Range(Kashapa));
     }
 }

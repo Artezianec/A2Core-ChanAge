@@ -79,6 +79,8 @@ Aion.World.GameSession.ConfigureCombatTelegraphs(
 // Open-world field bosses (docs/FIELD-BOSSES.md): Aion:FieldBosses (Enabled, Boss/Named respawn windows, RespawnMinutesByName,
 // Announcements, SharedLoot). Official CANDIDATE ranges by default (named 1.5-6 h, bosses 6-12 h).
 Aion.World.FieldBosses.Configure(builder.Configuration.GetSection("Aion:FieldBosses").Get<Aion.World.FieldBossOptions>() ?? Aion.World.FieldBossOptions.Default);
+Aion.World.AbyssRiftZone.Configure(builder.Configuration.GetSection("Aion:AbyssRiftZone").Get<Aion.World.AbyssRiftZoneOptions>() ?? Aion.World.AbyssRiftZoneOptions.Default);
+Aion.World.GameSession.FieldEventSettings = builder.Configuration.GetSection("Aion:FieldEvents").Get<Aion.World.FieldEventOptions>() ?? Aion.World.FieldEventOptions.Default;
 // Aion:Stigmas (docs/STIGMAS.md): off by default; Enabled, Slots, ShardRate, MaxLevel, ResetKinah, RequireSlot, ShardUpdateSendsSpent.
 Aion.World.GameSession.ConfigureStigmas(builder.Configuration.GetSection("Aion:Stigmas").Get<Aion.World.StigmaOptions>() ?? Aion.World.StigmaOptions.Default);
 // Base rates (OURS; from ckrealm/A2Core): Aion:Rates (Profile official|accelerated, Experience, Kinah, Drop, QuestExperience).

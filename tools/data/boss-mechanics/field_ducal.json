@@ -1,0 +1,28 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "field_ducal",
+  "display": "Turncoat Ducal",
+  "display_ru": "Предатель Дукаль",
+  "dungeon": "FieldBoss",
+  "source": "client NpcData 2600521 skills (1808250 cast 1.5 s with a 2 s abnormal, 1808270 cast 2 s) = the guide's game-file list: Smite Ground 1.5 s knockdown 2 s, Greatsword Plunge 2 s (MB-x turncoat-ducal). The client cooldowns are all 1000 ms (the AI picks), so the intervals are GUESSES.",
+  "note": "Middle Reshanta, Mon/Thu/Sat 21:30 (field-boss-guide.json). Sword Aura Blast (1808240, instant, ranged) stays an ordinary special.",
+  "npcs": {
+    "Normal": [2600521]
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1808250,
+      "every_ms": 12000,
+      "warning": "Ducal raises his blade for Smite Ground: it knocks down for 2 s!",
+      "warning_ru": "Дукаль замахивается для Удара по земле: сбивает с ног на 2 с!"
+    },
+    {
+      "type": "cast",
+      "skill": 1808270,
+      "every_ms": 20000,
+      "warning": "Ducal leaps with the Greatsword Plunge: leave the marked area!",
+      "warning_ru": "Дукаль прыгает с Падением двуручного меча: выйдите из отмеченной зоны!"
+    }
+  ]
+}

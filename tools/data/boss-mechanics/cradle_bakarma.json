@@ -1,0 +1,452 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "cradle_bakarma",
+  "display": "Afflicted Bakarma",
+  "display_ru": "Бакарма",
+  "dungeon": "CradleNihility",
+  "source": "official client data (NpcData / Skill / SkillAbnormal exports, npc-behavior-cases barks); mechanics from the research notes, GUESS values are labelled",
+  "note": "Final boss of the Cradle of Nihility: pizza sweeps (cast pair 1804240/41), line share, area restriction, Collapsing Cradle ring, enrage.",
+  "npcs": {
+    "Easy": [
+      2301301
+    ],
+    "Normal": [
+      2311301
+    ],
+    "Hard": [
+      2321301
+    ]
+  },
+  "vars": {
+    "frenzy_ms": 300000
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1804240,
+      "every_ms": 40000,
+      "wind_up_ms": 4000,
+      "radius": 550,
+      "warning": "Pizza sweep: find the safe wedge behind him!",
+      "warning_ru": "Веерный удар: найдите безопасный сектор за его спиной!",
+      "damage": {
+        "scale": 1.2
+      },
+      "during": [
+        {
+          "type": "move",
+          "to": "arena_centre"
+        }
+      ]
+    },
+    {
+      "type": "cast",
+      "skill": 1804241,
+      "every_ms": 45000,
+      "wind_up_ms": 4000,
+      "radius": 550,
+      "warning": "Reverse pizza sweep: the safe wedge turned!",
+      "warning_ru": "Обратный веерный удар: безопасный сектор сместился!",
+      "during": [
+        {
+          "type": "move",
+          "to": "arena_centre"
+        }
+      ]
+    },
+    {
+      "type": "cast",
+      "skill": 1804220,
+      "every_ms": 35000,
+      "wind_up_ms": 1030,
+      "radius": 300,
+      "warning": "Bakarma strikes twice: tanks swap!",
+      "warning_ru": "Бакарма бьёт дважды: смена танка!"
+    },
+    {
+      "type": "cast",
+      "skill": 1804250,
+      "every_ms": 15000,
+      "wind_up_ms": 970,
+      "radius": 800
+    },
+    {
+      "type": "cast",
+      "skill": 1804260,
+      "every_ms": 24000,
+      "wind_up_ms": 1000,
+      "radius": 700,
+      "warning": "Bakarma sweeps the front: get behind him!",
+      "warning_ru": "Бакарма бьёт перед собой: зайдите за спину!"
+    },
+    {
+      "type": "cast",
+      "skill": 1804270,
+      "every_ms": 18000,
+      "wind_up_ms": 1000,
+      "radius": 300
+    },
+    {
+      "type": "cast",
+      "skill": 1804271,
+      "every_ms": 21000,
+      "wind_up_ms": 1000,
+      "radius": 300
+    },
+    {
+      "type": "cast",
+      "skill": 1804280,
+      "every_ms": 30000,
+      "wind_up_ms": 1170,
+      "radius": 400,
+      "warning": "Bakarma thrusts a lane: step aside!",
+      "warning_ru": "Бакарма бьёт полосой: отойдите!"
+    },
+    {
+      "type": "cast",
+      "skill": 1804212,
+      "every_ms": 25000,
+      "wind_up_ms": 900,
+      "radius": 400,
+      "warning": "Bakarma slams the ground: leave the circle!",
+      "warning_ru": "Бакарма бьёт по земле: выйдите из круга!"
+    },
+    {
+      "type": "cast",
+      "skill": 1804350,
+      "every_ms": 40000,
+      "wind_up_ms": 3630,
+      "radius": 600,
+      "warning": "Collapsing Cradle: stay close to Bakarma!",
+      "warning_ru": "Рушащаяся колыбель: оставайтесь рядом с Бакармой!"
+    },
+    {
+      "type": "cast",
+      "skill": 1804290,
+      "every_ms": 30000,
+      "wind_up_ms": 1000,
+      "radius": 400
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "modify",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "Kept from the compiled boss-phases.json script: 1.2x damage at 50% HP."
+    },
+    {
+      "id": "line_share",
+      "when": {
+        "type": "timer",
+        "after_ms": 25000,
+        "every_ms": 50000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_CradleNihility_Bakarma_02"
+        },
+        {
+          "type": "mark",
+          "name": "tank",
+          "target": "victim"
+        },
+        {
+          "type": "cast",
+          "skill": 1804210,
+          "wind_up_ms": 1800,
+          "land": false,
+          "warning": "Line share: everybody into the lane behind the tank!",
+          "warning_ru": "Общий урон по линии: все встаньте в полосу за танком!",
+          "during": [
+            {
+              "type": "decal",
+              "skill": 1804210,
+              "at": "mark:tank",
+              "duration_ms": 1800
+            }
+          ],
+          "on_land": [
+            {
+              "type": "stack",
+              "id": "line_share_hit",
+              "at": "mark:tank",
+              "radius": 350,
+              "delay_ms": 0,
+              "min_players": 1,
+              "decal": false,
+              "damage": {
+                "hp_ratio": 15000,
+                "factor": [
+                  40000,
+                  40000
+                ]
+              }
+            },
+            {
+              "type": "telegraph",
+              "id": "line_ring",
+              "at": "mark:tank",
+              "shape": "circle",
+              "radius": 600,
+              "invert": true,
+              "decal": false,
+              "delay_ms": 600,
+              "damage": {
+                "lethal": true
+              }
+            }
+          ]
+        }
+      ],
+      "note": "Client rows of 1804210: 500% max HP for one target and 75/50/30/30% for 2/3/4/5: reproduced by a shared 150% hit split between everyone in the lane (15000 split). The lane is a circle of 350 at the aggro holder, not a rectangle; the lethal ring outside radius 600 is the research's 'outer ring detonates at wipe level' and its radius is a GUESS.",
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ]
+    },
+    {
+      "id": "line_share_easy",
+      "when": {
+        "type": "timer",
+        "after_ms": 25000,
+        "every_ms": 50000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_CradleNihility_Easy_NPC_24"
+        },
+        {
+          "type": "mark",
+          "name": "tank",
+          "target": "victim"
+        },
+        {
+          "type": "cast",
+          "skill": 1804210,
+          "wind_up_ms": 1800,
+          "land": false,
+          "warning": "Line share: everybody into the lane behind the tank!",
+          "warning_ru": "Общий урон по линии: все встаньте в полосу за танком!",
+          "during": [
+            {
+              "type": "decal",
+              "skill": 1804210,
+              "at": "mark:tank",
+              "duration_ms": 1800
+            }
+          ],
+          "on_land": [
+            {
+              "type": "stack",
+              "id": "line_share_hit",
+              "at": "mark:tank",
+              "radius": 350,
+              "delay_ms": 0,
+              "min_players": 1,
+              "decal": false,
+              "damage": {
+                "hp_ratio": 15000,
+                "factor": [
+                  40000,
+                  40000
+                ]
+              }
+            },
+            {
+              "type": "telegraph",
+              "id": "line_ring",
+              "at": "mark:tank",
+              "shape": "circle",
+              "radius": 600,
+              "invert": true,
+              "decal": false,
+              "delay_ms": 600,
+              "damage": {
+                "lethal": true
+              }
+            }
+          ]
+        }
+      ],
+      "note": "Client rows of 1804210: 500% max HP for one target and 75/50/30/30% for 2/3/4/5: reproduced by a shared 150% hit split between everyone in the lane (15000 split). The lane is a circle of 350 at the aggro holder, not a rectangle; the lethal ring outside radius 600 is the research's 'outer ring detonates at wipe level' and its radius is a GUESS.",
+      "difficulty": [
+        "Easy"
+      ]
+    },
+    {
+      "id": "area_restriction",
+      "when": {
+        "type": "timer",
+        "after_ms": 45000,
+        "every_ms": 90000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_CradleNihility_Bakarma_05"
+        },
+        {
+          "type": "mark",
+          "name": "locked",
+          "target": "victim"
+        },
+        {
+          "type": "cast",
+          "skill": 1804300,
+          "wind_up_ms": 1300,
+          "land": false,
+          "warning": "Area restriction: stay inside the circle, then scatter!",
+          "warning_ru": "Ограничение области: оставайтесь в круге, затем разбегайтесь!",
+          "on_land": [
+            {
+              "type": "zone",
+              "id": "restriction",
+              "at": "mark:locked",
+              "shape": "circle",
+              "radius": 800,
+              "invert": true,
+              "duration_ms": 12000,
+              "tick_ms": 1000,
+              "damage": {
+                "fixed": [
+                  4000,
+                  6000
+                ]
+              },
+              "decal": true,
+              "skill": 1804300
+            },
+            {
+              "type": "stack",
+              "id": "restriction_end",
+              "at": "mark:locked",
+              "radius": 800,
+              "delay_ms": 12000,
+              "min_players": 1,
+              "decal": false,
+              "damage": {
+                "hp_ratio": 20000,
+                "factor": [
+                  40000,
+                  40000
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "note": "Client 1804300: circle 800 on the aggro holder with count-based rows (500/500/150/80/40% for 1-5 targets). Reproduced approximately with a shared 200% hit at the end (20000 split), so the party must scatter; the 12 s duration and the 4000-6000 outside DoT are GUESSES.",
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ]
+    },
+    {
+      "id": "area_restriction_easy",
+      "when": {
+        "type": "timer",
+        "after_ms": 45000,
+        "every_ms": 90000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_CradleNihility_Easy_NPC_27"
+        },
+        {
+          "type": "mark",
+          "name": "locked",
+          "target": "victim"
+        },
+        {
+          "type": "cast",
+          "skill": 1804300,
+          "wind_up_ms": 1300,
+          "land": false,
+          "warning": "Area restriction: stay inside the circle, then scatter!",
+          "warning_ru": "Ограничение области: оставайтесь в круге, затем разбегайтесь!",
+          "on_land": [
+            {
+              "type": "zone",
+              "id": "restriction",
+              "at": "mark:locked",
+              "shape": "circle",
+              "radius": 800,
+              "invert": true,
+              "duration_ms": 12000,
+              "tick_ms": 1000,
+              "damage": {
+                "fixed": [
+                  4000,
+                  6000
+                ]
+              },
+              "decal": true,
+              "skill": 1804300
+            },
+            {
+              "type": "stack",
+              "id": "restriction_end",
+              "at": "mark:locked",
+              "radius": 800,
+              "delay_ms": 12000,
+              "min_players": 1,
+              "decal": false,
+              "damage": {
+                "hp_ratio": 20000,
+                "factor": [
+                  40000,
+                  40000
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "note": "Client 1804300: circle 800 on the aggro holder with count-based rows (500/500/150/80/40% for 1-5 targets). Reproduced approximately with a shared 200% hit at the end (20000 split), so the party must scatter; the 12 s duration and the 4000-6000 outside DoT are GUESSES.",
+      "difficulty": [
+        "Easy"
+      ]
+    },
+    {
+      "id": "frenzy",
+      "when": {
+        "type": "enrage_timer",
+        "after_ms": "$frenzy_ms"
+      },
+      "do": [
+        {
+          "type": "enrage",
+          "damage_mul": 3.0,
+          "haste_mul": 0.5,
+          "text": "Enrage! The boss moves and strikes twice as fast and hits three times as hard!",
+          "text_ru": "Берсерк! Босс двигается вдвое быстрее и бьёт втрое сильнее!"
+        }
+      ],
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ],
+      "note": "Client NpcData: bUseBossBerserk, BossBerserkInvokeTime 300 s on Normal and Hard, none on Exploration; abnormal 10000008 = +100% move/cast/combat speed and AmplifyAllDamage +20000 (x3). 240 s on Hard is the official patch value for six older expeditions; this dungeon is not in that notice, so client data (300 s) stands."
+    }
+  ],
+  "difficulty": {
+    "Easy": {
+      "rules_remove": [
+        "frenzy"
+      ],
+      "note": "Exploration: no enrage (client NpcData bUseBossBerserk is false)."
+    }
+  }
+}

@@ -1,0 +1,216 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "azure_xyrepe",
+  "display": "Expanding Xyrepe",
+  "display_ru": "Ксирепе",
+  "dungeon": "BlueBreathIsle",
+  "source": "official client data (NpcData / Skill / SkillAbnormal exports, npc-behavior-cases barks); mechanics from the research notes, GUESS values are labelled",
+  "note": "Second boss of Azure Breath Island: client rotation, poison mushroom pools.",
+  "npcs": {
+    "Easy": [
+      2300190
+    ],
+    "Normal": [
+      2300230
+    ],
+    "Hard": [
+      2300245
+    ]
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1607960,
+      "every_ms": 30000,
+      "wind_up_ms": 1500,
+      "radius": 1050,
+      "warning": "Expanding Xyrepe gathers power: get out of reach!",
+      "warning_ru": "Расширяющийся Ксирепе собирает силу: отойдите подальше!",
+      "damage": {
+        "scale": 1.4
+      }
+    },
+    {
+      "type": "cast",
+      "skill": 1608000,
+      "every_ms": 30000,
+      "wind_up_ms": 670,
+      "radius": 600,
+      "warning": "Xyrepe slams rings: stand between them!",
+      "warning_ru": "Ксирепе бьёт кольцами: встаньте между ними!"
+    },
+    {
+      "type": "cast",
+      "skill": 1608010,
+      "every_ms": 20000,
+      "wind_up_ms": 1330,
+      "radius": 300
+    },
+    {
+      "type": "cast",
+      "skill": 1608020,
+      "every_ms": 22000,
+      "wind_up_ms": 1330,
+      "radius": 300
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "modify",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "Kept from the compiled boss-phases.json script: 1.2x damage at 50% HP."
+    },
+    {
+      "id": "spore_pools",
+      "when": {
+        "type": "timer",
+        "after_ms": 18000,
+        "every_ms": 55000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_BlueBreathIsle_Easy_NPC_24"
+        },
+        {
+          "type": "cast",
+          "skill": 1607970,
+          "wind_up_ms": 1400,
+          "land": false,
+          "warning": "Xyrepe spawns poison mushrooms: do not stand in the pools!",
+          "warning_ru": "Ксирепе выращивает ядовитые грибы: не стойте в лужах!",
+          "on_land": [
+            {
+              "type": "repeat",
+              "every_ms": 600,
+              "count": 4,
+              "do": [
+                {
+                  "type": "zone",
+                  "at": "random_player",
+                  "shape": "circle",
+                  "radius": 600,
+                  "duration_ms": 20000,
+                  "tick_ms": 1000,
+                  "damage": {
+                    "fixed": [
+                      2500,
+                      3500
+                    ]
+                  },
+                  "decal": false
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "note": "Skill03 / Skill07 spawn hidden mushrooms (2920965-68, no templates). The poison pools they leave are zones under random players (radius 600, 2500-3500 per second, 20 s) - all GUESSES. Skill01 (1607950) is the floor-poison immunity abnormal (16079501) the client gives friendlies within 50 m; players have no way to get it yet.",
+      "difficulty": [
+        "Easy"
+      ]
+    },
+    {
+      "id": "spore_pools_normal_hard",
+      "when": {
+        "type": "timer",
+        "after_ms": 18000,
+        "every_ms": 55000
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_BlueBreathIsle_ToxFungus_02"
+        },
+        {
+          "type": "cast",
+          "skill": 1607970,
+          "wind_up_ms": 1400,
+          "land": false,
+          "warning": "Xyrepe spawns poison mushrooms: do not stand in the pools!",
+          "warning_ru": "Ксирепе выращивает ядовитые грибы: не стойте в лужах!",
+          "on_land": [
+            {
+              "type": "repeat",
+              "every_ms": 600,
+              "count": 4,
+              "do": [
+                {
+                  "type": "zone",
+                  "at": "random_player",
+                  "shape": "circle",
+                  "radius": 600,
+                  "duration_ms": 20000,
+                  "tick_ms": 1000,
+                  "damage": {
+                    "fixed": [
+                      2500,
+                      3500
+                    ]
+                  },
+                  "decal": false
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "note": "Skill03 / Skill07 spawn hidden mushrooms (2920965-68, no templates). The poison pools they leave are zones under random players (radius 600, 2500-3500 per second, 20 s) - all GUESSES. Skill01 (1607950) is the floor-poison immunity abnormal (16079501) the client gives friendlies within 50 m; players have no way to get it yet.",
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ]
+    },
+    {
+      "id": "mushrooms_b",
+      "when": {
+        "type": "timer",
+        "after_ms": 40000,
+        "every_ms": 30000
+      },
+      "do": [
+        {
+          "type": "cast",
+          "skill": 1608030,
+          "wind_up_ms": 1500,
+          "land": false,
+          "warning": "More mushrooms sprout!",
+          "warning_ru": "Вырастают новые грибы!",
+          "on_land": [
+            {
+              "type": "repeat",
+              "every_ms": 600,
+              "count": 4,
+              "do": [
+                {
+                  "type": "zone",
+                  "at": "random_player",
+                  "shape": "circle",
+                  "radius": 600,
+                  "duration_ms": 20000,
+                  "tick_ms": 1000,
+                  "damage": {
+                    "fixed": [
+                      2500,
+                      3500
+                    ]
+                  },
+                  "decal": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

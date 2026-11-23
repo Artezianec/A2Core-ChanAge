@@ -57,6 +57,8 @@ public sealed partial class GameSession
         if (!bossRules.Waves || !RunsMapEvents || targets is null) return;
         var names = targets.Values.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var client = ClientWaves.Embedded;
+        // A wave part may be an environment-object spawner (the Beritra defence's supply boxes), not only an NPC spawn.
+        var objectNames = WorldObjects.ObjectsOn(worldMap).Select(o => o.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var waveNames = new HashSet<string>(MapEventData.Waves(worldMap), StringComparer.OrdinalIgnoreCase);
         foreach (var wave in client.NamesOnMap(worldMap)) waveNames.Add(wave);
         foreach (var wave in waveNames)
@@ -66,7 +68,7 @@ public sealed partial class GameSession
             var parts = names.Select(n => (Name: n, Match: part.Match(n))).Where(x => x.Match.Success)
                 .OrderBy(x => int.Parse(x.Match.Groups[1].Value, CultureInfo.InvariantCulture)).Select(x => x.Name).ToList();
             if (parts.Count == 0 && client.TryGetParts(worldMap, wave, out var stepParts))
-                parts = stepParts.Where(names.Contains).ToList();
+                parts = stepParts.Where(n => names.Contains(n) || objectNames.Contains(n)).ToList();
             if (parts.Count == 0) continue;
             waveParts[wave] = parts;
             dormantSpawners.UnionWith(parts);

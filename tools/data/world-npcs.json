@@ -1307256,6 +1307256,2131 @@
       "rotate_max": 30,
       "sub_type": "NormalCitizen",
       "grade": 3
+    },
+    "2670006": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 150.0,
+      "run_speed": 500.0,
+      "radius": 50,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1236710,
+        1236720,
+        1236730,
+        1236740,
+        1236750
+      ],
+      "height": 300,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670007": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 150.0,
+      "run_speed": 1000.0,
+      "radius": 100,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1238120,
+        1238130,
+        1238135,
+        1238140,
+        1238150,
+        1238160
+      ],
+      "height": 280,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670008": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 200.0,
+      "run_speed": 800.0,
+      "radius": 50,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1237380,
+        1237390,
+        1237400,
+        1237410,
+        1237420,
+        1237430,
+        1237440
+      ],
+      "height": 300,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670009": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 100.0,
+      "run_speed": 700.0,
+      "radius": 100,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1238340,
+        1238350,
+        1238360,
+        1238370,
+        1238380
+      ],
+      "height": 400,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670010": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 195.0,
+      "run_speed": 910.0,
+      "radius": 100,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1238950,
+        1238960,
+        1238970,
+        1238980,
+        1238990
+      ],
+      "height": 300,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670011": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 172.0,
+      "run_speed": 460.0,
+      "radius": 149,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1502430,
+        1502440,
+        1502450,
+        1502460,
+        1502470
+      ],
+      "height": 356,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670012": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 120.0,
+      "run_speed": 480.0,
+      "radius": 96,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1502250,
+        1502260,
+        1502270,
+        1502280,
+        1502290
+      ],
+      "height": 336,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670013": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 120.0,
+      "run_speed": 480.0,
+      "radius": 96,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1502250,
+        1502260,
+        1502270,
+        1502280,
+        1502290
+      ],
+      "height": 336,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670016": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 100.0,
+      "run_speed": 700.0,
+      "radius": 100,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1238340,
+        1238350,
+        1238360,
+        1238370,
+        1238380
+      ],
+      "height": 400,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670017": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 200.0,
+      "run_speed": 800.0,
+      "radius": 50,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1237380,
+        1237390,
+        1237400,
+        1237410,
+        1237420,
+        1237430,
+        1237440
+      ],
+      "height": 300,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670018": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 150.0,
+      "run_speed": 1000.0,
+      "radius": 100,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1238120,
+        1238130,
+        1238135,
+        1238140,
+        1238150,
+        1238160
+      ],
+      "height": 280,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670020": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 100,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1235220,
+        1235230,
+        1235240,
+        1235250,
+        1235260,
+        1235270
+      ],
+      "height": 400,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670021": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 230.0,
+      "run_speed": 700.0,
+      "radius": 100,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1232710,
+        1232720,
+        1232730,
+        1232740,
+        1232750,
+        1232760,
+        1232770,
+        1232780,
+        1232790
+      ],
+      "height": 350,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670024": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 200.0,
+      "run_speed": 700.0,
+      "radius": 100,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1237740,
+        1237750,
+        1237760,
+        1237770,
+        1237780
+      ],
+      "height": 400,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670027": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 177.0,
+      "run_speed": 1062.0,
+      "radius": 115,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1502900,
+        1502910,
+        1502920,
+        1502930,
+        1502940,
+        1502950,
+        1502960
+      ],
+      "height": 330,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670028": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 130.0,
+      "run_speed": 650.0,
+      "radius": 130,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1502300,
+        1502310,
+        1502320,
+        1502330,
+        1502340,
+        1502350
+      ],
+      "height": 455,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670031": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 200.0,
+      "run_speed": 600.0,
+      "radius": 60,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1241470,
+        1241480,
+        1241490,
+        1241500,
+        1241510,
+        1241520,
+        1241505
+      ],
+      "height": 270,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670032": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 200.0,
+      "run_speed": 600.0,
+      "radius": 60,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1241470,
+        1241480,
+        1241490,
+        1241500,
+        1241510,
+        1241520,
+        1241505
+      ],
+      "height": 270,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670034": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 170.0,
+      "run_speed": 650.0,
+      "radius": 120,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1502860,
+        1502870,
+        1502880,
+        1502890
+      ],
+      "height": 350,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670035": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 130.0,
+      "run_speed": 650.0,
+      "radius": 130,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1502300,
+        1502310,
+        1502320,
+        1502330,
+        1502340,
+        1502350
+      ],
+      "height": 455,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670042": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 220.0,
+      "run_speed": 517.0,
+      "radius": 300,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1807240,
+        1807250,
+        1807260,
+        1807270,
+        1807280,
+        1807290,
+        1807300,
+        1807320,
+        1807330
+      ],
+      "height": 1000,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 5
+    },
+    "2670045": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 360.0,
+      "run_speed": 1450.0,
+      "radius": 220,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1244290,
+        1244300,
+        1244310,
+        1244320,
+        1244330,
+        1244340,
+        1244350
+      ],
+      "height": 650,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 5
+    },
+    "2670047": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 80.0,
+      "run_speed": 560.0,
+      "radius": 56,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1241780,
+        1241790,
+        1241810,
+        1241820,
+        1241830,
+        1241800
+      ],
+      "height": 208,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670048": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 200.0,
+      "run_speed": 600.0,
+      "radius": 60,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1238730,
+        1238740,
+        1238750,
+        1238760,
+        1238770,
+        1238775,
+        1238780
+      ],
+      "height": 270,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670050": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 270.0,
+      "run_speed": 630.0,
+      "radius": 100,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1217900,
+        1217910,
+        1217920,
+        1217930,
+        1217940,
+        1217950,
+        1217960
+      ],
+      "height": 400,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670051": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 200.0,
+      "run_speed": 600.0,
+      "radius": 60,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1238730,
+        1238740,
+        1238750,
+        1238760,
+        1238770,
+        1238775,
+        1238780
+      ],
+      "height": 270,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670060": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 260.0,
+      "run_speed": 500.0,
+      "radius": 200,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1807340,
+        1807350,
+        1807360,
+        1807370,
+        1807380,
+        1807390,
+        1807400,
+        1807410
+      ],
+      "height": 600,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 5
+    },
+    "2670061": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 415.0,
+      "run_speed": 1040.0,
+      "radius": 150,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Both"
+      },
+      "skills": [
+        1244690,
+        1244700,
+        1244710,
+        1244720,
+        1244730,
+        1244740,
+        1244741,
+        1244750
+      ],
+      "height": 500,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 5
+    },
+    "2670066": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 600.0,
+      "run_speed": 2200.0,
+      "radius": 110,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1608800,
+        1608810,
+        1608820,
+        1608830,
+        1608840,
+        1608850,
+        1608860,
+        1608870
+      ],
+      "height": 500,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 6
+    },
+    "2670067": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 320.0,
+      "run_speed": 960.0,
+      "radius": 280,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1244490,
+        1244500,
+        1244510,
+        1244520,
+        1244530,
+        1244540,
+        1244550,
+        1244531
+      ],
+      "height": 1000,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 6
+    },
+    "2670072": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 200.0,
+      "run_speed": 800.0,
+      "radius": 50,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1237380,
+        1237390,
+        1237400,
+        1237410,
+        1237420,
+        1237430,
+        1237440
+      ],
+      "height": 300,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670073": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 150.0,
+      "run_speed": 1000.0,
+      "radius": 100,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1238120,
+        1238130,
+        1238135,
+        1238140,
+        1238150,
+        1238160
+      ],
+      "height": 280,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670075": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 80.0,
+      "run_speed": 560.0,
+      "radius": 56,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1241780,
+        1241790,
+        1241810,
+        1241820,
+        1241830,
+        1241800
+      ],
+      "height": 208,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670076": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 100,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1235220,
+        1235230,
+        1235240,
+        1235250,
+        1235260,
+        1235270
+      ],
+      "height": 400,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670077": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 100,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1235220,
+        1235230,
+        1235240,
+        1235250,
+        1235260,
+        1235270
+      ],
+      "height": 400,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670078": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 80.0,
+      "run_speed": 560.0,
+      "radius": 56,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1241780,
+        1241790,
+        1241810,
+        1241820,
+        1241830,
+        1241800
+      ],
+      "height": 208,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670080": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 150.0,
+      "run_speed": 1000.0,
+      "radius": 100,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1238120,
+        1238130,
+        1238135,
+        1238140,
+        1238150,
+        1238160
+      ],
+      "height": 280,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670083": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 172.0,
+      "run_speed": 460.0,
+      "radius": 149,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1502430,
+        1502440,
+        1502450,
+        1502460,
+        1502470
+      ],
+      "height": 356,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670084": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 120.0,
+      "run_speed": 480.0,
+      "radius": 96,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1502250,
+        1502260,
+        1502270,
+        1502280,
+        1502290
+      ],
+      "height": 336,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670086": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 300.0,
+      "run_speed": 700.0,
+      "radius": 150,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "Circle",
+        "radius": 1000,
+        "angle": 0,
+        "inner": 0,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1608380,
+        1608390,
+        1608400,
+        1608410,
+        1608420,
+        1608430,
+        1608440,
+        1608450,
+        1608460,
+        1608470,
+        1608480
+      ],
+      "height": 600,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 5
+    },
+    "2670087": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 500.0,
+      "run_speed": 1100.0,
+      "radius": 250,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1244220,
+        1244230,
+        1244240,
+        1244250,
+        1244260,
+        1244270,
+        1244280,
+        1244225
+      ],
+      "height": 1000,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 5
+    },
+    "2670088": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 220.0,
+      "run_speed": 517.0,
+      "radius": 300,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1807240,
+        1807250,
+        1807260,
+        1807270,
+        1807280,
+        1807290,
+        1807300,
+        1807320,
+        1807330
+      ],
+      "height": 1000,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 5
+    },
+    "2670089": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 414.0,
+      "run_speed": 1080.0,
+      "radius": 144,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1244360,
+        1244400,
+        1244380,
+        1244390,
+        1244410
+      ],
+      "height": 540,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 5
+    },
+    "2670090": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 504.0,
+      "run_speed": 1548.0,
+      "radius": 144,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1244160,
+        1244170,
+        1244180,
+        1244190,
+        1244200,
+        1244210
+      ],
+      "height": 740,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 5
+    },
+    "2670092": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 300.0,
+      "run_speed": 700.0,
+      "radius": 150,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "Circle",
+        "radius": 1000,
+        "angle": 0,
+        "inner": 0,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1608380,
+        1608390,
+        1608400,
+        1608410,
+        1608420,
+        1608430,
+        1608440,
+        1608450,
+        1608460,
+        1608470,
+        1608480
+      ],
+      "height": 600,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 5
+    },
+    "2670096": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 150.0,
+      "run_speed": 580.0,
+      "radius": 85,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1225240,
+        1225260,
+        1225250,
+        1225270,
+        1225280
+      ],
+      "height": 250,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670097": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 160.0,
+      "run_speed": 600.0,
+      "radius": 70,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1218940,
+        1218960,
+        1218960,
+        1218970,
+        1218980,
+        1218990,
+        1219000
+      ],
+      "height": 250,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670098": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 320.0,
+      "run_speed": 1280.0,
+      "radius": 140,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1502140,
+        1502150,
+        1502160,
+        1502170,
+        1502180,
+        1502190
+      ],
+      "height": 300,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670099": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 120.0,
+      "run_speed": 480.0,
+      "radius": 60,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1503040,
+        1503050,
+        1503060,
+        1503070,
+        1503080
+      ],
+      "height": 230,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670100": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 156.0,
+      "run_speed": 390.0,
+      "radius": 169,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1502480,
+        1502490,
+        1502510,
+        1502520,
+        1502530,
+        1502540
+      ],
+      "height": 416,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670101": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 156.0,
+      "run_speed": 390.0,
+      "radius": 169,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1502480,
+        1502490,
+        1502510,
+        1502520,
+        1502530,
+        1502540
+      ],
+      "height": 416,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670102": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 120.0,
+      "run_speed": 480.0,
+      "radius": 60,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1503040,
+        1503050,
+        1503060,
+        1503070,
+        1503080
+      ],
+      "height": 230,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670104": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 160.0,
+      "run_speed": 600.0,
+      "radius": 70,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1218940,
+        1218960,
+        1218960,
+        1218970,
+        1218980,
+        1218990,
+        1219000
+      ],
+      "height": 250,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670105": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 150.0,
+      "run_speed": 580.0,
+      "radius": 85,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1225240,
+        1225260,
+        1225250,
+        1225270,
+        1225280
+      ],
+      "height": 250,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 4
+    },
+    "2670108": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 220.0,
+      "run_speed": 517.0,
+      "radius": 300,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1807240,
+        1807250,
+        1807260,
+        1807270,
+        1807280,
+        1807290,
+        1807300,
+        1807320,
+        1807330
+      ],
+      "height": 1000,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 5
+    },
+    "2670109": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 420.0,
+      "run_speed": 1560.0,
+      "radius": 80,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1608890,
+        1608900,
+        1608910,
+        1608920,
+        1608930,
+        1608940,
+        1608950,
+        1608960
+      ],
+      "height": 450,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 5
+    },
+    "2670110": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 420.0,
+      "run_speed": 1560.0,
+      "radius": 80,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1608890,
+        1608900,
+        1608910,
+        1608920,
+        1608930,
+        1608940,
+        1608950,
+        1608960
+      ],
+      "height": 450,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 5
+    },
+    "2670111": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 225.0,
+      "run_speed": 750.0,
+      "radius": 225,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1608690,
+        1608700,
+        1608710,
+        1608720,
+        1608740,
+        1608750,
+        1608760,
+        1608790
+      ],
+      "height": 750,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 5
+    },
+    "2670113": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 260.0,
+      "run_speed": 780.0,
+      "radius": 130,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1807880,
+        1807890,
+        1807900,
+        1807910,
+        1807920,
+        1807930,
+        1807940,
+        1807950,
+        1807960,
+        1807970,
+        1807980,
+        1807990,
+        1808000,
+        1808010
+      ],
+      "height": 600,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 6
+    },
+    "2670114": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 260.0,
+      "run_speed": 1820.0,
+      "radius": 100,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1807620,
+        1807630,
+        1807640,
+        1807650,
+        1807660,
+        1807670,
+        1807680,
+        1807690,
+        1807700,
+        1807710,
+        1807720,
+        1807730
+      ],
+      "height": 500,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 6
+    },
+    "2670115": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 300.0,
+      "run_speed": 800.0,
+      "radius": 600,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "Circle",
+        "radius": 1000,
+        "angle": 0,
+        "inner": 0,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1608250,
+        1608260,
+        1608270,
+        1608280,
+        1608290,
+        1608300,
+        1608310,
+        1608320,
+        1608330,
+        1608340,
+        1608350,
+        1608370,
+        1608301,
+        1608323
+      ],
+      "height": 1000,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 6
+    },
+    "2670116": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 300.0,
+      "run_speed": 800.0,
+      "radius": 600,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "Circle",
+        "radius": 1000,
+        "angle": 0,
+        "inner": 0,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1608250,
+        1608260,
+        1608270,
+        1608280,
+        1608290,
+        1608300,
+        1608310,
+        1608320,
+        1608330,
+        1608340,
+        1608350,
+        1608370,
+        1608301,
+        1608323
+      ],
+      "height": 1000,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 6
+    },
+    "2670117": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 260.0,
+      "run_speed": 1820.0,
+      "radius": 100,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1807620,
+        1807630,
+        1807640,
+        1807650,
+        1807660,
+        1807670,
+        1807680,
+        1807690,
+        1807700,
+        1807710,
+        1807720,
+        1807730
+      ],
+      "height": 500,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 6
+    },
+    "2670118": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 260.0,
+      "run_speed": 780.0,
+      "radius": 130,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1807880,
+        1807890,
+        1807900,
+        1807910,
+        1807920,
+        1807930,
+        1807940,
+        1807950,
+        1807960,
+        1807970,
+        1807980,
+        1807990,
+        1808000,
+        1808010
+      ],
+      "height": 600,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 6
     }
   },
   "npc_skills": {
@@ -1342403,6 +1344528,1383 @@
       "effect": 0,
       "damage_min": 0,
       "damage_max": 0
+    },
+    "1225240": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 122524011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1225250": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 8000,
+      "cast": 1500,
+      "effect": 122525011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1225260": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 8000,
+      "cast": 0,
+      "effect": 122526011,
+      "damage_min": 11000,
+      "damage_max": 13000
+    },
+    "1225270": {
+      "range": 300.0,
+      "follow": 150.0,
+      "cooldown": 8000,
+      "cast": 1500,
+      "effect": 122527011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1225280": {
+      "range": 300.0,
+      "follow": 150.0,
+      "cooldown": 12000,
+      "cast": 1500,
+      "effect": 122528011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1237380": {
+      "range": 300.0,
+      "follow": 100.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 123738011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1237390": {
+      "range": 1000.0,
+      "follow": 900.0,
+      "cooldown": 11000,
+      "cast": 1500,
+      "effect": 123739011,
+      "damage_min": 13500,
+      "damage_max": 16500
+    },
+    "1237400": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 123740011,
+      "damage_min": 13500,
+      "damage_max": 16500
+    },
+    "1237410": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 123741011,
+      "damage_min": 16500,
+      "damage_max": 19000
+    },
+    "1237420": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 12000,
+      "cast": 1500,
+      "effect": 123742011,
+      "damage_min": 13500,
+      "damage_max": 16500
+    },
+    "1237430": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 15000,
+      "cast": 1500,
+      "effect": 123743011,
+      "damage_min": 16500,
+      "damage_max": 19000
+    },
+    "1237440": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 25000,
+      "cast": 1500,
+      "effect": 123744011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1241470": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 124147011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1241480": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 8000,
+      "cast": 900,
+      "effect": 124148011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1241490": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 8000,
+      "cast": 1000,
+      "effect": 0,
+      "damage_min": 0,
+      "damage_max": 0
+    },
+    "1241500": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 8000,
+      "cast": 0,
+      "effect": 0,
+      "damage_min": 0,
+      "damage_max": 0
+    },
+    "1241505": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 8000,
+      "cast": 0,
+      "effect": 0,
+      "damage_min": 0,
+      "damage_max": 0
+    },
+    "1241510": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 8000,
+      "cast": 400,
+      "effect": 124151011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1241520": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 8000,
+      "cast": 1000,
+      "effect": 124152011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1244160": {
+      "range": 250.0,
+      "follow": 150.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 124416011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1244170": {
+      "range": 200.0,
+      "follow": 150.0,
+      "cooldown": 1000,
+      "cast": 1450,
+      "effect": 124417011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244180": {
+      "range": 2000.0,
+      "follow": 2000.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 124418011,
+      "damage_min": 11000,
+      "damage_max": 13000
+    },
+    "1244190": {
+      "range": 350.0,
+      "follow": 250.0,
+      "cooldown": 1000,
+      "cast": 1000,
+      "effect": 124419011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244200": {
+      "range": 2000.0,
+      "follow": 2000.0,
+      "cooldown": 1000,
+      "cast": 1000,
+      "effect": 124420011,
+      "damage_min": 13500,
+      "damage_max": 16500
+    },
+    "1244210": {
+      "range": 2000.0,
+      "follow": 2000.0,
+      "cooldown": 1000,
+      "cast": 1000,
+      "effect": 124421021,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244220": {
+      "range": 500.0,
+      "follow": 400.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 124422011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1244225": {
+      "range": 3000.0,
+      "follow": 2900.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 124422511,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1244230": {
+      "range": 600.0,
+      "follow": 500.0,
+      "cooldown": 15000,
+      "cast": 1300,
+      "effect": 124423011,
+      "damage_min": 13500,
+      "damage_max": 16500
+    },
+    "1244240": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 20000,
+      "cast": 1100,
+      "effect": 124424011,
+      "damage_min": 11000,
+      "damage_max": 13000
+    },
+    "1244250": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 20000,
+      "cast": 700,
+      "effect": 124425021,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244260": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 20000,
+      "cast": 1300,
+      "effect": 124426011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244270": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 40000,
+      "cast": 3500,
+      "effect": 124427011,
+      "damage_min": 24000,
+      "damage_max": 26000
+    },
+    "1244280": {
+      "range": 800.0,
+      "follow": 700.0,
+      "cooldown": 20000,
+      "cast": 1000,
+      "effect": 124428011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244290": {
+      "range": 500.0,
+      "follow": 400.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 124429011,
+      "damage_min": 11000,
+      "damage_max": 13000
+    },
+    "1244300": {
+      "range": 900.0,
+      "follow": 800.0,
+      "cooldown": 9000,
+      "cast": 1500,
+      "effect": 124430011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244310": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 14000,
+      "cast": 0,
+      "effect": 124431011,
+      "damage_min": 14000,
+      "damage_max": 16000
+    },
+    "1244320": {
+      "range": 700.0,
+      "follow": 600.0,
+      "cooldown": 18000,
+      "cast": 1500,
+      "effect": 124432011,
+      "damage_min": 25500,
+      "damage_max": 28500
+    },
+    "1244330": {
+      "range": 1300.0,
+      "follow": 1200.0,
+      "cooldown": 22000,
+      "cast": 1333,
+      "effect": 124433011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244340": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 8000,
+      "cast": 1170,
+      "effect": 124434021,
+      "damage_min": 14000,
+      "damage_max": 16000
+    },
+    "1244350": {
+      "range": 700.0,
+      "follow": 600.0,
+      "cooldown": 25000,
+      "cast": 1500,
+      "effect": 124435011,
+      "damage_min": 18000,
+      "damage_max": 19500
+    },
+    "1244360": {
+      "range": 100.0,
+      "follow": 60.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 124436011,
+      "damage_min": 14000,
+      "damage_max": 16000
+    },
+    "1244380": {
+      "range": 1500.0,
+      "follow": 1400.0,
+      "cooldown": 3000,
+      "cast": 0,
+      "effect": 124438011,
+      "damage_min": 15000,
+      "damage_max": 18000
+    },
+    "1244390": {
+      "range": 300.0,
+      "follow": 250.0,
+      "cooldown": 30000,
+      "cast": 1500,
+      "effect": 124439011,
+      "damage_min": 13500,
+      "damage_max": 16500
+    },
+    "1244400": {
+      "range": 400.0,
+      "follow": 300.0,
+      "cooldown": 30000,
+      "cast": 2000,
+      "effect": 124440011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244410": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 30000,
+      "cast": 2000,
+      "effect": 124441021,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244490": {
+      "range": 1200.0,
+      "follow": 1000.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 124449011,
+      "damage_min": 11000,
+      "damage_max": 13000
+    },
+    "1244500": {
+      "range": 1200.0,
+      "follow": 1000.0,
+      "cooldown": 13000,
+      "cast": 1167,
+      "effect": 124450011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244510": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 8000,
+      "cast": 1000,
+      "effect": 124451011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244520": {
+      "range": 1200.0,
+      "follow": 1000.0,
+      "cooldown": 21000,
+      "cast": 1500,
+      "effect": 124452011,
+      "damage_min": 42000,
+      "damage_max": 46500
+    },
+    "1244530": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 12000,
+      "cast": 1000,
+      "effect": 124453011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244531": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 1000,
+      "cast": 1000,
+      "effect": 124453011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244540": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 8000,
+      "cast": 1333,
+      "effect": 124454021,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244550": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 20000,
+      "cast": 1333,
+      "effect": 124455011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244690": {
+      "range": 100.0,
+      "follow": 50.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 124469011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1244700": {
+      "range": 150.0,
+      "follow": 100.0,
+      "cooldown": 11000,
+      "cast": 830,
+      "effect": 124470011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244710": {
+      "range": 1500.0,
+      "follow": 1400.0,
+      "cooldown": 9000,
+      "cast": 0,
+      "effect": 124471011,
+      "damage_min": 11000,
+      "damage_max": 13000
+    },
+    "1244720": {
+      "range": 150.0,
+      "follow": 100.0,
+      "cooldown": 15000,
+      "cast": 500,
+      "effect": 124472011,
+      "damage_min": 13500,
+      "damage_max": 16500
+    },
+    "1244730": {
+      "range": 200.0,
+      "follow": 150.0,
+      "cooldown": 20000,
+      "cast": 770,
+      "effect": 124473011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244740": {
+      "range": 200.0,
+      "follow": 150.0,
+      "cooldown": 25000,
+      "cast": 1500,
+      "effect": 124474011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244741": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 124474011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1244750": {
+      "range": 5000.0,
+      "follow": 5000.0,
+      "cooldown": 18000,
+      "cast": 1300,
+      "effect": 124475021,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1608250": {
+      "range": 600.0,
+      "follow": 500.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 160825011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1608260": {
+      "range": 1600.0,
+      "follow": 1500.0,
+      "cooldown": 18000,
+      "cast": 1500,
+      "effect": 160826011,
+      "damage_min": 15000,
+      "damage_max": 17000
+    },
+    "1608270": {
+      "range": 1600.0,
+      "follow": 1500.0,
+      "cooldown": 18000,
+      "cast": 1500,
+      "effect": 160826011,
+      "damage_min": 15000,
+      "damage_max": 17000
+    },
+    "1608280": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 25000,
+      "cast": 1650,
+      "effect": 160828011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1608290": {
+      "range": 1500.0,
+      "follow": 1400.0,
+      "cooldown": 30000,
+      "cast": 1650,
+      "effect": 160829011,
+      "damage_min": 15000,
+      "damage_max": 17000
+    },
+    "1608300": {
+      "range": 2600.0,
+      "follow": 2500.0,
+      "cooldown": 5000,
+      "cast": 2000,
+      "effect": 160830011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1608301": {
+      "range": 2600.0,
+      "follow": 2500.0,
+      "cooldown": 5000,
+      "cast": 2000,
+      "effect": 160830011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1608310": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 48000,
+      "cast": 2150,
+      "effect": 160831011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1608320": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 45000,
+      "cast": 1650,
+      "effect": 160832111,
+      "damage_min": 15000,
+      "damage_max": 17000
+    },
+    "1608323": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 1000,
+      "cast": 1650,
+      "effect": 160832111,
+      "damage_min": 15000,
+      "damage_max": 17000
+    },
+    "1608330": {
+      "range": 2600.0,
+      "follow": 2500.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 160833011,
+      "damage_min": 15000,
+      "damage_max": 17000
+    },
+    "1608340": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 60000,
+      "cast": 1750,
+      "effect": 0,
+      "damage_min": 0,
+      "damage_max": 0
+    },
+    "1608350": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 60000,
+      "cast": 1750,
+      "effect": 0,
+      "damage_min": 0,
+      "damage_max": 0
+    },
+    "1608370": {
+      "range": 3000.0,
+      "follow": 2900.0,
+      "cooldown": 50000,
+      "cast": 1700,
+      "effect": 160837011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1608380": {
+      "range": 300.0,
+      "follow": 200.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 160838011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1608390": {
+      "range": 300.0,
+      "follow": 200.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 160839011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1608400": {
+      "range": 1000.0,
+      "follow": 900.0,
+      "cooldown": 12000,
+      "cast": 1200,
+      "effect": 160840011,
+      "damage_min": 19000,
+      "damage_max": 21000
+    },
+    "1608410": {
+      "range": 9000.0,
+      "follow": 9000.0,
+      "cooldown": 30000,
+      "cast": 2100,
+      "effect": 0,
+      "damage_min": 0,
+      "damage_max": 0
+    },
+    "1608420": {
+      "range": 1500.0,
+      "follow": 1400.0,
+      "cooldown": 15000,
+      "cast": 1300,
+      "effect": 160842011,
+      "damage_min": 19000,
+      "damage_max": 21000
+    },
+    "1608430": {
+      "range": 9000.0,
+      "follow": 9000.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 160843011,
+      "damage_min": 19000,
+      "damage_max": 21000
+    },
+    "1608440": {
+      "range": 9000.0,
+      "follow": 9000.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 160843011,
+      "damage_min": 19000,
+      "damage_max": 21000
+    },
+    "1608450": {
+      "range": 2100.0,
+      "follow": 2000.0,
+      "cooldown": 25000,
+      "cast": 2500,
+      "effect": 160845011,
+      "damage_min": 13500,
+      "damage_max": 16500
+    },
+    "1608460": {
+      "range": 4000.0,
+      "follow": 4000.0,
+      "cooldown": 20000,
+      "cast": 1000,
+      "effect": 160846021,
+      "damage_min": 13500,
+      "damage_max": 16500
+    },
+    "1608470": {
+      "range": 2100.0,
+      "follow": 2000.0,
+      "cooldown": 20000,
+      "cast": 1000,
+      "effect": 160846021,
+      "damage_min": 13500,
+      "damage_max": 16500
+    },
+    "1608480": {
+      "range": 9000.0,
+      "follow": 9000.0,
+      "cooldown": 45000,
+      "cast": 0,
+      "effect": 0,
+      "damage_min": 0,
+      "damage_max": 0
+    },
+    "1608690": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 160869011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1608700": {
+      "range": 4000.0,
+      "follow": 4000.0,
+      "cooldown": 30000,
+      "cast": 1350,
+      "effect": 160870021,
+      "damage_min": 10000,
+      "damage_max": 12000
+    },
+    "1608710": {
+      "range": 4000.0,
+      "follow": 4000.0,
+      "cooldown": 1000,
+      "cast": 1350,
+      "effect": 0,
+      "damage_min": 0,
+      "damage_max": 0
+    },
+    "1608720": {
+      "range": 8000.0,
+      "follow": 8000.0,
+      "cooldown": 9000,
+      "cast": 1250,
+      "effect": 0,
+      "damage_min": 0,
+      "damage_max": 0
+    },
+    "1608740": {
+      "range": 300.0,
+      "follow": 250.0,
+      "cooldown": 18000,
+      "cast": 1700,
+      "effect": 160874011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1608750": {
+      "range": 1800.0,
+      "follow": 1700.0,
+      "cooldown": 15000,
+      "cast": 1500,
+      "effect": 160875011,
+      "damage_min": 40000,
+      "damage_max": 45000
+    },
+    "1608760": {
+      "range": 2600.0,
+      "follow": 2500.0,
+      "cooldown": 22000,
+      "cast": 1000,
+      "effect": 0,
+      "damage_min": 0,
+      "damage_max": 0
+    },
+    "1608790": {
+      "range": 450.0,
+      "follow": 400.0,
+      "cooldown": 16000,
+      "cast": 1200,
+      "effect": 160879011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1608800": {
+      "range": 150.0,
+      "follow": 100.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 160880011,
+      "damage_min": 11000,
+      "damage_max": 13000
+    },
+    "1608810": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 160881011,
+      "damage_min": 11000,
+      "damage_max": 13000
+    },
+    "1608820": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 25000,
+      "cast": 1500,
+      "effect": 160882011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1608830": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 16000,
+      "cast": 1500,
+      "effect": 160883011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1608840": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 18000,
+      "cast": 2500,
+      "effect": 160884011,
+      "damage_min": 16500,
+      "damage_max": 18500
+    },
+    "1608850": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 14000,
+      "cast": 2300,
+      "effect": 0,
+      "damage_min": 0,
+      "damage_max": 0
+    },
+    "1608860": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 10000,
+      "cast": 2000,
+      "effect": 160886011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1608870": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 15000,
+      "cast": 1700,
+      "effect": 160887021,
+      "damage_min": 16500,
+      "damage_max": 18500
+    },
+    "1608890": {
+      "range": 150.0,
+      "follow": 100.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 160889011,
+      "damage_min": 11000,
+      "damage_max": 13000
+    },
+    "1608900": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 160890011,
+      "damage_min": 11000,
+      "damage_max": 13000
+    },
+    "1608910": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 25000,
+      "cast": 1500,
+      "effect": 160891011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1608920": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 16000,
+      "cast": 1500,
+      "effect": 160892011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1608930": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 18000,
+      "cast": 2500,
+      "effect": 160893011,
+      "damage_min": 16500,
+      "damage_max": 18500
+    },
+    "1608940": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 14000,
+      "cast": 2300,
+      "effect": 0,
+      "damage_min": 0,
+      "damage_max": 0
+    },
+    "1608950": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 10000,
+      "cast": 2000,
+      "effect": 160895011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1608960": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 15000,
+      "cast": 1700,
+      "effect": 160896021,
+      "damage_min": 16500,
+      "damage_max": 18500
+    },
+    "1807240": {
+      "range": 3000.0,
+      "follow": 2900.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 180724011,
+      "damage_min": 13000,
+      "damage_max": 15000
+    },
+    "1807250": {
+      "range": 500.0,
+      "follow": 400.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 180725011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1807260": {
+      "range": 700.0,
+      "follow": 600.0,
+      "cooldown": 9000,
+      "cast": 1600,
+      "effect": 180726011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1807270": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 9000,
+      "cast": 1600,
+      "effect": 180727011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1807280": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 25000,
+      "cast": 1500,
+      "effect": 180728011,
+      "damage_min": 21000,
+      "damage_max": 23000
+    },
+    "1807290": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 12000,
+      "cast": 2100,
+      "effect": 180729011,
+      "damage_min": 12000,
+      "damage_max": 14000
+    },
+    "1807300": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 1000,
+      "cast": 2000,
+      "effect": 0,
+      "damage_min": 0,
+      "damage_max": 0
+    },
+    "1807320": {
+      "range": 2500.0,
+      "follow": 2400.0,
+      "cooldown": 30000,
+      "cast": 1300,
+      "effect": 180732021,
+      "damage_min": 21000,
+      "damage_max": 23000
+    },
+    "1807330": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 18000,
+      "cast": 2000,
+      "effect": 180733011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1807340": {
+      "range": 300.0,
+      "follow": 200.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 180734011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1807350": {
+      "range": 250.0,
+      "follow": 200.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 180735011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1807360": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 1000,
+      "cast": 1270,
+      "effect": 180736011,
+      "damage_min": 19000,
+      "damage_max": 21000
+    },
+    "1807370": {
+      "range": 1500.0,
+      "follow": 1400.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 180737011,
+      "damage_min": 10000,
+      "damage_max": 15000
+    },
+    "1807380": {
+      "range": 600.0,
+      "follow": 500.0,
+      "cooldown": 1000,
+      "cast": 1500,
+      "effect": 180738011,
+      "damage_min": 19000,
+      "damage_max": 21000
+    },
+    "1807390": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 1000,
+      "cast": 3000,
+      "effect": 180739011,
+      "damage_min": 19000,
+      "damage_max": 21000
+    },
+    "1807400": {
+      "range": 2100.0,
+      "follow": 2000.0,
+      "cooldown": 1000,
+      "cast": 2000,
+      "effect": 180740011,
+      "damage_min": 19000,
+      "damage_max": 21000
+    },
+    "1807410": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 1000,
+      "cast": 1470,
+      "effect": 180741021,
+      "damage_min": 19000,
+      "damage_max": 21000
+    },
+    "1807620": {
+      "range": 150.0,
+      "follow": 100.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 180762011,
+      "damage_min": 11000,
+      "damage_max": 13000
+    },
+    "1807630": {
+      "range": 150.0,
+      "follow": 100.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 180763011,
+      "damage_min": 11000,
+      "damage_max": 13000
+    },
+    "1807640": {
+      "range": 150.0,
+      "follow": 100.0,
+      "cooldown": 16000,
+      "cast": 1500,
+      "effect": 180764011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1807650": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 20000,
+      "cast": 1000,
+      "effect": 180765011,
+      "damage_min": 16500,
+      "damage_max": 18500
+    },
+    "1807660": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 12000,
+      "cast": 1500,
+      "effect": 180766011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1807670": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 0,
+      "cast": 0,
+      "effect": 180767011,
+      "damage_min": 23000,
+      "damage_max": 27000
+    },
+    "1807680": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 0,
+      "cast": 0,
+      "effect": 180768011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1807690": {
+      "range": 600.0,
+      "follow": 500.0,
+      "cooldown": 15000,
+      "cast": 1500,
+      "effect": 180769011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1807700": {
+      "range": 600.0,
+      "follow": 500.0,
+      "cooldown": 15000,
+      "cast": 1500,
+      "effect": 180770011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1807710": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 25000,
+      "cast": 1000,
+      "effect": 180771011,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1807720": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 18000,
+      "cast": 1000,
+      "effect": 180772021,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1807730": {
+      "range": 5000.0,
+      "follow": 5000.0,
+      "cooldown": 25000,
+      "cast": 4000,
+      "effect": 180773031,
+      "damage_min": 20000,
+      "damage_max": 22000
+    },
+    "1807880": {
+      "range": 150.0,
+      "follow": 100.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 180788011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1807890": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 1000,
+      "cast": 0,
+      "effect": 180789011,
+      "damage_min": 9000,
+      "damage_max": 11000
+    },
+    "1807900": {
+      "range": 200.0,
+      "follow": 150.0,
+      "cooldown": 15000,
+      "cast": 1430,
+      "effect": 180790011,
+      "damage_min": 23000,
+      "damage_max": 27000
+    },
+    "1807910": {
+      "range": 200.0,
+      "follow": 150.0,
+      "cooldown": 15000,
+      "cast": 1500,
+      "effect": 180791011,
+      "damage_min": 23000,
+      "damage_max": 27000
+    },
+    "1807920": {
+      "range": 2000.0,
+      "follow": 1900.0,
+      "cooldown": 8000,
+      "cast": 0,
+      "effect": 180792011,
+      "damage_min": 11000,
+      "damage_max": 13000
+    },
+    "1807930": {
+      "range": 200.0,
+      "follow": 150.0,
+      "cooldown": 8000,
+      "cast": 1000,
+      "effect": 180793011,
+      "damage_min": 14000,
+      "damage_max": 16000
+    },
+    "1807940": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 8000,
+      "cast": 0,
+      "effect": 180794011,
+      "damage_min": 14000,
+      "damage_max": 16000
+    },
+    "1807950": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 8000,
+      "cast": 0,
+      "effect": 180795011,
+      "damage_min": 14000,
+      "damage_max": 16000
+    },
+    "1807960": {
+      "range": 700.0,
+      "follow": 600.0,
+      "cooldown": 15000,
+      "cast": 1470,
+      "effect": 180796011,
+      "damage_min": 23000,
+      "damage_max": 27000
+    },
+    "1807970": {
+      "range": 200.0,
+      "follow": 150.0,
+      "cooldown": 15000,
+      "cast": 1470,
+      "effect": 180797011,
+      "damage_min": 23000,
+      "damage_max": 27000
+    },
+    "1807980": {
+      "range": 300.0,
+      "follow": 250.0,
+      "cooldown": 15000,
+      "cast": 1370,
+      "effect": 180798011,
+      "damage_min": 23000,
+      "damage_max": 27000
+    },
+    "1807990": {
+      "range": 450.0,
+      "follow": 400.0,
+      "cooldown": 15000,
+      "cast": 1370,
+      "effect": 180799011,
+      "damage_min": 23000,
+      "damage_max": 27000
+    },
+    "1808000": {
+      "range": 550.0,
+      "follow": 500.0,
+      "cooldown": 15000,
+      "cast": 1400,
+      "effect": 180800011,
+      "damage_min": 23000,
+      "damage_max": 27000
+    },
+    "1808010": {
+      "range": 0.0,
+      "follow": 0.0,
+      "cooldown": 15000,
+      "cast": 1000,
+      "effect": 180801021,
+      "damage_min": 20000,
+      "damage_max": 22000
     }
   },
   "skill_hits": {
@@ -1399590,6 +1403092,2386 @@
       },
       {
         "effect": 180693041,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807360": [
+      {
+        "effect": 180736011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180736021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180736031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244160": [
+      {
+        "effect": 124416011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124416021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124416031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807880": [
+      {
+        "effect": 180788011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180788021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180788031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807370": [
+      {
+        "effect": 180737011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180737021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180737031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244170": [
+      {
+        "effect": 124417011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124417021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124417031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244690": [
+      {
+        "effect": 124469011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124469021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124469031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807890": [
+      {
+        "effect": 180789011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180789021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180789031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807380": [
+      {
+        "effect": 180738011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180738021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180738031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244180": [
+      {
+        "effect": 124418011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124418021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124418031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1225240": [
+      {
+        "effect": 122524011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 122524021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 122524031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244700": [
+      {
+        "effect": 124470011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124470021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124470031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807900": [
+      {
+        "effect": 180790011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180790021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180790031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244190": [
+      {
+        "effect": 124419011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124419021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124419031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807390": [
+      {
+        "effect": 180739011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180739021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180739031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1225250": [
+      {
+        "effect": 122525011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 122525021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 122525031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608740": [
+      {
+        "effect": 160874011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160874021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160874031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244710": [
+      {
+        "effect": 124471011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124471021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124471031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807910": [
+      {
+        "effect": 180791011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180791021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180791031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807400": [
+      {
+        "effect": 180740011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180740021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180740031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244200": [
+      {
+        "effect": 124420011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124420021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124420031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1225260": [
+      {
+        "effect": 122526011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 122526021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 122526031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608750": [
+      {
+        "effect": 160875011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160875021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160875031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244720": [
+      {
+        "effect": 124472011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124472021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124472031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807920": [
+      {
+        "effect": 180792011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180792021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180792031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807410": [
+      {
+        "effect": 180741021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180741031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180741041,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244210": [
+      {
+        "effect": 124421021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124421031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124421041,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1225270": [
+      {
+        "effect": 122527011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 122527021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 122527031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244730": [
+      {
+        "effect": 124473011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124473021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124473031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807930": [
+      {
+        "effect": 180793011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180793021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180793031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244220": [
+      {
+        "effect": 124422011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124422021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124422031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608250": [
+      {
+        "effect": 160825011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160825021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160825031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1225280": [
+      {
+        "effect": 122528011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 122528021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 122528031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244225": [
+      {
+        "effect": 124422511,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124422521,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124422531,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244740": [
+      {
+        "effect": 124474011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124474021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124474031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244741": [
+      {
+        "effect": 124474011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124474021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124474031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244230": [
+      {
+        "effect": 124423011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124423021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124423031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807940": [
+      {
+        "effect": 180794011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180794021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180794031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608260": [
+      {
+        "effect": 160826011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160826021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160826031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244750": [
+      {
+        "effect": 124475021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124475031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124475041,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807950": [
+      {
+        "effect": 180795011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180795021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180795031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244240": [
+      {
+        "effect": 124424011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124424021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124424031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608270": [
+      {
+        "effect": 160826011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160826021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160826031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608790": [
+      {
+        "effect": 160879011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160879021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160879031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807960": [
+      {
+        "effect": 180796011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180796021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180796031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608280": [
+      {
+        "effect": 160828011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160828021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160828031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244250": [
+      {
+        "effect": 124425021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124425031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124425041,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608800": [
+      {
+        "effect": 160880011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160880021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160880031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807970": [
+      {
+        "effect": 180797011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180797021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180797031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608290": [
+      {
+        "effect": 160829011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160829021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160829031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244260": [
+      {
+        "effect": 124426011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124426021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124426031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608810": [
+      {
+        "effect": 160881011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160881021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160881031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807980": [
+      {
+        "effect": 180798011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180798021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180798031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608300": [
+      {
+        "effect": 160830011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160830021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160830031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244270": [
+      {
+        "effect": 124427011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124427021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124427031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608301": [
+      {
+        "effect": 160830011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160830021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160830031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608820": [
+      {
+        "effect": 160882011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160882021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160882031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807990": [
+      {
+        "effect": 180799011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180799021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180799031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608310": [
+      {
+        "effect": 160831011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160831021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160831031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244280": [
+      {
+        "effect": 124428011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124428021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124428031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608830": [
+      {
+        "effect": 160883011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160883021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160883031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1808000": [
+      {
+        "effect": 180800011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180800021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180800031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608320": [
+      {
+        "effect": 160832111,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160832121,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160832131,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244290": [
+      {
+        "effect": 124429011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124429021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124429031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608323": [
+      {
+        "effect": 160832111,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160832121,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160832131,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608840": [
+      {
+        "effect": 160884011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160884021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160884031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1808010": [
+      {
+        "effect": 180801021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180801031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180801041,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608330": [
+      {
+        "effect": 160833011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160833021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160833031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244300": [
+      {
+        "effect": 124430011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124430021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124430031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244310": [
+      {
+        "effect": 124431011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124431021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124431031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608860": [
+      {
+        "effect": 160886011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160886021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160886031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244320": [
+      {
+        "effect": 124432011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124432021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124432031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608870": [
+      {
+        "effect": 160887021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160887031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160887041,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244330": [
+      {
+        "effect": 124433011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124433021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124433031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608370": [
+      {
+        "effect": 160837011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160837021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160837031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244340": [
+      {
+        "effect": 124434021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124434031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124434041,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608890": [
+      {
+        "effect": 160889011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160889021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160889031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608380": [
+      {
+        "effect": 160838011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160838021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160838031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244350": [
+      {
+        "effect": 124435011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124435021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124435031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608900": [
+      {
+        "effect": 160890011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160890021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160890031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608390": [
+      {
+        "effect": 160839011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160839021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160839031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244360": [
+      {
+        "effect": 124436011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124436021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124436031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608910": [
+      {
+        "effect": 160891011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160891021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160891031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608400": [
+      {
+        "effect": 160840011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160840021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160840031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608920": [
+      {
+        "effect": 160892011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160892021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160892031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244380": [
+      {
+        "effect": 124438011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124438021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124438031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608930": [
+      {
+        "effect": 160893011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160893021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160893031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608420": [
+      {
+        "effect": 160842011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160842021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160842031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244390": [
+      {
+        "effect": 124439011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124439021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124439031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608430": [
+      {
+        "effect": 160843011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160843021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160843031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244400": [
+      {
+        "effect": 124440011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124440021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124440031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608950": [
+      {
+        "effect": 160895011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160895021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160895031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608440": [
+      {
+        "effect": 160843011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160843021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160843031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244410": [
+      {
+        "effect": 124441021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124441031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124441041,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608960": [
+      {
+        "effect": 160896021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160896031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160896041,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608450": [
+      {
+        "effect": 160845011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160845021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160845031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807620": [
+      {
+        "effect": 180762011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180762021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180762031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608460": [
+      {
+        "effect": 160846021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160846031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160846041,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807630": [
+      {
+        "effect": 180763011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180763021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180763031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608470": [
+      {
+        "effect": 160846021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160846031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160846041,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807640": [
+      {
+        "effect": 180764011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180764021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180764031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807650": [
+      {
+        "effect": 180765011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180765021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180765031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807660": [
+      {
+        "effect": 180766011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180766021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180766031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807670": [
+      {
+        "effect": 180767011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180767021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180767031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807680": [
+      {
+        "effect": 180768011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180768021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180768031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244490": [
+      {
+        "effect": 124449011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124449021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124449031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807690": [
+      {
+        "effect": 180769011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180769021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180769031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244500": [
+      {
+        "effect": 124450011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124450021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124450031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807700": [
+      {
+        "effect": 180770011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180770021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180770031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244510": [
+      {
+        "effect": 124451011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124451021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124451031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807710": [
+      {
+        "effect": 180771011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180771021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180771031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244520": [
+      {
+        "effect": 124452011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124452021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124452031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807720": [
+      {
+        "effect": 180772021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180772031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180772041,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244530": [
+      {
+        "effect": 124453011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124453021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124453031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244531": [
+      {
+        "effect": 124453011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124453021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124453031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807730": [
+      {
+        "effect": 180773031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180773041,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180773051,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244540": [
+      {
+        "effect": 124454021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124454031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124454041,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1241470": [
+      {
+        "effect": 124147011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124147021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124147031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1237380": [
+      {
+        "effect": 123738011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 123738021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 123738031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1244550": [
+      {
+        "effect": 124455011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124455021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124455031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1241480": [
+      {
+        "effect": 124148011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124148021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124148031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807240": [
+      {
+        "effect": 180724011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180724021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180724031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1237390": [
+      {
+        "effect": 123739011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 123739021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 123739031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807250": [
+      {
+        "effect": 180725011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180725021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180725031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1237400": [
+      {
+        "effect": 123740011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 123740021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 123740031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807260": [
+      {
+        "effect": 180726011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180726021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180726031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1237410": [
+      {
+        "effect": 123741011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 123741021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 123741031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1241510": [
+      {
+        "effect": 124151011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124151021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124151031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807270": [
+      {
+        "effect": 180727011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180727021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180727031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1237420": [
+      {
+        "effect": 123742011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 123742021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 123742031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1241520": [
+      {
+        "effect": 124152011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124152021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 124152031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807280": [
+      {
+        "effect": 180728011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180728021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180728031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1237430": [
+      {
+        "effect": 123743011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 123743021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 123743031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807290": [
+      {
+        "effect": 180729011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180729021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180729031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1237440": [
+      {
+        "effect": 123744011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 123744021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 123744031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807320": [
+      {
+        "effect": 180732021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180732031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180732041,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807330": [
+      {
+        "effect": 180733011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180733021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180733031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807340": [
+      {
+        "effect": 180734011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180734021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180734031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608690": [
+      {
+        "effect": 160869011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160869021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160869031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1807350": [
+      {
+        "effect": 180735011,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180735021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 180735031,
+        "projectile_id": 0,
+        "groggy": 0
+      }
+    ],
+    "1608700": [
+      {
+        "effect": 160870021,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160870031,
+        "projectile_id": 0,
+        "groggy": 0
+      },
+      {
+        "effect": 160870041,
         "projectile_id": 0,
         "groggy": 0
       }

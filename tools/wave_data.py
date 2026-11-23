@@ -28,6 +28,7 @@ from data_json import write_data_json
 
 MAP_EVENTS = ROOT / 'tools/data/map-events.json'
 WORLD_NPCS = ROOT / 'tools/data/world-npcs.json'
+WORLD_OBJECTS = ROOT / 'tools/data/world-objects.json'
 BOSS_PHASES = ROOT / 'tools/data/boss-phases.json'
 OUT = ROOT / 'tools/data/client-waves.json'
 DAILY_OUT = ROOT / 'tools/data/daily-waves.json'
@@ -63,13 +64,15 @@ def wave_meta() -> dict[str, dict]:
     return meta
 
 
-def spawn_names_on_map(world: dict, map_id: int) -> set[str]:
+def spawn_names_on_map(world: dict, map_id: int, objects: dict | None = None) -> set[str]:
+    """Spawner names of a map: its NPC spawns and (objects) its environment-object spawners (a wave part may be a supply box)."""
     rows = world.get('maps', {}).get(str(map_id), [])
-    if not rows:
-        return set()
-    if isinstance(rows[0], dict):
-        return {r['name'] for r in rows}
-    return {r[0] for r in rows}
+    names: set[str] = set()
+    if rows:
+        names = {r['name'] for r in rows} if isinstance(rows[0], dict) else {r[0] for r in rows}
+    if objects:
+        names |= {o['name'] for o in objects.get('maps', {}).get(str(map_id), {}).get('objects', []) if o.get('name')}
+    return names
 
 
 def scan_map_event_waves(events: dict, served: set[int]) -> dict[int, set[str]]:
@@ -124,6 +127,7 @@ def build() -> dict:
     meta = wave_meta()
     me = load_json(MAP_EVENTS)
     world = load_json(WORLD_NPCS)
+    objects = load_json(WORLD_OBJECTS)
     bp = load_json(BOSS_PHASES)
     served = set(me.get('served_maps') or [])
     refs = scan_map_event_waves(me.get('events', {}), served)
@@ -141,7 +145,7 @@ def build() -> dict:
     }
 
     for mid in sorted(refs):
-        names = spawn_names_on_map(world, mid)
+        names = spawn_names_on_map(world, mid, objects)
         map_waves: dict[str, list[str]] = {}
         for wave in sorted(refs[mid], key=str.lower):
             coverage['wave_references'] += 1

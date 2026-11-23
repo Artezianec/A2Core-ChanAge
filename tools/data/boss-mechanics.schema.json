@@ -87,11 +87,12 @@
     "damage": {
       "type": "object",
       "additionalProperties": false,
-      "description": "skill: Skill.dat damage of that skill (NPC formula). factor: [min,max] in 1/10000 of the NPC fixing damage. fixed: flat [min,max] (no defense). lethal: kills.",
+      "description": "skill: Skill.dat damage of that skill (NPC formula). factor: [min,max] in 1/10000 of the NPC fixing damage. fixed: flat [min,max] (no defense). hp_ratio: share of the victim's max HP in 1/10000 (client MaxHPRatio). lethal: kills.",
       "properties": {
         "skill": { "type": "integer" },
         "factor": { "$ref": "#/$defs/range" },
         "fixed": { "$ref": "#/$defs/range" },
+        "hp_ratio": { "$ref": "#/$defs/num" },
         "scale": { "$ref": "#/$defs/num" },
         "lethal": { "type": "boolean" },
         "ignore_defense": { "type": "boolean" }

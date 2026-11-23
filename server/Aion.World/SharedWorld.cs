@@ -75,6 +75,9 @@ public sealed class SharedWorld(GameData data)
     /// <summary>Parties, invitations, trades and duels (use under the gate).</summary>
     public SocialState Social { get; } = new();
 
+    /// <summary>The scheduled Abyss Rift Zone event: runs per group, their monsters on the map (docs/ABYSS-RIFT-ZONE.md).</summary>
+    public AbyssRiftZoneEvents RiftZone { get; } = new();
+
     /// <summary>Fortress siege schedule, applications, live battle and ownership (AirspaceBattle).</summary>
     public AirspaceSiege Airspace { get; } = new();
     /// <summary>The season ranking lists, rebuilt every update period (GameSession.Ranking.cs).</summary>

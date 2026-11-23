@@ -16,6 +16,7 @@ public sealed class AbyssRiftPhases
         [property: JsonPropertyName("phase")] int Index,
         [property: JsonPropertyName("spawner_group")] string? SpawnerGroup,
         [property: JsonPropertyName("spawners")] string[] Spawners,
+        [property: JsonPropertyName("npcs")] int[] Npcs,
         [property: JsonPropertyName("ends")] PhaseEnd[] Ends,
         [property: JsonPropertyName("abnormal_ids")] int[] AbnormalIds);
 

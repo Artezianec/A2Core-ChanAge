@@ -3,8 +3,9 @@
 One data-driven path for what skills and abnormals *do* (damage side effects, heals, resource gains, procs, passives,
 stacking, life cycle), for players and NPCs. Effects are resolved by client effect type, never by skill id.
 
-Source of truth: the client export `research/client-export/2026-11-22/` (Skill, SkillEffect, SkillEffectLv,
+Source of truth: a client table export generated locally from the client (Skill, SkillEffect, SkillEffectLv,
 SkillEffectFilter, SkillAbnormal, SkillAbnormalEffect, SkillAbnormalEffectLv), read through `tools/client_export.py`.
+The export itself is not committed; regenerate it locally, then run the tools below.
 
 ## Pieces
 
@@ -125,6 +126,9 @@ int? SkillEffectEngine.RatioDamageAgainst(int skillId, int victimHp, int victimH
 ```
 
 The replies are the caller's to send.
+
+The boss mechanics engine uses both: `debuff` actions with an `abnormal` id go through `EngineApplyAbnormal` (`GameSession.OnMechanicDebuff`, wired to
+`NpcAi.MechanicDebuffHook`), and `damage.hp_ratio` in an encounter file is the same MaxHPRatio share as `NpcRatioDamage` (flag `AION_NPC_RATIO_DAMAGE`).
 
 ## Flags
 

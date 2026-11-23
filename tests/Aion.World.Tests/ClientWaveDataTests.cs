@@ -40,4 +40,19 @@ public sealed class ClientWaveDataTests
         Assert.Equal(1, phases[0].Index);
         Assert.Contains(phases[1].Ends, e => e.Type == "KillNpcCount");
     }
+
+    [Fact]
+    public void Abyss_rift_phases_name_the_monsters_each_phase_spawns()
+    {
+        var phases = AbyssRiftPhases.Embedded.PhasesOf(1)!;
+        Assert.Empty(phases[0].Npcs);   // the 5-minute wait spawns nothing
+        // Phase N+1 spawns and counts the kills of group Phase_N: the group's size is the phase's KillNpcCount.
+        Assert.Equal([12, 4, 6, 10, 8, 20, 4], phases.Skip(1).Select(p => p.Npcs.Length));
+        Assert.Equal(["Phase_1", "Phase_2", "Phase_3", "Phase_4", "Phase_5", "Phase_6", "Phase_7"], phases.Skip(1).Select(p => p.SpawnerGroup));
+        foreach (var phase in phases.Where(p => p.Ends[0].Type == "KillNpcCount"))
+            Assert.Equal(int.Parse(phase.Ends[0].Value), phase.Npcs.Length);
+        // The last phase kills exactly the four bosses its group spawns (NpcData id = 2670000 + the spawner number).
+        Assert.Equal(phases[7].Ends[0].Value.Split(", ").Select(int.Parse).Order(), phases[7].Npcs.Order());
+        Assert.All(phases.SelectMany(p => p.Npcs), id => Assert.NotNull(GameData.Embedded.NpcFromTemplate(id, "x", [0, 0, 0], 0)));
+    }
 }

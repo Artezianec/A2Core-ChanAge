@@ -11,9 +11,32 @@ public sealed partial class GameSession
     void WireBossMechanicHooks(NpcAi fights)
     {
         fights.MechanicTelegraphStartedHook = OnMechanicTelegraphStarted;
+        fights.MechanicDebuffHook = (key, abnormal, _, durationMs) => OnMechanicDebuff(fights, key, abnormal, durationMs);
     }
 
-    void ClearBossMechanicHooks(NpcAi fights) => fights.MechanicTelegraphStartedHook = null;
+    void ClearBossMechanicHooks(NpcAi fights)
+    {
+        fights.MechanicTelegraphStartedHook = null;
+        fights.MechanicDebuffHook = null;
+    }
+
+    /// <summary>
+    /// The engine's debuff action with a client abnormal (docs/BOSS-MECHANICS-ENGINE.md, debuff.abnormal): the abnormal goes on the
+    /// player through the skill effect engine (stacking rows, immunities, effect rows). Map fights send it to that player's own
+    /// connection like every other mechanic hit; a solo fight returns it to the ticking session.
+    /// </summary>
+    IReadOnlyList<byte[]> OnMechanicDebuff(NpcAi fights, int key, int abnormalId, long durationMs)
+    {
+        var now = Environment.TickCount64;
+        var ms = durationMs > 0 ? (int)Math.Min(durationMs, 3_600_000) : 120_000;
+        if (worldPlayer?.Map is { } map)
+        {
+            if (!map.Players.TryGetValue(key, out var victim)) return [];
+            victim.Send(victim.Session.EngineApplyAbnormal(abnormalId, ms, fights.LastAttacker, fights.LastHitSkill, now));
+            return [];
+        }
+        return key == playerKey ? EngineApplyAbnormal(abnormalId, ms, fights.LastAttacker, fights.LastHitSkill, now) : [];
+    }
 
     Target? BossTelegraphCaster(int bossKey)
     {

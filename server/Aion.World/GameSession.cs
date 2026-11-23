@@ -2280,6 +2280,13 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             respawnAt.Remove(target.Key);
             // In a scripted layer or dungeon the dead stay dead for the run (official dungeon mobs do not respawn); so do boss adds.
             if (RunsMapEvents || BossSummons.IsSummon(target.Key)) continue;
+            if (worldPlayer?.Map is { Instance: 0 } shared)
+            {
+                var old = target;
+                var corpseShown = !old.CorpseRemoved;
+                target = shared.SpotToRespawn(old);
+                if (target != old && corpseShown) replies.Add(GamePackets.Death(old.Key));
+            }
             target.Hp = target.HpMax;
             target.CorpseRemoved = false;
             target.KilledAtMs = 0;
@@ -3158,6 +3165,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         replies.AddRange(InstanceTick(now));
         replies.AddRange(AbyssTick(now));
         replies.AddRange(AirspaceWorldTick(now));
+        replies.AddRange(AbyssRiftZoneWorldTick(now));
         replies.AddRange(ContentResetWorldTick(now));
         await FlushContentResetWorkAsync(ct);
         // Map events cleared by a talk or a timer pay their quest objective here (kills pay on the cast).

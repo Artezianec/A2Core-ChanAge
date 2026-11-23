@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -18,6 +19,18 @@ from client_export import load_rows
 from data_json import write_data_json
 
 OUT = ROOT / 'tools/data/abyss-rift-phases.json'
+
+# AbyssRiftPhase.SpawnerGroup decodes to "None" for every row; the groups themselves are in AbyssRiftPhaseSpawnerGroup
+# ("Phase_1".."Phase_7"). Phase 1 is the 5-minute wait, so group Phase_N is what phase N+1 spawns and kills (INFERRED: the
+# group sizes 12/4/6/10/8/20/4 equal the KillNpcCount of phases 2..6 and 8, and phase 7 is the timed 20-monster group).
+GROUP_OF_PHASE_OFFSET = 1
+RIFT_NPC_BASE = 2670000   # spawner AR1_RiftBoss_WH<tier>_<nnn> is NpcData 2670000 + nnn (the tier and the phase-8 KillNpc ids agree)
+SPAWNER = re.compile(r'^AR(\d+)_RiftBoss_WH(\d)_(\d+)$')
+
+
+def spawner_npc(name: str) -> int | None:
+    m = SPAWNER.match(name)
+    return RIFT_NPC_BASE + int(m.group(3)) if m else None
 
 
 def parse_end(row: dict) -> list[dict]:
@@ -43,10 +56,16 @@ def build() -> dict:
     for row in load_rows('AbyssRiftPhase'):
         rid = row['AbyssRiftId']['Value']
         sg = row.get('SpawnerGroup')
+        if sg in (None, 'None'):
+            sg = f"Phase_{row['Phase'] - GROUP_OF_PHASE_OFFSET}"
+            if sg not in groups:
+                sg = None
+        spawners = groups.get(sg, []) if sg else []
         rifts[str(rid)].append({
             'phase': row['Phase'],
-            'spawner_group': sg if sg not in (None, 'None') else None,
-            'spawners': groups.get(sg, []) if sg not in (None, 'None') else [],
+            'spawner_group': sg,
+            'spawners': spawners,
+            'npcs': [spawner_npc(n) for n in spawners],
             'ends': parse_end(row),
             'abnormal_ids': row.get('PhaseAbnormalIds') or [],
         })

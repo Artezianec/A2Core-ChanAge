@@ -1620,22 +1620,8 @@
   "timer_fallback": [
     {
       "map": 111005,
-      "wave": "FE_World_D_A_Defence_01",
-      "reason": "partial_spawns",
-      "on_map": 25,
-      "expected": 28
-    },
-    {
-      "map": 111005,
       "wave": "FE_World_D_A_Defence_SupplyBox_01",
       "reason": "no_wavestep"
-    },
-    {
-      "map": 500007,
-      "wave": "FE_World_L_A_Defence_01",
-      "reason": "partial_spawns",
-      "on_map": 25,
-      "expected": 28
     },
     {
       "map": 502001,
@@ -1699,20 +1685,6 @@
       "reason": "partial_spawns",
       "on_map": 0,
       "expected": 12
-    },
-    {
-      "map": 900002,
-      "wave": "Wave_Dungeon_Daily_0001",
-      "reason": "partial_spawns",
-      "on_map": 1,
-      "expected": 6
-    },
-    {
-      "map": 900003,
-      "wave": "Wave_Dungeon_Daily_0002",
-      "reason": "partial_spawns",
-      "on_map": 0,
-      "expected": 5
     }
   ],
   "coverage": {

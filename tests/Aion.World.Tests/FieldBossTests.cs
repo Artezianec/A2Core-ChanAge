@@ -90,23 +90,35 @@ public sealed class FieldBossTests : IDisposable
     [Fact]
     public void Notices_name_the_boss_in_English_and_Russian()
     {
-        Assert.Equal("Kashapa", FieldBosses.DisplayName("M_L1_FieldBoss_Kashapa_01_1"));
-        Assert.Equal("Odium Gartua", FieldBosses.DisplayName("M_D1_IoI_OdiumGartua_01_001"));
-        Assert.Equal("Island Of Eternity Boss", FieldBosses.DisplayName("World_L_A_Single_IslandOfEternity_Boss_1"));
-        Assert.Equal("Beritra", FieldBosses.DisplayName("M_D1_FieldBoss_BeritraD_01_001"));
+        // The guide titles (tools/data/field-boss-guide.json, GuideTimers on by default).
+        Assert.Equal("Soul Ruler Kashapa", FieldBosses.DisplayName("M_L1_FieldBoss_Kashapa_01_1"));
+        Assert.Equal("Immortal Gartua", FieldBosses.DisplayName("M_D1_IoI_OdiumGartua_01_001"));
+        Assert.Equal("Eternal Gartua", FieldBosses.DisplayName("World_L_A_Single_IslandOfEternity_Boss_1"));
+        Assert.Equal("Silent Dartan", FieldBosses.DisplayName("M_D1_FieldBoss_BeritraD_01_001_1"));
+        Assert.Equal("Island Of Eternity Boss", FieldBosses.DisplayName("World_L_X_Single_IslandOfEternity_Boss_1"));   // not a placed spawn: made from the name
         var defeated = FieldBosses.Defeated("Alice", 2, "M_L1_FieldBoss_Kashapa_01_1", 48, 1010);
-        Assert.Equal("Alice and 2 others defeated the field boss Kashapa (level 48) in the Light lands!", defeated.English);
-        Assert.Equal("Alice и ещё 2: полевой босс Кашапа (48 ур.) повержен — земли Света!", defeated.Russian);
+        Assert.Equal("Alice and 2 others defeated the field boss Soul Ruler Kashapa (level 48) in the Light lands!", defeated.English);
+        Assert.Equal("Alice и ещё 2: полевой босс Повелитель душ Кашапа (48 ур.) повержен — земли Света!", defeated.Russian);
         var appeared = FieldBosses.Appeared("M_D1_IoI_OdiumGartua_01_001", 51, 1110);
-        Assert.Equal("The field boss Odium Gartua (level 51) has appeared in the Dark lands.", appeared.English);
-        Assert.Equal("Полевой босс Одиум Гартуа (51 ур.) появился — земли Тьмы.", appeared.Russian);
+        Assert.Equal("The field boss Immortal Gartua (level 51) has appeared in the Dark lands.", appeared.English);
+        Assert.Equal("Полевой босс Бессмертный Гартуа (51 ур.) появился — земли Тьмы.", appeared.Russian);
         var personal = FieldBosses.DefeatedPersonal("M_L1_FieldBoss_Kashapa_01_1");
-        Assert.Equal("Defeated Kashapa.", personal.English);
-        Assert.Equal("Повержен: Кашапа.", personal.Russian);
+        Assert.Equal("Defeated Soul Ruler Kashapa.", personal.English);
+        Assert.Equal("Повержен: Повелитель душ Кашапа.", personal.Russian);
         Assert.Equal("Reward collected.", FieldBosses.RewardCollected.English);
         var packet = GameSession.Notice(appeared.English, appeared.Russian);
         Assert.True(packet.AsSpan().IndexOf(Encoding.UTF8.GetBytes(appeared.Russian)) > 0);
         Assert.True(GameSession.Notice(personal.English, personal.Russian).AsSpan().IndexOf(Encoding.UTF8.GetBytes(personal.English)) > 0);
+    }
+
+    [Fact]
+    public void Without_the_guide_the_names_come_from_the_spawn_names()
+    {
+        FieldBosses.Configure(new FieldBossOptions { GuideTimers = false });
+        Assert.Equal("Kashapa", FieldBosses.DisplayName("M_L1_FieldBoss_Kashapa_01_1"));
+        Assert.Equal("Odium Gartua", FieldBosses.DisplayName("M_D1_IoI_OdiumGartua_01_001"));
+        Assert.Equal("Beritra", FieldBosses.DisplayName("M_D1_FieldBoss_BeritraD_01_001"));
+        Assert.Equal("Кашапа", FieldBosses.RussianName("Kashapa"));
     }
 
     [Fact]
@@ -200,9 +212,9 @@ public sealed class FieldBossTests : IDisposable
         Assert.Equal(1, alice.FieldBossShares);
         Assert.Contains(((FakeCharacterStore)bob.Store!).Items, i => i.TemplateId == KashapaChest);
         Assert.Contains(((FakeCharacterStore)alice.Store!).Items, i => i.TemplateId == KashapaChest);
-        Assert.True(HasNotice(bobTick, "Defeated Kashapa."));
+        Assert.True(HasNotice(bobTick, "Defeated Soul Ruler Kashapa."));
         Assert.True(HasNotice(bobTick, "Reward collected."));
-        Assert.True(HasNotice(aliceTick, "Defeated Kashapa."));
+        Assert.True(HasNotice(aliceTick, "Defeated Soul Ruler Kashapa."));
         Assert.True(HasNotice(aliceTick, "Reward collected."));
         // No single-tagger ground loot from the boss's kill table.
         Assert.Empty(alice.GroundDrops);
@@ -243,10 +255,10 @@ public sealed class FieldBossTests : IDisposable
         FieldBosses.Configure(new FieldBossOptions { AnnouncementScope = "Server" });
         var (_, _, alice, _, _) = await KillKashapaAsync();
         var notices = FieldBosses.TakeDue();
-        Assert.Contains(notices, n => n.English == "Alice and 1 other defeated the field boss Kashapa (level 48) in the Light lands!"
-            && n.Russian.StartsWith("Alice и ещё 1: полевой босс Кашапа", StringComparison.Ordinal)
+        Assert.Contains(notices, n => n.English == "Alice and 1 other defeated the field boss Soul Ruler Kashapa (level 48) in the Light lands!"
+            && n.Russian.StartsWith("Alice и ещё 1: полевой босс Повелитель душ Кашапа", StringComparison.Ordinal)
             && n.Scope == FieldBossBroadcastScope.Server && n.MapId == 1010);
-        var back = Assert.Single(FieldBosses.Pending, p => p.Notice.English.StartsWith("The field boss Kashapa", StringComparison.Ordinal));
+        var back = Assert.Single(FieldBosses.Pending, p => p.Notice.English.StartsWith("The field boss Soul Ruler Kashapa", StringComparison.Ordinal));
         Assert.Equal(FieldBossBroadcastScope.Server, back.Notice.Scope);
         Assert.InRange(back.DueUtcMs - clock, 6 * 3_600_000L, 12 * 3_600_000L);
         _ = alice;

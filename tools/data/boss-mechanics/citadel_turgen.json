@@ -1,0 +1,141 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "citadel_turgen",
+  "display": "Willful Turgen",
+  "display_ru": "Тургэн",
+  "dungeon": "DaevaCitadel",
+  "source": "official client data (NpcData / Skill / SkillAbnormal exports, npc-behavior-cases barks); mechanics from the research notes, GUESS values are labelled",
+  "note": "First boss of the Citadel of the Fallen Daeva: client rotation and floating sword fields.",
+  "npcs": {
+    "Easy": [
+      2301601
+    ],
+    "Normal": [
+      2301701
+    ],
+    "Hard": [
+      2301721
+    ]
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1806360,
+      "every_ms": 30000,
+      "wind_up_ms": 3630,
+      "radius": 450,
+      "warning": "Willful Turgen gathers power: get out of reach!",
+      "warning_ru": "Непреклонный Тургэн собирает силу: отойдите подальше!",
+      "damage": {
+        "scale": 1.28
+      }
+    },
+    {
+      "type": "cast",
+      "skill": 1806310,
+      "every_ms": 15000,
+      "wind_up_ms": 1500,
+      "radius": 800,
+      "warning": "Turgen swings his blade: get behind him!",
+      "warning_ru": "Тургэн взмахивает клинком: зайдите за спину!"
+    },
+    {
+      "type": "cast",
+      "skill": 1806320,
+      "every_ms": 15000,
+      "wind_up_ms": 1000,
+      "radius": 800,
+      "warning": "Turgen strikes in combination!",
+      "warning_ru": "Тургэн атакует серией ударов!"
+    },
+    {
+      "type": "cast",
+      "skill": 1806330,
+      "every_ms": 20000,
+      "wind_up_ms": 1500,
+      "radius": 700,
+      "warning": "Turgen charges: leave the landing!",
+      "warning_ru": "Тургэн совершает рывок: отойдите от места удара!"
+    },
+    {
+      "type": "cast",
+      "skill": 1806340,
+      "every_ms": 30000,
+      "wind_up_ms": 1330,
+      "radius": 400,
+      "warning": "Turgen slams: stand between the rings!",
+      "warning_ru": "Тургэн бьёт по земле: встаньте между кольцами!"
+    },
+    {
+      "type": "cast",
+      "skill": 1806352,
+      "every_ms": 20000,
+      "wind_up_ms": 900,
+      "land": false
+    },
+    {
+      "type": "cast",
+      "skill": 1806370,
+      "every_ms": 20000,
+      "wind_up_ms": 800,
+      "radius": 800,
+      "warning": "Turgen thrusts a lane: step aside!",
+      "warning_ru": "Тургэн бьёт полосой: отойдите!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "modify",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "Kept from the compiled boss-phases.json script: 1.2x damage at 50% HP."
+    },
+    {
+      "id": "floating_swords",
+      "when": {
+        "type": "timer",
+        "after_ms": 25000,
+        "every_ms": 40000
+      },
+      "do": [
+        {
+          "type": "notice",
+          "text": "Floating swords appear: stay away from them!",
+          "text_ru": "Появились парящие мечи: держитесь от них подальше!"
+        },
+        {
+          "type": "repeat",
+          "every_ms": 500,
+          "count": 3,
+          "do": [
+            {
+              "type": "zone",
+              "at": "random_player",
+              "shape": "circle",
+              "radius": 500,
+              "duration_ms": 15000,
+              "tick_ms": 1000,
+              "damage": {
+                "fixed": [
+                  2500,
+                  3500
+                ]
+              },
+              "decal": true,
+              "skill": 1806310
+            }
+          ]
+        }
+      ],
+      "note": "Research (a guess about this boss): arrowed circles then floating swords that deal heavy damage over time near them; lining the arrows up breaks them. The swords are three DoT zones under random players (radius 500, 2500-3500/s, 15 s: GUESSES); the arrows are not implemented."
+    }
+  ]
+}

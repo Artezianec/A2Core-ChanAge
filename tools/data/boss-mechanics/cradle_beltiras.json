@@ -1,0 +1,1616 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "cradle_beltiras",
+  "display": "Multidimensional Beltiras",
+  "display_ru": "Бельтирас",
+  "dungeon": "CradleNihility",
+  "source": "official client data (NpcData / Skill / SkillAbnormal exports, npc-behavior-cases barks); mechanics from the research notes, GUESS values are labelled",
+  "note": "First boss of the Cradle of Nihility: Nebula Collapse orb race at 80% and 20%, Supernova shield check at 40%.",
+  "npcs": {
+    "Easy": [
+      2301302
+    ],
+    "Normal": [
+      2311302
+    ],
+    "Hard": [
+      2321302
+    ]
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1802170,
+      "every_ms": 30000,
+      "wind_up_ms": 3000,
+      "radius": 450,
+      "warning": "Multidimensional Beltiras gathers power: get out of reach!",
+      "warning_ru": "Бельтирас собирает силу: отойдите подальше!",
+      "damage": {
+        "scale": 3.0
+      }
+    },
+    {
+      "type": "cast",
+      "skill": 1802190,
+      "every_ms": 27000,
+      "wind_up_ms": 1000,
+      "radius": 1500,
+      "warning": "Beltiras pulses: leave the circle!",
+      "warning_ru": "Бельтирас пульсирует: выйдите из круга!"
+    },
+    {
+      "type": "cast",
+      "skill": 1802200,
+      "every_ms": 18000,
+      "wind_up_ms": 1000,
+      "radius": 300
+    },
+    {
+      "type": "cast",
+      "skill": 1802210,
+      "every_ms": 20000,
+      "wind_up_ms": 1000,
+      "radius": 800,
+      "warning": "Beltiras fires five lanes: step between them!",
+      "warning_ru": "Бельтирас бьёт пятью полосами: встаньте между ними!"
+    },
+    {
+      "type": "cast",
+      "skill": 1802240,
+      "every_ms": 10000,
+      "wind_up_ms": 1000,
+      "radius": 500,
+      "warning": "Beltiras detonates rings: stand between them!",
+      "warning_ru": "Бельтирас бьёт кольцами: встаньте между ними!"
+    },
+    {
+      "type": "cast",
+      "skill": 1802320,
+      "every_ms": 30000,
+      "wind_up_ms": 1000,
+      "radius": 600
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "do": [
+        {
+          "type": "modify",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "Kept from the compiled boss-phases.json script: 1.2x damage at 50% HP."
+    },
+    {
+      "id": "nebula_collapse_80",
+      "when": {
+        "type": "hp_below",
+        "pct": 80
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_CradleNihility_Beltiras_01"
+        },
+        {
+          "type": "cast",
+          "skill": 1802220,
+          "wind_up_ms": 11400,
+          "land": false,
+          "once": true,
+          "warning": "Nebula Collapse: touch every blue orb before the cast ends!",
+          "warning_ru": "Коллапс туманности: коснитесь всех синих сфер до конца заклинания!",
+          "during": [
+            {
+              "type": "orb",
+              "id": "nebula_orb_0",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  0,
+                  3000
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      0,
+                      3000
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_1",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  -2121,
+                  2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      -2121,
+                      2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_2",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  -3000,
+                  0
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      -3000,
+                      0
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_3",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  -2121,
+                  -2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      -2121,
+                      -2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_4",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  0,
+                  -3000
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      0,
+                      -3000
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_5",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  2121,
+                  -2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      2121,
+                      -2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_6",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  3000,
+                  0
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      3000,
+                      0
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_7",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  2121,
+                  2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      2121,
+                      2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "Touch every orb at the arena edge!",
+          "text_ru": "Коснитесь каждой сферы по краю арены!"
+        }
+      ],
+      "note": "Orb count: 8 (one source says 6). The homing circle and the 12-way tornado of the guides are not data in the client (hidden helpers): the orbs are touched directly. An orb still standing when the cast ends explodes; the 80% raid hit (MaxHPRatio 8000) and 22 m radius are GUESSES from the client's explosion skill 1802235 (hidden).",
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ]
+    },
+    {
+      "id": "nebula_collapse_80_easy",
+      "when": {
+        "type": "hp_below",
+        "pct": 80
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_CradleNihility_Easy_NPC_28"
+        },
+        {
+          "type": "cast",
+          "skill": 1802220,
+          "wind_up_ms": 11400,
+          "land": false,
+          "once": true,
+          "warning": "Nebula Collapse: touch every blue orb before the cast ends!",
+          "warning_ru": "Коллапс туманности: коснитесь всех синих сфер до конца заклинания!",
+          "during": [
+            {
+              "type": "orb",
+              "id": "nebula_orb_0",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  0,
+                  3000
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      0,
+                      3000
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_1",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  -2121,
+                  2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      -2121,
+                      2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_2",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  -3000,
+                  0
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      -3000,
+                      0
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_3",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  -2121,
+                  -2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      -2121,
+                      -2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_4",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  0,
+                  -3000
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      0,
+                      -3000
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_5",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  2121,
+                  -2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      2121,
+                      -2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_6",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  3000,
+                  0
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      3000,
+                      0
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_7",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  2121,
+                  2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      2121,
+                      2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "Touch every orb at the arena edge!",
+          "text_ru": "Коснитесь каждой сферы по краю арены!"
+        }
+      ],
+      "note": "Orb count: 8 (one source says 6). The homing circle and the 12-way tornado of the guides are not data in the client (hidden helpers): the orbs are touched directly. An orb still standing when the cast ends explodes; the 80% raid hit (MaxHPRatio 8000) and 22 m radius are GUESSES from the client's explosion skill 1802235 (hidden).",
+      "difficulty": [
+        "Easy"
+      ]
+    },
+    {
+      "id": "nebula_collapse_20",
+      "when": {
+        "type": "hp_below",
+        "pct": 20
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_CradleNihility_Beltiras_01"
+        },
+        {
+          "type": "cast",
+          "skill": 1802220,
+          "wind_up_ms": 11400,
+          "land": false,
+          "once": true,
+          "warning": "Nebula Collapse: touch every blue orb before the cast ends!",
+          "warning_ru": "Коллапс туманности: коснитесь всех синих сфер до конца заклинания!",
+          "during": [
+            {
+              "type": "orb",
+              "id": "nebula_orb_0",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  0,
+                  3000
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      0,
+                      3000
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_1",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  -2121,
+                  2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      -2121,
+                      2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_2",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  -3000,
+                  0
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      -3000,
+                      0
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_3",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  -2121,
+                  -2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      -2121,
+                      -2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_4",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  0,
+                  -3000
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      0,
+                      -3000
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_5",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  2121,
+                  -2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      2121,
+                      -2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_6",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  3000,
+                  0
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      3000,
+                      0
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_7",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  2121,
+                  2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      2121,
+                      2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "Touch every orb at the arena edge!",
+          "text_ru": "Коснитесь каждой сферы по краю арены!"
+        }
+      ],
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ]
+    },
+    {
+      "id": "nebula_collapse_20_easy",
+      "when": {
+        "type": "hp_below",
+        "pct": 20
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_CradleNihility_Easy_NPC_28"
+        },
+        {
+          "type": "cast",
+          "skill": 1802220,
+          "wind_up_ms": 11400,
+          "land": false,
+          "once": true,
+          "warning": "Nebula Collapse: touch every blue orb before the cast ends!",
+          "warning_ru": "Коллапс туманности: коснитесь всех синих сфер до конца заклинания!",
+          "during": [
+            {
+              "type": "orb",
+              "id": "nebula_orb_0",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  0,
+                  3000
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      0,
+                      3000
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_1",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  -2121,
+                  2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      -2121,
+                      2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_2",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  -3000,
+                  0
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      -3000,
+                      0
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_3",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  -2121,
+                  -2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      -2121,
+                      -2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_4",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  0,
+                  -3000
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      0,
+                      -3000
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_5",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  2121,
+                  -2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      2121,
+                      -2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_6",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  3000,
+                  0
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      3000,
+                      0
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "nebula_orb_7",
+              "at": "arena_centre",
+              "offsets": [
+                [
+                  2121,
+                  2121
+                ]
+              ],
+              "radius": 450,
+              "required": 1,
+              "window_ms": 11400,
+              "skill": 1802240,
+              "on_fail": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "offsets": [
+                    [
+                      2121,
+                      2121
+                    ]
+                  ],
+                  "shape": "circle",
+                  "radius": 2200,
+                  "decal": false,
+                  "delay_ms": 0,
+                  "damage": {
+                    "hp_ratio": 8000,
+                    "factor": [
+                      40000,
+                      40000
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "Touch every orb at the arena edge!",
+          "text_ru": "Коснитесь каждой сферы по краю арены!"
+        }
+      ],
+      "difficulty": [
+        "Easy"
+      ]
+    },
+    {
+      "id": "supernova_40",
+      "when": {
+        "type": "hp_below",
+        "pct": 40
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_CradleNihility_Beltiras_02"
+        },
+        {
+          "type": "cast",
+          "skill": 1802270,
+          "wind_up_ms": 7000,
+          "land": false,
+          "once": true,
+          "warning": "Supernova: reach a shield at the arena edge or die!",
+          "warning_ru": "Сверхновая: встаньте в щит на краю арены или умрёте!",
+          "on_land": [
+            {
+              "type": "telegraph",
+              "id": "supernova",
+              "at": "arena_centre",
+              "shape": "circle",
+              "radius": 650,
+              "invert": true,
+              "offsets": [
+                [
+                  2475,
+                  2475
+                ],
+                [
+                  -2475,
+                  2475
+                ],
+                [
+                  -2475,
+                  -2475
+                ],
+                [
+                  2475,
+                  -2475
+                ]
+              ],
+              "decal": false,
+              "delay_ms": 0,
+              "damage": {
+                "lethal": true
+              }
+            }
+          ],
+          "during": [
+            {
+              "type": "repeat",
+              "every_ms": 1000,
+              "duration_ms": 6000,
+              "do": [
+                {
+                  "type": "telegraph",
+                  "at": "random_player",
+                  "shape": "circle",
+                  "radius": 400,
+                  "delay_ms": 1000,
+                  "decal": true,
+                  "skill": 1802240,
+                  "damage": {
+                    "factor": [
+                      14000,
+                      16000
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "Run to a shield!",
+          "text_ru": "Бегите к щиту!"
+        }
+      ],
+      "note": "Client skill 1802270: raid-wide 500% max HP after 7 s. The personal colour markers and the four matching shields are not in the client data (colours are hidden helper abnormals): the four shield circles (radius 650, ring 3500) are a GUESS and any player inside one is spared. The raining small circles reuse the Skill05 circle row.",
+      "difficulty": [
+        "Normal",
+        "Hard"
+      ]
+    },
+    {
+      "id": "supernova_40_easy",
+      "when": {
+        "type": "hp_below",
+        "pct": 40
+      },
+      "do": [
+        {
+          "type": "caption",
+          "talk": "PD_CradleNihility_Easy_NPC_29"
+        },
+        {
+          "type": "cast",
+          "skill": 1802270,
+          "wind_up_ms": 7000,
+          "land": false,
+          "once": true,
+          "warning": "Supernova: reach a shield at the arena edge or die!",
+          "warning_ru": "Сверхновая: встаньте в щит на краю арены или умрёте!",
+          "on_land": [
+            {
+              "type": "telegraph",
+              "id": "supernova",
+              "at": "arena_centre",
+              "shape": "circle",
+              "radius": 650,
+              "invert": true,
+              "offsets": [
+                [
+                  2475,
+                  2475
+                ],
+                [
+                  -2475,
+                  2475
+                ],
+                [
+                  -2475,
+                  -2475
+                ],
+                [
+                  2475,
+                  -2475
+                ]
+              ],
+              "decal": false,
+              "delay_ms": 0,
+              "damage": {
+                "lethal": true
+              }
+            }
+          ],
+          "during": [
+            {
+              "type": "repeat",
+              "every_ms": 1000,
+              "duration_ms": 6000,
+              "do": [
+                {
+                  "type": "telegraph",
+                  "at": "random_player",
+                  "shape": "circle",
+                  "radius": 400,
+                  "delay_ms": 1000,
+                  "decal": true,
+                  "skill": 1802240,
+                  "damage": {
+                    "factor": [
+                      14000,
+                      16000
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "notice",
+          "text": "Run to a shield!",
+          "text_ru": "Бегите к щиту!"
+        }
+      ],
+      "note": "Client skill 1802270: raid-wide 500% max HP after 7 s. The personal colour markers and the four matching shields are not in the client data (colours are hidden helper abnormals): the four shield circles (radius 650, ring 3500) are a GUESS and any player inside one is spared. The raining small circles reuse the Skill05 circle row.",
+      "difficulty": [
+        "Easy"
+      ]
+    }
+  ]
+}

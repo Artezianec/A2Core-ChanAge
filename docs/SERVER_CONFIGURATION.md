@@ -55,6 +55,13 @@ When both are set, account APIs, native **accounts** logins, staff tools, and ch
 | `StaffPath` | Private staff dashboard path (e.g. `/k3x9…`); hides `/admin.html` |
 | `Downloads` | Directory served at `/api/downloads/*` (launcher updates) |
 
+## `Aion:AbyssRiftZone`, `Aion:FieldEvents`
+
+`Aion:AbyssRiftZone` (`Enabled`, `ServerUtcOffsetHours`, `RiftId`, `MapId`, `MinLevel`, `MinItemLevel`, `TimeUnitSeconds`, `ArenaRadius`,
+`ArenaCentre`, `GroupSpacing`, `LateStartMinutes`): the scheduled Abyss Rift Zone, default on. See [ABYSS-RIFT-ZONE.md](ABYSS-RIFT-ZONE.md).
+`Aion:FieldEvents:Invasions` (default `true`): Dimensional Invasion (Beritra Air Raid and its variants) in the event list and
+entrance. `Aion:FieldBosses:GuideTimers` / `Schedules` / `ServerUtcOffsetHours`: see [FIELD-BOSSES.md](FIELD-BOSSES.md).
+
 ## `Aion:Debug`
 
 Optional research traces written by the game session (not the ASP.NET log).

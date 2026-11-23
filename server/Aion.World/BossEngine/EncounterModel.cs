@@ -114,6 +114,8 @@ public sealed class DamageDef
     public Num[]? Factor { get; init; }
     /// <summary>[min, max] flat damage, not scaled by the fight's multipliers (DoTs, puddles).</summary>
     public Num[]? Fixed { get; init; }
+    /// <summary>Share of the victim's maximum HP in 1/10000 (the client's Damage row calc type MaxHPRatio: 10000 = all of it). Used when the skill-effect engine's NPC ratio damage is on; otherwise the other fields apply.</summary>
+    public Num? HpRatio { get; init; }
     public Num? Scale { get; init; }
     /// <summary>Kills outright (wipe checks, enrage).</summary>
     public bool Lethal { get; init; }

@@ -371,6 +371,28 @@ public sealed partial class GameSession
         return [];
     }
 
+    /// <summary>
+    /// The Abyss Rift Zone (AbyssRiftZone.cs): the first session to tick runs the event for everyone; its notices go to the
+    /// players who meet the entry limits (level 45+, item level 3,000+), and a phase change to the rift's progress window.
+    /// </summary>
+    List<byte[]> AbyssRiftZoneWorldTick(long now)
+    {
+        if (options.World is not { } world || !world.RiftZone.NeedsTick(now)) return [];
+        var notices = world.RiftZone.Tick(world, now);
+        if (notices.Count == 0) return [];
+        var riftId = AbyssRiftZone.Options.RiftId;
+        foreach (var player in world.Online.Values)
+        {
+            var session = player.Session;
+            if (!AbyssRiftZone.Eligible(session.Level, session.EquipItemLevel())) continue;
+            foreach (var (english, russian) in notices)
+                player.Send(Notice(english, russian, 22, "FF8040"));
+            if (world.RiftZone.Current(riftId) is { } run)
+                player.Send(PacketWriter.Opcode(AbyssRiftPhaseInfoNt).I32(riftId).I32(run.Phase).I64(run.PhaseStartMs).ToArray());
+        }
+        return [];
+    }
+
     /// <summary>Fortress siege UI packets (AirspaceBattle_*). Called from <see cref="ClientRequest"/>.</summary>
     List<byte[]>? AbyssClientRequest(byte[] plain, long now)
     {
@@ -419,6 +441,12 @@ public sealed partial class GameSession
         var phases = AbyssRiftPhases.Embedded.PhasesOf(abyssRiftId);
         if (phases is null or { Length: 0 })
             return [PacketWriter.Opcode(AbyssRiftProgressInfoRs).U16(1).I32(abyssRiftId).I32(0).I32(0).I32(0).ToArray()];
+        if (options.World?.RiftZone.Current(abyssRiftId) is { } zone)
+            return
+            [
+                PacketWriter.Opcode(AbyssRiftProgressInfoRs).U16(0).I32(abyssRiftId).I32(0).I32(0).I32(0).ToArray(),
+                PacketWriter.Opcode(AbyssRiftPhaseInfoNt).I32(abyssRiftId).I32(zone.Phase).I64(zone.PhaseStartMs).ToArray(),
+            ];
         if (!abyssRiftPhase.ContainsKey(abyssRiftId))
         {
             abyssRiftPhase[abyssRiftId] = 1;
