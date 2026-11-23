@@ -224,6 +224,31 @@
       "note": "Exploration: no enrage timer."
     },
     "Hard": {
+      "note": "Hard: the clones come from 75% instead of 50% (research, confirmed).",
+      "rules_remove": ["clones_50"],
+      "rules_add": [
+        {
+          "id": "clones_75",
+          "when": {"type": "hp_below", "pct": 75},
+          "do": [
+            {
+              "type": "notice",
+              "text": "Kromede's Desire splits — dodge the clone line, then get behind your clone!",
+              "text_ru": "Желание Кромеды разделяется — уйдите с линии клона, затем зайдите ему за спину!"
+            },
+            {
+              "type": "summon",
+              "npc": 0,
+              "count": 2,
+              "radius": 1500,
+              "group": "clones",
+              "target": "victim",
+              "note": "npc 0: copies of the boss itself (this difficulty's NpcData id)."
+            },
+            {"type": "phase", "phase": "clones"}
+          ]
+        }
+      ],
       "vars": {
         "frenzy_ms": 240000,
         "wall_wind_up": 15100

@@ -1,0 +1,522 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "vakron_final",
+  "display": "Vakron",
+  "display_ru": "Вакрон",
+  "dungeon": "BakronIsland",
+  "source": "authored from the client data (Skill.dat / Abnormal.dat / Npc.dat: skill ids, cast times, cooldowns, damage rows, abnormal ids) + research notes; values marked CANDIDATE/guess are not in the client",
+  "note": "Final boss. Keeps the generic script (add calls at 70%, fury at 40%, enrage at 20%, the 1604410 slam filler at 24 s / 18 s fury; Easy 30 s / 22.5 s, Hard 18 s / 13.5 s). Adds: Thorn Prison (client 1604380/1604381/1604382: 4 s mark, then a 700 circle 19-21k, held, and a second 23-25k hit; Hard marks two players via 1604383), Surging Thorn at 60% and 40% (three expanding ring bands from the client ring 1500..2300 + two extrapolated bands; field-wide 1604390 blow, 27-29k + stun) and the stone prison at 55% and 35% (client 1604420 pull + 1604425 4.5 s 34-36k blow; rock size and duration CANDIDATE). Enrage: Normal 300 s, Hard 240 s (official note; the client table says 300 for Hard).",
+  "npcs": {"Easy": [2310812], "Normal": [2300812], "Hard": [2320812]},
+  "vars": {
+    "frenzy_ms": 300000,
+    "filler_fury_ms": 18000,
+    "filler_radius": 600,
+    "thorn_radius": 700,
+    "prison_ms": 4000,
+    "rock_pool_pct": 1,
+    "rock_ms": 4500
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1604410,
+      "every_ms": 24000,
+      "wind_up_ms": 2000,
+      "radius": "$filler_radius",
+      "damage": {"scale": 2.71},
+      "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+      "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+    },
+    {
+      "type": "cast",
+      "skill": 1604430,
+      "every_ms": 16000,
+      "wind_up_ms": 1500,
+      "radius": 1200,
+      "warning": "Vakron slashes both sides: stay in front or behind!",
+      "warning_ru": "Вакрон бьёт по бокам: встаньте спереди или сзади!"
+    },
+    {
+      "type": "cast",
+      "skill": 1604400,
+      "every_ms": 30000,
+      "wind_up_ms": 1333,
+      "radius": 500,
+      "warning": "Vakron stamps in front: leave the circle!",
+      "warning_ru": "Вакрон топает перед собой: выйдите из круга!"
+    },
+    {
+      "type": "cast",
+      "skill": 1604360,
+      "every_ms": 20000,
+      "wind_up_ms": 700,
+      "radius": 800,
+      "warning": "Vakron slams: jump the ring that follows!",
+      "warning_ru": "Вакрон бьёт по земле: перепрыгните кольцо!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "call_70_easy",
+      "when": {"type": "hp_below", "pct": 70},
+      "difficulty": ["Easy"],
+      "do": [
+        {"type": "notice", "text": "Vakron calls for help!", "text_ru": "Вакрон зовёт на помощь!"},
+        {"type": "summon", "npc": 2310802, "count": 2, "radius": 500}
+      ]
+    },
+    {
+      "id": "call_70_normal",
+      "when": {"type": "hp_below", "pct": 70},
+      "difficulty": ["Normal"],
+      "do": [
+        {"type": "notice", "text": "Vakron calls for help!", "text_ru": "Вакрон зовёт на помощь!"},
+        {"type": "summon", "npc": 2300802, "count": 3, "radius": 500}
+      ]
+    },
+    {
+      "id": "call_70_hard",
+      "when": {"type": "hp_below", "pct": 70},
+      "difficulty": ["Hard"],
+      "do": [
+        {"type": "notice", "text": "Vakron calls for help!", "text_ru": "Вакрон зовёт на помощь!"},
+        {"type": "summon", "npc": 2320802, "count": 4, "radius": 500}
+      ]
+    },
+    {
+      "id": "fury_40",
+      "when": {"type": "hp_below", "pct": 40},
+      "do": [
+        {"type": "modify", "damage_mul": 1.15},
+        {
+          "type": "cast",
+          "skill": 1604410,
+          "every_ms": "$filler_fury_ms",
+          "wind_up_ms": 2000,
+          "radius": "$filler_radius",
+          "damage": {"scale": 2.71},
+          "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+          "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+        },
+        {
+          "type": "notice",
+          "text": "The Vakron Sky Island boss grows furious.",
+          "text_ru": "Босс Vakron Sky Island приходит в ярость."
+        }
+      ]
+    },
+    {
+      "id": "fury_40_adds",
+      "when": {"type": "hp_below", "pct": 40},
+      "difficulty": ["Hard"],
+      "do": [
+        {"type": "summon", "npc": 2320802, "count": 2, "radius": 500}
+      ]
+    },
+    {
+      "id": "enrage_20",
+      "when": {"type": "hp_below", "pct": 20},
+      "difficulty": ["Normal", "Hard"],
+      "do": [
+        {"type": "modify", "damage_mul": 1.3, "haste_mul": 0.8},
+        {
+          "type": "notice",
+          "text": "The Vakron Sky Island boss is enraged!",
+          "text_ru": "Босс Vakron Sky Island в бешенстве!"
+        }
+      ]
+    },
+    {
+      "id": "thorn_prison",
+      "when": {"type": "timer", "after_ms": 12000, "every_ms": 45000},
+      "do": [
+        {
+          "type": "notice",
+          "text": "Thorn Prison: the marked player runs away from the group!",
+          "text_ru": "Шипастая тюрьма: помеченный уводит метку от группы!"
+        },
+        {
+          "type": "debuff",
+          "debuff": "thorn",
+          "target": "random_player",
+          "max": 1,
+          "duration_ms": 4000,
+          "abnormal": 16043811,
+          "on_max": [
+            {
+              "type": "delay",
+              "ms": 4000,
+              "do": [
+                {
+                  "type": "telegraph",
+                  "at": "event_player",
+                  "shape": "circle",
+                  "radius": "$thorn_radius",
+                  "delay_ms": 0,
+                  "decal": false,
+                  "damage": {"factor": [19000, 21000]},
+                  "on_hit": [
+                    {
+                      "type": "debuff",
+                      "debuff": "prison",
+                      "target": "event_player",
+                      "abnormal": 12000021,
+                      "duration_ms": "$prison_ms"
+                    },
+                    {
+                      "type": "delay",
+                      "ms": "$prison_ms",
+                      "do": [
+                        {
+                          "type": "telegraph",
+                          "at": "event_player",
+                          "shape": "circle",
+                          "radius": "$thorn_radius",
+                          "delay_ms": 0,
+                          "decal": false,
+                          "damage": {"factor": [23000, 25000]}
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "thorn_prison_2",
+      "when": {"type": "timer", "after_ms": 12000, "every_ms": 45000},
+      "difficulty": ["Hard"],
+      "do": [
+        {
+          "type": "debuff",
+          "debuff": "thorn",
+          "target": "farthest_player",
+          "max": 1,
+          "duration_ms": 4000,
+          "abnormal": 16043811,
+          "on_max": [
+            {
+              "type": "delay",
+              "ms": 4000,
+              "do": [
+                {
+                  "type": "telegraph",
+                  "at": "event_player",
+                  "shape": "circle",
+                  "radius": "$thorn_radius",
+                  "delay_ms": 0,
+                  "decal": false,
+                  "damage": {"factor": [19000, 21000]},
+                  "on_hit": [
+                    {
+                      "type": "debuff",
+                      "debuff": "prison",
+                      "target": "event_player",
+                      "abnormal": 12000021,
+                      "duration_ms": "$prison_ms"
+                    },
+                    {
+                      "type": "delay",
+                      "ms": "$prison_ms",
+                      "do": [
+                        {
+                          "type": "telegraph",
+                          "at": "event_player",
+                          "shape": "circle",
+                          "radius": "$thorn_radius",
+                          "delay_ms": 0,
+                          "decal": false,
+                          "damage": {"factor": [23000, 25000]}
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "note": "Hard marks two targets (client 1604383 n2-2)."
+    },
+    {
+      "id": "surging_thorn_60",
+      "when": {"type": "hp_below", "pct": 60},
+      "do": [
+        {
+          "type": "notice",
+          "text": "Surging Thorn! Jump each ring, then glide over the final blow!",
+          "text_ru": "Вздымающиеся шипы! Перепрыгивайте кольца, а затем планируйте над финальным ударом!"
+        },
+        {
+          "type": "telegraph",
+          "at": "boss",
+          "shape": "donut",
+          "delay_ms": 1500,
+          "decal": true,
+          "count": 3,
+          "interval_ms": 1700,
+          "damage": {"factor": [22000, 24000]},
+          "steps": [
+            {"shape": "donut", "inner": 1500, "radius": 2300},
+            {"shape": "donut", "inner": 2300, "radius": 3100},
+            {"shape": "donut", "inner": 3100, "radius": 3900}
+          ]
+        },
+        {
+          "type": "delay",
+          "ms": 6500,
+          "do": [
+            {
+              "type": "cast",
+              "skill": 1604390,
+              "wind_up_ms": 1500,
+              "radius": 6000,
+              "once": true,
+              "warning": "The field-wide blow lands: glide over it!",
+              "warning_ru": "Удар по всему полю: планируйте над ним!"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "surging_thorn_40",
+      "when": {"type": "hp_below", "pct": 40},
+      "do": [
+        {
+          "type": "notice",
+          "text": "Surging Thorn! Jump each ring, then glide over the final blow!",
+          "text_ru": "Вздымающиеся шипы! Перепрыгивайте кольца, а затем планируйте над финальным ударом!"
+        },
+        {
+          "type": "telegraph",
+          "at": "boss",
+          "shape": "donut",
+          "delay_ms": 1500,
+          "decal": true,
+          "count": 3,
+          "interval_ms": 1700,
+          "damage": {"factor": [22000, 24000]},
+          "steps": [
+            {"shape": "donut", "inner": 1500, "radius": 2300},
+            {"shape": "donut", "inner": 2300, "radius": 3100},
+            {"shape": "donut", "inner": 3100, "radius": 3900}
+          ]
+        },
+        {
+          "type": "delay",
+          "ms": 6500,
+          "do": [
+            {
+              "type": "cast",
+              "skill": 1604390,
+              "wind_up_ms": 1500,
+              "radius": 6000,
+              "once": true,
+              "warning": "The field-wide blow lands: glide over it!",
+              "warning_ru": "Удар по всему полю: планируйте над ним!"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stone_prison_55",
+      "when": {"type": "hp_below", "pct": 55},
+      "do": [
+        {
+          "type": "notice",
+          "text": "Stone prison! Break the red rock together before the cast ends, do not hit Vakron!",
+          "text_ru": "Каменная тюрьма! Разбейте красный камень всей группой до конца заклинания, не бейте Вакрона!"
+        },
+        {"type": "cast", "skill": 1604420, "wind_up_ms": 1000, "radius": 5000, "once": true},
+        {
+          "type": "shield",
+          "id": "rock",
+          "hp_pct": "$rock_pool_pct",
+          "duration_ms": "$rock_ms",
+          "on_break": [
+            {
+              "type": "notice",
+              "text": "The rock shatters: the prison breaks!",
+              "text_ru": "Камень разбит: тюрьма рушится!"
+            }
+          ],
+          "on_expire": [
+            {"type": "notice", "text": "The prison closes!", "text_ru": "Тюрьма смыкается!"},
+            {
+              "type": "telegraph",
+              "at": "boss",
+              "shape": "circle",
+              "radius": 1000,
+              "delay_ms": 300,
+              "decal": false,
+              "damage": {"factor": [34000, 36000], "ignore_defense": true},
+              "on_hit": [
+                {
+                  "type": "debuff",
+                  "debuff": "prison_stun",
+                  "target": "event_player",
+                  "abnormal": 16045601,
+                  "duration_ms": 2500
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stone_prison_35",
+      "when": {"type": "hp_below", "pct": 35},
+      "do": [
+        {
+          "type": "notice",
+          "text": "Stone prison! Break the red rock together before the cast ends, do not hit Vakron!",
+          "text_ru": "Каменная тюрьма! Разбейте красный камень всей группой до конца заклинания, не бейте Вакрона!"
+        },
+        {"type": "cast", "skill": 1604420, "wind_up_ms": 1000, "radius": 5000, "once": true},
+        {
+          "type": "shield",
+          "id": "rock",
+          "hp_pct": "$rock_pool_pct",
+          "duration_ms": "$rock_ms",
+          "on_break": [
+            {
+              "type": "notice",
+              "text": "The rock shatters: the prison breaks!",
+              "text_ru": "Камень разбит: тюрьма рушится!"
+            }
+          ],
+          "on_expire": [
+            {"type": "notice", "text": "The prison closes!", "text_ru": "Тюрьма смыкается!"},
+            {
+              "type": "telegraph",
+              "at": "boss",
+              "shape": "circle",
+              "radius": 1000,
+              "delay_ms": 300,
+              "decal": false,
+              "damage": {"factor": [34000, 36000], "ignore_defense": true},
+              "on_hit": [
+                {
+                  "type": "debuff",
+                  "debuff": "prison_stun",
+                  "target": "event_player",
+                  "abnormal": 16045601,
+                  "duration_ms": 2500
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "frenzy",
+      "when": {"type": "enrage_timer", "after_ms": "$frenzy_ms"},
+      "difficulty": ["Normal", "Hard"],
+      "do": [
+        {
+          "type": "enrage",
+          "damage_mul": 2.0,
+          "haste_mul": 0.5,
+          "text": "The Vakron Sky Island boss goes into a frenzy!",
+          "text_ru": "Босс Vakron Sky Island впадает в неистовство!"
+        }
+      ]
+    }
+  ],
+  "difficulty": {
+    "Easy": {
+      "vars": {"filler_fury_ms": 22500, "filler_radius": 500},
+      "rotation": [
+        {
+          "type": "cast",
+          "skill": 1604410,
+          "every_ms": 30000,
+          "wind_up_ms": 2000,
+          "radius": 500,
+          "damage": {"scale": 2.71},
+          "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+          "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+        },
+        {
+          "type": "cast",
+          "skill": 1604430,
+          "every_ms": 16000,
+          "wind_up_ms": 1500,
+          "radius": 1200,
+          "warning": "Vakron slashes both sides: stay in front or behind!",
+          "warning_ru": "Вакрон бьёт по бокам: встаньте спереди или сзади!"
+        },
+        {
+          "type": "cast",
+          "skill": 1604400,
+          "every_ms": 30000,
+          "wind_up_ms": 1333,
+          "radius": 500,
+          "warning": "Vakron stamps in front: leave the circle!",
+          "warning_ru": "Вакрон топает перед собой: выйдите из круга!"
+        },
+        {
+          "type": "cast",
+          "skill": 1604360,
+          "every_ms": 20000,
+          "wind_up_ms": 700,
+          "radius": 800,
+          "warning": "Vakron slams: jump the ring that follows!",
+          "warning_ru": "Вакрон бьёт по земле: перепрыгните кольцо!"
+        }
+      ],
+      "note": "Exploration: no enrage timer."
+    },
+    "Hard": {
+      "vars": {"frenzy_ms": 240000, "filler_fury_ms": 13500},
+      "rotation": [
+        {
+          "type": "cast",
+          "skill": 1604410,
+          "every_ms": 18000,
+          "wind_up_ms": 2000,
+          "radius": 600,
+          "damage": {"scale": 2.71},
+          "warning": "The Vakron Sky Island boss gathers power: get out of reach!",
+          "warning_ru": "Босс Vakron Sky Island собирает силу: отойдите подальше!"
+        },
+        {
+          "type": "cast",
+          "skill": 1604430,
+          "every_ms": 16000,
+          "wind_up_ms": 1500,
+          "radius": 1200,
+          "warning": "Vakron slashes both sides: stay in front or behind!",
+          "warning_ru": "Вакрон бьёт по бокам: встаньте спереди или сзади!"
+        },
+        {
+          "type": "cast",
+          "skill": 1604400,
+          "every_ms": 30000,
+          "wind_up_ms": 1333,
+          "radius": 500,
+          "warning": "Vakron stamps in front: leave the circle!",
+          "warning_ru": "Вакрон топает перед собой: выйдите из круга!"
+        },
+        {
+          "type": "cast",
+          "skill": 1604360,
+          "every_ms": 20000,
+          "wind_up_ms": 700,
+          "radius": 800,
+          "warning": "Vakron slams: jump the ring that follows!",
+          "warning_ru": "Вакрон бьёт по земле: перепрыгните кольцо!"
+        }
+      ]
+    }
+  }
+}

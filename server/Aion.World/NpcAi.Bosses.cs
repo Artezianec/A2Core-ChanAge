@@ -214,6 +214,8 @@ public sealed partial class NpcAi
         {
             var raw = Damage(target, skill, PlayerLevelOf?.Invoke(key) ?? 1) * slam.Damage;
             var damage = Math.Max(1, (int)Math.Round(raw * 1000.0 / (1000 + Math.Max(0, DefenseOf?.Invoke(key) ?? 0))));
+            if (engine is not null && ((EngineCast)slam.Tag!).Def.Damage?.Ratio == true && RatioDamage(slam.Skill, key, victimIsNpc: false) is { } ratio)
+                damage = Math.Max(1, (int)Math.Round(ratio * engine.Encounter.DamageScale));
             LastAttacker = target.Key;
             LastHitSkill = slam.Skill;
             LastHitSeq = 1;

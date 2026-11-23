@@ -1,0 +1,427 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "reforged_abyss_ketu",
+  "display": "Ketu (Kashapa) - Abyssal Forge",
+  "display_ru": "Кету (Кашапа) - Бездонная кузница",
+  "dungeon": "ReforgedAbyss_Normal",
+  "source": "Client data 2.0.9.0 (NpcData skill ids / Skill.dat casts, areas, MaxHPRatio rows, NpcSpawn rows, abyss-stone skills 1910503-05) + boss-phases.json (call / enrage phases, OURS). Mark: CANDIDATE = guessed. Ludra Hard (2300xxx) has no map rows in the repo: ids and spawns are derived from Normal by tools/ludra_arkanis_data.py; its skills and values equal Normal's (CANDIDATE).",
+  "note": "Second boss. No client berserk. NOT implemented: Ketu's homing scythes (summons with MaxHPRatio 40% 1801888), the Mortal Soulstone invulnerability, the look-away/face colour gaze after 50% - they need NPC templates / facing checks the engine does not have.",
+  "npcs": {
+    "Normal": [
+      2301007
+    ],
+    "Hard": [
+      2300283
+    ]
+  },
+  "arena": {
+    "centre": "home",
+    "radius": 3500
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1801840,
+      "every_ms": 9000,
+      "wind_up_ms": 1300,
+      "radius": 800
+    },
+    {
+      "type": "cast",
+      "skill": 1801820,
+      "every_ms": 14000,
+      "wind_up_ms": 2000,
+      "radius": 900,
+      "damage": {
+        "scale": 1.19
+      },
+      "warning": "Kashapa gathers power: get out of reach!",
+      "warning_ru": "Кашапа собирает силу: отойдите подальше!"
+    },
+    {
+      "type": "cast",
+      "skill": 1801860,
+      "every_ms": 18000,
+      "wind_up_ms": 1500,
+      "radius": 1000
+    }
+  ],
+  "rules": [
+    {
+      "id": "phase0_call",
+      "when": {
+        "type": "hp_below",
+        "pct": 60
+      },
+      "once": true,
+      "do": [
+        {
+          "type": "modify",
+          "mode": "phase"
+        },
+        {
+          "type": "notice",
+          "text": "Kashapa calls for help!",
+          "text_ru": "Кашапа зовёт на помощь!",
+          "size": 22,
+          "color": "FFB040"
+        },
+        {
+          "type": "summon",
+          "npc": 2301019,
+          "count": 3,
+          "radius": 600,
+          "target": "victim"
+        }
+      ],
+      "note": "boss-phases.json (OURS)"
+    },
+    {
+      "id": "phase1_enrage",
+      "when": {
+        "type": "hp_below",
+        "pct": 30
+      },
+      "once": true,
+      "do": [
+        {
+          "type": "modify",
+          "mode": "phase",
+          "damage_mul": 1.25,
+          "haste_mul": 0.85
+        },
+        {
+          "type": "notice",
+          "text": "Kashapa is enraged!",
+          "text_ru": "Кашапа в ярости!",
+          "size": 22,
+          "color": "FFB040"
+        }
+      ],
+      "note": "boss-phases.json (OURS)"
+    },
+    {
+      "id": "burst_of_power",
+      "when": {
+        "type": "timer",
+        "after_ms": 25000,
+        "every_ms": 52000
+      },
+      "note": "Burst of Power (1801961 cast 6500, cd 52 s): an unavoidable hit on every player after a 6.5 s cast, spread apart. Official skill; the cone on each player is modelled as a circle (CANDIDATE). The Mortal Soulstone interrupt (NPCs 2920677/78) is NOT implemented.",
+      "do": [
+        {
+          "type": "notice",
+          "text": "Burst of Power! Spread out!",
+          "text_ru": "Взрыв силы! Рассредоточьтесь!",
+          "size": 22,
+          "color": "FFB040"
+        },
+        {
+          "type": "spread",
+          "id": "burst_spread",
+          "radius": 500,
+          "delay_ms": 6500,
+          "damage": {
+            "skill": 1801961,
+            "scale": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "orbs_fall",
+      "when": {
+        "type": "timer",
+        "after_ms": 18000,
+        "every_ms": 35000
+      },
+      "note": "Falling orbs (1801940 cast 2000, cd 35 s): two orbs fall on random players; an unabsorbed orb deals 80% max HP (1801943). Official skill / ratio; geometry CANDIDATE.",
+      "do": [
+        {
+          "type": "notice",
+          "text": "Orbs are falling! Catch each one!",
+          "text_ru": "Падают сферы! Поймайте каждую!",
+          "size": 22,
+          "color": "FFB040"
+        },
+        {
+          "type": "orb",
+          "id": "orb_a",
+          "at": "random_player",
+          "radius": 450,
+          "required": 1,
+          "window_ms": 5000,
+          "on_fail": [
+            {
+              "type": "telegraph",
+              "at": "arena_centre",
+              "shape": "circle",
+              "radius": 1300,
+              "decal": false,
+              "damage": {
+                "skill": 1801943,
+                "ratio": true
+              }
+            }
+          ]
+        },
+        {
+          "type": "orb",
+          "id": "orb_b",
+          "at": "random_player",
+          "radius": 450,
+          "required": 1,
+          "window_ms": 5000,
+          "on_fail": [
+            {
+              "type": "telegraph",
+              "at": "arena_centre",
+              "shape": "circle",
+              "radius": 1300,
+              "decal": false,
+              "damage": {
+                "skill": 1801943,
+                "ratio": true
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gaze",
+      "when": {
+        "type": "timer",
+        "after_ms": 30000,
+        "every_ms": 45000
+      },
+      "note": "Abyssal Gaze (1801970 cast 9000, cd 45 s): the arena closes in from the edge; the centre is safe. Official cast time; the safe radius is CANDIDATE.",
+      "do": [
+        {
+          "type": "notice",
+          "text": "The abyss gazes! Get to the centre!",
+          "text_ru": "Взор бездны! В центр арены!",
+          "size": 22,
+          "color": "FFB040"
+        },
+        {
+          "type": "telegraph",
+          "id": "gaze_ring",
+          "at": "arena_centre",
+          "shape": "donut",
+          "inner": 700,
+          "radius": 3600,
+          "delay_ms": 9000,
+          "damage": {
+            "skill": 1801971,
+            "scale": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "stone_wrath",
+      "when": {
+        "type": "timer",
+        "after_ms": 1000,
+        "every_ms": 20000
+      },
+      "npc_alive": 2301015,
+      "note": "The abyss stone's aura (client skill 19105xx1: radius 4000, every 20 s, 60 s long) on everyone near it while the stone stands. Which stone gives which abnormal is a CANDIDATE (by id order).",
+      "do": [
+        {
+          "type": "telegraph",
+          "id": "stone_wrath",
+          "at": {
+            "x": 75010,
+            "y": 85042,
+            "z": 45640
+          },
+          "shape": "circle",
+          "radius": 4000,
+          "decal": false,
+          "on_hit": [
+            {
+              "type": "debuff",
+              "debuff": "stone_wrath",
+              "abnormal": 19105031,
+              "duration_ms": 60000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stone_endurance",
+      "when": {
+        "type": "timer",
+        "after_ms": 1000,
+        "every_ms": 20000
+      },
+      "npc_alive": 2301016,
+      "note": "The abyss stone's aura (client skill 19105xx1: radius 4000, every 20 s, 60 s long) on everyone near it while the stone stands. Which stone gives which abnormal is a CANDIDATE (by id order).",
+      "do": [
+        {
+          "type": "telegraph",
+          "id": "stone_endurance",
+          "at": {
+            "x": 75010,
+            "y": 85042,
+            "z": 45640
+          },
+          "shape": "circle",
+          "radius": 4000,
+          "decal": false,
+          "on_hit": [
+            {
+              "type": "debuff",
+              "debuff": "stone_endurance",
+              "abnormal": 19105041,
+              "duration_ms": 60000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stone_knowledge",
+      "when": {
+        "type": "timer",
+        "after_ms": 1000,
+        "every_ms": 20000
+      },
+      "npc_alive": 2301017,
+      "note": "The abyss stone's aura (client skill 19105xx1: radius 4000, every 20 s, 60 s long) on everyone near it while the stone stands. Which stone gives which abnormal is a CANDIDATE (by id order).",
+      "do": [
+        {
+          "type": "telegraph",
+          "id": "stone_knowledge",
+          "at": {
+            "x": 75010,
+            "y": 85042,
+            "z": 45640
+          },
+          "shape": "circle",
+          "radius": 4000,
+          "decal": false,
+          "on_hit": [
+            {
+              "type": "debuff",
+              "debuff": "stone_knowledge",
+              "abnormal": 19105051,
+              "duration_ms": 60000
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "difficulty": {
+    "Hard": {
+      "note": "Hard ids derived from Normal (CANDIDATE).",
+      "rules_remove": [
+        "stone_wrath",
+        "stone_endurance",
+        "stone_knowledge"
+      ],
+      "rules_add": [
+        {
+          "id": "stone_wrath_hard",
+          "when": {
+            "type": "timer",
+            "after_ms": 1000,
+            "every_ms": 20000
+          },
+          "npc_alive": 2300291,
+          "note": "The abyss stone's aura (client skill 19105xx1: radius 4000, every 20 s, 60 s long) on everyone near it while the stone stands. Which stone gives which abnormal is a CANDIDATE (by id order).",
+          "do": [
+            {
+              "type": "telegraph",
+              "id": "stone_wrath",
+              "at": {
+                "x": 75010,
+                "y": 85042,
+                "z": 45640
+              },
+              "shape": "circle",
+              "radius": 4000,
+              "decal": false,
+              "on_hit": [
+                {
+                  "type": "debuff",
+                  "debuff": "stone_wrath",
+                  "abnormal": 19105031,
+                  "duration_ms": 60000
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "stone_endurance_hard",
+          "when": {
+            "type": "timer",
+            "after_ms": 1000,
+            "every_ms": 20000
+          },
+          "npc_alive": 2300292,
+          "note": "The abyss stone's aura (client skill 19105xx1: radius 4000, every 20 s, 60 s long) on everyone near it while the stone stands. Which stone gives which abnormal is a CANDIDATE (by id order).",
+          "do": [
+            {
+              "type": "telegraph",
+              "id": "stone_endurance",
+              "at": {
+                "x": 75010,
+                "y": 85042,
+                "z": 45640
+              },
+              "shape": "circle",
+              "radius": 4000,
+              "decal": false,
+              "on_hit": [
+                {
+                  "type": "debuff",
+                  "debuff": "stone_endurance",
+                  "abnormal": 19105041,
+                  "duration_ms": 60000
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "stone_knowledge_hard",
+          "when": {
+            "type": "timer",
+            "after_ms": 1000,
+            "every_ms": 20000
+          },
+          "npc_alive": 2300293,
+          "note": "The abyss stone's aura (client skill 19105xx1: radius 4000, every 20 s, 60 s long) on everyone near it while the stone stands. Which stone gives which abnormal is a CANDIDATE (by id order).",
+          "do": [
+            {
+              "type": "telegraph",
+              "id": "stone_knowledge",
+              "at": {
+                "x": 75010,
+                "y": 85042,
+                "z": 45640
+              },
+              "shape": "circle",
+              "radius": 4000,
+              "decal": false,
+              "on_hit": [
+                {
+                  "type": "debuff",
+                  "debuff": "stone_knowledge",
+                  "abnormal": 19105051,
+                  "duration_ms": 60000
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

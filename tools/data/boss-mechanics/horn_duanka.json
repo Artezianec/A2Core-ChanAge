@@ -1,0 +1,261 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "horn_den_duanka",
+  "display": "Necromancer Duanka",
+  "display_ru": "Некромант Дуанка",
+  "dungeon": "HornCave",
+  "source": "authored from the client data (Skill.dat / Abnormal.dat / Npc.dat: skill ids, cast times, cooldowns, damage rows, abnormal ids) + research notes; values marked CANDIDATE/guess are not in the client",
+  "note": "Mid-boss (client NPC Lycan_04_V01). Rotation from the client: claw arc 1606970. Lycan Necromancy (client 1607010, cooldown group shared with Soul Calling 1607050 so they alternate every 55 s): 4 linked spirits (2 on Easy, client 1607011), Duanka is invulnerable until they die within the gauge (15 s from research) or the party wipes; the spirits are existing Horn Den lycan templates (guess) and the white-orb altar buff is not modelled. Locked share zone (client 1607030, 6 s Hold; the damage and radius are a guess) and Soul Calling (client 1607050: pull to the centre, twelve orbs 9000-11000 + 1 s stun = client 1607056, then a centre blast: 2400 radius, 3 s stun = client 1607051, 30000 damage = guess). Personal circles (spread, CANDIDATE 600/15000). Easy remaps 1607010/1607030 to 1607011/1607031.",
+  "npcs": {"Easy": [2310909], "Normal": [2300909], "Hard": [2320909]},
+  "vars": {"necro_ms": 15000, "soul_ms": 6000},
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1606970,
+      "every_ms": 12000,
+      "wind_up_ms": 700,
+      "radius": 1200,
+      "warning": "Duanka claws in an arc: step aside!",
+      "warning_ru": "Дуанка бьёт когтями дугой: отойдите!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "do": [
+        {"type": "modify", "damage_mul": 1.2}
+      ],
+      "note": "Kept from the generic boss-phases.json script (OURS): +20% damage at 50%."
+    },
+    {
+      "id": "necromancy_easy",
+      "when": {"type": "timer", "after_ms": 15000, "every_ms": 110000},
+      "difficulty": ["Easy"],
+      "do": [
+        {
+          "type": "notice",
+          "text": "Lycan Necromancy! Kill every spirit before the gauge fills or the party dies!",
+          "text_ru": "Некромантия ликанов! Убейте всех духов, пока не заполнится шкала, иначе группа погибнет!"
+        },
+        {
+          "type": "cast",
+          "skill": 1607010,
+          "wind_up_ms": 1467,
+          "radius": 300,
+          "once": true,
+          "land": false,
+          "on_land": [
+            {"type": "summon", "npc": 2310904, "count": 2, "radius": 900, "at": "boss", "group": "spirits"},
+            {
+              "type": "shield",
+              "id": "necromancy",
+              "invuln": true,
+              "until": "adds_dead:spirits",
+              "duration_ms": "$necro_ms",
+              "on_break": [
+                {"type": "notice", "text": "The spirits are gone!", "text_ru": "Духи уничтожены!"}
+              ],
+              "on_expire": [
+                {
+                  "type": "wipe",
+                  "text": "The gauge is full: the spirits drain the party!",
+                  "text_ru": "Шкала заполнена: духи высасывают жизнь группы!"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "necromancy_normal",
+      "when": {"type": "timer", "after_ms": 15000, "every_ms": 110000},
+      "difficulty": ["Normal"],
+      "do": [
+        {
+          "type": "notice",
+          "text": "Lycan Necromancy! Kill every spirit before the gauge fills or the party dies!",
+          "text_ru": "Некромантия ликанов! Убейте всех духов, пока не заполнится шкала, иначе группа погибнет!"
+        },
+        {
+          "type": "cast",
+          "skill": 1607010,
+          "wind_up_ms": 1467,
+          "radius": 300,
+          "once": true,
+          "land": false,
+          "on_land": [
+            {"type": "summon", "npc": 2300904, "count": 4, "radius": 900, "at": "boss", "group": "spirits"},
+            {
+              "type": "shield",
+              "id": "necromancy",
+              "invuln": true,
+              "until": "adds_dead:spirits",
+              "duration_ms": "$necro_ms",
+              "on_break": [
+                {"type": "notice", "text": "The spirits are gone!", "text_ru": "Духи уничтожены!"}
+              ],
+              "on_expire": [
+                {
+                  "type": "wipe",
+                  "text": "The gauge is full: the spirits drain the party!",
+                  "text_ru": "Шкала заполнена: духи высасывают жизнь группы!"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "necromancy_hard",
+      "when": {"type": "timer", "after_ms": 15000, "every_ms": 110000},
+      "difficulty": ["Hard"],
+      "do": [
+        {
+          "type": "notice",
+          "text": "Lycan Necromancy! Kill every spirit before the gauge fills or the party dies!",
+          "text_ru": "Некромантия ликанов! Убейте всех духов, пока не заполнится шкала, иначе группа погибнет!"
+        },
+        {
+          "type": "cast",
+          "skill": 1607010,
+          "wind_up_ms": 1467,
+          "radius": 300,
+          "once": true,
+          "land": false,
+          "on_land": [
+            {"type": "summon", "npc": 2320904, "count": 4, "radius": 900, "at": "boss", "group": "spirits"},
+            {
+              "type": "shield",
+              "id": "necromancy",
+              "invuln": true,
+              "until": "adds_dead:spirits",
+              "duration_ms": "$necro_ms",
+              "on_break": [
+                {"type": "notice", "text": "The spirits are gone!", "text_ru": "Духи уничтожены!"}
+              ],
+              "on_expire": [
+                {
+                  "type": "wipe",
+                  "text": "The gauge is full: the spirits drain the party!",
+                  "text_ru": "Шкала заполнена: духи высасывают жизнь группы!"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "locked_zone",
+      "when": {"type": "timer", "after_ms": 28000, "every_ms": 40000},
+      "do": [
+        {"type": "mark", "name": "locked", "target": "random_player"},
+        {
+          "type": "notice",
+          "text": "A player is locked in place: everyone stand in the circle and share the blow!",
+          "text_ru": "Игрок скован: встаньте все в круг и разделите удар!"
+        },
+        {"type": "cast", "skill": 1607030, "wind_up_ms": 1000, "radius": 300, "once": true, "land": false},
+        {
+          "type": "debuff",
+          "debuff": "locked",
+          "target": "mark:locked",
+          "abnormal": 16070302,
+          "duration_ms": 6000
+        },
+        {
+          "type": "soak",
+          "id": "locked_zone",
+          "at": "mark:locked",
+          "radius": 500,
+          "split": true,
+          "delay_ms": 6000,
+          "decal": true,
+          "damage": {"factor": [60000, 60000]}
+        }
+      ]
+    },
+    {
+      "id": "soul_calling",
+      "when": {"type": "timer", "after_ms": 42500, "every_ms": 110000},
+      "do": [
+        {
+          "type": "notice",
+          "text": "Soul Calling! Everyone is pulled in, dodge the orbs, then run to the edge before the gauge fills!",
+          "text_ru": "Призыв душ! Всех стягивает к центру: уворачивайтесь от шаров и бегите к краю до заполнения шкалы!"
+        },
+        {"type": "cast", "skill": 1607050, "wind_up_ms": 1000, "radius": 3000, "once": true, "land": false},
+        {"type": "displace", "mode": "pull", "at": "boss"},
+        {
+          "type": "repeat",
+          "every_ms": 500,
+          "delay_ms": 1500,
+          "count": 12,
+          "do": [
+            {
+              "type": "telegraph",
+              "at": "random_player",
+              "shape": "circle",
+              "radius": 250,
+              "delay_ms": 1200,
+              "decal": true,
+              "damage": {"factor": [9000, 11000]},
+              "on_hit": [
+                {
+                  "type": "debuff",
+                  "debuff": "orb_stun",
+                  "target": "event_player",
+                  "abnormal": 12000001,
+                  "duration_ms": 1000
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "telegraph",
+          "at": "boss",
+          "shape": "circle",
+          "radius": 2400,
+          "delay_ms": "$soul_ms",
+          "decal": true,
+          "damage": {"factor": [30000, 30000]},
+          "on_hit": [
+            {
+              "type": "debuff",
+              "debuff": "soul_stun",
+              "target": "event_player",
+              "abnormal": 12000001,
+              "duration_ms": 3000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "personal_circles",
+      "when": {"type": "timer", "after_ms": 32000, "every_ms": 55000},
+      "do": [
+        {
+          "type": "spread",
+          "id": "personal_circles",
+          "at": "each_player",
+          "radius": 600,
+          "delay_ms": 3000,
+          "decal": true,
+          "damage": {"factor": [15000, 15000]},
+          "warning": "A blast forms around each of you: spread out, overlap is lethal!",
+          "warning_ru": "Вокруг каждого образуется взрыв: разойдитесь, пересечение смертельно!"
+        }
+      ]
+    }
+  ],
+  "difficulty": {
+    "Easy": {
+      "skill_remap": {"1607010": 1607011, "1607030": 1607031}
+    }
+  }
+}

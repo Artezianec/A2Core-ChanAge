@@ -157,6 +157,7 @@ public sealed partial class NpcAi
         if ((rule.Once ?? OnceByDefault(rule.When.Type)) && fires > 0) return false;
         if (rule.MaxFires is { } max && fires >= max) return false;
         if (rule.Phase is { Count: > 0 } phases && (run.Phase is null || !phases.Contains(run.Phase))) return false;
+        if (rule.NpcAlive is { } alive && current?.Values.Any(t => t.NpcId == alive && !t.Dead && !t.CorpseRemoved) != true) return false;
         if (rule.Chance is { } chance && rng.NextDouble() >= run.N(chance, 1)) return false;
         return true;
     }
@@ -345,6 +346,9 @@ public sealed partial class NpcAi
             case "home": list.Add(new(brain.Home, brain.HomeHeading, null)); break;
             case "cast_centre": var c = ctx.CastCentre ?? boss.Position; list.Add(new(c, Facing(c), null)); break;
             case "event": var o = ctx.Origin ?? boss.Position; list.Add(new(o, Facing(o), ctx.Player)); break;
+            case "event_player":
+                foreach (var p in players.Where(p => p.Key == ctx.Player)) list.Add(new(p.Position, FromBoss(p.Position), p.Key));
+                break;
             case "mark":
                 if (run.Mark(anchor.Arg!) is { } marked)
                     foreach (var p in players.Where(p => p.Key == marked)) list.Add(new(p.Position, FromBoss(p.Position), p.Key));
@@ -465,6 +469,8 @@ public sealed partial class NpcAi
         }
         else
         {
+            if (d.Ratio == true && d.Skill is { } ratioId && RatioDamage(run.Encounter.Skill(ratioId), playerKey, victimIsNpc: false) is { } ratio)
+                return Math.Max(1, (int)Math.Round(ratio * run.Encounter.DamageScale * run.N(d.Scale, 1)));
             var skill = d.Skill is { } id ? data?.NpcSkill(run.Encounter.Skill(id)) : null;
             if (skill is null && d.Factor is { Length: 2 } fa) skill = new NpcSkill(0, 0, 1, 1, 0, (int)run.N(fa[0]), (int)run.N(fa[1]));
             if (skill is null) return 0;

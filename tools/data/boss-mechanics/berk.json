@@ -144,6 +144,79 @@
       ]
     },
     {
+      "id": "whirlwind",
+      "when": {"type": "timer", "after_ms": 25000, "every_ms": 40000},
+      "do": [
+        {
+          "type": "notice",
+          "text": "Whirlwind! Red dust: back off and stop attacking while he chases his target!",
+          "text_ru": "Вихрь! Красная пыль: отойдите и прекратите атаки, пока он гонится за целью!"
+        },
+        {
+          "type": "repeat",
+          "every_ms": 250,
+          "delay_ms": 2000,
+          "count": 24,
+          "do": [
+            {
+              "type": "telegraph",
+              "at": "boss",
+              "shape": "circle",
+              "radius": 1200,
+              "delay_ms": 0,
+              "decal": false,
+              "damage": {"factor": [11000, 12000]},
+              "on_hit": [
+                {
+                  "type": "debuff",
+                  "debuff": "whirlwind_dot",
+                  "target": "event_player",
+                  "abnormal": 12000151,
+                  "duration_ms": 20000
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "note": "Client: 1800170 (2 s cast, 40 s cooldown) gives Berk a 6 s buff that casts 1800160 every 250 ms: circle 1200, 11000-12000 and a 20 s DoT (ab12000151). The boss does not spin after a target here: the circle follows him."
+    },
+    {
+      "id": "rocks_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "do": [
+        {"type": "phase", "phase": "rocks"}
+      ],
+      "note": "CANDIDATE (research, likely): below 50% rocks erupt across the map, little damage, brief root."
+    },
+    {
+      "id": "rocks",
+      "when": {"type": "timer", "after_ms": 6000, "every_ms": 14000, "from": "phase"},
+      "phase": ["rocks"],
+      "do": [
+        {
+          "type": "telegraph",
+          "at": "random_player",
+          "shape": "circle",
+          "radius": 350,
+          "delay_ms": 1500,
+          "decal": true,
+          "count": 2,
+          "interval_ms": 700,
+          "damage": {"factor": [3000, 3000]},
+          "on_hit": [
+            {
+              "type": "debuff",
+              "debuff": "rock_root",
+              "target": "event_player",
+              "abnormal": 12000021,
+              "duration_ms": 1000
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "frenzy",
       "when": {
         "type": "enrage_timer",

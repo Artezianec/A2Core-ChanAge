@@ -1,0 +1,86 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "arkanis_siliator",
+  "display": "Siliator - Shattered Arkanis (stage elite 1)",
+  "display_ru": "Силиатор - Расколотый Арканис (элита 1)",
+  "dungeon": "Arkanis_G_01",
+  "source": "Client data 2.0.9.0 (NpcData skills, Skill.dat casts / areas / abnormals, Thalythra berserk 300 s) + boss-phases.json (compiled slam and phases, OURS). Stage elites are mapped to Siliator / Ruthilis by their client kit (Naga_01 = Siliator, Naga_02 = Ruthilis; the boss is Thalythra). CANDIDATE = guessed.",
+  "note": "Stages 1-2 = Normal key, 3-4 = Hard key (the stage grade). Official kit: arcs, circle, 3600x500 line, ranged DefenseDown 16060902, chakram link 1606060 (MoveSpeed 16060602 8 s) and the 1606100 rectangle. The slam is the compiled script's (cooldown 30 s ours, client 42 s). Not implemented: the stagger-break (GroggyGuard 5000) race on the long cast - the client gives no cast time above 2 s, so no check is justified.",
+  "npcs": {
+    "Normal": [
+      2330707,
+      2350707
+    ],
+    "Hard": [
+      2353707,
+      2356707
+    ]
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1606010,
+      "every_ms": 10000,
+      "wind_up_ms": 1000,
+      "radius": 600
+    },
+    {
+      "type": "cast",
+      "skill": 1606050,
+      "every_ms": 12000,
+      "wind_up_ms": 1500,
+      "radius": 600
+    },
+    {
+      "type": "cast",
+      "skill": 1606020,
+      "every_ms": 14000,
+      "wind_up_ms": 1600,
+      "radius": 500
+    },
+    {
+      "type": "cast",
+      "skill": 1606090,
+      "every_ms": 10000,
+      "wind_up_ms": 1500,
+      "radius": 500
+    },
+    {
+      "type": "cast",
+      "skill": 1606060,
+      "every_ms": 28000,
+      "wind_up_ms": 2000,
+      "radius": 300
+    },
+    {
+      "type": "cast",
+      "skill": 1606100,
+      "every_ms": 30000,
+      "wind_up_ms": 2000,
+      "radius": 450,
+      "damage": {
+        "scale": 2.05
+      },
+      "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+      "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "phase0_fury",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "once": true,
+      "do": [
+        {
+          "type": "modify",
+          "mode": "phase",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "boss-phases.json (OURS)"
+    }
+  ]
+}

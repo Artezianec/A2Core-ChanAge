@@ -1,0 +1,40 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "krao_cave_gadioton",
+  "display": "Neglected Gadioton",
+  "display_ru": "Заброшенный Гадиотон",
+  "dungeon": "KraoCave",
+  "source": "authored from the client data (Skill.dat / Abnormal.dat / Npc.dat: skill ids, cast times, cooldowns, damage rows, abnormal ids) + research notes; values marked CANDIDATE/guess are not in the client",
+  "note": "Mid-boss: ground slam (1218550) and blast (1218540) rotation from the client cast times/cooldowns; keeps the generic fury at 50% (OURS). Official has no enrage timer for mid-bosses (BossBerserkInvokeTime 0).",
+  "npcs": {"Easy": [2310104], "Normal": [2300104], "Hard": [2320104]},
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1218550,
+      "every_ms": 16000,
+      "wind_up_ms": 1000,
+      "radius": 350,
+      "warning": "Gadioton slams the ground around him: step out of the circle!",
+      "warning_ru": "Гадиотон бьёт по земле вокруг себя: выйдите из круга!"
+    },
+    {
+      "type": "cast",
+      "skill": 1218540,
+      "every_ms": 12000,
+      "wind_up_ms": 1270,
+      "radius": 300,
+      "warning": "Gadioton hurls a blast at you: leave the circle!",
+      "warning_ru": "Гадиотон метит в вас: выйдите из круга!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "do": [
+        {"type": "modify", "damage_mul": 1.2}
+      ],
+      "note": "Kept from the generic boss-phases.json script (OURS): +20% damage at 50%."
+    }
+  ]
+}

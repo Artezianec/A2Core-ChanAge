@@ -64,11 +64,12 @@ Distances are flat (2D, to the player's centre) unless the skill's client shape 
 | `start_phase` | Phase set when the fight starts (fires `phase_enter`). |
 | `opening_ms` | First rotation cast this long after the pull (default: half the first cast's `every_ms`). |
 | `rotation` | Filler casts in order, each repeating on its `every_ms` (only `cast`). `set_rotation` replaces it. |
-| `rules` | `{ id, when, do, phase?, difficulty?, once?, max_fires?, chance?, note? }`. |
+| `rules` | `{ id, when, do, phase?, difficulty?, once?, max_fires?, chance?, npc_alive?, note? }`. |
 | `difficulty` | Per-difficulty overrides ([below](#difficulty-overrides)). |
 
 A rule fires when its trigger matches and its filters pass: `phase` (only in these phases), `difficulty` (only on these),
-`once` (default true for `hp_below`, `enrage_timer`, `npc_killed`, `fight_start`; false otherwise), `max_fires`, `chance` (0–1).
+`once` (default true for `hp_below`, `enrage_timer`, `npc_killed`, `fight_start`; false otherwise), `max_fires`, `chance` (0–1),
+`npc_alive` (only while an NPC with this NpcData id is alive on the map: the Abyssal Forge stones that buff the party).
 Unknown fields are errors (typos do not silently do nothing).
 
 ## Triggers
@@ -104,6 +105,7 @@ Where an action happens (`at`, `toward`, `to`, `target`):
 | `arena_centre`, `home` | The arena centre / the boss's spawn point. |
 | `cast_centre` | Inside a cast's `during` / `on_land` / `on_break`: where the cast is placed (on the victim for on-target or ground skills, else the boss). |
 | `event` | The point (and player) of the event that fired the rule (`add_died`, `stacks_reached`, `on_hit`, ...). |
+| `event_player` | The player the running follow-up belongs to (`on_hit`, `on_touch`, a `debuff` `on_max`), at their **live** position, also inside a `delay` (acid pools, lava marks: where the player stands when the delay ends). |
 | `mark:<name>` | The player a `mark` action named. |
 | `group:<name>` | Each living add of a summon group (facing as the add faces). |
 | `{ "x": .., "y": .., "z": .. }` | A world point (z 0 = the boss's height). |
@@ -146,6 +148,7 @@ enough players stand in **any** of the circles (pillar baits).
 | `fixed: [min, max]` | Flat damage (DoTs, puddles). Not scaled, no defense. |
 | `scale` | Multiplier on the result. Difficulty `damage_scale` multiplies too. |
 | `hp_ratio` | A share of the victim's maximum HP in 1/10000 (the client Damage row calc type MaxHPRatio: 10000 = all of it, 50000 = lethal), through `SkillEffectEngine.NpcRatioDamage` (`AION_NPC_RATIO_DAMAGE`); with the flag off the other fields apply, so give a `factor` fallback. `scale` and `damage_scale` multiply it. With `split` (`stack`, `soak`) the share is divided between the players in it: `hp_ratio: 15000` split reproduces the client's 150 / 75 / 50 / 30% rows for 1 / 2 / 3 / 5 players. |
+| `ratio: true` | With `skill`: the skill's client HP-ratio row (`MaxHPRatio` / `CurrentHPRatio`, `skill-effect-engine.json` `ratio_damage`) of the victim's HP, when the skill has one (a 70% orb, a lethal 500% line). Opt-in: casts and telegraphs otherwise keep the Skill.dat damage row. Complements `hp_ratio`: `hp_ratio` is an authored share, `ratio` reads the skill's own client row (also for `cast`, where the slam pipeline applies it). |
 | `lethal: true` | Kills (wipes). |
 | `ignore_defense: true` | Skip the victim's defense reduction. |
 
@@ -197,7 +200,7 @@ Every action is `{ "type": ..., "id"?: ..., "note"?: ..., fields }`. An `id` nam
 
 | Action | Fields | Does |
 |---|---|---|
-| `debuff` | `debuff`, `target`, `stacks` (1), `max`, `duration_ms`, `abnormal`, `on_max` | Engine-tracked stacks on players (fires `stacks_reached`). `abnormal` applies a client abnormal to the player through `NpcAi.MechanicDebuffHook`, which `GameSession` wires to `EngineApplyAbnormal` (stacking rules, immunities, client packet) for abnormal ids in the ported skill tables. |
+| `debuff` | `debuff`, `target`, `stacks` (1), `max`, `duration_ms`, `abnormal`, `on_max` | Engine-tracked stacks on players (fires `stacks_reached`). `abnormal` applies a client abnormal to the player through `NpcAi.MechanicDebuffHook`, which `GameSession` wires to `EngineApplyAbnormal` (stacking rules, immunities, client packet) for abnormal ids in the ported skill tables. `max: 1` makes a once-per-player latch for `on_max`. |
 | `cleanse` | `debuff`, `target` (default everyone) | Clears stacks. |
 | `tank_swap` | `debuff`, `max` (2), `duration_ms` | The victim gains a stack; at `max` the boss turns to the top-threat present player without the debuff. |
 | `mark` | `name`, `target` (default victim), `text` | Remembers a player for `mark:<name>` (with an optional notice). |
@@ -347,6 +350,14 @@ From "Patterns that repeat across the series" in the research doc:
 | Odium / Eternal Gartua 2400800 / 2101074 (field boss) | **Authored** `field_gartua.json`: 4-skill rotation, the 15 s Odyle Absorption stagger check (`on_break`: the cast is stopped; `on_land`: +20% damage for 30 s). Intervals GUESS. |
 | Turncoat Ducal 2600521 (Middle Reshanta) | **Authored** `field_ducal.json`: Smite Ground and Greatsword Plunge from the client casts. Intervals GUESS. |
 | Abyss rift grade 6 bosses 2670066 / 067 / 113-118 | **Authored** `abyss_rift_wh6.json`: invulnerable for 25 s at 66% and 33% HP (OFFICIAL: 8 bosses, 25 s, at most twice; the mapping to these 8 NPCs and the thresholds are GUESSES). |
+| Rahu / Ketu / Ludra (Abyssal Forge raid) | **Authored** `ludra_*.json`, see [LUDRA-ARKANIS.md](LUDRA-ARKANIS.md). |
+| Siliator / Ruthilis / Talisra (Shattered Arkanis) | **Authored** `arkanis_*.json`, see [LUDRA-ARKANIS.md](LUDRA-ARKANIS.md). |
+| Krao Cave mid-bosses 2300104 (Gadioton) / 2300108 (Harcon), +10000 Easy / +20000 Hard | **Authored** `krao_gadioton.json`, `krao_harcon.json`: client rotation, generic fury kept, Harcon's sniper adds at 60%. |
+| Urugugu Canyon mid-bosses 2300206 (Raur) / 2300207 (Urahum) | **Authored** `urugugu_raur.json` (reflect pool `shield` at 70% / 30%, Easy remap), `urugugu_urahum.json` (acid mark `debuff` max 1 + `event_player` puddle `zone`, triple slam `steps`). |
+| Fire Temple mid-bosses 2300310 (Rotan) / 2300311 (Ignus) / 2300312 (Murute) | **Authored** `fire_rotan.json`, `fire_ignus.json` (lava marks 75%, Flame Rush `spread` 65%), `fire_murute.json` (Lava Lift follow-up circles, ring `steps` below 50%). Kromede Hard: clones from 75% (`rules_remove` / `rules_add`). |
+| Draupnir mid-bosses 2300401 (Lakshmi) / 2300403 (Sarasvati) | **Authored** `draupnir_lakshmi.json` (reflect pool every 40 s, healing adds 50%), `draupnir_sarasvati.json` (poison puddle `zone`, root `debuff`). |
+| Vakron Sky Island 2300810 (Tie) / 2300811 (Tamon) / 2300812 (Vakron) | **Authored** `vakron_tie.json` (map poison + spits 75% / 25%), `vakron_tamon.json` (colour `shield`, petrify circles), `vakron_final.json` (generic calls / fury / enrage kept; Thorn Prison, Surging Thorn 60% / 40%, stone prison 55% / 35%, frenzy). |
+| Ferocious Horn Den 2300908 (Kuhapu) / 2300909 (Duanka) | **Authored** `horn_kuhapu.json` (Thunder Cry: invuln `shield` + `orb`s, Easy 1 orb), `horn_duanka.json` (Necromancy spirits + `adds_dead` shield, locked share `soak`, Soul Calling, personal `spread`). Berk: Whirlwind and rock eruptions added. |
 
 Deliberate differences from the hand-coded fights (all small; tests pin the rest):
 
@@ -374,13 +385,28 @@ Deliberate differences from the hand-coded fights (all small; tests pin the rest
 
 ## Known gaps and CANDIDATE values
 
+Expedition mid-bosses and Vakron / Horn Den (`krao_*`, `urugugu_*`, `fire_*`, `draupnir_lakshmi/sarasvati`, `vakron_*`, `horn_*`):
+skills, cast times, cooldowns, damage rows, abnormal ids, hidden sub-skill numbers (used as `damage.factor`), orb / spirit counts
+and the Easy / Hard remaps are from the client tables. **Guesses** (each marked in the file's `note`): thresholds other than the
+generic fury 50% (Raur 70/30, Ignus 75/65, Murute 50, Tie 75/25, Vakron 60/40 and 55/35, Lakshmi's reflect every 40 s and the
+healer at 50%, Harcon's snipers at 60%), pool sizes of the reflect / colour / rock shields, the poison, share, personal-circle
+and orb-explosion damage, the extra Surging Thorn ring bands and the Kuhapu purple ring, puddle and lava sizes and lifetimes.
+Not modelled: Tamon's physical / magic colour split (one pool shield for both), "free by hitting" prisons (timed holds), the
+Vakron 6-direction lines and giant stems, Kuhapu's chasing orbs and map lightning, Duanka's white-orb altar and torch orbs'
+real positions, Raur's reflect as a real reflect (a pool that punishes when emptied), map-poison safe circle positions
+(`arena_centre`), Kromede's Hard Blazing Judgment (positions unknown), effect NPCs (puddles / orbs are `zone` / `telegraph`),
+the jump / glide checks (flat 2D, so ring and field blows always hit anyone in them). Hard enrage: Normal 300 s, Hard 240 s
+(the official note; the client table says 300 for Fire Temple and Horn Den Hard, 240 for the others).
+Add NPCs (Harcon's snipers, Lakshmi's attendants, Duanka's spirits) are existing trash templates: `world-npcs.json` has no
+templates for the research's own add NPCs.
+
 - Engine `mark`s and debuffs **without** an `abnormal` id still have no client icon (players see the notice); debuffs with an `abnormal` id use the skill-effect engine's real abnormal.
 - A `cast` with no Skill.dat damage row (Odyle Absorption 1601205, damage 0) ignores the client cast time: give `wind_up_ms` explicitly.
 - `parts` credit the boss's HP loss to the first unbroken part; there is no per-part hit wire yet.
 - Skills with no Skill.dat damage row deal 1 (Auldor 1601030 / 1601035, Bakarma 1800655): use `damage.factor` when a real
   number is known. The migrated finals keep 1 to match the legacy fight.
 - `cover` is a wedge behind the object, not real line of sight.
-- Nuakum's stack/spread circles and throw skill, Kromede's Hard earlier clones: not in the data yet.
+- Nuakum's stack/spread circles and throw skill, Kromede's Blazing Judgment (Hard, 25%): not in the data yet.
 - The expedition dungeons' encounter files (`ddn_*`, `cradle_*`, `hall_*`, `azure_*`, `citadel_*`) use the client's real skill ids, cooldowns, cast times and
   area shapes for the rotation. Mechanics that the client implements with hidden helper NPCs (almost none are in `world-npcs.json` `templates`) are
   authored as `telegraph` / `zone` / `orb` / `counter` rules with explicit shapes; every number that is not a client row is labelled **GUESS** in the

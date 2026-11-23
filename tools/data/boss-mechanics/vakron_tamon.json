@@ -1,0 +1,170 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "vakron_tamon",
+  "display": "Tamon",
+  "display_ru": "Тамон",
+  "dungeon": "BakronIsland",
+  "source": "authored from the client data (Skill.dat / Abnormal.dat / Npc.dat: skill ids, cast times, cooldowns, damage rows, abnormal ids) + research notes; values marked CANDIDATE/guess are not in the client",
+  "note": "Mid-boss. Colour states (client 1604660 red / 1604670 purple, 1.79 s cast, 10 s ConvertDamageToHpHeal buff, 60 s cooldown): the engine cannot tell physical from magic damage, so both colours are one pool shield that soaks the first colour_pool_pct of the boss's HP in damage for 10 s (CANDIDATE size). Petrify (client 1604720 slam + 1604740 circles: 23-27k and a 6 s stun that is cleared by damage) from the client. fury at 50% kept (OURS).",
+  "npcs": {"Easy": [2310811], "Normal": [2300811], "Hard": [2320811]},
+  "vars": {"colour_pool_pct": 3, "colour_ms": 10000},
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1604790,
+      "every_ms": 20000,
+      "wind_up_ms": 2050,
+      "radius": 3000,
+      "warning": "Tamon leaps: get away, he is untargetable for a moment!",
+      "warning_ru": "Тамон прыгает: отойдите, он ненадолго недосягаем!"
+    },
+    {
+      "type": "cast",
+      "skill": 1604710,
+      "every_ms": 20000,
+      "wind_up_ms": 1100,
+      "radius": 700,
+      "warning": "Tamon slams in front: step aside!",
+      "warning_ru": "Тамон бьёт перед собой: отойдите в сторону!"
+    },
+    {
+      "type": "cast",
+      "skill": 1604690,
+      "every_ms": 15000,
+      "wind_up_ms": 770,
+      "radius": 450,
+      "warning": "Tamon swings: move out!",
+      "warning_ru": "Тамон замахивается: отойдите!"
+    },
+    {
+      "type": "cast",
+      "skill": 1604720,
+      "every_ms": 35000,
+      "wind_up_ms": 1540,
+      "radius": 600,
+      "land": false,
+      "warning": "Tamon slams the ground: a bind circle appears under each of you, leave it!",
+      "warning_ru": "Тамон бьёт по земле: под каждым появится круг оков, уходите из него!",
+      "on_land": [
+        {
+          "type": "telegraph",
+          "at": "boss",
+          "shape": "circle",
+          "radius": 600,
+          "distance": 300,
+          "toward": "victim",
+          "delay_ms": 0,
+          "decal": false,
+          "damage": {"factor": [23000, 27000]}
+        },
+        {
+          "type": "telegraph",
+          "at": "each_player",
+          "shape": "circle",
+          "radius": 300,
+          "delay_ms": 1500,
+          "decal": true,
+          "damage": {"factor": [23000, 27000]},
+          "on_hit": [
+            {
+              "type": "debuff",
+              "debuff": "petrify",
+              "target": "event_player",
+              "abnormal": 16047201,
+              "duration_ms": 6000
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "do": [
+        {"type": "modify", "damage_mul": 1.2}
+      ],
+      "note": "Kept from the generic boss-phases.json script (OURS): +20% damage at 50%."
+    },
+    {
+      "id": "colour",
+      "when": {"type": "timer", "after_ms": 20000, "every_ms": 60000},
+      "do": [
+        {
+          "type": "random",
+          "choices": [
+            {
+              "weight": 1,
+              "do": [
+                {
+                  "type": "notice",
+                  "text": "Tamon turns red: physical attackers stop!",
+                  "text_ru": "Тамон краснеет: физические атаки прекратить!"
+                },
+                {
+                  "type": "cast",
+                  "skill": 1604660,
+                  "wind_up_ms": 1790,
+                  "radius": 700,
+                  "once": true,
+                  "warning": "Tamon turns red: physical attackers stop!",
+                  "warning_ru": "Тамон краснеет: физические атаки прекратить!",
+                  "on_land": [
+                    {
+                      "type": "shield",
+                      "id": "colour",
+                      "hp_pct": "$colour_pool_pct",
+                      "duration_ms": "$colour_ms",
+                      "on_break": [
+                        {
+                          "type": "notice",
+                          "text": "Tamon's colour fades: attack again!",
+                          "text_ru": "Окраска Тамона исчезает: атакуйте снова!"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "weight": 1,
+              "do": [
+                {
+                  "type": "notice",
+                  "text": "Tamon turns purple: casters stop!",
+                  "text_ru": "Тамон багровеет: заклинатели, прекратите!"
+                },
+                {
+                  "type": "cast",
+                  "skill": 1604670,
+                  "wind_up_ms": 1790,
+                  "radius": 700,
+                  "once": true,
+                  "warning": "Tamon turns purple: casters stop!",
+                  "warning_ru": "Тамон багровеет: заклинатели, прекратите!",
+                  "on_land": [
+                    {
+                      "type": "shield",
+                      "id": "colour",
+                      "hp_pct": "$colour_pool_pct",
+                      "duration_ms": "$colour_ms",
+                      "on_break": [
+                        {
+                          "type": "notice",
+                          "text": "Tamon's colour fades: attack again!",
+                          "text_ru": "Окраска Тамона исчезает: атакуйте снова!"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "arkanis_ruthilis",
+  "display": "Ruthilis - Shattered Arkanis (stage elite 2)",
+  "display_ru": "Рутилис - Расколотый Арканис (элита 2)",
+  "dungeon": "Arkanis_G_01",
+  "source": "Client data 2.0.9.0 (NpcData skills, Skill.dat casts / areas / abnormals, Thalythra berserk 300 s) + boss-phases.json (compiled slam and phases, OURS). Stage elites are mapped to Siliator / Ruthilis by their client kit (Naga_01 = Siliator, Naga_02 = Ruthilis; the boss is Thalythra). CANDIDATE = guessed.",
+  "note": "Official kit: 1606440 ring (inner 600, outer 5000) with knockdown, the 1606450 90-degree long cone, lightning bomb abnormals 16063724/25 on the 1606390 projectiles. Water puddles / the farthest-player donut need target selection the cast action lacks (not implemented).",
+  "npcs": {
+    "Normal": [
+      2330708,
+      2350708
+    ],
+    "Hard": [
+      2353708,
+      2356708
+    ]
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1606380,
+      "every_ms": 10000,
+      "wind_up_ms": 1500,
+      "radius": 500
+    },
+    {
+      "type": "cast",
+      "skill": 1606420,
+      "every_ms": 14000,
+      "wind_up_ms": 1130,
+      "radius": 600
+    },
+    {
+      "type": "cast",
+      "skill": 1606410,
+      "every_ms": 12000,
+      "wind_up_ms": 1030,
+      "radius": 600
+    },
+    {
+      "type": "cast",
+      "skill": 1606390,
+      "every_ms": 15000,
+      "wind_up_ms": 1830,
+      "radius": 300
+    },
+    {
+      "type": "cast",
+      "skill": 1606440,
+      "every_ms": 20000,
+      "wind_up_ms": 2470,
+      "radius": 800,
+      "warning": "A shockwave ring! Stay close to the boss!",
+      "warning_ru": "Кольцевая волна! Держитесь ближе к боссу!"
+    },
+    {
+      "type": "cast",
+      "skill": 1606450,
+      "every_ms": 30000,
+      "wind_up_ms": 2500,
+      "radius": 450,
+      "damage": {
+        "scale": 1.08
+      },
+      "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+      "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "phase0_fury",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "once": true,
+      "do": [
+        {
+          "type": "modify",
+          "mode": "phase",
+          "damage_mul": 1.2
+        }
+      ],
+      "note": "boss-phases.json (OURS)"
+    }
+  ]
+}

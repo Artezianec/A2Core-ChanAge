@@ -140,8 +140,9 @@ public sealed class BossEngineTests
     [Fact]
     public void Generic_boss_phases_scripts_compile_into_engine_rules()
     {
-        var script = BossPhases.Embedded.Of(2300104)!;
-        var compiled = BossEncounters.Embedded.Resolve(2300104, BossPhases.Embedded)!;
+        var npc = BossEngineMigrationTests.GenericMid;
+        var script = BossPhases.Embedded.Of(npc)!;
+        var compiled = BossEncounters.Embedded.Resolve(npc, BossPhases.Embedded)!;
         Assert.True(compiled.Compiled);
         Assert.Equal(script.Ordered.Count + (script.Frenzy is null ? 0 : 1), compiled.Rules.Count);
         Assert.All(compiled.Rules.Take(script.Ordered.Count), r => Assert.Equal("hp_below", r.When.Type));

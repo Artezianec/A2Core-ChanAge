@@ -1,0 +1,157 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "arkanis_talisra_s3",
+  "display": "Talisra (Thalythra) - Shattered Arkanis stage 3",
+  "display_ru": "Талисра - Расколотый Арканис, этап 3",
+  "dungeon": "Arkanis_G_06",
+  "source": "Client data 2.0.9.0 (NpcData skills, Skill.dat casts / areas / abnormals, Thalythra berserk 300 s) + boss-phases.json (compiled slam and phases, OURS). Stage elites are mapped to Siliator / Ruthilis by their client kit (Naga_01 = Siliator, Naga_02 = Ruthilis; the boss is Thalythra). CANDIDATE = guessed.",
+  "note": "Official kit and berserk; the light/dark orbs (NPCs 2920563/64, abnormals 18017001-03 / 18017101-03), the 18 s Skill09 dome cast and the 12 Skill13 pillars (2920687-98) are NOT implemented (summoned NPCs without templates). Skills 1801680 (colour-orb marker, range 9000) and 1801780 (Skill12 light/dark spears, grades 4+) have no damage row in the client (abnormals only), so the slam pipeline would turn them into basic hits: left out.",
+  "npcs": {
+    "Hard": [
+      2353709
+    ]
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1801640,
+      "every_ms": 24000,
+      "wind_up_ms": 1700,
+      "radius": 600,
+      "damage": {
+        "scale": 1.17
+      },
+      "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+      "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+    },
+    {
+      "type": "cast",
+      "skill": 1801650,
+      "every_ms": 12000,
+      "wind_up_ms": 1000,
+      "radius": 600
+    },
+    {
+      "type": "cast",
+      "skill": 1801630,
+      "every_ms": 22000,
+      "wind_up_ms": 1300,
+      "radius": 650
+    },
+    {
+      "type": "cast",
+      "skill": 1801660,
+      "every_ms": 20000,
+      "wind_up_ms": 1000,
+      "radius": 1000
+    }
+  ],
+  "rules": [
+    {
+      "id": "phase0_call",
+      "when": {
+        "type": "hp_below",
+        "pct": 70
+      },
+      "once": true,
+      "do": [
+        {
+          "type": "modify",
+          "mode": "phase"
+        },
+        {
+          "type": "notice",
+          "text": "The Shattered Arkanis boss calls for help!",
+          "text_ru": "Босс Shattered Arkanis зовёт на помощь!",
+          "size": 22,
+          "color": "FFB040"
+        },
+        {
+          "type": "summon",
+          "npc": 2353703,
+          "count": 3,
+          "radius": 500,
+          "target": "victim"
+        }
+      ],
+      "note": "boss-phases.json (OURS)"
+    },
+    {
+      "id": "phase1_fury",
+      "when": {
+        "type": "hp_below",
+        "pct": 40
+      },
+      "once": true,
+      "do": [
+        {
+          "type": "modify",
+          "mode": "phase",
+          "damage_mul": 1.15
+        },
+        {
+          "type": "cast",
+          "skill": 1801640,
+          "every_ms": 18000,
+          "wind_up_ms": 1700,
+          "radius": 600,
+          "damage": {
+            "scale": 1.17
+          },
+          "warning": "The Shattered Arkanis boss gathers power: get out of reach!",
+          "warning_ru": "Босс Shattered Arkanis собирает силу: отойдите подальше!"
+        },
+        {
+          "type": "notice",
+          "text": "The Shattered Arkanis boss grows furious.",
+          "text_ru": "Босс Shattered Arkanis в ярости.",
+          "size": 22,
+          "color": "FFB040"
+        }
+      ],
+      "note": "boss-phases.json (OURS)"
+    },
+    {
+      "id": "phase2_enrage",
+      "when": {
+        "type": "hp_below",
+        "pct": 20
+      },
+      "once": true,
+      "do": [
+        {
+          "type": "modify",
+          "mode": "phase",
+          "damage_mul": 1.3,
+          "haste_mul": 0.8
+        },
+        {
+          "type": "notice",
+          "text": "The Shattered Arkanis boss is enraged!",
+          "text_ru": "Босс Shattered Arkanis в бешенстве!",
+          "size": 22,
+          "color": "FFB040"
+        }
+      ],
+      "note": "boss-phases.json (OURS)"
+    },
+    {
+      "id": "frenzy",
+      "when": {
+        "type": "enrage_timer",
+        "after_ms": 300000
+      },
+      "once": true,
+      "note": "Official: Thalythra bBerserk 300 s (abnormal 10000008).",
+      "do": [
+        {
+          "type": "enrage",
+          "damage_mul": 2.0,
+          "haste_mul": 0.5,
+          "text": "Talisra goes into a frenzy!",
+          "text_ru": "Талисра впадает в неистовство!"
+        }
+      ]
+    }
+  ]
+}

@@ -58,12 +58,12 @@
     "range": { "type": "array", "items": { "$ref": "#/$defs/num" }, "minItems": 2, "maxItems": 2 },
     "string_list": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
     "anchor_keyword": {
-      "enum": ["boss", "victim", "each_player", "random_player", "farthest_player", "nearest_player", "arena_centre", "home", "cast_centre", "event", "mark", "group", "point"]
+      "enum": ["boss", "victim", "each_player", "random_player", "farthest_player", "nearest_player", "arena_centre", "home", "cast_centre", "event", "event_player", "mark", "group", "point"]
     },
     "anchor": {
-      "description": "Keyword (boss, victim, each_player, random_player, farthest_player, nearest_player, arena_centre, home, cast_centre, event, mark:<name>, group:<name>) or a world point.",
+      "description": "Keyword (boss, victim, each_player, random_player, farthest_player, nearest_player, arena_centre, home, cast_centre, event, event_player, mark:<name>, group:<name>) or a world point.",
       "oneOf": [
-        { "type": "string", "pattern": "^(boss|victim|each_player|random_player|farthest_player|nearest_player|arena_centre|home|cast_centre|event|mark:[^:]+|group:[^:]+)$" },
+        { "type": "string", "pattern": "^(boss|victim|each_player|random_player|farthest_player|nearest_player|arena_centre|home|cast_centre|event|event_player|mark:[^:]+|group:[^:]+)$" },
         {
           "type": "object", "additionalProperties": false, "required": ["x", "y"],
           "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" } }
@@ -87,7 +87,7 @@
     "damage": {
       "type": "object",
       "additionalProperties": false,
-      "description": "skill: Skill.dat damage of that skill (NPC formula). factor: [min,max] in 1/10000 of the NPC fixing damage. fixed: flat [min,max] (no defense). hp_ratio: share of the victim's max HP in 1/10000 (client MaxHPRatio). lethal: kills.",
+      "description": "skill: Skill.dat damage of that skill (NPC formula). factor: [min,max] in 1/10000 of the NPC fixing damage. fixed: flat [min,max] (no defense). hp_ratio: share of the victim's max HP in 1/10000 (client MaxHPRatio). lethal: kills. ratio (with skill): use the skill's client HP-ratio row (MaxHPRatio / CurrentHPRatio) when it has one.",
       "properties": {
         "skill": { "type": "integer" },
         "factor": { "$ref": "#/$defs/range" },
@@ -95,7 +95,8 @@
         "hp_ratio": { "$ref": "#/$defs/num" },
         "scale": { "$ref": "#/$defs/num" },
         "lethal": { "type": "boolean" },
-        "ignore_defense": { "type": "boolean" }
+        "ignore_defense": { "type": "boolean" },
+        "ratio": { "type": "boolean" }
       }
     },
     "grid": {
@@ -169,6 +170,7 @@
         "once": { "type": "boolean" },
         "max_fires": { "type": "integer" },
         "chance": { "$ref": "#/$defs/num" },
+        "npc_alive": { "type": "integer" },
         "do": { "$ref": "#/$defs/actions" },
         "note": { "type": "string" }
       }

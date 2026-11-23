@@ -1,0 +1,87 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "draupnir_sarasvati",
+  "display": "Sarasvati",
+  "display_ru": "Сарасвати",
+  "dungeon": "Draupnir",
+  "source": "authored from the client data (Skill.dat / Abnormal.dat / Npc.dat: skill ids, cast times, cooldowns, damage rows, abnormal ids) + research notes; values marked CANDIDATE/guess are not in the client",
+  "note": "Mid-boss. Poison cloud cone (1218730, polymorph via the client abnormal), poison puddle (1218670: the client 7500 DoT row, lingers 35 s), and the root (1218700/1218705: 3 s hold + 20 s DoT) from the client. fury at 50% kept (OURS).",
+  "npcs": {"Easy": [2310403], "Normal": [2300403], "Hard": [2320403]},
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1218730,
+      "every_ms": 40000,
+      "wind_up_ms": 1000,
+      "radius": 1200,
+      "warning": "Sarasvati breathes a poison cloud: leave the cone!",
+      "warning_ru": "Сарасвати дышит ядовитым облаком: выйдите из конуса!"
+    },
+    {
+      "type": "cast",
+      "skill": 1218670,
+      "every_ms": 15000,
+      "wind_up_ms": 1000,
+      "radius": 500,
+      "warning": "Sarasvati leaves a poison puddle: do not stand in it!",
+      "warning_ru": "Сарасвати оставляет ядовитую лужу: не стойте в ней!",
+      "on_land": [
+        {
+          "type": "zone",
+          "id": "poison_puddle",
+          "at": "cast_centre",
+          "shape": "circle",
+          "radius": 500,
+          "duration_ms": 35000,
+          "tick_ms": 1000,
+          "first_tick_ms": 1000,
+          "decal": true,
+          "damage": {"factor": [7500, 7500]}
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "do": [
+        {"type": "modify", "damage_mul": 1.2}
+      ],
+      "note": "Kept from the generic boss-phases.json script (OURS): +20% damage at 50%."
+    },
+    {
+      "id": "root",
+      "when": {"type": "timer", "after_ms": 15000, "every_ms": 30000},
+      "do": [
+        {
+          "type": "telegraph",
+          "at": "random_player",
+          "shape": "circle",
+          "radius": 150,
+          "delay_ms": 800,
+          "decal": true,
+          "damage": {"factor": [7500, 7500]},
+          "warning": "Sarasvati roots a victim: stay away from the marked player!",
+          "warning_ru": "Сарасвати сковывает жертву: держитесь подальше от помеченного!",
+          "on_hit": [
+            {
+              "type": "debuff",
+              "debuff": "root",
+              "target": "event_player",
+              "abnormal": 12187051,
+              "duration_ms": 3000
+            },
+            {
+              "type": "debuff",
+              "debuff": "root_dot",
+              "target": "event_player",
+              "abnormal": 12000101,
+              "duration_ms": 20000
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,153 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "fire_temple_ignus",
+  "display": "Ignus",
+  "display_ru": "Игнус",
+  "dungeon": "FireTemple",
+  "source": "authored from the client data (Skill.dat / Abnormal.dat / Npc.dat: skill ids, cast times, cooldowns, damage rows, abnormal ids) + research notes; values marked CANDIDATE/guess are not in the client",
+  "note": "Mid-boss. Below 75% every 27 s two players get the lava mark (client abnormal 16008651); where they stand when it ends a lava pool (client 5000 per 500 ms row) burns: drag it out of the group. Below 65% the Flame Rush (client 1600815: 5 s mark, then a 400 circle around the marked player, 15000) is added: spread. The lava duration/radius and the 65% threshold are a guess. fury at 50% kept (OURS).",
+  "npcs": {"Easy": [2310311], "Normal": [2300311], "Hard": [2320311]},
+  "vars": {"mark_ms": 3000, "lava_radius": 400, "lava_ms": 12000, "rush_ms": 5000, "rush_radius": 400},
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1600780,
+      "every_ms": 20000,
+      "wind_up_ms": 800,
+      "radius": 800,
+      "warning": "Ignus swings a flaming blade: step back!",
+      "warning_ru": "Игнус рубит пылающим клинком: отступите!"
+    },
+    {
+      "type": "cast",
+      "skill": 1600850,
+      "every_ms": 30000,
+      "wind_up_ms": 3000,
+      "radius": 3200,
+      "warning": "Ignus gathers fire: get right next to him or far away from the ring!",
+      "warning_ru": "Игнус собирает пламя: встаньте вплотную или далеко за кольцо!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "do": [
+        {"type": "modify", "damage_mul": 1.2}
+      ],
+      "note": "Kept from the generic boss-phases.json script (OURS): +20% damage at 50%."
+    },
+    {
+      "id": "lava_marks_75",
+      "when": {"type": "hp_below", "pct": 75},
+      "do": [
+        {
+          "type": "notice",
+          "text": "Ignus marks his enemies with lava: take the mark away from the group!",
+          "text_ru": "Игнус помечает врагов лавой: уведите метку от группы!"
+        },
+        {"type": "phase", "phase": "marks"}
+      ]
+    },
+    {
+      "id": "lava_marks",
+      "when": {"type": "timer", "after_ms": 1000, "every_ms": 27000, "from": "phase"},
+      "phase": ["marks", "rush"],
+      "do": [
+        {
+          "type": "debuff",
+          "debuff": "lava_mark",
+          "target": "random_player",
+          "max": 1,
+          "duration_ms": "$mark_ms",
+          "abnormal": 16008651,
+          "on_max": [
+            {
+              "type": "delay",
+              "ms": "$mark_ms",
+              "do": [
+                {
+                  "type": "zone",
+                  "id": "lava",
+                  "at": "event_player",
+                  "shape": "circle",
+                  "radius": "$lava_radius",
+                  "duration_ms": "$lava_ms",
+                  "tick_ms": 500,
+                  "first_tick_ms": 500,
+                  "decal": true,
+                  "damage": {"factor": [5000, 5000]}
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "debuff",
+          "debuff": "lava_mark",
+          "target": "farthest_player",
+          "max": 1,
+          "duration_ms": "$mark_ms",
+          "abnormal": 16008651,
+          "on_max": [
+            {
+              "type": "delay",
+              "ms": "$mark_ms",
+              "do": [
+                {
+                  "type": "zone",
+                  "id": "lava",
+                  "at": "event_player",
+                  "shape": "circle",
+                  "radius": "$lava_radius",
+                  "duration_ms": "$lava_ms",
+                  "tick_ms": 500,
+                  "first_tick_ms": 500,
+                  "decal": true,
+                  "damage": {"factor": [5000, 5000]}
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "flame_rush_65",
+      "when": {"type": "hp_below", "pct": 65},
+      "do": [
+        {
+          "type": "notice",
+          "text": "Flame Rush! Spread out before the mark runs out!",
+          "text_ru": "Огненный натиск! Разойдитесь, пока метка не вышла!"
+        },
+        {"type": "phase", "phase": "rush"}
+      ]
+    },
+    {
+      "id": "flame_rush",
+      "when": {"type": "timer", "after_ms": 2000, "every_ms": 25000, "from": "phase"},
+      "phase": ["rush"],
+      "do": [
+        {
+          "type": "debuff",
+          "debuff": "rush",
+          "target": "each_player",
+          "abnormal": 16008101,
+          "duration_ms": "$rush_ms"
+        },
+        {
+          "type": "spread",
+          "id": "flame_rush",
+          "at": "each_player",
+          "radius": "$rush_radius",
+          "delay_ms": "$rush_ms",
+          "decal": true,
+          "damage": {"factor": [15000, 15000]},
+          "warning": "Flame Rush: spread out!",
+          "warning_ru": "Огненный натиск: разойдитесь!"
+        }
+      ]
+    }
+  ]
+}

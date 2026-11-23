@@ -46,9 +46,9 @@ Passive effect types still without a handler (rows):
 - Proc skills: 486; rows by type: Abnormal_True 242, Damage 182, Dispel_True 52, Abnormal_Cc 36, Spawn 34, Abnormal 33, HpHealRatio 31, HpHeal 29, DecreaseCooltime 19, MpHeal 11, SpHeal 9, AggroTransfer 6, APBurn 4, MpHealRatio 3, Teleport_Caster 2, APHeal 2, GroggyGuardIncreaseEnergy 1
 - Proc row types the engine skips (logged once): APBurn 4, AggroTransfer 6, GroggyGuardIncreaseEnergy 1, Spawn 34, Teleport_Caster 2
 - Skills with life steal (Damage drain columns): 808
-- NPC skills with HP-ratio damage: 70
-- NPC skills with abnormal rows the ported table lacked: 21
-- Abnormals whose rows only the engine carries: 603
+- NPC skills with HP-ratio damage: 104
+- NPC skills with abnormal rows the ported table lacked: 138
+- Abnormals whose rows only the engine carries: 634
 
 ## Types without a handler
 

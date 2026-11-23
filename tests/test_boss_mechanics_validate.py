@@ -107,6 +107,7 @@ class BossMechanicsValidateTests(unittest.TestCase):
         self.assertIn("players_in_area", vocab["triggers"])
         self.assertIn("grid", vocab["shapes"])
         self.assertIn("cast_centre", vocab["anchors"])
+        self.assertIn("event_player", vocab["anchors"])
         self.assertEqual(set(v.ACTION_NEEDS) - set(vocab["actions"]), set())
         self.assertEqual(set(v.TRIGGER_NEEDS) - set(vocab["triggers"]), set())
 

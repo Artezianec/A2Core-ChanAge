@@ -1,0 +1,40 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "fire_temple_rotan",
+  "display": "Rotan",
+  "display_ru": "Ротан",
+  "dungeon": "FireTemple",
+  "source": "authored from the client data (Skill.dat / Abnormal.dat / Npc.dat: skill ids, cast times, cooldowns, damage rows, abnormal ids) + research notes; values marked CANDIDATE/guess are not in the client",
+  "note": "Mid-boss: stomp (1227140) and a volley (1227150) from the client; fury at 50% kept (OURS).",
+  "npcs": {"Easy": [2310310], "Normal": [2300310], "Hard": [2320310]},
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1227140,
+      "every_ms": 10000,
+      "wind_up_ms": 800,
+      "radius": 500,
+      "warning": "Rotan stomps: step out of the circle!",
+      "warning_ru": "Ротан топает: выйдите из круга!"
+    },
+    {
+      "type": "cast",
+      "skill": 1227150,
+      "every_ms": 12000,
+      "wind_up_ms": 1470,
+      "radius": 200,
+      "warning": "Rotan fires bolts at you: keep moving!",
+      "warning_ru": "Ротан стреляет по вам: не стойте на месте!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "do": [
+        {"type": "modify", "damage_mul": 1.2}
+      ],
+      "note": "Kept from the generic boss-phases.json script (OURS): +20% damage at 50%."
+    }
+  ]
+}

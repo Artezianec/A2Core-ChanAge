@@ -887235,6 +887235,387 @@
           "height": 1500.0
         }
       ]
+    },
+    "600083": {
+      "objects": [
+        {
+          "env": 1401321,
+          "name": "E_PD_ReforgedAbyss_Hard_1PartyPotal_01",
+          "unique_key": -1727529530,
+          "position": [
+            -75020.0,
+            104593.0,
+            45140.5
+          ],
+          "yaw": 88.594,
+          "interact_time": 2500,
+          "interact_range": 150,
+          "relationship": 7,
+          "env_name": "E_PD_ReforgedAbyss_1PartyPotal_01"
+        },
+        {
+          "env": 1401322,
+          "name": "E_PD_ReforgedAbyss_Hard_2PartyPotal_01",
+          "unique_key": 2005401036,
+          "position": [
+            75003.0,
+            85202.0,
+            45640.5
+          ],
+          "yaw": 88.594,
+          "interact_time": 2500,
+          "interact_range": 150,
+          "relationship": 7,
+          "env_name": "E_PD_ReforgedAbyss_2PartyPotal_01"
+        },
+        {
+          "env": 1401325,
+          "name": "E_PD_ReforgedAbyss_AbyssStone_01_1",
+          "unique_key": -549199282,
+          "position": [
+            -75019.0,
+            75465.0,
+            47358.9
+          ],
+          "yaw": 88.594,
+          "interact_time": 2500,
+          "interact_range": 80,
+          "relationship": 7,
+          "long_range": true,
+          "env_name": "E_PD_ReforgedAbyss_AbyssStone_01"
+        },
+        {
+          "env": 1401338,
+          "name": "E_PD_ReforgedAbyss_AbyssStone_01_2",
+          "unique_key": 611148880,
+          "position": [
+            74997.0,
+            107445.5,
+            48578.9
+          ],
+          "yaw": 88.594,
+          "interact_time": 2500,
+          "interact_range": 80,
+          "relationship": 7,
+          "long_range": true,
+          "env_name": "E_PD_ReforgedAbyss_AbyssStone_01_1"
+        },
+        {
+          "env": 1401326,
+          "name": "E_PD_ReforgedAbyss_AbyssStone_01_V01_1",
+          "unique_key": 1522786896,
+          "position": [
+            -80038.0,
+            81555.0,
+            47358.9
+          ],
+          "yaw": 347.344,
+          "interact_time": 2500,
+          "interact_range": 80,
+          "relationship": 7,
+          "long_range": true,
+          "env_name": "E_PD_ReforgedAbyss_AbyssStone_01_V01"
+        },
+        {
+          "env": 1401339,
+          "name": "E_PD_ReforgedAbyss_AbyssStone_01_V01_2",
+          "unique_key": 585983055,
+          "position": [
+            69954.0,
+            113575.5,
+            48578.9
+          ],
+          "yaw": 347.344,
+          "interact_time": 2500,
+          "interact_range": 80,
+          "relationship": 7,
+          "long_range": true,
+          "env_name": "E_PD_ReforgedAbyss_AbyssStone_01_V01_1"
+        },
+        {
+          "env": 1401327,
+          "name": "E_PD_ReforgedAbyss_AbyssStone_01_V02_1",
+          "unique_key": 314827346,
+          "position": [
+            -69972.0,
+            81555.0,
+            47358.9
+          ],
+          "yaw": 191.25,
+          "interact_time": 2500,
+          "interact_range": 80,
+          "relationship": 7,
+          "long_range": true,
+          "env_name": "E_PD_ReforgedAbyss_AbyssStone_01_V02"
+        },
+        {
+          "env": 1401340,
+          "name": "E_PD_ReforgedAbyss_AbyssStone_01_V02_2",
+          "unique_key": 627926097,
+          "position": [
+            80032.0,
+            113550.5,
+            48578.9
+          ],
+          "yaw": 191.25,
+          "interact_time": 2500,
+          "interact_range": 80,
+          "relationship": 7,
+          "long_range": true,
+          "env_name": "E_PD_ReforgedAbyss_AbyssStone_01_V02_1"
+        },
+        {
+          "env": 1401328,
+          "name": "E_PD_ReforgedAbyss_DrakanTower_01_V01_1",
+          "unique_key": -944949852,
+          "position": [
+            -74970.0,
+            80555.0,
+            47016.0
+          ],
+          "yaw": 88.594,
+          "interact_time": 2500,
+          "interact_range": 900,
+          "relationship": 7,
+          "long_range": true
+        },
+        {
+          "env": 1401329,
+          "name": "E_PD_ReforgedAbyss_DrakanTower_01_V01_4",
+          "unique_key": -1221773906,
+          "position": [
+            75005.0,
+            112595.0,
+            48236.0
+          ],
+          "yaw": 0.0,
+          "interact_time": 2500,
+          "interact_range": 900,
+          "relationship": 7,
+          "long_range": true
+        },
+        {
+          "env": 1401319,
+          "name": "E_PD_ReforgedAbyss_Hard_TreasureBoxLower01_001",
+          "unique_key": -827447314,
+          "position": [
+            -1.0,
+            -20413.0,
+            77118.2
+          ],
+          "yaw": 91.406,
+          "interact_time": 2500,
+          "interact_range": 80,
+          "relationship": 7,
+          "cube": true,
+          "long_range": true,
+          "env_name": "E_PD_ReforgedAbyss_Nor_TreasureBoxLower01_001"
+        },
+        {
+          "env": 1401320,
+          "name": "E_PD_ReforgedAbyss_PartyPotal_01",
+          "unique_key": -290738348,
+          "position": [
+            14.0,
+            198225.0,
+            48366.0
+          ],
+          "yaw": 87.188,
+          "interact_time": 2500,
+          "interact_range": 150,
+          "relationship": 7
+        },
+        {
+          "env": 1400827,
+          "name": "ReforgedAbyss_E_PD_Barrier_02_V01_1",
+          "unique_key": -272802994,
+          "position": [
+            -74995.0,
+            100316.4,
+            45150.7
+          ],
+          "yaw": 90.0,
+          "interact_time": 0,
+          "interact_range": 80,
+          "relationship": 7
+        },
+        {
+          "env": 1400827,
+          "name": "ReforgedAbyss_E_PD_Barrier_02_V01_2",
+          "unique_key": 1531513284,
+          "position": [
+            75017.0,
+            104772.0,
+            48606.5
+          ],
+          "yaw": 90.0,
+          "interact_time": 0,
+          "interact_range": 80,
+          "relationship": 7
+        },
+        {
+          "env": 1401084,
+          "name": "ReforgedAbyss_E_PD_Barrier_02_V01_3",
+          "unique_key": -1102509626,
+          "position": [
+            75017.0,
+            96696.0,
+            48721.6
+          ],
+          "yaw": 90.0,
+          "interact_time": 0,
+          "interact_range": 80,
+          "relationship": 7
+        },
+        {
+          "env": 1401084,
+          "name": "ReforgedAbyss_E_PD_Barrier_02_V01_4",
+          "unique_key": 120904510,
+          "position": [
+            -74972.0,
+            114676.0,
+            48055.4
+          ],
+          "yaw": 90.0,
+          "interact_time": 0,
+          "interact_range": 80,
+          "relationship": 7
+        },
+        {
+          "env": 1401084,
+          "name": "ReforgedAbyss_E_PD_Barrier_02_V01_5",
+          "unique_key": 921797157,
+          "position": [
+            75003.0,
+            119349.0,
+            47833.8
+          ],
+          "yaw": 90.0,
+          "interact_time": 0,
+          "interact_range": 80,
+          "relationship": 7
+        },
+        {
+          "env": 1400827,
+          "name": "ReforgedAbyss_E_PD_Barrier_02_V01_6",
+          "unique_key": -1337390644,
+          "position": [
+            1.0,
+            -10622.0,
+            79210.3
+          ],
+          "yaw": 90.0,
+          "interact_time": 0,
+          "interact_range": 80,
+          "relationship": 7
+        },
+        {
+          "env": 1401084,
+          "name": "ReforgedAbyss_E_PD_Barrier_02_V01_7",
+          "unique_key": 1739304753,
+          "position": [
+            24.0,
+            203926.0,
+            48393.4
+          ],
+          "yaw": 90.0,
+          "interact_time": 0,
+          "interact_range": 80,
+          "relationship": 7
+        }
+      ],
+      "triggers": [
+        {
+          "name": "AionTriggerActor_1",
+          "id": 2547893319031161375,
+          "env": 1100001,
+          "position": [
+            -74930.0,
+            117859.0,
+            48021.0
+          ],
+          "direction": 0.0,
+          "shape": "Box",
+          "box": [
+            4000.0,
+            3000.0
+          ],
+          "radius": 0.0,
+          "height": 3000.0
+        },
+        {
+          "name": "AionTriggerActor_2",
+          "id": 2547899805404856865,
+          "env": 1100001,
+          "position": [
+            75059.0,
+            121979.0,
+            47474.0
+          ],
+          "direction": 0.0,
+          "shape": "Box",
+          "box": [
+            4000.0,
+            3000.0
+          ],
+          "radius": 0.0,
+          "height": 3000.0
+        },
+        {
+          "name": "AionTriggerActor_3",
+          "id": 2547920090971603495,
+          "env": 1100001,
+          "position": [
+            -74.0,
+            -6206.0,
+            78905.0
+          ],
+          "direction": 0.0,
+          "shape": "Box",
+          "box": [
+            3000.0,
+            3000.0
+          ],
+          "radius": 0.0,
+          "height": 3000.0
+        },
+        {
+          "name": "AionTriggerActor_4",
+          "id": 2550111958599272705,
+          "env": 1100001,
+          "position": [
+            74977.0,
+            84936.0,
+            45620.5
+          ],
+          "direction": 0.0,
+          "shape": "Box",
+          "box": [
+            10000.0,
+            10000.0
+          ],
+          "radius": 0.0,
+          "height": 3000.0
+        },
+        {
+          "name": "AionTriggerActor_5",
+          "id": 2550112418831862019,
+          "env": 1100001,
+          "position": [
+            -74856.0,
+            104551.0,
+            45120.5
+          ],
+          "direction": 0.0,
+          "shape": "Box",
+          "box": [
+            10000.0,
+            10000.0
+          ],
+          "radius": 0.0,
+          "height": 3000.0
+        }
+      ]
     }
   }
 }

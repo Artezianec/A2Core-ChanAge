@@ -1,0 +1,246 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "horn_den_kuhapu",
+  "display": "Guard Dog Kuhapu",
+  "display_ru": "Цепной пёс Кухапу",
+  "dungeon": "HornCave",
+  "source": "authored from the client data (Skill.dat / Abnormal.dat / Npc.dat: skill ids, cast times, cooldowns, damage rows, abnormal ids) + research notes; values marked CANDIDATE/guess are not in the client",
+  "note": "Mid-boss (client NPC KalnifElite_01_V02). Rotation from the client: arc swipe 1606880, lunge 1606900, stomp + knockdown 1606940, bolt 1606950. Thunder Cry (client 1606930, 78 s cooldown, 12.5 s gauge from research): Kuhapu is invulnerable while you eat the orbs (2 on Normal/Hard, 1 on Easy as in the client spawn counts; eating one slows for 5 s = client ab16068705); a missed orb explodes (35000 = guess) and when the gauge fills a purple ring expands from the centre (no client row: four 900-wide bands and 18000 = guess). Orbs sit still at fixed spots instead of chasing, lightning across the map is not modelled. Easy remaps 1606930 to 1606932.",
+  "npcs": {"Easy": [2310908], "Normal": [2300908], "Hard": [2320908]},
+  "vars": {"gauge_ms": 12500, "orb_radius": 300},
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1606880,
+      "every_ms": 9000,
+      "wind_up_ms": 800,
+      "radius": 500,
+      "warning": "Kuhapu swipes: step aside!",
+      "warning_ru": "Кухапу бьёт когтями: отойдите в сторону!"
+    },
+    {
+      "type": "cast",
+      "skill": 1606900,
+      "every_ms": 25000,
+      "wind_up_ms": 600,
+      "radius": 2000,
+      "warning": "Kuhapu lunges along a line: leave it!",
+      "warning_ru": "Кухапу бросается вперёд: уйдите с линии!"
+    },
+    {
+      "type": "cast",
+      "skill": 1606940,
+      "every_ms": 21000,
+      "wind_up_ms": 566,
+      "radius": 600,
+      "warning": "Kuhapu stomps: leave the circle!",
+      "warning_ru": "Кухапу топает: выйдите из круга!"
+    },
+    {
+      "type": "cast",
+      "skill": 1606950,
+      "every_ms": 42000,
+      "wind_up_ms": 1300,
+      "radius": 300,
+      "land": false,
+      "warning": "Kuhapu hurls a bolt at you: keep moving!",
+      "warning_ru": "Кухапу бросает в вас заряд: не стойте на месте!",
+      "on_land": [
+        {
+          "type": "telegraph",
+          "at": "victim",
+          "shape": "circle",
+          "radius": 300,
+          "delay_ms": 600,
+          "decal": false,
+          "damage": {"skill": 1606950}
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "do": [
+        {"type": "modify", "damage_mul": 1.2}
+      ],
+      "note": "Kept from the generic boss-phases.json script (OURS): +20% damage at 50%."
+    },
+    {
+      "id": "thunder_cry_n",
+      "when": {"type": "timer", "after_ms": 20000, "every_ms": 78000},
+      "difficulty": ["Normal", "Hard"],
+      "do": [
+        {
+          "type": "notice",
+          "text": "Thunder Cry! Kuhapu is invulnerable: eat every purple orb before the gauge fills!",
+          "text_ru": "Грозовой вой! Кухапу неуязвим: съешьте все фиолетовые шары, пока не заполнится шкала!"
+        },
+        {
+          "type": "cast",
+          "skill": 1606930,
+          "wind_up_ms": 1000,
+          "radius": 300,
+          "once": true,
+          "land": false,
+          "on_land": [
+            {
+              "type": "shield",
+              "id": "thunder",
+              "invuln": true,
+              "duration_ms": "$gauge_ms",
+              "on_expire": [
+                {
+                  "type": "notice",
+                  "text": "The gauge is full: jump the ring!",
+                  "text_ru": "Шкала заполнена: перепрыгните кольцо!"
+                },
+                {
+                  "type": "telegraph",
+                  "at": "boss",
+                  "shape": "donut",
+                  "delay_ms": 500,
+                  "decal": true,
+                  "count": 4,
+                  "interval_ms": 700,
+                  "damage": {"factor": [18000, 18000]},
+                  "steps": [
+                    {"shape": "donut", "inner": 0, "radius": 900},
+                    {"shape": "donut", "inner": 900, "radius": 1800},
+                    {"shape": "donut", "inner": 1800, "radius": 2700},
+                    {"shape": "donut", "inner": 2700, "radius": 3600}
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "orbs",
+              "at": "arena_centre",
+              "offsets": [[1500, 0], [-1500, 0]],
+              "radius": "$orb_radius",
+              "required": 2,
+              "window_ms": "$gauge_ms",
+              "skill": 1606930,
+              "on_touch": [
+                {
+                  "type": "debuff",
+                  "debuff": "orb_slow",
+                  "target": "event_player",
+                  "abnormal": 16068705,
+                  "duration_ms": 5000
+                }
+              ],
+              "on_complete": [
+                {"type": "notice", "text": "Every orb is eaten!", "text_ru": "Все шары съедены!"}
+              ],
+              "on_fail": [
+                {"type": "notice", "text": "An orb exploded!", "text_ru": "Шар взорвался!"},
+                {
+                  "type": "telegraph",
+                  "at": "boss",
+                  "shape": "circle",
+                  "radius": 9000,
+                  "delay_ms": 600,
+                  "decal": false,
+                  "damage": {"factor": [35000, 35000], "ignore_defense": true}
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "thunder_cry_e",
+      "when": {"type": "timer", "after_ms": 20000, "every_ms": 78000},
+      "difficulty": ["Easy"],
+      "do": [
+        {
+          "type": "notice",
+          "text": "Thunder Cry! Kuhapu is invulnerable: eat every purple orb before the gauge fills!",
+          "text_ru": "Грозовой вой! Кухапу неуязвим: съешьте все фиолетовые шары, пока не заполнится шкала!"
+        },
+        {
+          "type": "cast",
+          "skill": 1606930,
+          "wind_up_ms": 1000,
+          "radius": 300,
+          "once": true,
+          "land": false,
+          "on_land": [
+            {
+              "type": "shield",
+              "id": "thunder",
+              "invuln": true,
+              "duration_ms": "$gauge_ms",
+              "on_expire": [
+                {
+                  "type": "notice",
+                  "text": "The gauge is full: jump the ring!",
+                  "text_ru": "Шкала заполнена: перепрыгните кольцо!"
+                },
+                {
+                  "type": "telegraph",
+                  "at": "boss",
+                  "shape": "donut",
+                  "delay_ms": 500,
+                  "decal": true,
+                  "count": 4,
+                  "interval_ms": 700,
+                  "damage": {"factor": [18000, 18000]},
+                  "steps": [
+                    {"shape": "donut", "inner": 0, "radius": 900},
+                    {"shape": "donut", "inner": 900, "radius": 1800},
+                    {"shape": "donut", "inner": 1800, "radius": 2700},
+                    {"shape": "donut", "inner": 2700, "radius": 3600}
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "orb",
+              "id": "orbs",
+              "at": "arena_centre",
+              "offsets": [[1500, 0]],
+              "radius": "$orb_radius",
+              "required": 1,
+              "window_ms": "$gauge_ms",
+              "skill": 1606930,
+              "on_touch": [
+                {
+                  "type": "debuff",
+                  "debuff": "orb_slow",
+                  "target": "event_player",
+                  "abnormal": 16068705,
+                  "duration_ms": 5000
+                }
+              ],
+              "on_complete": [
+                {"type": "notice", "text": "Every orb is eaten!", "text_ru": "Все шары съедены!"}
+              ],
+              "on_fail": [
+                {"type": "notice", "text": "An orb exploded!", "text_ru": "Шар взорвался!"},
+                {
+                  "type": "telegraph",
+                  "at": "boss",
+                  "shape": "circle",
+                  "radius": 9000,
+                  "delay_ms": 600,
+                  "decal": false,
+                  "damage": {"factor": [35000, 35000], "ignore_defense": true}
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "difficulty": {
+    "Easy": {
+      "skill_remap": {"1606930": 1606932}
+    }
+  }
+}

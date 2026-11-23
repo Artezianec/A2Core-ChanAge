@@ -1,0 +1,522 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "reforged_abyss_ludra",
+  "display": "Ludra (Durbati) - Abyssal Forge",
+  "display_ru": "Лудра (Дурбати) - Бездонная кузница",
+  "dungeon": "ReforgedAbyss_Normal",
+  "source": "Client data 2.0.9.0 (NpcData skill ids / Skill.dat casts, areas, MaxHPRatio rows, NpcSpawn rows, abyss-stone skills 1910503-05) + boss-phases.json (call / enrage phases, OURS). Mark: CANDIDATE = guessed. Ludra Hard (2300xxx) has no map rows in the repo: ids and spawns are derived from Normal by tools/ludra_arkanis_data.py; its skills and values equal Normal's (CANDIDATE).",
+  "note": "Final boss. Official: 600 s berserk, kit skills, ratio damage rows. NOT implemented: the 16 s lethal Skill13 (1803010/1803011, MaxHPRatio 500%) - its dispel condition (abnormals 18064951/52) is unknown; the red/blue orb absorb; the OrcusGem reactor/extractor phase (2301008) stays on its generic script.",
+  "npcs": {
+    "Normal": [
+      2301014
+    ],
+    "Hard": [
+      2300290
+    ]
+  },
+  "arena": {
+    "centre": "home",
+    "radius": 3200
+  },
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1803140,
+      "every_ms": 10000,
+      "wind_up_ms": 1500,
+      "radius": 900
+    },
+    {
+      "type": "cast",
+      "skill": 1803130,
+      "every_ms": 14000,
+      "wind_up_ms": 1500,
+      "radius": 900
+    },
+    {
+      "type": "cast",
+      "skill": 1803120,
+      "every_ms": 16000,
+      "wind_up_ms": 2330,
+      "radius": 1000
+    },
+    {
+      "type": "cast",
+      "skill": 1803090,
+      "every_ms": 14000,
+      "wind_up_ms": 1500,
+      "radius": 800
+    },
+    {
+      "type": "cast",
+      "skill": 1803000,
+      "every_ms": 20000,
+      "wind_up_ms": 3000,
+      "radius": 900,
+      "damage": {
+        "scale": 3.0
+      },
+      "warning": "Durbati gathers power: get out of reach!",
+      "warning_ru": "Дурбати собирает силу: отойдите подальше!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "phase0_call",
+      "when": {
+        "type": "hp_below",
+        "pct": 75
+      },
+      "once": true,
+      "do": [
+        {
+          "type": "modify",
+          "mode": "phase"
+        },
+        {
+          "type": "notice",
+          "text": "Durbati calls the forge guards!",
+          "text_ru": "Дурбати зовёт стражу кузницы!",
+          "size": 22,
+          "color": "FFB040"
+        },
+        {
+          "type": "summon",
+          "npc": 2301019,
+          "count": 4,
+          "radius": 700,
+          "target": "victim"
+        }
+      ],
+      "note": "call = boss-phases.json (OURS)"
+    },
+    {
+      "id": "phase1_fury",
+      "when": {
+        "type": "hp_below",
+        "pct": 50
+      },
+      "once": true,
+      "do": [
+        {
+          "type": "modify",
+          "mode": "phase",
+          "damage_mul": 1.15
+        },
+        {
+          "type": "cast",
+          "skill": 1803000,
+          "every_ms": 15000,
+          "wind_up_ms": 3000,
+          "radius": 900,
+          "damage": {
+            "scale": 3.0
+          },
+          "warning": "Durbati gathers power: get out of reach!",
+          "warning_ru": "Дурбати собирает силу: отойдите подальше!"
+        },
+        {
+          "type": "notice",
+          "text": "Durbati grows furious.",
+          "text_ru": "Дурбати в ярости.",
+          "size": 22,
+          "color": "FFB040"
+        },
+        {
+          "type": "summon",
+          "npc": 2301019,
+          "count": 4,
+          "radius": 700,
+          "target": "victim"
+        },
+        {
+          "type": "notice",
+          "text": "Bingo! Stand on the safe tiles!",
+          "text_ru": "Бинго! Встаньте на безопасные плитки!"
+        },
+        {
+          "type": "random",
+          "choices": [
+            {
+              "weight": 1,
+              "do": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "shape": "rect",
+                  "length": 2000,
+                  "width": 2000,
+                  "offsets": [
+                    [
+                      -2000,
+                      -2000
+                    ],
+                    [
+                      2000,
+                      -2000
+                    ],
+                    [
+                      0,
+                      0
+                    ],
+                    [
+                      -2000,
+                      2000
+                    ],
+                    [
+                      2000,
+                      2000
+                    ]
+                  ],
+                  "decal": false,
+                  "delay_ms": 4200,
+                  "damage": {
+                    "skill": 1803235,
+                    "ratio": true
+                  }
+                }
+              ]
+            },
+            {
+              "weight": 1,
+              "do": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "shape": "rect",
+                  "length": 2000,
+                  "width": 2000,
+                  "offsets": [
+                    [
+                      0,
+                      -2000
+                    ],
+                    [
+                      -2000,
+                      0
+                    ],
+                    [
+                      0,
+                      0
+                    ],
+                    [
+                      2000,
+                      0
+                    ],
+                    [
+                      0,
+                      2000
+                    ]
+                  ],
+                  "decal": false,
+                  "delay_ms": 4200,
+                  "damage": {
+                    "skill": 1803235,
+                    "ratio": true
+                  }
+                }
+              ]
+            },
+            {
+              "weight": 1,
+              "do": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "shape": "rect",
+                  "length": 2000,
+                  "width": 2000,
+                  "offsets": [
+                    [
+                      -2000,
+                      -2000
+                    ],
+                    [
+                      0,
+                      -2000
+                    ],
+                    [
+                      2000,
+                      -2000
+                    ],
+                    [
+                      -2000,
+                      2000
+                    ],
+                    [
+                      0,
+                      2000
+                    ],
+                    [
+                      2000,
+                      2000
+                    ]
+                  ],
+                  "decal": false,
+                  "delay_ms": 4200,
+                  "damage": {
+                    "skill": 1803235,
+                    "ratio": true
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "note": "fury = boss-phases.json (OURS); bingo grid (Skill11_02, 3x3 tiles) = official skill and 70% ratio, pattern CANDIDATE"
+    },
+    {
+      "id": "phase2_enrage",
+      "when": {
+        "type": "hp_below",
+        "pct": 25
+      },
+      "once": true,
+      "do": [
+        {
+          "type": "modify",
+          "mode": "phase",
+          "damage_mul": 1.35,
+          "haste_mul": 0.8
+        },
+        {
+          "type": "notice",
+          "text": "Durbati is enraged!",
+          "text_ru": "Дурбати в бешенстве!",
+          "size": 22,
+          "color": "FFB040"
+        },
+        {
+          "type": "notice",
+          "text": "Final bingo! 50% damage tiles!",
+          "text_ru": "Последнее бинго! Плитки 50% урона!"
+        },
+        {
+          "type": "random",
+          "choices": [
+            {
+              "weight": 1,
+              "do": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "shape": "rect",
+                  "length": 2000,
+                  "width": 2000,
+                  "offsets": [
+                    [
+                      -2000,
+                      -2000
+                    ],
+                    [
+                      2000,
+                      -2000
+                    ],
+                    [
+                      0,
+                      0
+                    ],
+                    [
+                      -2000,
+                      2000
+                    ],
+                    [
+                      2000,
+                      2000
+                    ]
+                  ],
+                  "decal": false,
+                  "delay_ms": 3800,
+                  "damage": {
+                    "skill": 1803245,
+                    "ratio": true
+                  }
+                }
+              ]
+            },
+            {
+              "weight": 1,
+              "do": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "shape": "rect",
+                  "length": 2000,
+                  "width": 2000,
+                  "offsets": [
+                    [
+                      0,
+                      -2000
+                    ],
+                    [
+                      -2000,
+                      0
+                    ],
+                    [
+                      0,
+                      0
+                    ],
+                    [
+                      2000,
+                      0
+                    ],
+                    [
+                      0,
+                      2000
+                    ]
+                  ],
+                  "decal": false,
+                  "delay_ms": 3800,
+                  "damage": {
+                    "skill": 1803245,
+                    "ratio": true
+                  }
+                }
+              ]
+            },
+            {
+              "weight": 1,
+              "do": [
+                {
+                  "type": "telegraph",
+                  "at": "arena_centre",
+                  "shape": "rect",
+                  "length": 2000,
+                  "width": 2000,
+                  "offsets": [
+                    [
+                      -2000,
+                      -2000
+                    ],
+                    [
+                      0,
+                      -2000
+                    ],
+                    [
+                      2000,
+                      -2000
+                    ],
+                    [
+                      -2000,
+                      2000
+                    ],
+                    [
+                      0,
+                      2000
+                    ],
+                    [
+                      2000,
+                      2000
+                    ]
+                  ],
+                  "decal": false,
+                  "delay_ms": 3800,
+                  "damage": {
+                    "skill": 1803245,
+                    "ratio": true
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "note": "enrage = boss-phases.json (OURS); second bingo (Skill11_03) official 50% ratio"
+    },
+    {
+      "id": "orbs",
+      "when": {
+        "type": "timer",
+        "after_ms": 20000,
+        "every_ms": 60000
+      },
+      "note": "Skill09 (1803200, cd 60 s): ground orbs hit for 70% max HP (1803203). Official; count and radius CANDIDATE.",
+      "do": [
+        {
+          "type": "telegraph",
+          "at": "random_player",
+          "count": 4,
+          "interval_ms": 300,
+          "shape": "circle",
+          "radius": 450,
+          "delay_ms": 2300,
+          "damage": {
+            "skill": 1803203,
+            "ratio": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "tornadoes",
+      "when": {
+        "type": "timer",
+        "after_ms": 32000,
+        "every_ms": 40000
+      },
+      "note": "Skill07 (1803170, cd 40 s): five 20% max-HP (cap 10000) strikes on random spots. Official ratio; radius CANDIDATE.",
+      "do": [
+        {
+          "type": "telegraph",
+          "at": "random_player",
+          "count": 5,
+          "interval_ms": 250,
+          "shape": "circle",
+          "radius": 400,
+          "delay_ms": 2000,
+          "damage": {
+            "skill": 1803175,
+            "ratio": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "lightning",
+      "when": {
+        "type": "timer",
+        "after_ms": 26000,
+        "every_ms": 35000
+      },
+      "note": "Skill10 (1803210, cd 35 s): lightning on three random players (1803215: 20-22k + knockdown 16009201). Official; radius CANDIDATE.",
+      "do": [
+        {
+          "type": "telegraph",
+          "at": "random_player",
+          "count": 3,
+          "interval_ms": 400,
+          "shape": "circle",
+          "radius": 350,
+          "delay_ms": 1500,
+          "damage": {
+            "skill": 1803215
+          }
+        }
+      ]
+    },
+    {
+      "id": "frenzy",
+      "when": {
+        "type": "enrage_timer",
+        "after_ms": 600000
+      },
+      "once": true,
+      "note": "Official: Durbati bBerserk, 600 s, abnormal 10000008 (AmplifyAllDamage, speed). Multipliers as the other frenzies.",
+      "do": [
+        {
+          "type": "enrage",
+          "damage_mul": 2.0,
+          "haste_mul": 0.5,
+          "text": "Ludra goes into a frenzy!",
+          "text_ru": "Лудра впадает в неистовство!"
+        }
+      ]
+    }
+  ],
+  "difficulty": {
+    "Hard": {
+      "note": "Hard ids derived from Normal (CANDIDATE); Hard frenzy may be 4 min (CANDIDATE, kept at the client 600 s)."
+    }
+  }
+}

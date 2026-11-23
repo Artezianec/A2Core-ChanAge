@@ -1,0 +1,98 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "fire_temple_murute",
+  "display": "Murute",
+  "display_ru": "Муруте",
+  "dungeon": "FireTemple",
+  "source": "authored from the client data (Skill.dat / Abnormal.dat / Npc.dat: skill ids, cast times, cooldowns, damage rows, abnormal ids) + research notes; values marked CANDIDATE/guess are not in the client",
+  "note": "Mid-boss. Lava Lift (1600680): a 600 slam, and 1.5 s later four 400 circles around him (client spawn args 1500/400; the placement is a guess) lift anyone inside (client 14-16k row). Dash (1600730) and burning circle (1600740) from the client. Below 50% the triple ring (1600720: three growing circles, 800/1500/2500 = guess) joins every 30 s (client cooldown). fury at 50% kept (OURS).",
+  "npcs": {"Easy": [2310312], "Normal": [2300312], "Hard": [2320312]},
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1600680,
+      "every_ms": 20000,
+      "wind_up_ms": 1630,
+      "radius": 600,
+      "warning": "Murute slams the ground: leave the circle, watch the lava that rises around him!",
+      "warning_ru": "Муруте бьёт по земле: выйдите из круга и следите за лавой вокруг него!",
+      "on_land": [
+        {
+          "type": "telegraph",
+          "at": "boss",
+          "offsets": [[1500, 0], [-1500, 0], [0, 1500], [0, -1500]],
+          "offset_space": "facing",
+          "shape": "circle",
+          "radius": 400,
+          "delay_ms": 1500,
+          "decal": true,
+          "damage": {"factor": [14000, 16000]}
+        }
+      ]
+    },
+    {
+      "type": "cast",
+      "skill": 1600730,
+      "every_ms": 20000,
+      "wind_up_ms": 1000,
+      "radius": 1200,
+      "warning": "Murute dashes forward: get out of the lane!",
+      "warning_ru": "Муруте несётся вперёд: уйдите с линии!"
+    },
+    {
+      "type": "cast",
+      "skill": 1600740,
+      "every_ms": 25000,
+      "wind_up_ms": 1300,
+      "radius": 700,
+      "warning": "Murute ignites the ground: step out of the circle!",
+      "warning_ru": "Муруте поджигает землю: выйдите из круга!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "do": [
+        {"type": "modify", "damage_mul": 1.2}
+      ],
+      "note": "Kept from the generic boss-phases.json script (OURS): +20% damage at 50%."
+    },
+    {
+      "id": "rings_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "do": [
+        {
+          "type": "notice",
+          "text": "Murute's flames spread in rings: keep moving outwards or in!",
+          "text_ru": "Пламя Муруте расходится кольцами: двигайтесь наружу или внутрь!"
+        },
+        {"type": "phase", "phase": "rings"}
+      ]
+    },
+    {
+      "id": "rings",
+      "when": {"type": "timer", "after_ms": 3000, "every_ms": 30000, "from": "phase"},
+      "phase": ["rings"],
+      "do": [
+        {
+          "type": "telegraph",
+          "at": "boss",
+          "shape": "circle",
+          "delay_ms": 830,
+          "decal": true,
+          "count": 3,
+          "interval_ms": 700,
+          "damage": {"skill": 1600720},
+          "steps": [
+            {"shape": "circle", "radius": 800},
+            {"shape": "circle", "radius": 1500},
+            {"shape": "circle", "radius": 2500}
+          ],
+          "warning": "Flame rings spread out from Murute!",
+          "warning_ru": "От Муруте расходятся кольца пламени!"
+        }
+      ]
+    }
+  ]
+}

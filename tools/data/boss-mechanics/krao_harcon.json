@@ -1,0 +1,109 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "krao_cave_harcon",
+  "display": "Harcon",
+  "display_ru": "Харкон",
+  "dungeon": "KraoCave",
+  "source": "authored from the client data (Skill.dat / Abnormal.dat / Npc.dat: skill ids, cast times, cooldowns, damage rows, abnormal ids) + research notes; values marked CANDIDATE/guess are not in the client",
+  "note": "Mid-boss: long beam (1218620), pull-in slam (1228230) and the generic circle (1218590) from the client; crocas as sniper adds at 60% (the add NPC is an existing Krao trash template, count and radius are a guess). fury at 50% kept (OURS).",
+  "npcs": {"Easy": [2310108], "Normal": [2300108], "Hard": [2320108]},
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1218620,
+      "every_ms": 15000,
+      "wind_up_ms": 1200,
+      "radius": 3000,
+      "warning": "Harcon fires a long beam: leave its line!",
+      "warning_ru": "Харкон стреляет длинным лучом: уйдите с линии!"
+    },
+    {
+      "type": "cast",
+      "skill": 1228230,
+      "every_ms": 45000,
+      "wind_up_ms": 1500,
+      "radius": 3000,
+      "warning": "Harcon drags everyone in, then slams: get away right after the pull!",
+      "warning_ru": "Харкон стягивает всех к себе и бьёт: уходите сразу после притяжения!"
+    },
+    {
+      "type": "cast",
+      "skill": 1218590,
+      "every_ms": 30000,
+      "wind_up_ms": 1500,
+      "radius": 300,
+      "warning": "Harcon slams the ground: walk out of the circle!",
+      "warning_ru": "Харкон бьёт по земле: выйдите из круга!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "do": [
+        {"type": "modify", "damage_mul": 1.2}
+      ],
+      "note": "Kept from the generic boss-phases.json script (OURS): +20% damage at 50%."
+    },
+    {
+      "id": "snipers_60",
+      "when": {"type": "hp_below", "pct": 60},
+      "difficulty": ["Easy"],
+      "do": [
+        {
+          "type": "notice",
+          "text": "Croca snipers take position: kill them or stay out of their line!",
+          "text_ru": "Крокодилы-снайперы заняли позиции: убейте их или не стойте на линии огня!"
+        },
+        {
+          "type": "summon",
+          "npc": 2310101,
+          "count": 1,
+          "at": "arena_centre",
+          "radius": 1600,
+          "group": "snipers"
+        }
+      ]
+    },
+    {
+      "id": "snipers_60_n",
+      "when": {"type": "hp_below", "pct": 60},
+      "difficulty": ["Normal"],
+      "do": [
+        {
+          "type": "notice",
+          "text": "Croca snipers take position: kill them or stay out of their line!",
+          "text_ru": "Крокодилы-снайперы заняли позиции: убейте их или не стойте на линии огня!"
+        },
+        {
+          "type": "summon",
+          "npc": 2300101,
+          "count": 2,
+          "at": "arena_centre",
+          "radius": 1600,
+          "group": "snipers"
+        }
+      ]
+    },
+    {
+      "id": "snipers_60_h",
+      "when": {"type": "hp_below", "pct": 60},
+      "difficulty": ["Hard"],
+      "do": [
+        {
+          "type": "notice",
+          "text": "Croca snipers take position: kill them or stay out of their line!",
+          "text_ru": "Крокодилы-снайперы заняли позиции: убейте их или не стойте на линии огня!"
+        },
+        {
+          "type": "summon",
+          "npc": 2320101,
+          "count": 2,
+          "at": "arena_centre",
+          "radius": 1600,
+          "group": "snipers"
+        }
+      ]
+    }
+  ]
+}

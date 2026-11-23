@@ -1,0 +1,229 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "urugugu_canyon_urahum",
+  "display": "Urahum",
+  "display_ru": "Урахум",
+  "dungeon": "UruguguCanyon",
+  "source": "authored from the client data (Skill.dat / Abnormal.dat / Npc.dat: skill ids, cast times, cooldowns, damage rows, abnormal ids) + research notes; values marked CANDIDATE/guess are not in the client",
+  "note": "Mid-boss. Every hit of the acid skills (1605090/1605110/1605120/1605140) applies the client abnormal 16051103 (3 s, through the skill's own hit) and when it runs out an acid pool (10 s, 1 s ticks of the client 7500 DoT row, radius 300 = guess) is left where the player stands: walk before it drops. The triple slam 1605140 is three growing circles (600/1200/1700, client area rows). fury at 50% kept (OURS).",
+  "npcs": {"Easy": [2310207], "Normal": [2300207], "Hard": [2320207]},
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1605090,
+      "every_ms": 20000,
+      "wind_up_ms": 1000,
+      "radius": 200,
+      "land": false,
+      "warning": "Urahum spits acid at you: move once it marks you!",
+      "warning_ru": "Урахум плюётся кислотой: двигайтесь, когда вас пометит!",
+      "on_land": [
+        {
+          "type": "telegraph",
+          "at": "boss",
+          "delay_ms": 0,
+          "decal": false,
+          "damage": {"skill": 1605090},
+          "on_hit": [
+            {
+              "type": "debuff",
+              "debuff": "acid",
+              "target": "event_player",
+              "max": 1,
+              "duration_ms": 3000,
+              "on_max": [
+                {
+                  "type": "delay",
+                  "ms": 3000,
+                  "do": [
+                    {
+                      "type": "zone",
+                      "id": "acid_pool",
+                      "at": "event_player",
+                      "shape": "circle",
+                      "radius": 300,
+                      "duration_ms": 10000,
+                      "tick_ms": 1000,
+                      "first_tick_ms": 1000,
+                      "decal": true,
+                      "damage": {"factor": [7500, 7500]}
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "shape": "circle",
+          "radius": 200
+        }
+      ]
+    },
+    {
+      "type": "cast",
+      "skill": 1605110,
+      "every_ms": 30000,
+      "wind_up_ms": 1500,
+      "radius": 900,
+      "land": false,
+      "warning": "Urahum slams a circle: leave it, then keep moving off the acid!",
+      "warning_ru": "Урахум бьёт по кругу: выйдите и не стойте на кислоте!",
+      "on_land": [
+        {
+          "type": "telegraph",
+          "at": "boss",
+          "delay_ms": 0,
+          "decal": false,
+          "damage": {"skill": 1605110},
+          "on_hit": [
+            {
+              "type": "debuff",
+              "debuff": "acid",
+              "target": "event_player",
+              "max": 1,
+              "duration_ms": 3000,
+              "on_max": [
+                {
+                  "type": "delay",
+                  "ms": 3000,
+                  "do": [
+                    {
+                      "type": "zone",
+                      "id": "acid_pool",
+                      "at": "event_player",
+                      "shape": "circle",
+                      "radius": 300,
+                      "duration_ms": 10000,
+                      "tick_ms": 1000,
+                      "first_tick_ms": 1000,
+                      "decal": true,
+                      "damage": {"factor": [7500, 7500]}
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "shape": "skill_area",
+          "skill": 1605110,
+          "radius": 900
+        }
+      ]
+    },
+    {
+      "type": "cast",
+      "skill": 1605120,
+      "every_ms": 40000,
+      "wind_up_ms": 1000,
+      "radius": 900,
+      "land": false,
+      "warning": "Urahum sweeps an arc: step out, then off the acid!",
+      "warning_ru": "Урахум бьёт дугой: выйдите из неё, затем с кислоты!",
+      "on_land": [
+        {
+          "type": "telegraph",
+          "at": "boss",
+          "delay_ms": 0,
+          "decal": false,
+          "damage": {"skill": 1605120},
+          "on_hit": [
+            {
+              "type": "debuff",
+              "debuff": "acid",
+              "target": "event_player",
+              "max": 1,
+              "duration_ms": 3000,
+              "on_max": [
+                {
+                  "type": "delay",
+                  "ms": 3000,
+                  "do": [
+                    {
+                      "type": "zone",
+                      "id": "acid_pool",
+                      "at": "event_player",
+                      "shape": "circle",
+                      "radius": 300,
+                      "duration_ms": 10000,
+                      "tick_ms": 1000,
+                      "first_tick_ms": 1000,
+                      "decal": true,
+                      "damage": {"factor": [7500, 7500]}
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "shape": "skill_area",
+          "skill": 1605120,
+          "radius": 900
+        }
+      ]
+    },
+    {
+      "type": "cast",
+      "skill": 1605140,
+      "every_ms": 40000,
+      "wind_up_ms": 1500,
+      "radius": 1700,
+      "land": false,
+      "warning": "Urahum slams the ground again and again: leave his range!",
+      "warning_ru": "Урахум бьёт по земле снова и снова: уйдите подальше!",
+      "on_land": [
+        {
+          "type": "telegraph",
+          "at": "boss",
+          "delay_ms": 0,
+          "decal": false,
+          "damage": {"skill": 1605140},
+          "count": 3,
+          "interval_ms": 600,
+          "steps": [
+            {"shape": "circle", "radius": 600},
+            {"shape": "circle", "radius": 1200},
+            {"shape": "circle", "radius": 1700}
+          ],
+          "on_hit": [
+            {
+              "type": "debuff",
+              "debuff": "acid",
+              "target": "event_player",
+              "max": 1,
+              "duration_ms": 3000,
+              "on_max": [
+                {
+                  "type": "delay",
+                  "ms": 3000,
+                  "do": [
+                    {
+                      "type": "zone",
+                      "id": "acid_pool",
+                      "at": "event_player",
+                      "shape": "circle",
+                      "radius": 300,
+                      "duration_ms": 10000,
+                      "tick_ms": 1000,
+                      "first_tick_ms": 1000,
+                      "decal": true,
+                      "damage": {"factor": [7500, 7500]}
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "do": [
+        {"type": "modify", "damage_mul": 1.2}
+      ],
+      "note": "Kept from the generic boss-phases.json script (OURS): +20% damage at 50%."
+    }
+  ]
+}

@@ -315,12 +315,18 @@ public sealed class BossEngineMigrationTests
         Assert.Equal(legacy.Ai.FightOf(legacy.Boss)!.Haste, engine.Ai.FightOf(engine.Boss)!.Haste);
     }
 
+    /// <summary>A mid-boss that still runs the compiled generic script (not authored), so these parity tests keep covering the compile path.</summary>
+    internal static int GenericMid { get; } = BossPhases.Embedded.All
+        .Where(b => b.Script is { Role: "mid", Telegraph: not null } && BossEncounters.Embedded.Resolve(b.NpcId, BossPhases.Embedded) is { Compiled: true })
+        .Select(b => b.NpcId).Min();
+
     [Theory]
-    [InlineData(2300104)]
+    [InlineData(0)]
     [InlineData(2300171)]
     [InlineData(2300910)]
     public void Rotation_slams_wind_up_on_the_same_schedule(int npc)
     {
+        if (npc == 0) npc = GenericMid;
         var (engine, legacy) = Both(npc, (Tank, new Vector3d(200, 0, 0)));
         var dues = (Engine: new List<(long, int)>(), Legacy: new List<(long, int)>());
         for (var t = 0; t < 90_000; t += 100)
@@ -336,7 +342,7 @@ public sealed class BossEngineMigrationTests
     [Fact]
     public void A_compiled_generic_fight_runs_its_phases_like_the_legacy_loop()
     {
-        var (engine, legacy) = Both(2300104, (Tank, new Vector3d(200, 0, 0)));
+        var (engine, legacy) = Both(GenericMid, (Tank, new Vector3d(200, 0, 0)));
         Assert.True(engine.Ai.EncounterOf(engine.Boss)!.Encounter.Compiled);
         Both(engine, legacy, s => s.Hp(49));
         Both(engine, legacy, s => s.Tick(300));

@@ -558,6 +558,7 @@
     600072,
     600073,
     600082,
+    600083,
     600091,
     600092,
     600093,
@@ -301047,6 +301048,9 @@
                         "0"
                       ]
                     }
+                  ],
+                  "npcs": [
+                    2300284
                   ]
                 },
                 {
@@ -301057,7 +301061,12 @@
                     "3",
                     ""
                   ],
-                  "opt": true
+                  "opt": true,
+                  "npcs": [
+                    2300285,
+                    2300288,
+                    2300289
+                  ]
                 },
                 {
                   "id": 3,
@@ -301099,6 +301108,9 @@
                         "ReforgedAbyss_Hard_01_Wave_01"
                       ]
                     }
+                  ],
+                  "npcs": [
+                    2300284
                   ]
                 },
                 {
@@ -301141,6 +301153,9 @@
                         "ReforgedAbyss_Hard_01_Wave_02"
                       ]
                     }
+                  ],
+                  "npcs": [
+                    2300284
                   ]
                 },
                 {
@@ -301183,6 +301198,9 @@
                         "ReforgedAbyss_Hard_01_Wave_03"
                       ]
                     }
+                  ],
+                  "npcs": [
+                    2300284
                   ]
                 },
                 {
@@ -301211,6 +301229,9 @@
                         ""
                       ]
                     }
+                  ],
+                  "npcs": [
+                    2300285
                   ]
                 },
                 {
@@ -301239,6 +301260,9 @@
                         ""
                       ]
                     }
+                  ],
+                  "npcs": [
+                    2300288
                   ]
                 },
                 {
@@ -301267,6 +301291,9 @@
                         ""
                       ]
                     }
+                  ],
+                  "npcs": [
+                    2300289
                   ]
                 }
               ],
@@ -301380,6 +301407,9 @@
                     "M_PD_ReforgedAbyss_Hard_Lagta_01_001",
                     "1",
                     ""
+                  ],
+                  "npcs": [
+                    2300282
                   ]
                 },
                 {
@@ -301389,6 +301419,9 @@
                     "M_PD_ReforgedAbyss_Hard_Kashapa_01_001",
                     "1",
                     ""
+                  ],
+                  "npcs": [
+                    2300283
                   ]
                 }
               ],
@@ -301484,6 +301517,9 @@
                       "t": "DungeonClear",
                       "v": []
                     }
+                  ],
+                  "npcs": [
+                    2300290
                   ]
                 }
               ],
@@ -434670,6 +434706,2329 @@
           ]
         }
       ]
+    },
+    "ReforgedAbyss_Hard_Rahu_MapEvent": {
+      "map": 600083,
+      "start": [
+        [
+          {
+            "t": "DungeonState",
+            "v": [
+              "Process"
+            ]
+          }
+        ]
+      ],
+      "fail": [],
+      "stages": [
+        {
+          "id": 1,
+          "key": "Stage_1",
+          "steps": [
+            {
+              "id": 1,
+              "pre": [
+                {
+                  "id": 5,
+                  "t": "StartSpawner",
+                  "v": [
+                    "ReforgedAbyss_E_PD_Barrier_02_V01_4",
+                    "0"
+                  ],
+                  "c": [
+                    [
+                      {
+                        "t": "NpcCombatState",
+                        "v": [
+                          "M_PD_ReforgedAbyss_Lagta_01_001",
+                          "Combat"
+                        ]
+                      }
+                    ]
+                  ]
+                },
+                {
+                  "id": 6,
+                  "t": "DynamicTerrainBlock",
+                  "v": [
+                    "ReforgedAbyss_E_PD_Barrier_02_V01_4",
+                    "True"
+                  ],
+                  "c": [
+                    [
+                      {
+                        "t": "NpcCombatState",
+                        "v": [
+                          "M_PD_ReforgedAbyss_Lagta_01_001",
+                          "Combat"
+                        ]
+                      }
+                    ]
+                  ]
+                },
+                {
+                  "id": 7,
+                  "t": "ResetRebirthLimit",
+                  "v": [
+                    "3"
+                  ],
+                  "c": [
+                    [
+                      {
+                        "t": "NpcCombatState",
+                        "v": [
+                          "M_PD_ReforgedAbyss_Lagta_01_001",
+                          "Combat"
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ],
+              "obj": [
+                {
+                  "id": 1,
+                  "t": "KillNpc",
+                  "v": [
+                    "M_PD_ReforgedAbyss_Lagta_01_001",
+                    "1",
+                    ""
+                  ],
+                  "npcs": [
+                    2300282
+                  ],
+                  "post": [
+                    {
+                      "id": 8,
+                      "t": "EndSpawner",
+                      "v": [
+                        "ReforgedAbyss_E_PD_Barrier_02_V01_4",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 9,
+                      "t": "DynamicTerrainBlock",
+                      "v": [
+                        "ReforgedAbyss_E_PD_Barrier_02_V01_4",
+                        "False"
+                      ]
+                    },
+                    {
+                      "id": 10,
+                      "t": "ResetRebirthLimit",
+                      "v": [
+                        "3"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            }
+          ],
+          "fail": [
+            [
+              {
+                "t": "NpcCombatState",
+                "v": [
+                  "M_PD_ReforgedAbyss_Lagta_01_001",
+                  "None"
+                ]
+              }
+            ]
+          ],
+          "goto": "Stage_1",
+          "faildir": [
+            {
+              "id": 1,
+              "t": "Delay",
+              "v": [
+                "2000"
+              ]
+            },
+            {
+              "id": 2,
+              "t": "EndSpawner",
+              "v": [
+                "ReforgedAbyss_E_PD_Barrier_02_V01_4",
+                "0"
+              ]
+            },
+            {
+              "id": 3,
+              "t": "DynamicTerrainBlock",
+              "v": [
+                "ReforgedAbyss_E_PD_Barrier_02_V01_4",
+                "False"
+              ]
+            },
+            {
+              "id": 4,
+              "t": "ResetRebirthLimit",
+              "v": [
+                "3"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "ReforgedAbyss_Hard_Ketu_MapEvent": {
+      "map": 600083,
+      "start": [
+        [
+          {
+            "t": "DungeonState",
+            "v": [
+              "Process"
+            ]
+          }
+        ]
+      ],
+      "fail": [],
+      "stages": [
+        {
+          "id": 1,
+          "key": "Stage_1",
+          "steps": [
+            {
+              "id": 1,
+              "pre": [
+                {
+                  "id": 5,
+                  "t": "StartSpawner",
+                  "v": [
+                    "ReforgedAbyss_E_PD_Barrier_02_V01_3",
+                    "0"
+                  ],
+                  "c": [
+                    [
+                      {
+                        "t": "NpcCombatState",
+                        "v": [
+                          "M_PD_ReforgedAbyss_Kashapa_01_001",
+                          "Combat"
+                        ]
+                      }
+                    ]
+                  ]
+                },
+                {
+                  "id": 6,
+                  "t": "DynamicTerrainBlock",
+                  "v": [
+                    "ReforgedAbyss_E_PD_Barrier_02_V01_3",
+                    "True"
+                  ],
+                  "c": [
+                    [
+                      {
+                        "t": "NpcCombatState",
+                        "v": [
+                          "M_PD_ReforgedAbyss_Kashapa_01_001",
+                          "Combat"
+                        ]
+                      }
+                    ]
+                  ]
+                },
+                {
+                  "id": 7,
+                  "t": "ResetRebirthLimit",
+                  "v": [
+                    "3"
+                  ],
+                  "c": [
+                    [
+                      {
+                        "t": "NpcCombatState",
+                        "v": [
+                          "M_PD_ReforgedAbyss_Kashapa_01_001",
+                          "Combat"
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ],
+              "obj": [
+                {
+                  "id": 1,
+                  "t": "KillNpc",
+                  "v": [
+                    "M_PD_ReforgedAbyss_Kashapa_01_001",
+                    "1",
+                    ""
+                  ],
+                  "npcs": [
+                    2300283
+                  ],
+                  "post": [
+                    {
+                      "id": 8,
+                      "t": "EndSpawner",
+                      "v": [
+                        "ReforgedAbyss_E_PD_Barrier_02_V01_3",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 9,
+                      "t": "DynamicTerrainBlock",
+                      "v": [
+                        "ReforgedAbyss_E_PD_Barrier_02_V01_3",
+                        "False"
+                      ]
+                    },
+                    {
+                      "id": 10,
+                      "t": "ResetRebirthLimit",
+                      "v": [
+                        "3"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            }
+          ],
+          "fail": [
+            [
+              {
+                "t": "NpcCombatState",
+                "v": [
+                  "M_PD_ReforgedAbyss_Kashapa_01_001",
+                  "None"
+                ]
+              }
+            ]
+          ],
+          "goto": "Stage_1",
+          "faildir": [
+            {
+              "id": 1,
+              "t": "Delay",
+              "v": [
+                "2000"
+              ]
+            },
+            {
+              "id": 2,
+              "t": "EndSpawner",
+              "v": [
+                "ReforgedAbyss_E_PD_Barrier_02_V01_3",
+                "0"
+              ]
+            },
+            {
+              "id": 3,
+              "t": "DynamicTerrainBlock",
+              "v": [
+                "ReforgedAbyss_E_PD_Barrier_02_V01_3",
+                "False"
+              ]
+            },
+            {
+              "id": 4,
+              "t": "ResetRebirthLimit",
+              "v": [
+                "3"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "ReforgedAbyss_Hard_BossRoom_MapEvent": {
+      "map": 600083,
+      "start": [],
+      "fail": [],
+      "stages": [
+        {
+          "id": 1,
+          "key": "BossRoom",
+          "steps": [
+            {
+              "id": 1,
+              "pre": [
+                {
+                  "id": 9,
+                  "t": "StartSpawner",
+                  "v": [
+                    "ReforgedAbyss_E_PD_Barrier_02_V01_6",
+                    "0"
+                  ],
+                  "c": [
+                    [
+                      {
+                        "t": "NpcCombatState",
+                        "v": [
+                          "M_PD_ReforgedAbyss_Durbati_01_V01_001",
+                          "Combat"
+                        ]
+                      }
+                    ]
+                  ]
+                },
+                {
+                  "id": 10,
+                  "t": "DynamicTerrainBlock",
+                  "v": [
+                    "ReforgedAbyss_E_PD_Barrier_02_V01_6",
+                    "True"
+                  ],
+                  "c": [
+                    [
+                      {
+                        "t": "NpcCombatState",
+                        "v": [
+                          "M_PD_ReforgedAbyss_Durbati_01_V01_001",
+                          "Combat"
+                        ]
+                      }
+                    ]
+                  ]
+                },
+                {
+                  "id": 11,
+                  "t": "ResetRebirthLimit",
+                  "v": [
+                    "3"
+                  ],
+                  "c": [
+                    [
+                      {
+                        "t": "NpcCombatState",
+                        "v": [
+                          "M_PD_ReforgedAbyss_Durbati_01_V01_001",
+                          "Combat"
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ],
+              "obj": [
+                {
+                  "id": 1,
+                  "t": "KillSpawner",
+                  "v": [
+                    "M_PD_ReforgedAbyss_Durbati_01_V01_001"
+                  ],
+                  "post": [
+                    {
+                      "id": 12,
+                      "t": "EndSpawner",
+                      "v": [
+                        "ReforgedAbyss_E_PD_Barrier_02_V01_6",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 13,
+                      "t": "DynamicTerrainBlock",
+                      "v": [
+                        "ReforgedAbyss_E_PD_Barrier_02_V01_6",
+                        "False"
+                      ]
+                    },
+                    {
+                      "id": 14,
+                      "t": "SetAbnormalVolumeState",
+                      "v": [
+                        "Raid_ReforgedAbyss_Boss",
+                        "False"
+                      ]
+                    },
+                    {
+                      "id": 15,
+                      "t": "ResetRebirthLimit",
+                      "v": [
+                        "3"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            }
+          ],
+          "fail": [
+            [
+              {
+                "t": "NpcCombatState",
+                "v": [
+                  "M_PD_ReforgedAbyss_Durbati_01_V01_001",
+                  "None"
+                ]
+              }
+            ]
+          ],
+          "goto": "BossRoom",
+          "faildir": [
+            {
+              "id": 1,
+              "t": "EndSpawner",
+              "v": [
+                "M_PD_ReforgedAbyss_Durbati_01_V01_001",
+                "0"
+              ]
+            },
+            {
+              "id": 2,
+              "t": "Delay",
+              "v": [
+                "2000"
+              ]
+            },
+            {
+              "id": 3,
+              "t": "StartSpawner",
+              "v": [
+                "M_PD_ReforgedAbyss_Durbati_01_V01_001",
+                "0"
+              ]
+            },
+            {
+              "id": 4,
+              "t": "EndSpawner",
+              "v": [
+                "ReforgedAbyss_E_PD_Barrier_02_V01_6",
+                "0"
+              ]
+            },
+            {
+              "id": 5,
+              "t": "DynamicTerrainBlock",
+              "v": [
+                "ReforgedAbyss_E_PD_Barrier_02_V01_6",
+                "False"
+              ]
+            },
+            {
+              "id": 6,
+              "t": "SetMapEnvState",
+              "v": [
+                "1",
+                "False"
+              ]
+            },
+            {
+              "id": 7,
+              "t": "SetAbnormalVolumeState",
+              "v": [
+                "Raid_ReforgedAbyss_Boss",
+                "False"
+              ]
+            },
+            {
+              "id": 8,
+              "t": "ResetRebirthLimit",
+              "v": [
+                "3"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "ReforgedAbyss_Hard_1PartyWave_MapEvent": {
+      "map": 600083,
+      "start": [
+        [
+          {
+            "t": "DungeonState",
+            "v": [
+              "Process"
+            ]
+          }
+        ]
+      ],
+      "fail": [],
+      "stages": [
+        {
+          "id": 1,
+          "key": "1Party_Stage_1",
+          "steps": [
+            {
+              "id": 1,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 1,
+                  "t": "EnterVolumePC",
+                  "v": [
+                    "AionTriggerActor_4",
+                    "600082"
+                  ],
+                  "post": [
+                    {
+                      "id": 13,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_1PartyWave_01"
+                      ],
+                      "c": [
+                        [
+                          {
+                            "t": "NpcCombatState",
+                            "v": [
+                              "M_PD_ReforgedAbyss_Kashapa_01_001",
+                              "Combat"
+                            ]
+                          }
+                        ]
+                      ]
+                    },
+                    {
+                      "id": 14,
+                      "t": "ChangeEnvObjState",
+                      "v": [
+                        "E_PD_ReforgedAbyss_DrakanTower_01_V01_1",
+                        "Finish",
+                        "True"
+                      ],
+                      "c": [
+                        [
+                          {
+                            "t": "NpcCombatState",
+                            "v": [
+                              "M_PD_ReforgedAbyss_Kashapa_01_001",
+                              "Combat"
+                            ]
+                          }
+                        ]
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 2,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_1PartyWave_01"
+                  ],
+                  "post": [
+                    {
+                      "id": 15,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V01_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 16,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 3,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01_V01",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 17,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V01_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 18,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_02",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 19,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Ketu_M_PD_ReforgedAbyss_AbyssStone_01_V01",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 20,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 21,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_1PartyWave_02"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 2,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 4,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_1PartyWave_02"
+                  ],
+                  "post": [
+                    {
+                      "id": 22,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 23,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 5,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 24,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 25,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_01",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 26,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Ketu_M_PD_ReforgedAbyss_AbyssStone_01",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 27,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 28,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_1PartyWave_03"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 3,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 6,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_1PartyWave_03"
+                  ],
+                  "post": [
+                    {
+                      "id": 29,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V02_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 30,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 7,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01_V02",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 31,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V02_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 32,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_03",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 33,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Ketu_M_PD_ReforgedAbyss_AbyssStone_01_V02",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 34,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 35,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_1PartyWave_04"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 4,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 8,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_1PartyWave_04"
+                  ],
+                  "post": [
+                    {
+                      "id": 36,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V01_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 37,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 9,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01_V01",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 38,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V01_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 39,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_02",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 40,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Ketu_M_PD_ReforgedAbyss_AbyssStone_01_V01",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 41,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 42,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_1PartyWave_05"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 5,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 10,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_1PartyWave_05"
+                  ],
+                  "post": [
+                    {
+                      "id": 43,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 44,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 11,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 45,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 46,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_01",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 47,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Ketu_M_PD_ReforgedAbyss_AbyssStone_01",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 48,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 49,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_1PartyWave_06"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 6,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 12,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_1PartyWave_06"
+                  ],
+                  "post": [
+                    {
+                      "id": 50,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V02_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 51,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 13,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01_V02",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 52,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V02_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 53,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_03",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 54,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Ketu_M_PD_ReforgedAbyss_AbyssStone_01_V02",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 55,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 56,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_1PartyWave_07"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 7,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 14,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_1PartyWave_07"
+                  ],
+                  "post": [
+                    {
+                      "id": 57,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V01_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 58,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 15,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01_V01",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 59,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V01_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 60,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_02",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 61,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Ketu_M_PD_ReforgedAbyss_AbyssStone_01_V01",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 62,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 63,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_1PartyWave_08"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 8,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 16,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_1PartyWave_08"
+                  ],
+                  "post": [
+                    {
+                      "id": 64,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 65,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 17,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 66,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 67,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_01",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 68,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Ketu_M_PD_ReforgedAbyss_AbyssStone_01",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 69,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 70,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_1PartyWave_09"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 9,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 18,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_1PartyWave_09"
+                  ],
+                  "post": [
+                    {
+                      "id": 71,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V02_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 72,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 19,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01_V02",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 73,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V02_1",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 74,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_03",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 75,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Ketu_M_PD_ReforgedAbyss_AbyssStone_01_V02",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 76,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 10,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 20,
+                  "t": "KillSpawner",
+                  "v": [
+                    "M_PD_ReforgedAbyss_Kashapa_01_001"
+                  ]
+                }
+              ],
+              "post": []
+            }
+          ],
+          "fail": [
+            [
+              {
+                "t": "NpcCombatState",
+                "v": [
+                  "M_PD_ReforgedAbyss_Kashapa_01_001",
+                  "None"
+                ]
+              }
+            ]
+          ],
+          "goto": "1Party_Stage_1",
+          "faildir": [
+            {
+              "id": 1,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_1PartyWave_01"
+              ]
+            },
+            {
+              "id": 2,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_1PartyWave_02"
+              ]
+            },
+            {
+              "id": 3,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_1PartyWave_03"
+              ]
+            },
+            {
+              "id": 4,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_1PartyWave_04"
+              ]
+            },
+            {
+              "id": 5,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_1PartyWave_05"
+              ]
+            },
+            {
+              "id": 6,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_1PartyWave_06"
+              ]
+            },
+            {
+              "id": 7,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_1PartyWave_07"
+              ]
+            },
+            {
+              "id": 8,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_1PartyWave_08"
+              ]
+            },
+            {
+              "id": 9,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_1PartyWave_09"
+              ]
+            },
+            {
+              "id": 10,
+              "t": "EndSpawner",
+              "v": [
+                "E_PD_ReforgedAbyss_AbyssStone_01_V01_1",
+                "0"
+              ]
+            },
+            {
+              "id": 11,
+              "t": "EndSpawner",
+              "v": [
+                "E_PD_ReforgedAbyss_AbyssStone_01_1",
+                "0"
+              ]
+            },
+            {
+              "id": 12,
+              "t": "EndSpawner",
+              "v": [
+                "E_PD_ReforgedAbyss_AbyssStone_01_V02_1",
+                "0"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "ReforgedAbyss_Hard_2PartyWave_MapEvent": {
+      "map": 600083,
+      "start": [
+        [
+          {
+            "t": "DungeonState",
+            "v": [
+              "Process"
+            ]
+          }
+        ]
+      ],
+      "fail": [],
+      "stages": [
+        {
+          "id": 1,
+          "key": "2Party_Stage_1",
+          "steps": [
+            {
+              "id": 1,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 1,
+                  "t": "EnterVolumePC",
+                  "v": [
+                    "AionTriggerActor_5",
+                    "600082"
+                  ],
+                  "post": [
+                    {
+                      "id": 13,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_2PartyWave_01"
+                      ],
+                      "c": [
+                        [
+                          {
+                            "t": "NpcCombatState",
+                            "v": [
+                              "M_PD_ReforgedAbyss_Lagta_01_001",
+                              "Combat"
+                            ]
+                          }
+                        ]
+                      ]
+                    },
+                    {
+                      "id": 14,
+                      "t": "ChangeEnvObjState",
+                      "v": [
+                        "E_PD_ReforgedAbyss_DrakanTower_01_V01_2",
+                        "Finish",
+                        "True"
+                      ],
+                      "c": [
+                        [
+                          {
+                            "t": "NpcCombatState",
+                            "v": [
+                              "M_PD_ReforgedAbyss_Lagta_01_001",
+                              "Combat"
+                            ]
+                          }
+                        ]
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 2,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_2PartyWave_01"
+                  ],
+                  "post": [
+                    {
+                      "id": 15,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V01_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 16,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 3,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01_V01_1",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 17,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V01_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 18,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_02",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 19,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Lahu_M_PD_ReforgedAbyss_AbyssStone_01_V01",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 20,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 21,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_2PartyWave_02"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 2,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 4,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_2PartyWave_02"
+                  ],
+                  "post": [
+                    {
+                      "id": 22,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 23,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 5,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01_1",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 24,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 25,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_01",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 26,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Lahu_M_PD_ReforgedAbyss_AbyssStone_01",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 27,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 28,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_2PartyWave_03"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 3,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 6,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_2PartyWave_03"
+                  ],
+                  "post": [
+                    {
+                      "id": 29,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V02_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 30,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 7,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01_V02_1",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 31,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V02_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 32,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_03",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 33,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Lahu_M_PD_ReforgedAbyss_AbyssStone_01_V02",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 34,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 35,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_2PartyWave_04"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 4,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 8,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_2PartyWave_04"
+                  ],
+                  "post": [
+                    {
+                      "id": 36,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V01_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 37,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 9,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01_V01_1",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 38,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V01_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 39,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_02",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 40,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Lahu_M_PD_ReforgedAbyss_AbyssStone_01_V01",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 41,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 42,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_2PartyWave_05"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 5,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 10,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_2PartyWave_05"
+                  ],
+                  "post": [
+                    {
+                      "id": 43,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 44,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 11,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01_1",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 45,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 46,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_01",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 47,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Lahu_M_PD_ReforgedAbyss_AbyssStone_01",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 48,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 49,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_2PartyWave_06"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 6,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 12,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_2PartyWave_06"
+                  ],
+                  "post": [
+                    {
+                      "id": 50,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V02_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 51,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 13,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01_V02_1",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 52,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V02_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 53,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_03",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 54,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Lahu_M_PD_ReforgedAbyss_AbyssStone_01_V02",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 55,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 56,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_2PartyWave_07"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 7,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 14,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_2PartyWave_07"
+                  ],
+                  "post": [
+                    {
+                      "id": 57,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V01_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 58,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 15,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01_V01_1",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 59,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V01_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 60,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_02",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 61,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Lahu_M_PD_ReforgedAbyss_AbyssStone_01_V01",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 62,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 63,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_2PartyWave_08"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 8,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 16,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_2PartyWave_08"
+                  ],
+                  "post": [
+                    {
+                      "id": 64,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 65,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 17,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01_1",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 66,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 67,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_01",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 68,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Lahu_M_PD_ReforgedAbyss_AbyssStone_01",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 69,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    },
+                    {
+                      "id": 70,
+                      "t": "StartWave",
+                      "v": [
+                        "ReforgedAbyss_2PartyWave_09"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 9,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 18,
+                  "t": "ClearWave",
+                  "v": [
+                    "ReforgedAbyss_2PartyWave_09"
+                  ],
+                  "post": [
+                    {
+                      "id": 71,
+                      "t": "StartSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V02_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 72,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone",
+                        ""
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": 19,
+                  "t": "UseEnvObj",
+                  "v": [
+                    "E_PD_ReforgedAbyss_AbyssStone_01_V02_1",
+                    "1"
+                  ],
+                  "post": [
+                    {
+                      "id": 73,
+                      "t": "EndSpawner",
+                      "v": [
+                        "E_PD_ReforgedAbyss_AbyssStone_01_V02_2",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 74,
+                      "t": "BroadCastingMessage",
+                      "v": [
+                        "Str_ReforgedAbyss_AbyssStone_03",
+                        ""
+                      ]
+                    },
+                    {
+                      "id": 75,
+                      "t": "StartSpawner",
+                      "v": [
+                        "Lahu_M_PD_ReforgedAbyss_AbyssStone_01_V02",
+                        "0"
+                      ]
+                    },
+                    {
+                      "id": 76,
+                      "t": "Delay",
+                      "v": [
+                        "3000"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "post": []
+            },
+            {
+              "id": 10,
+              "pre": [],
+              "obj": [
+                {
+                  "id": 20,
+                  "t": "KillSpawner",
+                  "v": [
+                    "M_PD_ReforgedAbyss_Lagta_01_001"
+                  ]
+                }
+              ],
+              "post": []
+            }
+          ],
+          "fail": [
+            [
+              {
+                "t": "NpcCombatState",
+                "v": [
+                  "M_PD_ReforgedAbyss_Lagta_01_001",
+                  "None"
+                ]
+              }
+            ]
+          ],
+          "goto": "2Party_Stage_1",
+          "faildir": [
+            {
+              "id": 1,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_2PartyWave_01"
+              ]
+            },
+            {
+              "id": 2,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_2PartyWave_02"
+              ]
+            },
+            {
+              "id": 3,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_2PartyWave_03"
+              ]
+            },
+            {
+              "id": 4,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_2PartyWave_04"
+              ]
+            },
+            {
+              "id": 5,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_2PartyWave_05"
+              ]
+            },
+            {
+              "id": 6,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_2PartyWave_06"
+              ]
+            },
+            {
+              "id": 7,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_2PartyWave_07"
+              ]
+            },
+            {
+              "id": 8,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_2PartyWave_08"
+              ]
+            },
+            {
+              "id": 9,
+              "t": "EndWave",
+              "v": [
+                "ReforgedAbyss_2PartyWave_09"
+              ]
+            },
+            {
+              "id": 10,
+              "t": "EndSpawner",
+              "v": [
+                "E_PD_ReforgedAbyss_AbyssStone_01_V01_2",
+                "0"
+              ]
+            },
+            {
+              "id": 11,
+              "t": "EndSpawner",
+              "v": [
+                "E_PD_ReforgedAbyss_AbyssStone_01_2",
+                "0"
+              ]
+            },
+            {
+              "id": 12,
+              "t": "EndSpawner",
+              "v": [
+                "E_PD_ReforgedAbyss_AbyssStone_01_V02_2",
+                "0"
+              ]
+            }
+          ]
+        }
+      ]
     }
   },
   "maps": {
@@ -436528,7 +438887,12 @@
     ],
     "600083": [
       "ReforgedAbyss_Hard_MapEvent",
-      "Test_Nahid_MapEvent"
+      "Test_Nahid_MapEvent",
+      "ReforgedAbyss_Hard_Rahu_MapEvent",
+      "ReforgedAbyss_Hard_Ketu_MapEvent",
+      "ReforgedAbyss_Hard_BossRoom_MapEvent",
+      "ReforgedAbyss_Hard_1PartyWave_MapEvent",
+      "ReforgedAbyss_Hard_2PartyWave_MapEvent"
     ],
     "600091": [
       "FierceHornCave_Easy_BossRoom_Mapevent",
@@ -462410,6 +464774,68 @@
       "max_level": 99,
       "item_level": 4000,
       "max_member": 1
+    },
+    "600083": {
+      "name": "ReforgedAbyss_Hard",
+      "map": 600083,
+      "type": "Raid",
+      "exit": "LastPosition",
+      "start_light": "None",
+      "start_dark": "None",
+      "hold": 600,
+      "limit": 7200,
+      "group": "ReforgedAbyss_Group",
+      "min_level": 45,
+      "max_level": 99,
+      "item_level": 3000,
+      "max_member": 10,
+      "cube_boss": 2300290,
+      "cube": {
+        "2300290": [
+          [
+            631800004,
+            100000000,
+            4,
+            9
+          ],
+          [
+            535400001,
+            100000000,
+            10,
+            10
+          ],
+          [
+            630840002,
+            100000000,
+            20,
+            20
+          ],
+          [
+            930100031,
+            100000000,
+            1000000,
+            1000000
+          ],
+          [
+            531360001,
+            600000000,
+            1,
+            1
+          ],
+          [
+            533560001,
+            200000000,
+            1,
+            1
+          ],
+          [
+            536900001,
+            30000000,
+            1,
+            1
+          ]
+        ]
+      }
     }
   },
   "npc_entries": {

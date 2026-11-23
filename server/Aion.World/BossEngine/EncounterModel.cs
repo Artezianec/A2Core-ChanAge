@@ -101,7 +101,7 @@ public static class EncounterAnchors
     public static readonly string[] Keywords =
     [
         "boss", "victim", "each_player", "random_player", "farthest_player", "nearest_player", "arena_centre", "home",
-        "cast_centre", "event", "mark", "group", "point",
+        "cast_centre", "event", "event_player", "mark", "group", "point",
     ];
 }
 
@@ -121,6 +121,8 @@ public sealed class DamageDef
     public bool Lethal { get; init; }
     /// <summary>Skip the victim's defense reduction.</summary>
     public bool IgnoreDefense { get; init; }
+    /// <summary>With <see cref="Skill"/>: use the skill's client HP-ratio Damage row (MaxHPRatio / CurrentHPRatio, skill-effect-engine.json ratio_damage) when it has one.</summary>
+    public bool? Ratio { get; init; }
 }
 
 /// <summary>A ground shape. "skill_area" uses the client shape of the action's skill (skill-areas.json) instead.</summary>
@@ -207,6 +209,8 @@ public sealed class RuleDef
     public bool? Once { get; init; }
     public int? MaxFires { get; init; }
     public Num? Chance { get; init; }
+    /// <summary>Only while an NPC with this NpcData id is alive on the map (the abyss stones that buff the fighting party).</summary>
+    public int? NpcAlive { get; init; }
     public List<ActionDef> Do { get; init; } = [];
     public string? Note { get; init; }
 }

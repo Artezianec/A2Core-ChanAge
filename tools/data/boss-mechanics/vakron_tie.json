@@ -1,0 +1,220 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "vakron_tie",
+  "display": "Tie",
+  "display_ru": "Тай",
+  "dungeon": "BakronIsland",
+  "source": "authored from the client data (Skill.dat / Abnormal.dat / Npc.dat: skill ids, cast times, cooldowns, damage rows, abnormal ids) + research notes; values marked CANDIDATE/guess are not in the client",
+  "note": "Mid-boss. Client rotation: arc swipe (1604450), twin stun rectangles (1604460), the stunning side arcs (1604470), the five-rectangle spit (1604490) and the poison burst (1604500). Map poison at 75% and 25% (research; thresholds and the 40000 poison damage are a guess): the whole island is lethal except one safe circle (client ring 900..4500, centred on the arena as the flower positions are not in the data), then four spits at random players, each leaving a pool (radius 600 = client circle; pool damage/duration a guess). fury at 50% kept (OURS).",
+  "npcs": {"Easy": [2310810], "Normal": [2300810], "Hard": [2320810]},
+  "vars": {"safe_radius": 900, "pool_ms": 20000},
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1604450,
+      "every_ms": 8000,
+      "wind_up_ms": 830,
+      "radius": 900,
+      "warning": "Tie swipes both sides: get behind him!",
+      "warning_ru": "Тай бьёт по сторонам: зайдите за спину!"
+    },
+    {
+      "type": "cast",
+      "skill": 1604460,
+      "every_ms": 18000,
+      "wind_up_ms": 1400,
+      "radius": 2000,
+      "warning": "Tie spits a stunning bolt: leave the line!",
+      "warning_ru": "Тай плюёт оглушающим зарядом: уйдите с линии!"
+    },
+    {
+      "type": "cast",
+      "skill": 1604470,
+      "every_ms": 15000,
+      "wind_up_ms": 1100,
+      "radius": 900,
+      "warning": "Tie sweeps the sides: stay in front or behind!",
+      "warning_ru": "Тай бьёт по бокам: встаньте спереди или сзади!"
+    },
+    {
+      "type": "cast",
+      "skill": 1604490,
+      "every_ms": 25000,
+      "wind_up_ms": 1260,
+      "radius": 800,
+      "land": false,
+      "warning": "Tie spits at you: step away from the line!",
+      "warning_ru": "Тай плюёт в вас: сойдите с линии!",
+      "on_land": [
+        {
+          "type": "telegraph",
+          "at": "victim",
+          "shape": "rect",
+          "length": 800,
+          "width": 500,
+          "delay_ms": 400,
+          "decal": false,
+          "damage": {"factor": [9000, 10000]},
+          "on_hit": [
+            {
+              "type": "debuff",
+              "debuff": "tie_stun",
+              "target": "event_player",
+              "abnormal": 12000001,
+              "duration_ms": 3000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "cast",
+      "skill": 1604500,
+      "every_ms": 30000,
+      "wind_up_ms": 1260,
+      "radius": 600,
+      "warning": "Tie bursts poison: leave the circle!",
+      "warning_ru": "Тай взрывает яд: выйдите из круга!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "do": [
+        {"type": "modify", "damage_mul": 1.2}
+      ],
+      "note": "Kept from the generic boss-phases.json script (OURS): +20% damage at 50%."
+    },
+    {
+      "id": "map_poison_75",
+      "when": {"type": "hp_below", "pct": 75},
+      "do": [
+        {
+          "type": "notice",
+          "text": "Tie poisons the whole island: reach the antidote flower's safe circle and stay together!",
+          "text_ru": "Тай отравляет весь остров: бегите в безопасный круг у противоядного цветка и держитесь вместе!"
+        },
+        {"type": "cast", "skill": 1604510, "wind_up_ms": 1630, "radius": 300, "land": false},
+        {
+          "type": "telegraph",
+          "at": "arena_centre",
+          "shape": "safe_zone",
+          "radius": "$safe_radius",
+          "delay_ms": 6000,
+          "decal": true,
+          "damage": {"factor": [40000, 40000], "ignore_defense": true}
+        },
+        {
+          "type": "delay",
+          "ms": 7000,
+          "do": [
+            {
+              "type": "repeat",
+              "every_ms": 2500,
+              "delay_ms": 0,
+              "count": 4,
+              "do": [
+                {"type": "mark", "name": "spit", "target": "random_player"},
+                {
+                  "type": "telegraph",
+                  "at": "mark:spit",
+                  "shape": "circle",
+                  "radius": 600,
+                  "delay_ms": 1000,
+                  "decal": true,
+                  "damage": {"factor": [14000, 16000]},
+                  "warning": "Tie spits poison: get out of the circle and keep the pools together!",
+                  "warning_ru": "Тай плюётся ядом: выйдите из круга и держите лужи рядом!"
+                },
+                {
+                  "type": "delay",
+                  "ms": 1000,
+                  "do": [
+                    {
+                      "type": "zone",
+                      "id": "poison_pool",
+                      "at": "mark:spit",
+                      "shape": "circle",
+                      "radius": 600,
+                      "duration_ms": "$pool_ms",
+                      "tick_ms": 1000,
+                      "first_tick_ms": 1000,
+                      "decal": true,
+                      "damage": {"factor": [4000, 4000]}
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "map_poison_25",
+      "when": {"type": "hp_below", "pct": 25},
+      "do": [
+        {
+          "type": "notice",
+          "text": "Tie poisons the whole island: reach the antidote flower's safe circle and stay together!",
+          "text_ru": "Тай отравляет весь остров: бегите в безопасный круг у противоядного цветка и держитесь вместе!"
+        },
+        {"type": "cast", "skill": 1604510, "wind_up_ms": 1630, "radius": 300, "land": false},
+        {
+          "type": "telegraph",
+          "at": "arena_centre",
+          "shape": "safe_zone",
+          "radius": "$safe_radius",
+          "delay_ms": 6000,
+          "decal": true,
+          "damage": {"factor": [40000, 40000], "ignore_defense": true}
+        },
+        {
+          "type": "delay",
+          "ms": 7000,
+          "do": [
+            {
+              "type": "repeat",
+              "every_ms": 2500,
+              "delay_ms": 0,
+              "count": 4,
+              "do": [
+                {"type": "mark", "name": "spit", "target": "random_player"},
+                {
+                  "type": "telegraph",
+                  "at": "mark:spit",
+                  "shape": "circle",
+                  "radius": 600,
+                  "delay_ms": 1000,
+                  "decal": true,
+                  "damage": {"factor": [14000, 16000]},
+                  "warning": "Tie spits poison: get out of the circle and keep the pools together!",
+                  "warning_ru": "Тай плюётся ядом: выйдите из круга и держите лужи рядом!"
+                },
+                {
+                  "type": "delay",
+                  "ms": 1000,
+                  "do": [
+                    {
+                      "type": "zone",
+                      "id": "poison_pool",
+                      "at": "mark:spit",
+                      "shape": "circle",
+                      "radius": 600,
+                      "duration_ms": "$pool_ms",
+                      "tick_ms": 1000,
+                      "first_tick_ms": 1000,
+                      "decal": true,
+                      "damage": {"factor": [4000, 4000]}
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "urugugu_canyon_raur",
+  "display": "Raur",
+  "display_ru": "Раур",
+  "dungeon": "UruguguCanyon",
+  "source": "authored from the client data (Skill.dat / Abnormal.dat / Npc.dat: skill ids, cast times, cooldowns, damage rows, abnormal ids) + research notes; values marked CANDIDATE/guess are not in the client",
+  "note": "Mid-boss. Official: the reflecting shield (1504450, 3 s raise) after which Raur takes +20% damage buff / slams (1504460). The reflect itself is modelled as an HP pool: hitting through it throws the damage back at the party (CANDIDATE pool size and punish); waiting it out ends with the shield slam. Raised at 70% and 30% (CANDIDATE thresholds). Easy remaps 1504460 to 1504461.",
+  "npcs": {"Easy": [2310206], "Normal": [2300206], "Hard": [2320206]},
+  "vars": {"reflect_pool_pct": 1.5, "reflect_ms": 3800},
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1504420,
+      "every_ms": 20000,
+      "wind_up_ms": 1500,
+      "radius": 600,
+      "warning": "Raur swings his shield: step out of the arc!",
+      "warning_ru": "Раур замахивается щитом: выйдите из дуги!"
+    },
+    {
+      "type": "cast",
+      "skill": 1504480,
+      "every_ms": 20000,
+      "wind_up_ms": 1000,
+      "radius": 500,
+      "warning": "Raur slams the ground: walk out of the circle!",
+      "warning_ru": "Раур бьёт по земле: выйдите из круга!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "fury_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "do": [
+        {"type": "modify", "damage_mul": 1.2}
+      ],
+      "note": "Kept from the generic boss-phases.json script (OURS): +20% damage at 50%."
+    },
+    {
+      "id": "reflect_70",
+      "when": {"type": "hp_below", "pct": 70},
+      "do": [
+        {
+          "type": "notice",
+          "text": "Raur raises his shield: stop attacking until it drops!",
+          "text_ru": "Раур поднимает щит: прекратите атаки, пока он не опустится!"
+        },
+        {
+          "type": "cast",
+          "skill": 1504450,
+          "wind_up_ms": 3000,
+          "radius": 300,
+          "land": false,
+          "warning": "Raur raises his shield: stop attacking until it drops!",
+          "warning_ru": "Раур поднимает щит: прекратите атаки, пока он не опустится!",
+          "on_land": [
+            {
+              "type": "shield",
+              "id": "reflect",
+              "hp_pct": "$reflect_pool_pct",
+              "duration_ms": "$reflect_ms",
+              "on_break": [
+                {
+                  "type": "notice",
+                  "text": "The shield throws every blow back at the party!",
+                  "text_ru": "Щит возвращает все удары по группе!"
+                },
+                {
+                  "type": "telegraph",
+                  "at": "boss",
+                  "shape": "circle",
+                  "radius": 9000,
+                  "delay_ms": 1200,
+                  "decal": false,
+                  "damage": {"factor": [60000, 60000], "ignore_defense": true}
+                }
+              ],
+              "on_expire": [
+                {
+                  "type": "cast",
+                  "skill": 1504460,
+                  "wind_up_ms": 1000,
+                  "radius": 2500,
+                  "warning": "Raur slams his shield: leave the wide circle!",
+                  "warning_ru": "Раур бьёт щитом: выйдите из широкого круга!",
+                  "once": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reflect_30",
+      "when": {"type": "hp_below", "pct": 30},
+      "do": [
+        {
+          "type": "notice",
+          "text": "Raur raises his shield: stop attacking until it drops!",
+          "text_ru": "Раур поднимает щит: прекратите атаки, пока он не опустится!"
+        },
+        {
+          "type": "cast",
+          "skill": 1504450,
+          "wind_up_ms": 3000,
+          "radius": 300,
+          "land": false,
+          "warning": "Raur raises his shield: stop attacking until it drops!",
+          "warning_ru": "Раур поднимает щит: прекратите атаки, пока он не опустится!",
+          "on_land": [
+            {
+              "type": "shield",
+              "id": "reflect",
+              "hp_pct": "$reflect_pool_pct",
+              "duration_ms": "$reflect_ms",
+              "on_break": [
+                {
+                  "type": "notice",
+                  "text": "The shield throws every blow back at the party!",
+                  "text_ru": "Щит возвращает все удары по группе!"
+                },
+                {
+                  "type": "telegraph",
+                  "at": "boss",
+                  "shape": "circle",
+                  "radius": 9000,
+                  "delay_ms": 1200,
+                  "decal": false,
+                  "damage": {"factor": [60000, 60000], "ignore_defense": true}
+                }
+              ],
+              "on_expire": [
+                {
+                  "type": "cast",
+                  "skill": 1504460,
+                  "wind_up_ms": 1000,
+                  "radius": 2500,
+                  "warning": "Raur slams his shield: leave the wide circle!",
+                  "warning_ru": "Раур бьёт щитом: выйдите из широкого круга!",
+                  "once": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "difficulty": {
+    "Easy": {
+      "skill_remap": {"1504460": 1504461}
+    }
+  }
+}

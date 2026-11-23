@@ -1,0 +1,119 @@
+{
+  "$schema": "../boss-mechanics.schema.json",
+  "id": "draupnir_lakshmi",
+  "display": "Lakshmi",
+  "display_ru": "Лакшми",
+  "dungeon": "Draupnir",
+  "source": "authored from the client data (Skill.dat / Abnormal.dat / Npc.dat: skill ids, cast times, cooldowns, damage rows, abnormal ids) + research notes; values marked CANDIDATE/guess are not in the client",
+  "note": "Mid-boss. Leap (1605930, stun), bolts (1605950) from the client; the reflect (1605910, 0.73 s cast) is a pool shield: pushing through throws the damage back (CANDIDATE size, duration 8 s, every 40 s). Healing attendants at 50% are existing Draupnir trash templates (count a guess). fury at 50% kept (OURS).",
+  "npcs": {"Easy": [2310401], "Normal": [2300401], "Hard": [2320401]},
+  "vars": {"reflect_pool_pct": 1.5, "reflect_ms": 8000, "reflect_every": 40000},
+  "rotation": [
+    {
+      "type": "cast",
+      "skill": 1605930,
+      "every_ms": 25000,
+      "wind_up_ms": 1600,
+      "radius": 1000,
+      "warning": "Lakshmi leaps: leave the circle, spread so the stun does not chain!",
+      "warning_ru": "Лакшми прыгает: выйдите из круга и разойдитесь, чтобы оглушение не цепляло всех!"
+    },
+    {
+      "type": "cast",
+      "skill": 1605950,
+      "every_ms": 20000,
+      "wind_up_ms": 1000,
+      "radius": 300,
+      "warning": "Lakshmi throws bolts at you: keep moving!",
+      "warning_ru": "Лакшми бросает болты: не стойте на месте!"
+    }
+  ],
+  "rules": [
+    {
+      "id": "reflect",
+      "when": {"type": "timer", "after_ms": 20000, "every_ms": "$reflect_every"},
+      "do": [
+        {
+          "type": "cast",
+          "skill": 1605910,
+          "wind_up_ms": 730,
+          "radius": 300,
+          "land": false,
+          "warning": "Lakshmi mirrors your attacks: stop hitting her until it breaks!",
+          "warning_ru": "Лакшми отражает удары: прекратите атаковать, пока зеркало не спадёт!",
+          "on_land": [
+            {
+              "type": "shield",
+              "id": "reflect",
+              "hp_pct": "$reflect_pool_pct",
+              "duration_ms": "$reflect_ms",
+              "on_break": [
+                {
+                  "type": "notice",
+                  "text": "The mirror throws every blow back at the party!",
+                  "text_ru": "Зеркало возвращает все удары по группе!"
+                },
+                {
+                  "type": "telegraph",
+                  "at": "boss",
+                  "shape": "circle",
+                  "radius": 9000,
+                  "delay_ms": 800,
+                  "decal": false,
+                  "damage": {"factor": [25000, 25000], "ignore_defense": true}
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fury_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "do": [
+        {"type": "modify", "damage_mul": 1.2}
+      ],
+      "note": "Kept from the generic boss-phases.json script (OURS): +20% damage at 50%."
+    },
+    {
+      "id": "attendants_50",
+      "when": {"type": "hp_below", "pct": 50},
+      "difficulty": ["Easy"],
+      "do": [
+        {
+          "type": "notice",
+          "text": "Lakshmi's attendants arrive: kill them before they heal her!",
+          "text_ru": "Прислужники Лакшми прибыли: убейте их, пока они не лечат её!"
+        },
+        {"type": "summon", "npc": 2310405, "count": 1, "at": "boss", "radius": 900, "group": "attendants"}
+      ]
+    },
+    {
+      "id": "attendants_50_n",
+      "when": {"type": "hp_below", "pct": 50},
+      "difficulty": ["Normal"],
+      "do": [
+        {
+          "type": "notice",
+          "text": "Lakshmi's attendants arrive: kill them before they heal her!",
+          "text_ru": "Прислужники Лакшми прибыли: убейте их, пока они не лечат её!"
+        },
+        {"type": "summon", "npc": 2300405, "count": 2, "at": "boss", "radius": 900, "group": "attendants"}
+      ]
+    },
+    {
+      "id": "attendants_50_h",
+      "when": {"type": "hp_below", "pct": 50},
+      "difficulty": ["Hard"],
+      "do": [
+        {
+          "type": "notice",
+          "text": "Lakshmi's attendants arrive: kill them before they heal her!",
+          "text_ru": "Прислужники Лакшми прибыли: убейте их, пока они не лечат её!"
+        },
+        {"type": "summon", "npc": 2320405, "count": 2, "at": "boss", "radius": 900, "group": "attendants"}
+      ]
+    }
+  ]
+}
