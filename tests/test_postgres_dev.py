@@ -6,7 +6,16 @@ import unittest
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
-from tools.postgres_dev import ROOT, literal, migration_script, sql, migrate, role_statement
+from tools.postgres_dev import (
+    AMENDED_MIGRATION_LEGACY_SHA256,
+    ROOT,
+    literal,
+    migration_check_sql,
+    migration_script,
+    sql,
+    migrate,
+    role_statement,
+)
 
 
 class MigrationTests(unittest.TestCase):
@@ -23,6 +32,27 @@ class MigrationTests(unittest.TestCase):
         self.assertIn('Applied migration changed', script)
         self.assertIn('\\if :apply', script)
         self.assertTrue(script.endswith('COMMIT;'))
+
+    def test_amended_migration_script_accepts_registered_legacy_hash(self):
+        path = ROOT / 'database/migrations/141_shop_feature_layer.sql'
+        script = migration_script([path])
+        legacy = next(iter(AMENDED_MIGRATION_LEGACY_SHA256['141_shop_feature_layer.sql']))
+        self.assertIn(legacy, script)
+        self.assertIn('UPDATE public.schema_migrations SET sha256=', script)
+
+    def test_migration_check_without_legacy_still_raises_on_mismatch(self):
+        check = migration_check_sql("'001.sql'", "'deadbeef'", frozenset())
+        self.assertIn('Applied migration changed', check)
+        self.assertNotIn('UPDATE public.schema_migrations', check)
+
+    def test_migration_check_rejects_unknown_hash_even_with_legacy_map(self):
+        check = migration_check_sql(
+            "'141_shop_feature_layer.sql'",
+            "'current'",
+            AMENDED_MIGRATION_LEGACY_SHA256['141_shop_feature_layer.sql'],
+        )
+        self.assertIn('Applied migration changed', check)
+        self.assertIn('f270875eb4344bd8ac0c7516b22e8588a7ca47400e2ca4bf910e31498f13e068', check)
 
     def test_quna_kind_backfill_disables_append_only_trigger(self):
         body = (ROOT / 'database/migrations/141_shop_feature_layer.sql').read_text(encoding='utf-8')
@@ -97,6 +127,17 @@ class PostgreSQLTests(unittest.TestCase):
             result = sql(migration_script([path]), check=False)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('Applied migration changed', result.stderr)
+
+    def test_amended_migration_bumps_legacy_sha256_without_rerunning(self):
+        migrate()
+        version = '141_shop_feature_layer.sql'
+        legacy = next(iter(AMENDED_MIGRATION_LEGACY_SHA256[version]))
+        current = sql(f"SELECT sha256 FROM public.schema_migrations WHERE version={literal(version)};").stdout.strip()
+        self.assertNotEqual(legacy, current)
+        sql(f"UPDATE public.schema_migrations SET sha256={literal(legacy)} WHERE version={literal(version)};")
+        migrate()
+        bumped = sql(f"SELECT sha256 FROM public.schema_migrations WHERE version={literal(version)};").stdout.strip()
+        self.assertEqual(bumped, current)
 
 
 class RoleStatementTests(unittest.TestCase):

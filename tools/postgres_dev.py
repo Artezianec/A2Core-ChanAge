@@ -6,6 +6,10 @@ Credentials and all generated data stay under ignored research/local/postgres.
 Linux servers (deploy/linux/README.md): the same project-owned cluster, with the
 distribution's PostgreSQL binaries (AION_PG_BIN, else the newest
 /usr/lib/postgresql/<n>/bin) and AION_PG_HOME for the cluster and credentials.
+
+Never edit a migration that may already be applied on a server. Add a new numbered
+file instead. If an in-place fix is unavoidable, register the previous file hash in
+AMENDED_MIGRATION_LEGACY_SHA256 (see database/migrations/README.md).
 """
 import argparse
 import csv
@@ -38,6 +42,19 @@ def binaries():
 
 
 BIN = binaries()
+
+# Release filenames -> prior committed sha256 (LF-normalized) values still on live DBs.
+# On match, schema_migrations.sha256 is updated to the current file hash without re-running SQL.
+AMENDED_MIGRATION_LEGACY_SHA256: dict[str, frozenset[str]] = {
+  # #93339c51: append-only trigger wrap on quna_kind backfill only; successful old applies already backfilled.
+    '141_shop_feature_layer.sql': frozenset({
+        'f270875eb4344bd8ac0c7516b22e8588a7ca47400e2ca4bf910e31498f13e068',
+    }),
+  # f2b62c79 briefly inlined slot_index into 134; d63bed65 moved it to 135 and restored this file body.
+    '134_qa_bots_dedup.sql': frozenset({
+        'c1e51d1a0861bd2b8f8ec76f82007b2322408a07e4125167991d24858e189c8d',
+    }),
+}
 
 
 def literal(text):
@@ -162,6 +179,18 @@ def start():
         run('pg_ctl', ['start', '-D', HOME / 'data', '-l', HOME / 'server.log', '-w', '-t', '30'])
 
 
+def migration_check_sql(version: str, digest: str, legacies: frozenset[str]) -> str:
+    """Hash guard for one migration file; legacies allow a one-time sha256 bump without re-applying."""
+    if not legacies:
+        return (f"DO $check$ BEGIN IF EXISTS(SELECT FROM public.schema_migrations WHERE version={version} "
+                f"AND sha256<>{digest}) THEN RAISE EXCEPTION 'Applied migration changed'; END IF; END $check$;")
+    legacy_sql = ','.join(literal(h) for h in sorted(legacies))
+    return (f"DO $check$ BEGIN IF EXISTS(SELECT FROM public.schema_migrations WHERE version={version} "
+            f"AND sha256<>{digest}) THEN IF (SELECT sha256 FROM public.schema_migrations WHERE version={version}) "
+            f"IN ({legacy_sql}) THEN UPDATE public.schema_migrations SET sha256={digest} WHERE version={version}; "
+            f"ELSE RAISE EXCEPTION 'Applied migration changed'; END IF; END IF; END $check$;")
+
+
 def migration_script(files):
     out = ["BEGIN; SELECT pg_advisory_xact_lock(731924001); SET LOCAL ROLE aion_owner;",
            'CREATE TABLE IF NOT EXISTS public.schema_migrations(version text PRIMARY KEY, sha256 text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now());']
@@ -170,7 +199,8 @@ def migration_script(files):
         raw = path.read_bytes().replace(b'\r\n', b'\n')
         body = raw.decode('utf-8')
         version, digest = literal(path.name), literal(hashlib.sha256(raw).hexdigest())
-        out.extend([f"DO $check$ BEGIN IF EXISTS(SELECT FROM public.schema_migrations WHERE version={version} AND sha256<>{digest}) THEN RAISE EXCEPTION 'Applied migration changed'; END IF; END $check$;",
+        legacies = AMENDED_MIGRATION_LEGACY_SHA256.get(path.name, frozenset())
+        out.extend([migration_check_sql(version, digest, legacies),
                     f'SELECT NOT EXISTS(SELECT FROM public.schema_migrations WHERE version={version}) AS apply \\gset',
                     '\\if :apply', body,
                     f'INSERT INTO public.schema_migrations(version,sha256) VALUES({version},{digest});', '\\endif'])
