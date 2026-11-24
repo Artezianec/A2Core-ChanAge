@@ -139,6 +139,12 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         return taken;
     }
 
+    /// <summary>
+    /// When set on a map-event instance, autonomous companions only pick prey whose NpcId is listed (open KillNpc
+    /// objectives). Null keeps legacy behaviour (Robin outside scripted layers). An empty set blocks ambient aggro.
+    /// </summary>
+    public HashSet<int>? CompanionEngageNpcIds { get; set; }
+
     /// <summary>NPCs killed by other NPCs since the last take (the host runs the kill sequence and counts them).</summary>
     readonly List<(Target Victim, Target Killer)> npcKills = [];
     /// <summary>The targets of the running tick (NPC victims' defense).</summary>
@@ -203,6 +209,7 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         foreach (var other in current.Values)
         {
             if (other.Key == target.Key || !other.Attackable || other.Dead || other.CorpseRemoved) continue;
+            if (CompanionEngageNpcIds is { } engage && !engage.Contains(other.NpcId)) continue;
             var d = Distance(target.Position, Flat(other.Position));
             if (d < bestDistance) { bestDistance = d; best = other; }
         }
@@ -321,7 +328,8 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         if (!attacker.Hostile && attacker.OwnerKey == 0 && victim.Hostile) damage = Math.Min(damage, Math.Max(0, victim.Hp - 1));
         if (CapNpcDamage is { } cap) damage = cap(victim, damage);
         damage = victim.Landed(damage);
-        if (!victim.Immune) victim.Hp = Math.Max(0, victim.Hp - damage);
+        if (!victim.Immune)
+            victim.Hp = Combat.HpAfterDamage(victim, victim.Hp, damage, killAllowed: !Combat.IsTrainingDummy(victim));
         var replies = new List<byte[]> { GamePackets.NpcHp(victim.Key, victim.Hp) };
         if (OnNpcHpChanged is { } hpChanged) replies.AddRange(hpChanged(victim));
         LastAttacker = attacker.Key;
@@ -661,16 +669,19 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
         return [PlayerPackets.MoveSpeedUpdate(target.Key, [(205, boost)])];
     }
 
+    static List<byte[]> EndEngaged(Target target, Brain brain, long now)
+    {
+        if (!brain.Engaged) return [];
+        brain.Engaged = false;
+        return [GamePackets.CombatState(target.Key, false)];
+    }
+
     List<byte[]> Reset(Target target, Brain brain, long now)
     {
         var replies = new List<byte[]>();
         brain.Pending = null;
         brain.Cooldowns.Clear();
-        if (brain.Engaged)
-        {
-            brain.Engaged = false;
-            replies.Add(GamePackets.CombatState(target.Key, false));
-        }
+        replies.AddRange(EndEngaged(target, brain, now));
         if (!target.Dead && target.Hp != target.HpMax && SkipLeashHealNpcIds?.Contains(target.NpcId) != true)
         {
             target.Hp = target.HpMax;
@@ -891,7 +902,8 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
                     brain.ResumeFollowKey = 0;
                     brain.VictimIsNpc = false;
                     brain.Pending = null;
-                    return brain.Moving ? Stop(target, brain, brain.Heading, now) : [];
+                    var endFight = EndEngaged(target, brain, now);
+                    return [.. endFight, .. brain.Moving ? Stop(target, brain, brain.Heading, now) : []];
                 }
                 if (companion)
                 {
@@ -901,7 +913,8 @@ public sealed partial class NpcAi(Random rng, GameData? data = null)
                     brain.Directed = false;
                     brain.Pending = null;
                     brain.WanderAtMs = long.MaxValue;
-                    return [.. SetBoost(target, brain, 0), .. brain.Moving ? Stop(target, brain, brain.Heading, now) : []];
+                    var endFight = EndEngaged(target, brain, now);
+                    return [.. SetBoost(target, brain, 0), .. endFight, .. brain.Moving ? Stop(target, brain, brain.Heading, now) : []];
                 }
                 brain.Mode = Mode.Return;
                 brain.VictimKey = 0;

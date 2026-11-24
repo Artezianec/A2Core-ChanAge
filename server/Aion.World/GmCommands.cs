@@ -167,8 +167,11 @@ public sealed class GmCommands(WorldPresence presence, BuilderCommands builder) 
             if (line.Equals("admin", StringComparison.OrdinalIgnoreCase)
                 || line.Equals("gm", StringComparison.OrdinalIgnoreCase) || line.Equals("panel", StringComparison.OrdinalIgnoreCase))
                 return await builder.AllowedAsync(actor.Session, ct)
-                    ? "GM panel: press F10 (client dev helper; Ctrl+~ dev test UI). It needs the lobby admin flag: re-login after a staff change. "
-                      + "Builder commands (in chat: //<command>; console: s <command>): " + string.Join(", ", BuilderCommands.Supported)
+                    ? actor.Session.ClientGmPanelAvailable()
+                        ? "GM panel: press F10 (client dev helper; Ctrl+~ dev test UI). It needs the lobby admin flag: re-login after a staff change. "
+                          + "Builder commands (in chat: //<command>; console: s <command>): " + string.Join(", ", BuilderCommands.Supported)
+                        : "Client GM panel is off (AION_CLIENT_GM_PANEL). Builder commands in chat: //<command>. Supported: "
+                          + string.Join(", ", BuilderCommands.Supported)
                     : "GM permission required.";
             if (IsQaCommand(line))
             {

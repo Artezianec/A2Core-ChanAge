@@ -59,6 +59,12 @@ public sealed record GameSessionOptions
     public ServerRates Rates { get; init; } = ServerRates.Official;
     /// <summary>Aion:Rules for this connection; null uses the host default from <see cref="GameSession.ConfigureWorldRules"/>.</summary>
     public WorldRules? Rules { get; init; }
+    /// <summary>
+    /// When true (default), staff lobby logins set Login_RS _is_admin and 0x362e builder lines are accepted. Off
+    /// (AION_CLIENT_GM_PANEL=0 or Aion:Native:ClientGmPanel=false): the client F10 panel stays hidden; // chat
+    /// builder commands still work for flagged staff.
+    /// </summary>
+    public bool ClientGmPanel { get; init; } = true;
 }
 
 /// <summary>
@@ -326,6 +332,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     public bool StaffAccount => accountRole is not null;
     /// <summary>The Login_RS _is_admin flag as sent (account role and a staff character on the account).</summary>
     public bool LobbyAdmin => accountRole is not null && lobbyStaff;
+    /// <summary>Whether Login_RS sets _is_admin (lobby staff and <see cref="GameSessionOptions.ClientGmPanel"/>).</summary>
+    public bool ClientLobbyAdmin => options.ClientGmPanel && LobbyAdmin;
     /// <summary>After world entry (0x3622), until the connection ends.</summary>
     public bool InWorld => resources is not null;
     public int? MapId => InWorld ? worldMap : null;
@@ -502,6 +510,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case 0x562d when plain.Length == 10: return [GamePackets.SoulBindCancel(BitConverter.ToInt64(plain, 2))];
             case LootPackets.LootRq when plain.Length >= 4: return await LootAsync(plain, now, ct);
             case ItemMoveRq when plain.Length == 19: return await MoveItemInBagAsync(plain, ct);
+            case ItemStoreRq when plain.Length >= 10: return await ItemStoreAsync(plain, ct);
+            case ItemTakeOutRq when plain.Length >= 10: return await ItemTakeOutAsync(plain, ct);
             case ShopOpenRq when plain.Length >= 3: return await OpenShopAsync(plain, now, ct);
             case CoinShopOpenRq when plain.Length >= 6: return await OpenCoinShopAsync(plain, now, ct);
             case CoinShopBuyRq when plain.Length >= 6: return await BuyCoinShopAsync(plain, now, ct);
@@ -530,10 +540,12 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case SpecializedChangeRq when plain.Length >= 10: return await ChangeSkillPartSlotAsync(plain, ct);
             case TitleEquipRq when plain.Length >= 7: return await TitleEquipAsync(plain, ct);
             case SkinEquipRq when plain.Length >= 3: return await SkinEquipAsync(plain, ct);
+            case EquipSlotVisibilityRq when plain.Length >= 5: return await SkinVisibilityAsync(plain, ct);
             case SkinExtractionRq when plain.Length >= 3: return await SkinExtractionAsync(plain, ct);
             case GatherStopRq when plain.Length >= 3: return GatherStop(plain);
             case CraftStartRq when plain.Length >= 7: return await CraftAsync(plain, ct);
             case ConversionStartRq: return await ConversionStartAsync(plain, ct);
+            case ConversionCancelRq: return ConversionCancel(now);
             case ConversionLimitListRq when plain.Length >= 2: return await ConversionLimitListAsync(plain, ct);
             case ShopBuyRq when plain.Length >= 4: return await BuyGoodsAsync(plain, now, ct);
             case ShopSellRq when plain.Length >= 4: return await SellItemsAsync(plain, ct);
@@ -1009,21 +1021,21 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         IReadOnlyDictionary<long, InventoryItem>? shown = null, IReadOnlyDictionary<long, int>? hints = null)
     {
         var result = new List<InventoryItem>();
-        // Free slots are laid out per container: the bag (1) and the warehouse (2, location 'storage').
-        var used = new Dictionary<string, HashSet<int>> { ["bag"] = [], ["storage"] = [] };
-        foreach (var i in items.Where(i => i.Location is "bag" or "storage" && i.Slot is not null)) used[i.Location].Add(i.Slot!.Value);
+        // Free slots are laid out per container: bag (1), personal warehouse (2), account warehouse (3).
+        var used = new Dictionary<string, HashSet<int>> { ["bag"] = [], ["storage"] = [], ["account_storage"] = [] };
+        foreach (var i in items.Where(i => i.Location is "bag" or "storage" or "account_storage" && i.Slot is not null)) used[i.Location].Add(i.Slot!.Value);
         var kept = new Dictionary<long, int>();
-        foreach (var i in items.Where(i => i.Location is "bag" or "storage" && i.Slot is null))
+        foreach (var i in items.Where(i => i.Location is "bag" or "storage" or "account_storage" && i.Slot is null))
         {
-            var container = i.Location == "storage" ? InventoryItem.Storage : InventoryItem.Bag;
+            var container = i.Location switch { "storage" => InventoryItem.Storage, "account_storage" => InventoryItem.AccountStorage, _ => InventoryItem.Bag };
             if (shown?.GetValueOrDefault(WireKey(i)) is { } was && was.Container == container && used[i.Location].Add(was.Slot))
                 kept[WireKey(i)] = was.Slot;
         }
-        foreach (var i in items.Where(i => i.Location is "bag" or "storage" && i.Slot is null && !kept.ContainsKey(WireKey(i))))
+        foreach (var i in items.Where(i => i.Location is "bag" or "storage" or "account_storage" && i.Slot is null && !kept.ContainsKey(WireKey(i))))
             if (hints?.GetValueOrDefault(WireKey(i), -1) is >= 0 and var hint && used[i.Location].Add(hint))
                 kept[WireKey(i)] = hint;
-        var next = new Dictionary<string, int> { ["bag"] = 0, ["storage"] = 0 };
-        foreach (var item in items.Where(i => i.Location is "bag" or "equipment" or "storage")
+        var next = new Dictionary<string, int> { ["bag"] = 0, ["storage"] = 0, ["account_storage"] = 0 };
+        foreach (var item in items.Where(i => i.Location is "bag" or "equipment" or "storage" or "account_storage")
                      .OrderBy(i => i.Location == "equipment" ? 0 : 1).ThenBy(i => i.Slot ?? int.MaxValue).ThenBy(i => i.WireId))
         {
             var equipped = item.Location == "equipment";
@@ -1038,7 +1050,12 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             }
             var key = item.WireId > 0 ? item.WireId : BitConverter.ToInt64(item.InstanceId.ToByteArray(), 0) & long.MaxValue;
             var equipment = equipped || data?.Item(item.TemplateId) is not null;
-            var container = equipped ? InventoryItem.Equipped : item.Location == "storage" ? InventoryItem.Storage : InventoryItem.Bag;
+            var container = equipped ? InventoryItem.Equipped : item.Location switch
+            {
+                "storage" => InventoryItem.Storage,
+                "account_storage" => InventoryItem.AccountStorage,
+                _ => InventoryItem.Bag,
+            };
             result.Add(new InventoryItem(key, item.TemplateId, item.Quantity, container, slot,
                 // Item level: its own, the enchant's and the manastone grades' (OBSERVED 2026-11-06 234912: 23 + grades; GameSession.Imprint.cs).
                 equipment ? new EquipDetail((data?.ItemLevel(item.TemplateId) ?? 1) + Enchants.Effect(item.TemplateId, EnchantOf(item)).ItemLevel
@@ -1258,7 +1275,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 [
                     NativeFraming.CompressedEnvelope(GamePackets.LoginCharacters(characters,
                         $"{loginIdentity.AccountSid}:{loginIdentity.Guid}", Store.WorldId.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                        GamePackets.CommServerKey, now, serverRace: worldRace ?? (races.Count == 1 ? races[0] : 0), isAdmin: LobbyAdmin,
+                        GamePackets.CommServerKey, now, serverRace: worldRace ?? (races.Count == 1 ? races[0] : 0), isAdmin: ClientLobbyAdmin,
                         extendedSlotCount: ExtendedCharacterSlotCount)),
                     GamePackets.ExtendedCharacterSlot(ExtendedCharacterSlotCount),
                 ];
@@ -1668,6 +1685,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         ResetFpTick(now);
         var armed = EquipItemLevel();
         mountedRide = null;   // a map load (teleport, revive) leaves the ride
+        ClearDisplacementLock();
         ResetMovementCheck(at, now);
         position = savedPosition = at;
         air = AirState.Ground;
@@ -2061,7 +2079,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         var heldDuplicate = IsExactHeldCastDuplicate(request, body, now);
         var basicChainAdvance = IsBasicChainAdvanceCast(skill, chainSkill, chainAllowed);
         var cooldownReady = SkillCooldown.CooldownReady(now, cooldowns, cooldownKey, noCool);
-        var meetsCastRules = definition is not null && resources is not null && !dead && chainAllowed && !CombatCastBlocked(skill)
+        var meetsCastRules = definition is not null && resources is not null && !dead && chainAllowed && !CombatCastBlocked(skill, now)
             && resources.Mp >= cost.Mp && resources.Sp >= cost.Sp && resources.Hp > cost.Hp
             && (resources.ApMax <= 0 || resources.Ap >= cost.Ap)
             && (SkillFamilyLearned(skill) || normalDodge || chainSkill || CarriedSkill == skill)
@@ -2434,9 +2452,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         + EnchantStat("ArmorDefense") + EnchantStat("Defense") + ExceedStat("ArmorDefense") + ExceedStat("Defense") + BuffStat("Defense")
         + BoardStat("Defense") + TitleStat("Defense") + SetStat("Defense") + WingStat("Defense") + DaevanionWireStat(52);
 
-    /// <summary>The MP pool: MPMax 1500 plus gear, enchant, exceed, ride, set, buffs, board, titles and Daevanion (same sources as HPMax).</summary>
-    int MpMax => MpMaxBase + EquipStat("MPMax") + EnchantStat("MPMax") + ExceedStat("MPMax") + RideStat("MPMax") + WingStat("MPMax")
-        + SetStat("MPMax") + BuffStat("MPMax") + BoardStat("MPMax") + TitleStat("MPMax") + DaevanionWireStat(199);
+    /// <summary>The MP pool: MPMax 1500 plus gear, enchant, exceed, ride, set, buffs, board, titles, Daevanion and MaxMPRatio.</summary>
+    int MpMax => ApplyPoolRatio(MpMaxBase + EquipStat("MPMax") + EnchantStat("MPMax") + ExceedStat("MPMax") + RideStat("MPMax") + WingStat("MPMax")
+        + SetStat("MPMax") + BuffStat("MPMax") + BoardStat("MPMax") + TitleStat("MPMax") + DaevanionWireStat(199), PoolRatioBp("MaxMPRatio"));
 
     /// <summary>
     /// The stat sheet (0x3649 / 0x364a): PcStatLevel bases plus gear, buffs, titles, Daevanion and the official sample defaults where still unknown.
@@ -2446,8 +2464,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         var basis = data.BaseStats(className, level);
         var daevanion = DaevanionWireStats();
         int D(int wire) => daevanion.GetValueOrDefault(wire);
-        var hpMax = Math.Max(1, (basis.GetValueOrDefault("HPMax") is > 0 and var hp ? hp : GamePackets.SpawnHpMax) + EquipStat("HPMax") + EnchantStat("HPMax") + ExceedStat("HPMax") + RideStat("HPMax") + WingStat("HPMax")
+        var hpFlat = Math.Max(1, (basis.GetValueOrDefault("HPMax") is > 0 and var hp ? hp : GamePackets.SpawnHpMax) + EquipStat("HPMax") + EnchantStat("HPMax") + ExceedStat("HPMax") + RideStat("HPMax") + WingStat("HPMax")
             + BuffStat("HPMax") + BoardStat("HPMax") + TitleStat("HPMax") + SetStat("HPMax") + D(193));
+        var hpMax = ApplyPoolRatio(hpFlat, PoolRatioBp("MaxHPRatio"));
         var weapon = data.WeaponStatsOf(equippedWeapon);
         int WeaponLine(string name, int wire, int fallback) =>
             AggregatedStat(name, wire) + Math.Max(0, fallback - EquipStat(name));
@@ -2545,6 +2564,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     async Task<List<byte[]>> BuilderAsync(byte[] plain, long now, CancellationToken ct)
     {
         if (GamePackets.BuilderCmdRequest(plain) is not { } commands) return [];
+        if (!options.ClientGmPanel)
+            return [GamePackets.BuilderCmdResponse(1, commands, "The client GM panel is off on this server (AION_CLIENT_GM_PANEL). Use // commands in chat.")];
         if (options.Builder is not { } builder) return [GamePackets.BuilderCmdResponse(1, commands, "Builder commands are disabled on this server.")];
         var replies = new List<byte[]>();
         var messages = new List<string>();
@@ -2809,10 +2830,12 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             if (was == now) continue;
             EquipBroad Broad(int id)
             {
-                if (id == 0) return new EquipBroad(0, VisualSlot: (byte)slot, Godstones: []);
+                var skin = SkinIn(slot);
+                var shown = !skinHidden.Contains(slot);
+                if (id == 0) return new EquipBroad(0, VisualSlot: (byte)slot, SkinId: skin, Display: shown, Godstones: []);
                 var equipSlot = VisualSlot.FirstOrDefault(p => p.Value == slot).Key;
                 var gs = equipSlot == 0 ? [0, 0, 0] : GodstonesInSlot(equipSlot).ToArray();
-                return new EquipBroad(id, VisualSlot: (byte)slot, Godstones: gs);
+                return new EquipBroad(id, VisualSlot: (byte)slot, SkinId: skin, Display: shown, Godstones: gs);
             }
             changes.Add(((byte)slot, Broad(was), Broad(now)));
         }
@@ -3250,6 +3273,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             WireRecoveryOrbHooks(ai);
             WireBossMechanicHooks(ai);
             ai.BossRules = bossRules;
+            ai.CompanionEngageNpcIds = mapEventRuns.Count > 0 ? OpenKillNpcIdsForSharedAi() : null;
             replies.AddRange(Visible(ai.Tick(targets, invisible || dead || FriendlyToAll ? null : position, now,
                 damage => NpcHitsPlayer(damage, now, ai.LastAttacker, ai.LastHitSkill, ai.LastHitSeq, ai.LastAttackerAt))));
             ClearRecoveryOrbHooks(ai);

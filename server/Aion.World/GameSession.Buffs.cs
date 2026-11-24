@@ -584,7 +584,11 @@ public sealed partial class GameSession
         }
         var wire = WireMoveSpeedPermille();
         var bonus = builderSpeedMultiplier <= 1 ? 0 : (int)Math.Round((builderSpeedMultiplier - 1) * 10_000);
-        if (wire != speedBefore + bonus) replies.Add(PlayerPackets.MoveSpeedUpdate(playerKey, [(MoveSpeedStat, wire)]));
+        if (wire != speedBefore + bonus)
+        {
+            replies.Add(PlayerPackets.MoveSpeedUpdate(playerKey, [(MoveSpeedStat, wire)]));
+            if (position is { } at) ResetMovementCheck(at, now: lastNow);
+        }
         return replies;
     }
 
@@ -593,6 +597,9 @@ public sealed partial class GameSession
     const int FirstPassiveUid = 1_000_000;
     /// <summary>The official passive's expire time (2100-01-01 00:00 KST, ms): it never runs out.</summary>
     const long PassiveExpireTime = 4_102_412_400_000;
+
+    /// <summary>Whether this buff row still counts for combat and stats (expired debuffs may linger until the next BuffTick).</summary>
+    bool BuffActive(Buff b, long now) => b.ExpireAt > now || b.ExpireAt >= PassiveExpireTime;
 
     /// <summary>
     /// 0x382a for the learned skills' passive abnormals not announced yet (OBSERVED at the official world entry:

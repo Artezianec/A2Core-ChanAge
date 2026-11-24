@@ -25,6 +25,11 @@ public sealed partial class GameSession
         DutyAcceptRq = 0x8d1f, DutyAcceptRs = 0x8d20;
 
     static DutyTables DutyData => DutyTables.Embedded;
+
+    /// <summary>Scroll group from duty.json scroll_items, or Item.dat UseEffectValues[0] when export maps drift.</summary>
+    static string? ResolveDutyScrollGroup(int itemId, ItemUse? use) =>
+        DutyData.ScrollGroup(itemId)
+        ?? (use is { Effect: "GetDutyQuest", Values: [var group, ..] } && !string.IsNullOrWhiteSpace(group) ? group : null);
     DutyState duty = new();
     /// <summary>The draws of the board, the scrolls and the paid chances: the session's random source.</summary>
     Random DutyRng => rng;
@@ -182,6 +187,7 @@ public sealed partial class GameSession
             if (!await store.ConsumeItemAsync(character, row.InstanceId, row.Revision, 1, ct)) return [];
             var record = await DutyTakeAsync(code, quest, new DutyQuestExtra(0, groupName, DutyData.Roll(quest.Rewards?.Random, DutyRng)), ct);
             await SaveDutyAsync(ct);
+            LogQuestEvent("quest_accept", code, record.Step, QuestLog.Incomplete);
             return [.. Used(row, reply), .. await InventoryChangesAsync(ct, IncreaseItemUse, DecreaseItemUse), GamePackets.QuestAdd(Wire(record))];
         });
         return done.Count > 0 ? done : Refuse(1);

@@ -38,24 +38,36 @@ public sealed class SkinTables
 
 // Skins (appearance items). The 0x8d run (catalogue index + 0x89d1): SkinInfo_NT 0x8d5b OBSERVED at the official world
 // entry as `00 00 00 01 00 00` (no skins, no points, no pure-skin equips, preset 1, no preset or visual slot infos);
-// SkinUpdate_NT 0x8d5c and SkinEquip_RQ/RS 0x8d5e/0x8d5f take the usmap fields (CANDIDATE layouts). GetSkin / GetSkinSet
-// items add skins to the collection by Skin.dat / SkinSet.dat name; an equipped skin shows as the EquipBroad _skin_id of
-// its visual slot for the player and those nearby (ItemEquipChange on a change). Skin points, presets, dyes and the
-// pure-skin (no item) display are not modelled.
+// SkinUpdate_NT 0x8d5c and SkinEquip_RQ/RS 0x8d5e/0x8d5f take the usmap fields (CANDIDATE layouts, result u16 as the
+// neighbouring preset RS). GetSkin / GetSkinSet items add skins to the collection by Skin.dat / SkinSet.dat name.
+// An equipped skin shows as the EquipBroad _skin_id of its visual slot, including slots with no item (eyewear and the
+// other costume-only slots). Hide/unhide is EquipSlotVisibilityChange 0xe289/0xe28a (catalogue 0x3B8E/0x3B8F + 0xA6FB,
+// the same run as PresetInfo 0xe28c): preset u8, EVisualEquipSlot u8, display bool. The flag is stored with the other
+// character settings and rides on EquipBroad._display. Off-hand weapons and the shield have no visual slot.
 public sealed partial class GameSession
 {
-    public const ushort SkinInfoNt = 0x8d5b, SkinUpdateNt = 0x8d5c, SkinEquipRq = 0x8d5e, SkinEquipRs = 0x8d5f;
+    public const ushort SkinInfoNt = 0x8d5b, SkinUpdateNt = 0x8d5c, SkinEquipRq = 0x8d5e, SkinEquipRs = 0x8d5f,
+        EquipSlotVisibilityRq = 0xe289, EquipSlotVisibilityRs = 0xe28a;
     static SkinTables Skins => SkinTables.Embedded;
 
     /// <summary>The collection: skin id -> count.</summary>
     readonly Dictionary<int, int> skins = [];
     /// <summary>Equipped skins by ESkinEquipSlot.</summary>
     readonly Dictionary<int, int> skinEquips = [];
+    /// <summary>The dbid the client sent for a slot (echoed on SkinEquip_RS; not stored).</summary>
+    readonly Dictionary<int, long> skinEquipDbids = [];
+    /// <summary>EVisualEquipSlot values whose appearance is hidden (display false). Missing means shown.</summary>
+    readonly HashSet<int> skinHidden = [];
     /// <summary>ESkinEquipSlot -> EVisualEquipSlot (the weapons share MainHand; off-hand weapons and the shield have no visual slot).</summary>
     static readonly Dictionary<int, int> SkinVisualSlot = new()
     {
         [1] = 2, [2] = 3, [3] = 4, [4] = 5, [5] = 6, [6] = 7, [7] = 8, [8] = 1, [10] = 1, [11] = 1, [13] = 1, [14] = 1, [15] = 1, [17] = 1, [18] = 1,
-        [20] = 11, [21] = 10, [22] = 9, [23] = 12, [24] = 13, [25] = 14, [27] = 15,
+        [20] = 11, [21] = 10, [22] = 9, [23] = 12, [24] = 13, [25] = 14, [26] = 1, [27] = 15,
+    };
+    /// <summary>EVisualEquipSlot -> a representative ESkinEquipSlot (SkinInfo's visual-slot map is keyed by the skin slot).</summary>
+    static readonly Dictionary<int, int> VisualToSkinSlot = new()
+    {
+        [1] = 8, [2] = 1, [3] = 2, [4] = 3, [5] = 4, [6] = 5, [7] = 6, [8] = 7, [9] = 22, [10] = 21, [11] = 20, [12] = 23, [13] = 24, [14] = 25, [15] = 27,
     };
 
     public IReadOnlyDictionary<int, int> OwnedSkins => skins;
@@ -66,16 +78,49 @@ public sealed partial class GameSession
         skins.Clear();
         foreach (var (id, count) in extras.Skins) skins[id] = count;
         skinEquips.Clear();
+        skinEquipDbids.Clear();
         foreach (var (slot, id) in extras.SkinEquips) skinEquips[slot] = id;
     }
 
-    /// <summary>0x8d5b SkinInfo_NT: the collection {skin i32, count i32} (OBSERVED: 8 bytes per skin in the official entry lists), no points, no pure-skin equips, preset 1, no preset or visual slot infos.</summary>
+    /// <summary>Hidden visual slots from character settings (missing or empty means every slot is shown).</summary>
+    void LoadSkinVisibility(int[]? hidden)
+    {
+        skinHidden.Clear();
+        if (hidden is null) return;
+        foreach (var slot in hidden)
+            if (slot is >= 1 and <= 15) skinHidden.Add(slot);
+    }
+
+    /// <summary>0x8d5b SkinInfo_NT: the collection {skin i32, count i32} (OBSERVED: 8 bytes per skin in the official entry lists), no points, no pure-skin equips, preset 1. Equips and hidden slots are appended only when the character has them, so an empty entry stays `00 00 00 01 00 00`.</summary>
     byte[] SkinInfo()
     {
         var w = PacketWriter.Opcode(SkinInfoNt).Varint(skins.Count);
         foreach (var (id, count) in skins.OrderBy(p => p.Key)) w.I32(id).I32(count);
-        return w.Varint(0).Varint(0).U8(1).Varint(0).Varint(0).ToArray();
+        w.Varint(0).Varint(0).U8(1);
+        WritePresetInfos(w);
+        WriteVisualInfos(w);
+        return w.ToArray();
     }
+
+    void WritePresetInfos(PacketWriter w)
+    {
+        if (skinEquips.Count == 0) { w.Varint(0); return; }
+        w.Varint(1).U8(1).Varint(skinEquips.Count);
+        foreach (var (slot, skin) in skinEquips.OrderBy(p => p.Key))
+            w.U8((byte)slot).U8((byte)slot).I64(skinEquipDbids.GetValueOrDefault(slot)).I32(skin);
+    }
+
+    void WriteVisualInfos(PacketWriter w)
+    {
+        var hidden = skinHidden.Where(VisualToSkinSlot.ContainsKey).Order().ToList();
+        if (hidden.Count == 0) { w.Varint(0); return; }
+        w.Varint(1).U8(1).Varint(hidden.Count);
+        foreach (var visual in hidden) WriteVisualOption(w, VisualToSkinSlot[visual], visual);
+    }
+
+    /// <summary>VisualSlotOption: skin slot, visual slot, display, default mesh, override, fx i32 (usmap; EquipBroad's observed fx is a varint and stays that way).</summary>
+    void WriteVisualOption(PacketWriter w, int skinSlot, int visual) =>
+        w.U8((byte)skinSlot).U8((byte)visual).Bool(!skinHidden.Contains(visual)).Bool(true).Bool(true).I32(14);
 
     /// <summary>0x8d5c SkinUpdate_NT: the changed counts {skin i32 -> count i32}, no points.</summary>
     byte[] SkinUpdate(IReadOnlyCollection<int> ids)
@@ -85,18 +130,45 @@ public sealed partial class GameSession
         return w.Varint(0).ToArray();
     }
 
-    /// <summary>The skin shown in a visual slot (0 none).</summary>
-    int SkinIn(int visualSlot) => skinEquips.Where(p => SkinVisualSlot.GetValueOrDefault(p.Key) == visualSlot).Select(p => p.Value).FirstOrDefault();
+    /// <summary>ESkinEquipSlot of the weapon the character is holding (0 when none, or the type has no costume slot).</summary>
+    static int WeaponSkinSlot(string? category) => category switch
+    {
+        "Greatsword" => 10,
+        "Sword" or "Longsword" => 8,
+        "Dagger" or "Shortsword" => 11,
+        "Bow" => 13,
+        "Staff" => 14,
+        "Mace" => 15,
+        "Magicbook" or "Spellbook" => 17,
+        "Orb" => 18,
+        "Gauntlet" or "Gun" => 26,
+        _ => 0,
+    };
 
-    /// <summary>The visual equips with their skins: the 15 EVisualEquipSlot records (others' appearance) or the worn ones (the own).</summary>
+    /// <summary>
+    /// The skin shown in a visual slot (0 none). Main-hand shows the skin for the weapon in hand, so a leftover
+    /// costume for another weapon type cannot keep the model after that weapon's skin is taken off.
+    /// </summary>
+    int SkinIn(int visualSlot)
+    {
+        var matches = skinEquips.Where(p => SkinVisualSlot.GetValueOrDefault(p.Key) == visualSlot).OrderBy(p => p.Key).ToList();
+        if (matches.Count == 0) return 0;
+        if (visualSlot == 1 && WeaponSkinSlot(data.WeaponType(equippedWeapon)) is var prefer and > 0)
+            return skinEquips.GetValueOrDefault(prefer);
+        return matches[0].Value;
+    }
+
+    /// <summary>The visual equips with their skins: the 15 EVisualEquipSlot records (others' appearance) or the worn ones plus costume-only and hidden slots (the own).</summary>
     IReadOnlyList<EquipBroad> VisualEquips(bool all)
     {
         var items = VisualItems();
-        var slots = all ? Enumerable.Range(1, 15) : items.Keys.Order();
+        IEnumerable<int> slots = all
+            ? Enumerable.Range(1, 15)
+            : items.Keys.Union(Enumerable.Range(1, 15).Where(s => SkinIn(s) != 0 || skinHidden.Contains(s))).Order();
         return slots.Select(slot =>
         {
             var item = items.GetValueOrDefault(slot);
-            return new EquipBroad(item, VisualSlot: (byte)slot, SkinId: item == 0 ? 0 : SkinIn(slot), Godstones: item == 0 ? [] : [0, 0, 0]);
+            return new EquipBroad(item, VisualSlot: (byte)slot, SkinId: SkinIn(slot), Display: !skinHidden.Contains(slot), Godstones: item == 0 ? [] : [0, 0, 0]);
         }).ToList();
     }
 
@@ -135,11 +207,13 @@ public sealed partial class GameSession
 
     /// <summary>
     /// 0x8d5e SkinEquip_RQ: {ESkinEquipSlot u8 -> SkinEquipInfo {slot u8, skin dbid i64, skin i32}}; skin 0 clears the slot.
-    /// 0x8d5f {result u16, the map as sent, no visual slot infos}; the changed visual slots go to those nearby (ItemEquipChange).
+    /// 0x8d5f {result u16, the map echoing the request dbid, visual slot options for slots that have one}. The changed
+    /// visual slots go to the wearer and those nearby (ItemEquipChange), including a costume on an empty slot.
     /// </summary>
     async Task<List<byte[]>> SkinEquipAsync(byte[] plain, CancellationToken ct)
     {
         var changes = new Dictionary<int, int>();
+        var dbids = new Dictionary<int, long>();
         try
         {
             var r = new PacketReader(plain) { Offset = 2 };
@@ -148,7 +222,7 @@ public sealed partial class GameSession
             {
                 int slot = r.U8();
                 r.U8();
-                r.I64();
+                dbids[slot] = r.I64();
                 changes[slot] = r.I32();
             }
         }
@@ -156,8 +230,12 @@ public sealed partial class GameSession
         byte[] Reply(int result)
         {
             var w = PacketWriter.Opcode(SkinEquipRs).U16(result).Varint(changes.Count);
-            foreach (var (slot, skin) in changes) w.U8((byte)slot).U8((byte)slot).I64(0).I32(skin);
-            return w.Varint(0).ToArray();
+            foreach (var (slot, skin) in changes) w.U8((byte)slot).U8((byte)slot).I64(dbids.GetValueOrDefault(slot)).I32(skin);
+            if (result != 0) return w.Varint(0).ToArray();
+            var visuals = changes.Keys.Where(SkinVisualSlot.ContainsKey).ToList();
+            w.Varint(visuals.Count);
+            foreach (var slot in visuals) WriteVisualOption(w, slot, SkinVisualSlot[slot]);
+            return w.ToArray();
         }
         if (changes.Count == 0 || changes.Any(c => c.Key is < 1 or > 27 || c.Value != 0 && !skins.ContainsKey(c.Value))) return [Reply(1)];
         var before = VisualEquips(true);
@@ -167,11 +245,46 @@ public sealed partial class GameSession
             if (saved.Count == 0) return [Reply(1)];
         }
         foreach (var (slot, skin) in changes)
-            if (skin == 0) skinEquips.Remove(slot);
-            else skinEquips[slot] = skin;
+        {
+            if (skin == 0) { skinEquips.Remove(slot); skinEquipDbids.Remove(slot); }
+            else { skinEquips[slot] = skin; skinEquipDbids[slot] = dbids.GetValueOrDefault(slot); }
+        }
         var after = VisualEquips(true);
         var replies = new List<byte[]> { Reply(0) };
-        var changed = before.Zip(after).Where(p => p.First.SkinId != p.Second.SkinId).Select(p => (p.First.VisualSlot, p.First, p.Second)).ToList();
+        var changed = before.Zip(after).Where(p => p.First.SkinId != p.Second.SkinId || p.First.Display != p.Second.Display)
+            .Select(p => (p.First.VisualSlot, p.First, p.Second)).ToList();
+        if (changed.Count > 0)
+        {
+            var shown = PlayerPackets.ItemEquipChange(playerKey, EquipItemLevel(), changed);
+            worldPlayer?.Map?.Broadcast(worldPlayer, [shown]);
+            replies.Add(shown);
+        }
+        return replies;
+    }
+
+    /// <summary>
+    /// 0xe289 EquipSlotVisibilityChange_RQ {preset u8, EVisualEquipSlot u8, display bool}: the wardrobe's hide button.
+    /// 0xe28a {result u16, the same three fields}. A change is stored and broadcast as EquipBroad._display.
+    /// </summary>
+    async Task<List<byte[]>> SkinVisibilityAsync(byte[] plain, CancellationToken ct)
+    {
+        if (plain.Length < 5) return [];
+        var preset = plain[2];
+        var visual = plain[3];
+        bool display;
+        try { display = new PacketReader(plain) { Offset = 4 }.Bool(); }
+        catch (ProtocolException) { return []; }
+        byte[] Reply(int result) => PacketWriter.Opcode(EquipSlotVisibilityRs).U16(result).U8(preset).U8(visual).Bool(display).ToArray();
+        if (visual is < 1 or > 15) return [Reply(1)];
+        if (skinHidden.Contains(visual) == !display) return [Reply(0)];
+        var before = VisualEquips(true);
+        if (display) skinHidden.Remove(visual);
+        else skinHidden.Add(visual);
+        await SaveSettingAsync("skin_hidden", skinHidden.Order().ToArray(), ct);
+        var after = VisualEquips(true);
+        var replies = new List<byte[]> { Reply(0) };
+        var changed = before.Zip(after).Where(p => p.First.Display != p.Second.Display || p.First.SkinId != p.Second.SkinId)
+            .Select(p => (p.First.VisualSlot, p.First, p.Second)).ToList();
         if (changed.Count > 0)
         {
             var shown = PlayerPackets.ItemEquipChange(playerKey, EquipItemLevel(), changed);

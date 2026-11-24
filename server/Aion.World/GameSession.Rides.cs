@@ -336,7 +336,7 @@ public sealed partial class GameSession
         var questAcquire = await TryQuestAcquireFromItemAsync(store, character, row, use, now, reply, ct);
         if (questAcquire.Count > 0) return questAcquire;
         // Duty scrolls (Item.dat UseEffect GetDutyQuest [group]): a duty quest of the group (GameSession.Duty.cs).
-        if (DutyData.ScrollGroup(row.TemplateId) is { } dutyGroup)
+        if (ResolveDutyScrollGroup(row.TemplateId, use) is { } dutyGroup)
         {
             var dutyCooldown = Boxes.Cooldown(row.TemplateId);
             if (dutyCooldown.Group != "None" && now < itemCooldowns.GetValueOrDefault(dutyCooldown.Group)) return Fail();
@@ -355,8 +355,8 @@ public sealed partial class GameSession
         var replies = use.Effect switch
         {
             "GetVehicle" => await UsePetItemAsync(store, character, row, use, reply, ct),
-            "GetVehicleSoul" => await UseSoulItemAsync(store, character, row, use, reply, ct),
-            "GetVehicleSoulCrystal" => await UseCrystalItemAsync(store, character, row, use, reply, ct),
+            "GetVehicleSoul" => await UseSoulItemAsync(store, character, row, use, reply, ct, count),
+            "GetVehicleSoulCrystal" => await UseCrystalItemAsync(store, character, row, use, reply, ct, count),
             "Fix_VehicleCreatureLevel" => await UseBoardLevelItemAsync(store, character, row, use, reply, ct),
             "Skill" => await UseSkillItemAsync(store, character, row, use, reply, now, ct),
             "Telpo_Home" when itemCast is null => StartItemCast(row, cooldown, reply, now),
@@ -365,9 +365,9 @@ public sealed partial class GameSession
             "GetTitle" when use.Values is [var titleText, ..] && int.TryParse(titleText, out var titleId) => await UseTitleItemAsync(store, character, row, titleId, reply, ct),
             "GetSkin" or "GetSkinSet" when use.Values is [{ Length: > 0 }, ..] => await UseSkinItemAsync(store, character, row, use, reply, ct),
             "GetSocialAction" when use.Values is [var emoteText, ..] && int.TryParse(emoteText, out var emote) => await UseSocialActionItemAsync(store, character, row, emote, reply, ct),
-            "GetDaevanionPoint" => await UseDaevanionPointItemAsync(store, character, row, use, reply, ct),
+            "GetDaevanionPoint" => await UseDaevanionPointItemAsync(store, character, row, use, reply, ct, count),
             "GetStigmaShard" => await UseStigmaShardItemAsync(store, character, row, use, reply, ct, count),
-            "GetGodstone" => await UseGodstoneItemAsync(store, character, row, reply, 1, ct),
+            "GetGodstone" => await UseGodstoneItemAsync(store, character, row, reply, count, ct),
             "GetWing" when use.Values is [var wingText, ..] && int.TryParse(wingText, out var wing) && wing > 0 => await UseWingItemAsync(store, character, row, wing, reply, ct),
             "AscensionGrade" when use.Values is [var gradeText, ..] && int.TryParse(gradeText.Split('_')[^1], out var grade) && grade is >= 2 and <= 6 =>
                 await UseAscensionItemAsync(store, character, row, grade, reply, ct),
@@ -387,7 +387,7 @@ public sealed partial class GameSession
             MarkItemCooldownDirty();
         }
         replies.AddRange(AchieveItemUse(itemId, use.Effect));
-        LogItemUse(itemId, use.Effect);
+        if (reply) LogItemUse(itemId, use.Effect);
         return replies;
     }
 
@@ -437,30 +437,36 @@ public sealed partial class GameSession
     }
 
     /// <summary>A soul item [ride, count]: soul points for the ride, owned or not (0x900d).</summary>
-    async Task<List<byte[]>?> UseSoulItemAsync(INativeCharacterStore store, Guid character, ItemState row, ItemUse use, bool reply, CancellationToken ct)
+    async Task<List<byte[]>?> UseSoulItemAsync(INativeCharacterStore store, Guid character, ItemState row, ItemUse use, bool reply, CancellationToken ct, int useCount = 1)
     {
         if (use.Values is not [var value, var amount, ..] || !int.TryParse(value, out var rideId) || !int.TryParse(amount, out var souls) || souls < 1
             || Boxes.Ride(rideId) is null) return null;
+        useCount = (int)Math.Clamp((long)useCount, 1L, Math.Min(row.Quantity, int.MaxValue));
+        var totalSouls = souls * useCount;
         RideRecord? ride = null;
-        await Stored(async () => (ride = await store.AddRideSoulsAsync(character, row.InstanceId, row.Revision, rideId, souls, ct)) is null ? [] : [[]]);
+        await Stored(async () => (ride = await store.AddRideSoulsAsync(character, row.InstanceId, row.Revision, rideId, totalSouls, ct, consumeItems: useCount)) is null ? [] : [[]]);
         if (ride is null) return null;
+        if (useCount > 1) usedCountApplied = true;
         Remember(ride);
         var replies = Used(row, reply);
-        replies.Add(RidePackets.SoulPoints([(rideId, souls)]));
+        replies.Add(RidePackets.SoulPoints([(rideId, totalSouls)]));
         replies.AddRange(await TryAutoAcquireRideRepliesAsync(rideId, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), ct));
         replies.AddRange(await InventoryChangesAsync(ct, IncreaseItemUse, DecreaseItemUse));
         return replies;
     }
 
     /// <summary>A crystal item [ESoulCrystalType name, count]: crystals of that type (0x9011 reason Item).</summary>
-    async Task<List<byte[]>?> UseCrystalItemAsync(INativeCharacterStore store, Guid character, ItemState row, ItemUse use, bool reply, CancellationToken ct)
+    async Task<List<byte[]>?> UseCrystalItemAsync(INativeCharacterStore store, Guid character, ItemState row, ItemUse use, bool reply, CancellationToken ct, int useCount = 1)
     {
-        if (use.Values is not [var name, var amount, ..] || !CrystalTypes.TryGetValue(name, out var type) || !int.TryParse(amount, out var count) || count < 1) return null;
+        if (use.Values is not [var name, var amount, ..] || !CrystalTypes.TryGetValue(name, out var type) || !int.TryParse(amount, out var perItem) || perItem < 1) return null;
+        useCount = (int)Math.Clamp((long)useCount, 1L, Math.Min(row.Quantity, int.MaxValue));
+        var grant = perItem * useCount;
         int? total = null;
-        await Stored(async () => (total = await store.AddRideCrystalsAsync(character, row.InstanceId, row.Revision, type, count, ct)) is null ? [] : [[]]);
+        await Stored(async () => (total = await store.AddRideCrystalsAsync(character, row.InstanceId, row.Revision, type, grant, ct, consumeItems: useCount)) is null ? [] : [[]]);
         if (total is not { } now) return null;
+        if (useCount > 1) usedCountApplied = true;
         crystals[type] = now;
-        return [.. Used(row, reply), RidePackets.CrystalsGained(new Dictionary<int, int> { [type] = count }, RidePackets.ItemReason),
+        return [.. Used(row, reply), RidePackets.CrystalsGained(new Dictionary<int, int> { [type] = grant }, RidePackets.ItemReason),
             .. await InventoryChangesAsync(ct, IncreaseItemUse, DecreaseItemUse)];
     }
 

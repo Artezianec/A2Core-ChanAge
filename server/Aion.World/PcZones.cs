@@ -7,7 +7,8 @@ namespace Aion.World;
 /// Player skills whose damage lives in the summon their SkillEffect Spawn row places, not in the cast: the Sorcerer's Bittercold
 /// Wind 15280000 has no Damage row and spawns the invisible NpcData 2920011 (no attacks of its own), so the cast was accepted
 /// and nothing happened. A zone is that marker summon staying at the target for a while and hurting every enemy in its area
-/// each tick (tools/data/pc-zones.json, a hand entry: the values are ours until the client rows are exported).
+/// each tick (tools/data/pc-zones.json, a hand entry: the values are ours until the client rows are exported). The Cleric's Divine
+/// Aura 17150000 is the same Spawn pattern but its marker pulses buff allies (Abnormal_Passive) and may hurt enemies (Damage).
 /// </summary>
 public static class PcZones
 {
@@ -18,7 +19,9 @@ public static class PcZones
         [property: JsonPropertyName("tick_ms")] int TickMs,
         [property: JsonPropertyName("radius")] int Radius,
         [property: JsonPropertyName("max")] int Max,
-        [property: JsonPropertyName("damage")] DamageRow Damage,
+        [property: JsonPropertyName("damage")] DamageRow? Damage = null,
+        [property: JsonPropertyName("ally_abnormals")] int[]? AllyAbnormals = null,
+        [property: JsonPropertyName("abnormal_duration_ms")] int? AbnormalDurationMs = null,
         [property: JsonPropertyName("debuffs")] int[][]? Debuffs = null)
     {
         /// <summary>The ticks one zone deals: one at the end of every <see cref="TickMs"/> of its life.</summary>

@@ -2,10 +2,9 @@ using Aion.Protocol.Native;
 
 namespace Aion.World;
 
-// Player damage zones (tools/data/pc-zones.json): the Sorcerer's Bittercold Wind 15280000 was accepted and did no damage (live
-// 2026-10-30): the skill has no Damage row, its Spawn effect only places an invisible summon, and PcSummons ignores summons
-// without attacks. The cast places that marker at the target; each tick of its life every enemy in the area takes the zone's
-// damage (0x3804), then the marker leaves (0x3642 flag 7). Its kills are the caster's.
+// Player zones (tools/data/pc-zones.json): Spawn markers with no summon AI (Bittercold Wind damages enemies each tick; Divine Aura
+// buffs allies and may pulse damage). PcSummons skips markers without attacks, so the cast places the marker and ZoneTick runs
+// until lifetime ends (0x3642 flag 7).
 partial class GameSession
 {
     sealed record PlacedZone(int Key, string Group, int SkillId, PcZones.Zone Zone, CastRequest Request, byte ActionUid, int TicksLeft, long NextTickAt);
@@ -54,7 +53,10 @@ partial class GameSession
             var current = placed;
             while (current.TicksLeft > 0 && now >= current.NextTickAt)
             {
-                replies.AddRange(ZoneDamage(current, marker, current.NextTickAt));
+                if (current.Zone.Damage is not null)
+                    replies.AddRange(ZoneDamage(current, marker, current.NextTickAt));
+                if (current.Zone.AllyAbnormals is { Length: > 0 })
+                    replies.AddRange(ZoneAllyBuffs(current, marker, current.NextTickAt));
                 current = current with { TicksLeft = current.TicksLeft - 1, NextTickAt = current.NextTickAt + Math.Max(1, current.Zone.TickMs) };
             }
             zones[zones.IndexOf(placed)] = current;
@@ -67,6 +69,7 @@ partial class GameSession
 
     List<byte[]> ZoneDamage(PlacedZone placed, Target marker, long at)
     {
+        if (placed.Zone.Damage is not { } damageRow) return [];
         var area = placed.Zone.Blast(SkillAreas.For(placed.SkillId));
         var victims = targets!.Values
             .Where(t => TrapVictim(t) && area.Contains(marker.Position, marker.Direction, t.Position, t.Radius))
@@ -74,11 +77,32 @@ partial class GameSession
         var replies = new List<byte[]>();
         foreach (var victim in victims)
         {
-            var hit = PlayerRowHits([placed.Zone.Damage], victim.Defense)[0];
+            var hit = PlayerRowHits([damageRow], victim.Defense)[0];
             var questKill = questLog?.OpenKillNpcIds().Contains(victim.NpcId) == true;
             var mapEventKill = mapEventRuns.Any(run => run.OpenKillNpcIds().Contains(victim.NpcId));
             replies.AddRange(ApplyScheduledCombatHit(new ScheduledCombatHit(placed.SkillId, placed.Request, placed.ActionUid, victim.Key, hit, 1, at,
                 CombatHitKind.Npc, questKill, mapEventKill), at));
+        }
+        return replies;
+    }
+
+    List<byte[]> ZoneAllyBuffs(PlacedZone placed, Target marker, long at)
+    {
+        if (placed.Zone.AllyAbnormals is not { Length: > 0 } abnormalIds) return [];
+        var area = placed.Zone.Blast(SkillAreas.For(placed.SkillId));
+        var duration = placed.Zone.AbnormalDurationMs ?? Math.Max(placed.Zone.TickMs + 200, 1_000);
+        var replies = new List<byte[]>();
+        if (position is { } here && !dead && area.Contains(marker.Position, marker.Direction, here, NpcAi.PlayerRadius))
+            foreach (var abnormalId in abnormalIds)
+                replies.AddRange(EngineApplyAbnormal(abnormalId, duration, playerKey, placed.SkillId, at));
+        if (worldPlayer?.Map is not { } map) return replies;
+        foreach (var ally in map.Players.Values)
+        {
+            if (ally.Session.dead || ally.Key == playerKey) continue;
+            if (ally.Session.profileRace != profileRace || PvpHitKind(ally.Key) is not null) continue;
+            if (!area.Contains(marker.Position, marker.Direction, ally.Position, NpcAi.PlayerRadius)) continue;
+            foreach (var abnormalId in abnormalIds)
+                replies.AddRange(ally.Session.EngineApplyAbnormal(abnormalId, duration, playerKey, placed.SkillId, at));
         }
         return replies;
     }

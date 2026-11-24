@@ -25,8 +25,9 @@ namespace Aion.World;
 // Weekly reset: Wednesday 07:00 UTC (ShopTables.Period(2, …), same as shops).
 public sealed partial class GameSession
 {
-    public const ushort ConversionStartRq = 0x8d86, ConversionStartRs = 0x8d87, ConversionCompletedNt = 0x8d8b,
-        ConversionLimitListRq = 0x8d8e, ConversionLimitListRs = 0x8d8f, UpdateConversionRecipeCountNt = 0x8d90;
+    public const ushort ConversionStartRq = 0x8d86, ConversionStartRs = 0x8d87, ConversionCancelRq = 0x8d88, ConversionCancelRs = 0x8d89,
+        ConversionCanceledNt = 0x8d8a, ConversionCompletedNt = 0x8d8b, ConversionLimitListRq = 0x8d8e, ConversionLimitListRs = 0x8d8f,
+        UpdateConversionRecipeCountNt = 0x8d90;
     public const int WingEnhanceStoneProduct = 930100023;
     public const int WingEnhanceStoneBatch = 10_000;
     public const int WingMorphWeeklyServerLimit = 20;
@@ -288,5 +289,22 @@ public sealed partial class GameSession
             .Where(r => r.Target == target && Crafts.Conversion(r.RecipeId) is { } recipe && r.Period == ShopTables.Period(recipe.LimitPeriod, now))
             .SelectMany(r => LimitRecipeIds(r.RecipeId).Select(id => (id, r.Count)));
         return Reply(0, Current(3), serverOnly ? [] : Current(2), serverOnly ? [] : Current(1));
+    }
+
+    /// <summary>
+    /// ConversionCancel_RQ (0x8d88, empty body CANDIDATE): the client cancels an active transformation (Polymorph buff from candy,
+    /// story morph, or substance morph). Ends every active polymorph abnormal, restores appearance and stats, keeps item cooldowns.
+    /// </summary>
+    List<byte[]> ConversionCancel(long now)
+    {
+        var morphs = buffs.Where(b => b.Polymorph).ToList();
+        if (morphs.Count == 0)
+            return [PacketWriter.Opcode(ConversionCancelRs).U16(ConversionInvalidData).ToArray()];
+        var speedBefore = BuffStat("MoveSpeed");
+        var replies = new List<byte[]> { PacketWriter.Opcode(ConversionCancelRs).U16(0).ToArray() };
+        replies.AddRange(RemoveBuffs(morphs, ExpireEtc));
+        replies.AddRange(BuffStatsChanged(speedBefore));
+        replies.Add(ConversionResultPacket(ConversionCanceledNt, 0, []));
+        return replies;
     }
 }

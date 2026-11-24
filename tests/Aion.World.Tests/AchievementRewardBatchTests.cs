@@ -16,13 +16,14 @@ public sealed class AchievementRewardBatchTests
             (0x17D785F7, [], new Dictionary<int, int> { [0x1A692BC4] = 1, [0x1A692C28] = 1, [0x1A692C8C] = 1, [0x1A692CF0] = 1 }),
         };
         var packet = GameSession.RewardBatchReply(1, 0, false, results);
-        Assert.Equal(62, packet.Length);
+        Assert.Equal(63, packet.Length);
 
         Assert.Equal(Convert.FromHexString(
             "8A56" + "00000000" + "01" + "00000000" + "00" + "00" + "03" +
             "6584D717" + "00" + "01" + "040BD917" + "01" +
             "6684D717" + "00" + "01" + "444DE817" + "01" +
-            "F785D717" + "00" + "04" + "C42B691A01" + "282C691A01" + "8C2C691A01" + "F02C691A01"), packet);
+            "F785D717" + "00" + "04" + "C42B691A01" + "282C691A01" + "8C2C691A01" + "F02C691A01" +
+            "00"), packet);
 
         // Walk the take_result array: varint count, then each group block.
         var at = 13;
@@ -37,7 +38,8 @@ public sealed class AchievementRewardBatchTests
             Assert.InRange(entries, 1, 4);
             at += entries * 5;
         }
-        Assert.Equal(packet.Length, at);
+        Assert.Equal(packet.Length - 1, at);
+        Assert.Equal(0, packet[at]);
     }
 
     [Fact]
@@ -50,5 +52,34 @@ public sealed class AchievementRewardBatchTests
         Assert.Equal(0x7C853, BitConverter.ToInt32(packet, 7));
         Assert.Equal(1, packet[11]);
         Assert.Equal(0, packet[12]);
+        Assert.Equal(0, packet[13]);
+    }
+
+    [Fact]
+    public void Batch_reply_appends_consolidated_common_reward_items()
+    {
+        var results = new List<(int, IReadOnlyList<byte>, IReadOnlyDictionary<int, int>)>
+        {
+            (400_000_103, [], new Dictionary<int, int> { [403_100_300] = 1 }),
+        };
+        var granted = new List<(int ItemId, long Count)> { (930_100_001, 3000), (930_100_001, 2000), (930_100_030, 100) };
+        var packet = GameSession.RewardBatchReply(1, 0, false, results, grantedItems: granted);
+        Assert.Equal(2, packet[^17]);
+        Assert.Equal(930_100_001, BitConverter.ToInt32(packet, packet.Length - 16));
+        Assert.Equal(5000, BitConverter.ToInt32(packet, packet.Length - 12));
+        Assert.Equal(930_100_030, BitConverter.ToInt32(packet, packet.Length - 8));
+        Assert.Equal(100, BitConverter.ToInt32(packet, packet.Length - 4));
+    }
+
+    [Fact]
+    public void Single_step_reply_appends_reward_items()
+    {
+        var packet = GameSession.TakeAchievementRewardReply(0, 403_100_300, 1, [(930_100_001, 3000)]);
+        Assert.Equal(0, BitConverter.ToInt32(packet, 2));
+        Assert.Equal(403_100_300, BitConverter.ToInt32(packet, 6));
+        Assert.Equal(1, packet[10]);
+        Assert.Equal(1, packet[11]);
+        Assert.Equal(930_100_001, BitConverter.ToInt32(packet, 12));
+        Assert.Equal(3000, BitConverter.ToInt32(packet, 16));
     }
 }

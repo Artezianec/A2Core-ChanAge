@@ -490,6 +490,7 @@ public sealed partial class GameSession
         var total = g.Amount * useCount;
         var consumed = await Stored(async () => await store.ConsumeItemAsync(character, row.InstanceId, row.Revision, useCount, ct) ? [[]] : []);
         if (consumed.Count == 0) return null;
+        usedCountApplied = true;
         daevanionBonus[g.PointType] = daevanionBonus.GetValueOrDefault(g.PointType) + total;
         if (!await PersistDaevanionAsync(ct)) return null;
         return

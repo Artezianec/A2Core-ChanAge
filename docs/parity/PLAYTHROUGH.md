@@ -78,7 +78,7 @@ At cap **45**, **131** side quests (`District` / `DutyMission`) per faction are 
 
 ### HOME gap (unchanged)
 
-**Daily / weekly (`DutyScroll`)** — live accept needs **`Quest.dat` `AcquireItemList`** and scroll item use; parity uses harness **`QuestAdd`**. See `docs/HOME_TODO.ru.md` P5.
+**Daily / weekly (`DutyScroll`)** — live accept: use a scroll item (`GetDutyQuest` → `duty.json` group → random quest + `QuestAdd_NT`); verified in `DutyMissionTests`. Playthrough harness still uses **`QuestAdd`** for scripted daily runs. See `docs/HOME_TODO.ru.md` P5.
 
 ### Commands
 

@@ -109,6 +109,8 @@ public interface INativeCharacterStore : IAsyncDisposable
     Task<string> RestoreItemAsync(Guid character, Guid item, IReadOnlyList<(Guid Item, long Revision, int Count)> costs, CancellationToken ct) => Task.FromResult("failed");
     Task<bool> MoveBagItemAsync(Guid character, Guid item, long revision, int slot, CancellationToken ct) => Task.FromResult(false);
     Task<bool> MoveItemToContainerAsync(Guid character, Guid item, long revision, string location, int slot, CancellationToken ct) => Task.FromResult(false);
+    Task<string> TransferContainerItemsAsync(Guid character, string fromLocation, string toLocation,
+        IReadOnlyList<(long WireKey, long Count)> transfers, int maxDestinationSlots, CancellationToken ct) => Task.FromResult("none");
     Task<IReadOnlyList<PostRecord>> PostsAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<PostRecord>>([]);
     Task<PostRecord?> SendPostAsync(Guid toCharacter, int dataId, string parameters, IReadOnlyList<(int TemplateId, long Count)> attachments, int tab, CancellationToken ct) => Task.FromResult<PostRecord?>(null);
     Task<bool> MarkPostsAsync(Guid character, IReadOnlyList<long> ids, bool delete, CancellationToken ct) => Task.FromResult(false);
@@ -197,11 +199,11 @@ public interface INativeCharacterStore : IAsyncDisposable
     Task<RideRecord?> UseRideItemAsync(Guid character, Guid item, long revision, int rideId, CancellationToken ct) => Task.FromResult<RideRecord?>(null);
     Task<bool> SetDefaultRideAsync(Guid character, int rideId, CancellationToken ct) => Task.FromResult(false);
     /// <summary>Uses up one soul item; the ride gains soul points.</summary>
-    Task<RideRecord?> AddRideSoulsAsync(Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct) => Task.FromResult<RideRecord?>(null);
+    Task<RideRecord?> AddRideSoulsAsync(Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct, int consumeItems = 1) => Task.FromResult<RideRecord?>(null);
     Task<RideRecord?> AcquireRideWithSoulsAsync(Guid character, int rideId, int cost, int crystalType, CancellationToken ct) => Task.FromResult<RideRecord?>(null);
     Task<RideRecord?> LevelUpRideAsync(Guid character, int rideId, int cost, int crystalType, int maxLevel, CancellationToken ct) => Task.FromResult<RideRecord?>(null);
     /// <summary>Uses up one crystal item; the new crystal amount.</summary>
-    Task<int?> AddRideCrystalsAsync(Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct) => Task.FromResult<int?>(null);
+    Task<int?> AddRideCrystalsAsync(Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct, int consumeItems = 1) => Task.FromResult<int?>(null);
     /// <summary>Stores a creature board, paying crystals and Kina atomically.</summary>
     Task<bool> SaveCreatureBoardAsync(Guid character, CreatureBoardRecord board, IReadOnlyDictionary<int, int> crystalCost,
         (Guid Item, long Revision, long Count)? kina, CancellationToken ct) => Task.FromResult(false);

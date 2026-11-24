@@ -95,6 +95,9 @@ def environment(args, credentials):
     env['Aion__Backups__Directory'] = args.state / 'backups'
     env['Aion__Backups__Tool'] = Path(__file__).resolve().parent / 'postgres_dev.py'
     env['Aion__Backups__PgHome'] = args.state / 'postgres'
+    env['Aion__Database__MigrateOnStartup'] = 'true'
+    env['Aion__Database__Tool'] = Path(__file__).resolve().parent / 'postgres_dev.py'
+    env['Aion__Database__PgHome'] = HOME
     if args.geolocation != 'off':
         env['Aion__Platform__GeolocationFile'] = args.state / 'geolocation-response.json'
     if args.proxy:

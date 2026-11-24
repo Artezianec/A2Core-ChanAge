@@ -164,25 +164,34 @@ public sealed class NcGuardSink : BackgroundService
 
     public void Configure(KestrelServerOptions server) => server.Listen(IPAddress.Parse(options.BindAddress), options.Port!.Value, listener =>
     {
-        listener.Protocols = HttpProtocols.Http1;
+        listener.Protocols = HttpProtocols.Http1AndHttp2;
         listener.Use(next => async context =>
         {
+            var sni = context.Features.Get<ITlsHandshakeFeature>()?.HostName;
+            var remote = context.Connection.RemoteEndPoint;
+            var started = DateTimeOffset.UtcNow;
             try
             {
                 await next(context);
-                var sni = context.Features.Get<ITlsHandshakeFeature>()?.HostName;
-                if (context.Features.Get<ITlsHandshakeFeature>() is not null)
-                    logger.LogInformation("NCGuard TLS handshake succeeded SNI={Sni} Remote={Remote}", sni ?? "(none)", context.RemoteEndPoint);
+                if (context.Items.TryGetValue("ncguard.http", out var seen) && seen is true)
+                    logger.LogInformation("NCGuard TLS handshake succeeded SNI={Sni} Remote={Remote}", sni ?? "(none)", remote);
                 else
-                    logger.LogWarning("NCGuard TLS handshake did not complete SNI=(none) Remote={Remote}", context.RemoteEndPoint);
+                {
+                    logger.LogWarning(
+                        "NCGuard TLS closed without a completed HTTP exchange SNI={Sni} Remote={Remote} ElapsedMs={ElapsedMs} Protocol={Protocol}",
+                        sni ?? "(none)", remote, (long)(DateTimeOffset.UtcNow - started).TotalMilliseconds,
+                        context.Features.Get<IHttpRequestFeature>()?.Protocol ?? "(none)");
+                }
             }
             catch (Exception error)
             {
-                var sni = context.Features.Get<ITlsHandshakeFeature>()?.HostName;
-                if (context.Features.Get<ITlsHandshakeFeature>() is not null)
-                    logger.LogWarning(error, "NCGuard connection failed after TLS SNI={Sni} Remote={Remote}", sni ?? "(none)", context.RemoteEndPoint);
+                if (context.Items.TryGetValue("ncguard.http", out var seen) && seen is true)
+                    logger.LogWarning(error, "NCGuard connection failed after HTTP SNI={Sni} Remote={Remote}", sni ?? "(none)", remote);
+                else if (context.Features.Get<ITlsHandshakeFeature>() is not null)
+                    logger.LogWarning(error, "NCGuard TLS/HTTP aborted before exchange SNI={Sni} Remote={Remote} ElapsedMs={ElapsedMs}",
+                        sni ?? "(none)", remote, (long)(DateTimeOffset.UtcNow - started).TotalMilliseconds);
                 else
-                    logger.LogWarning(error, "NCGuard TLS handshake failed SNI={Sni} Remote={Remote}", sni ?? "(none)", context.RemoteEndPoint);
+                    logger.LogWarning(error, "NCGuard TLS handshake failed SNI={Sni} Remote={Remote}", sni ?? "(none)", remote);
                 throw;
             }
         });
@@ -255,12 +264,20 @@ public sealed class NcGuardSink : BackgroundService
         byte[] response;
         int status;
         string? contentTypeOverride = null;
+        var pathOnly = PathOnly(target);
+        context.Items["ncguard.http"] = true;
         if (rule is not null)
         {
             response = rule.Body;
             status = rule.Status;
         }
-        else if (NcGuardBuiltinResponses.TryReply(host, context.Request.Method, PathOnly(target), out var builtIn, out contentTypeOverride))
+        else if (GpaOAuthTokens.IsOAuthTokenPath(host, context.Request.Method, pathOnly))
+        {
+            response = GpaOAuthTokens.TokenResponse(DateTimeOffset.UtcNow, GpaOAuthTokens.ParseGrantType(bytes));
+            status = 200;
+            contentTypeOverride = "application/json";
+        }
+        else if (NcGuardBuiltinResponses.TryReply(host, context.Request.Method, pathOnly, out var builtIn, out contentTypeOverride))
         {
             response = builtIn;
             status = 200;
@@ -293,17 +310,26 @@ public sealed class NcGuardSink : BackgroundService
             }
             finally { captureLock.Release(); }
         }
-        LogPlaytest(host, context.Request.Method, PathOnly(target), bytes.Length, status, response.Length);
+        LogRequest(host, context.Request.Method, pathOnly, context.Request.Protocol, bytes.Length, status, response.Length,
+            string.Equals(host, "sdk.gpa.ncsoft.com", StringComparison.OrdinalIgnoreCase) ? GpaOAuthTokens.ParseGrantType(bytes) : null);
         await Respond(context, rule, status, response, contentTypeOverride);
     }
 
-    static void LogPlaytest(string host, string method, string path, int requestBytes, int status, int responseBytes)
+    void LogRequest(string host, string method, string path, string protocol, int requestBytes, int status, int responseBytes, string? grantType)
     {
+        if (string.Equals(host, "sdk.gpa.ncsoft.com", StringComparison.OrdinalIgnoreCase))
+            logger.LogInformation("NCGuard GPA {Method} {Path} grant={Grant} proto={Protocol} req={RequestBytes}B -> {Status} {ResponseBytes}B",
+                method, path, grantType ?? "(none)", protocol, requestBytes, status, responseBytes);
+        else
+            logger.LogDebug("NCGuard HTTP {Host} {Method} {Path} proto={Protocol} -> {Status} {ResponseBytes}B",
+                host, method, path, protocol, status, responseBytes);
         if (PlaytestDebug.Sink is not { Actions: true }) return;
         PlaytestDebug.Action("ncguard_http",
             ("host", host),
             ("method", method),
             ("path", path),
+            ("protocol", protocol),
+            ("grant_type", grantType),
             ("request_bytes", requestBytes),
             ("response_status", status),
             ("response_bytes", responseBytes));

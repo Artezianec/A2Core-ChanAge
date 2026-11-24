@@ -223,6 +223,20 @@ class DotnetNcGuardGpaBuiltinTests(unittest.TestCase):
                 self.assertEqual(200, response.status)
                 self.assertIn('access_token', json.loads(response.read().decode()))
 
+    def test_device_data_returns_success_json_without_fixture_rule(self):
+        body = b'{"deviceId":"local","data":[]}'
+        context = self.context
+        with socket.create_connection(('127.0.0.1', self.port), 5) as raw:
+            with context.wrap_socket(raw, server_hostname=self.host) as tls:
+                head = (f'POST /api/device/data HTTP/1.1\r\nHost: {self.host}\r\n'
+                        f'Content-Type: application/json\r\nContent-Length: {len(body)}\r\nConnection: close\r\n\r\n').encode()
+                tls.sendall(head + body)
+                response = http.client.HTTPResponse(tls)
+                response.begin()
+                self.assertEqual(200, response.status)
+                payload = json.loads(response.read().decode())
+                self.assertEqual(0, payload['errorCode'])
+
     def test_authz_token_returns_oauth_json_without_fixture_rule(self):
         body = b'grant_type=client_credentials&client_id=aion-dev&client_secret=local'
         context = self.context
@@ -238,6 +252,7 @@ class DotnetNcGuardGpaBuiltinTests(unittest.TestCase):
                 self.assertEqual('Bearer', payload['token_type'])
                 self.assertIn('access_token', payload)
                 self.assertGreater(payload['expires_in'], 0)
+                self.assertEqual(2, payload['access_token'].count('.'))
 
 
 @unittest.skipUnless(HOST.exists() and shutil.which('dotnet'), 'Build Aion.Host first')

@@ -8,6 +8,7 @@ using Aion.Host.Native;
 using Aion.Host.Platform;
 using Aion.Host.NcGuard;
 using Aion.Host;
+using Aion.Host.Database;
 using Aion.Host.Debug;
 using Aion.Host.Logging;
 using Aion.World;
@@ -188,12 +189,14 @@ var askNpcFallback = worldOptions.ResolveMapEventAskNpcProximityFallback(debugOp
 var headlessClients = builder.Configuration.GetSection(AionConfiguration.HeadlessClients).Get<HeadlessClientOptions>() ?? new HeadlessClientOptions();
 builder.Services.AddSingleton(headlessClients);
 builder.Services.AddSingleton<HeadlessClientAuth>();
-var native = (builder.Configuration.GetSection(AionConfiguration.Native).Get<NativeOptions>() ?? new NativeOptions()) with
+var nativeSection = builder.Configuration.GetSection(AionConfiguration.Native);
+var native = (nativeSection.Get<NativeOptions>() ?? new NativeOptions()) with
 {
     Network = network,
     MapEventAskNpcProximityFallback = askNpcFallback,
     // Multi-world is opt-in (docs/MULTI_WORLD.md): Aion:Worlds:Enabled on the login host; a world-role process always.
     MultiWorld = worldProcess is not null || builder.Configuration.GetValue<bool>("Aion:Worlds:Enabled"),
+    ClientGmPanel = NativeOptions.ResolveClientGmPanel(nativeSection.GetValue<bool?>("ClientGmPanel")),
 };
 if (worldProcess is not null)
 {
@@ -489,6 +492,8 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 builder.Services.AddSingleton<WardrobeAccess>();
 var app = builder.Build();
+if (worldProcess is null)
+    PostgresMigrationRunner.ApplyIfEnabled(app.Configuration, app.Logger);
 app.Logger.LogInformation("Bosses: {Bosses}; field bosses: {FieldBosses}; combat: {CombatTelegraphs}",
     Aion.World.GameSession.BossRules, Aion.World.FieldBosses.Options, Aion.World.GameSession.CombatTelegraphRules);
 app.Logger.LogInformation("Boss encounters: {Count} authored (tools/data/boss-mechanics), {Errors} rejected.",

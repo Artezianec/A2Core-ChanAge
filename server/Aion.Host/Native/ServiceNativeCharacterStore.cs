@@ -740,6 +740,13 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
         return await game.MoveItemToContainerAsync(identity.Account, character, item, revision, location, slot, ct);
     }
 
+    public async Task<string> TransferContainerItemsAsync(Guid character, string fromLocation, string toLocation,
+        IReadOnlyList<(long WireKey, long Count)> transfers, int maxDestinationSlots, CancellationToken ct)
+    {
+        await ValidateAsync(ct);
+        return await game.TransferContainerItemsAsync(identity.Account, character, fromLocation, toLocation, transfers, maxDestinationSlots, ct);
+    }
+
     public async Task<IReadOnlyList<PostRecord>> PostsAsync(Guid character, CancellationToken ct)
     {
         await ValidateAsync(ct);
@@ -1094,10 +1101,10 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
         return await game.UseRideItemAsync(identity.Account, character, item, revision, rideId, ct);
     }
 
-    public async Task<RideRecord?> AddRideSoulsAsync(Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct)
+    public async Task<RideRecord?> AddRideSoulsAsync(Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct, int consumeItems = 1)
     {
         await ValidateAsync(ct);
-        return await game.AddRideSoulsAsync(identity.Account, character, item, revision, rideId, souls, ct);
+        return await game.AddRideSoulsAsync(identity.Account, character, item, revision, rideId, souls, ct, consumeItems);
     }
 
     public async Task<RideRecord?> AcquireRideWithSoulsAsync(Guid character, int rideId, int cost, int crystalType, CancellationToken ct)
@@ -1112,10 +1119,10 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
         return await game.LevelUpRideAsync(identity.Account, character, rideId, cost, crystalType, maxLevel, ct);
     }
 
-    public async Task<int?> AddRideCrystalsAsync(Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct)
+    public async Task<int?> AddRideCrystalsAsync(Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct, int consumeItems = 1)
     {
         await ValidateAsync(ct);
-        return await game.AddRideCrystalsAsync(identity.Account, character, item, revision, crystalType, count, ct);
+        return await game.AddRideCrystalsAsync(identity.Account, character, item, revision, crystalType, count, ct, consumeItems);
     }
 
     public async Task<bool> SaveCreatureBoardAsync(Guid character, CreatureBoardRecord board, IReadOnlyDictionary<int, int> crystalCost,

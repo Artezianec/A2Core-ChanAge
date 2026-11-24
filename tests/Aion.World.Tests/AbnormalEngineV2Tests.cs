@@ -43,7 +43,8 @@ public sealed class AbnormalEngineV2Tests
     public void Wish_of_concentration_stat_in_modifiers()
     {
         var stats = AbnormalEngine.StatModifiers(153100001);
-        Assert.True(stats.ContainsKey("MPUseDecrease"));
+        Assert.Equal(100, stats.GetValueOrDefault("Accuracy"));
+        Assert.Equal(1000, stats.GetValueOrDefault("DamageRatio"));
     }
 
     [Fact]
@@ -54,7 +55,7 @@ public sealed class AbnormalEngineV2Tests
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, now, level: 55);
         var replies = new List<byte[]>();
         session.AddPassiveHiddenBuffForTests(153100001, now, replies);
-        Assert.Equal(3000, session.BuffStatForTests("MPUseDecrease"));
+        Assert.Equal(1000, session.BuffStatForTests("DamageRatio"));
         Assert.DoesNotContain(153100001, session.ActiveBuffs);
     }
 }

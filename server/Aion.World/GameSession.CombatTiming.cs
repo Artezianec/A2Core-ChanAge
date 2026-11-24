@@ -41,7 +41,7 @@ partial class GameSession
             {
                 var defense = PvpTargetDefense(request.TargetKey, kind.Value);
                 if (SealStone()) defense = SealStonePvpDefense(defense);
-                var hits = PlayerSkillHits(skill, defense, pvp: true);
+                var hits = PlayerSkillHits(skill, defense, pvp: true, npcTargetKey: request.TargetKey, now: now);
                 if (SealStone()) hits = SealStoneBoost(hits);
                 for (var i = 0; i < hits.Count; i++)
                     pendingCombatHits.Add(new(skill, request, actionUid, request.TargetKey, hits[i], i + 1,
@@ -73,7 +73,7 @@ partial class GameSession
             if (target.Dead) continue;
             if (!target.Hostile && !CombatMayHitNeutralForOpenKillObjective(target)) continue;
             if (!PlayerMayDamageNpc(target)) continue;
-            var hits = PlayerSkillHits(skill, target.Defense, victimLevel: target.Level);
+            var hits = PlayerSkillHits(skill, target.Defense, victimLevel: target.Level, npcTargetKey: target.Key, now: now);
             var openQuestOrEventKill = CombatMayHitNeutralForOpenKillObjective(target);
             var questKill = questLog?.OpenKillNpcIds().Contains(target.NpcId) == true;
             var mapEventKill = mapEventRuns.Any(r => r.OpenKillNpcIds().Contains(target.NpcId));
@@ -285,7 +285,7 @@ partial class GameSession
         var hit = scheduled.Hit;
         if (target.Immune && !scheduled.QuestKill && !scheduled.MapEventKill && !CombatMayHitNeutralForOpenKillObjective(target))
             hit = hit with { Amount = 0 };
-        target.Hp = Math.Max(0, target.Hp - hit.Amount);
+        target.Hp = ApplyDamageToNpc(target, hit.Amount);
         NoteNpcHit(target.Key, hit.Critical, now);
         var replies = new List<byte[]>
         {
@@ -317,6 +317,7 @@ partial class GameSession
     /// <summary>The player's kill (by its hit, or by its summon <paramref name="killerKey"/>): loot, experience, quests, map events.</summary>
     List<byte[]> PlayerKilledNpc(Target target, int skillId, int killerKey, long now, bool killingBlowCritical = false)
     {
+        if (Combat.IsTrainingDummy(target) && !TrainingDummyKillAllowed(target)) return [];
         var replies = new List<byte[]>();
         respawnAt[target.Key] = now + KillRespawnMs(target, now);   // RespawnMs, or a field boss's hours (Aion:FieldBosses)
         target.KilledAtMs = now;

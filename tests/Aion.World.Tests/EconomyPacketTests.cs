@@ -162,6 +162,34 @@ public sealed class EconomyPacketTests
         Assert.Equal(975, FakeCharacterStore.KinaIn(storeA));
     }
 
+    static byte[] ItemStorePacket(int npc, long itemKey, long count, int container) =>
+        new PacketWriter().U16(GameSession.ItemStoreRq).I32(npc).Varint(1).I64(itemKey).I64(count).I32(container).ToArray();
+
+    static byte[] ItemTakeOutPacket(int npc, long itemKey, long count, int container) =>
+        new PacketWriter().U16(GameSession.ItemTakeOutRq).I32(npc).Varint(1).I64(itemKey).I64(count).I32(container).ToArray();
+
+    static int ItemStoreResult(byte[] packet) => BitConverter.ToInt32(packet, 2);
+
+    [Fact]
+    public async Task ItemStore_and_takeout_account_warehouse_via_5642_5644()
+    {
+        var store = new FakeCharacterStore();
+        var session = await GameSessionTestHelpers.EnterSharedWorldAsync(store, Now);
+        store.Items.Add(FakeCharacterStore.BagItem(LifePotion, 3, 55));
+        await session.InventoryChangesAsync(default);
+        var key = store.Items.Single(i => i.Location == "bag").WireId;
+        var storeReply = await session.HandleAsync(ItemStorePacket(0, key, 2, InventoryItem.AccountStorage), Now);
+        Assert.Equal(GameSession.ItemStoreRs, GameSessionTestHelpers.Op(storeReply[0]));
+        Assert.Equal(0, ItemStoreResult(storeReply[0]));
+        Assert.Equal(1, store.Items.Single(i => i.WireId == key).Quantity);
+        Assert.Single(store.Items, i => i.Location == "account_storage" && i.TemplateId == LifePotion && i.Quantity == 2);
+        var accountKey = store.Items.Single(i => i.Location == "account_storage").WireId;
+        var take = await session.HandleAsync(ItemTakeOutPacket(0, accountKey, 2, InventoryItem.AccountStorage), Now + 1);
+        Assert.Equal(0, ItemStoreResult(take[0]));
+        Assert.Equal(3, store.Items.Where(i => i.Location == "bag" && i.TemplateId == LifePotion).Sum(i => i.Quantity));
+        Assert.DoesNotContain(store.Items, i => i.Location == "account_storage");
+    }
+
     [Fact]
     public async Task Personal_and_account_warehouse_round_trip()
     {

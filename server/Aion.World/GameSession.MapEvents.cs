@@ -281,7 +281,13 @@ public sealed partial class GameSession : IMapEventHost
                 continue;
             }
             anyInside = true;
-            if (walkInNeedsOutsideApproach) continue;
+            if (walkInNeedsOutsideApproach)
+            {
+                var openClear = questLog?.OpenClearMapEventNames().ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+                var questWalkIn = openClear.Count > 0 && MapEventData.EventsOn(layer.LayerMap)
+                    .Any(e => openClear.Contains(e.Name));
+                if (!questWalkIn) continue;
+            }
             if (walkInLayerInside.Contains(layer.LayerMap)) continue;
             walkInLayerInside.Add(layer.LayerMap);
             if (MapEventData.Dungeon(layer.DungeonId) is not { } room || !MeetsEntry(room, now, out _))
@@ -747,6 +753,30 @@ public sealed partial class GameSession : IMapEventHost
         return DrainMapEvents();
     }
 
+    /// <summary>HQ1101050 step 6: retail opens the warehouse when Nania reaches the door; do not wait on the player F-key.</summary>
+    void TryScriptHq004WarehouseDoor(long now)
+    {
+        const string evt = "World_L_Starter_HQ004_MapEvent";
+        const string door = "E_L0_HQ004_WarehouseDoor_Enter";
+        foreach (var run in mapEventRuns)
+        {
+            if (!string.Equals(run.Name, evt, StringComparison.OrdinalIgnoreCase) || run.StepOrder != 6 || run.Finished) continue;
+            if (!run.Open.Any(x => x.Objective.Type == "UseEnvObj"
+                    && x.Objective.Value(0).Contains("WarehouseDoor", StringComparison.OrdinalIgnoreCase))) continue;
+            if (MapEventObjectForName(door) is not { } wo) continue;
+            var nania = SpawnerNpcs("N_L0_Starter_HQ004_Nania_01").FirstOrDefault(t => !t.Dead);
+            if (nania is null) continue;
+            var doorAt = wo.At;
+            var dx = nania.Position.X - doorAt.X;
+            var dy = nania.Position.Y - doorAt.Y;
+            var range = Math.Max(wo.InteractRange, 100) + 200;
+            if (dx * dx + dy * dy > range * range) continue;
+            var credited = MapEventUsedObject(door, now);
+            if (credited.Count > 0) mapEventOut.AddRange(credited);
+            return;
+        }
+    }
+
     List<byte[]> MapEventPosition(Vector3d at, long now)
     {
         if (ToCopyOwner(o => o.MapEventPosition(at, now)) || mapEventRuns.Count == 0) return [];
@@ -836,7 +866,11 @@ public sealed partial class GameSession : IMapEventHost
         }
         foreach (var (key, route) in ai.TakeArrivals())
             if (targets?.GetValueOrDefault(key) is { } npc)
+            {
                 foreach (var run in mapEventRuns.ToList()) run.NpcArrived(npc.Name, route, now);
+                TryScriptHq004WarehouseDoor(now);
+            }
+        TryScriptHq004WarehouseDoor(now);
         WaveTick(now);
         EnsureOpenKillSpawnersForRuns();
         foreach (var run in mapEventRuns.ToList()) run.Tick(now);
@@ -1677,7 +1711,7 @@ public sealed partial class GameSession : IMapEventHost
                     d.NextAt += d.IntervalMs;
                     amount = t.Landed(amount);
                     if (t.Immune) amount = 0;
-                    t.Hp = Math.Max(0, t.Hp - amount);
+                    t.Hp = ApplyDamageToNpc(t, amount);
                     mapEventOut.Add(d.Scaled
                         ? RidePackets.AbnormalDamage(t.Key, playerKey, b.Uid, d.EffectId, amount, b.SkillId)
                         : RidePackets.AbnormalEffect(t.Key, playerKey, b.Uid, d.EffectId, d.Remaining, amount, b.SkillId));
@@ -2031,10 +2065,12 @@ public sealed partial class GameSession : IMapEventHost
     /// <summary>The way out the cleared quest's finish teleport names (see <see cref="ClearExitOf"/>), set at the clear.</summary>
     (int Map, Vector3d At)? clearExit;
 
-    /// <summary>Quest-type solo maps (Dream Crossroad, …): enter when the active step's AskNpc target spawns only there.</summary>
+    /// <summary>Quest-type solo maps (Dream Crossroad, Ascension Subspace, …): enter when the active step's AskNpc target spawns only there.</summary>
     bool QuestStepNeedsDungeonMap(int dungeonMap)
     {
         if (questLog is null) return false;
+        var eventsOnDungeon = MapEventData.EventsOn(dungeonMap).Select(e => e.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (questLog.OpenClearMapEventNames().Any(eventsOnDungeon.Contains)) return true;
         // A finished quest waiting for its turn-in NPC there counts too (live 2026-10-30: AQ2602000 "The One Who Perceives"
         // complete, its finish NPC N_DreamCrossroad_Ashar_01 comes only from DreamCrossroad_MapEvent's StartSpawner, so the
         // event never started and Ashar never appeared).
@@ -2056,11 +2092,11 @@ public sealed partial class GameSession : IMapEventHost
         return false;
     }
 
-    /// <summary>Quest solo instance: stay while a step still needs the map or delayed map-event spawns are pending.</summary>
+    /// <summary>Quest or Ascension solo instance: stay while a step still needs the map or delayed map-event spawns are pending.</summary>
     bool QuestInstanceExitHoldActive(int map = 0)
     {
         map = map == 0 ? worldMap : map;
-        if (MapEventData.DungeonOfMap(map) is not { Type: "Quest" }) return false;
+        if (MapEventData.DungeonOfMap(map) is not { Type: var kind } || kind is not ("Quest" or "Ascension")) return false;
         return QuestStepNeedsDungeonMap(map) || pendingSpawns.Count > 0;
     }
 

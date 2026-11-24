@@ -108,7 +108,7 @@ partial class GameSession
         var chainSkill = definition is { ChainPrev: > 0 };
         var chainAllowed = !chainSkill || (ChainReady(skill, now) && ChainRootLearned(skill));
         var cooldownReady = SkillCooldown.CooldownReady(now, cooldowns, cooldownKey, noCool);
-        var meetsCastRules = definition is not null && resources is not null && !dead && chainAllowed && !CombatCastBlocked(skill)
+        var meetsCastRules = definition is not null && resources is not null && !dead && chainAllowed && !CombatCastBlocked(skill, now)
             && resources.Mp >= cost.Mp && resources.Sp >= cost.Sp && resources.Hp > cost.Hp
             && (resources.ApMax <= 0 || resources.Ap >= cost.Ap)
             && (SkillFamilyLearned(skill) || normalDodge || chainSkill || CarriedSkill == skill)

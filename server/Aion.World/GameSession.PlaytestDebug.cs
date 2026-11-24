@@ -221,7 +221,7 @@ public sealed partial class GameSession
         if (resources is null) return "no_resources";
         if (dead) return "dead";
         if (!chainAllowed) return "chain_window_closed";
-        if (CombatCastBlocked(skillId)) return "combat_blocked";
+        if (CombatCastBlocked(skillId, now)) return "combat_blocked";
         if (resources.Mp < cost.Mp) return "need_mp";
         if (resources.Sp < cost.Sp) return "need_sp";
         if (resources.Hp <= cost.Hp) return "need_hp";

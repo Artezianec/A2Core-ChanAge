@@ -135,6 +135,7 @@ Native login/game ports (optional; both off unless ports are set).
 | `CharacterLevel` | `1` | Dev intro level |
 | `DevelopmentStartMap` | — | Dev: map id at entry |
 | `DevelopmentGmNames` | — | Indexed: `DevelopmentGmNames__0`, … — GM chat names |
+| `ClientGmPanel` | `true` | When `true`, staff lobby logins set `Login_RS._is_admin` and the client F10 builder panel works (`0x362e`). Env `AION_CLIENT_GM_PANEL` overrides (`0`/`false`/`off` = off). Chat `//` builder commands still work for flagged staff when off. |
 | `TerrainDirectory` | auto | Extracted terrain grids |
 | `NavMeshDirectory` | auto | Extracted nav meshes |
 | `PreloadMaps` | `[1000]` | Indexed: `PreloadMaps__0`, … — warm-up at startup |

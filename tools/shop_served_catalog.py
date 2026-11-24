@@ -61,6 +61,13 @@ def load(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def skin_window_good(bm: dict) -> bool:
+    """A fashion row the Alt+O skin window sells (BMShopGoods item name or category)."""
+    name = str(bm.get("item_name") or "")
+    cats = f"{bm.get('category_light') or ''} {bm.get('category_dark') or ''}"
+    return "Skinshop" in name or "SkinShop" in name or "SkinShop" in cats or "Skinshop" in cats
+
+
 def official_intentional_free_goods() -> set[int]:
     """goods_id values captured with a zero basic price in official_shop.json."""
     if not OFFICIAL.is_file():
@@ -447,7 +454,10 @@ def build():
         if not item_id:
             hidden.append(("bm-no-item", gid))
             continue
-        if int(bm.get("price") or 0) <= 0 and gid not in free_goods:
+        # Founders weapon skins are on sale at GameCash 0 and are absent from the official
+        # capture, so the zero-price rule used to drop them. The Alt+O window still lists
+        # the goods id and then cannot buy it. Other zero-price rows stay hidden.
+        if int(bm.get("price") or 0) <= 0 and gid not in free_goods and not skin_window_good(bm):
             hidden.append(("bm-zero-price", gid))
             continue
         cats = {bm.get("category_light") or "", bm.get("category_dark") or ""}

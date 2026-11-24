@@ -15703,6 +15703,358 @@
       "_source": "client_table"
     },
     {
+      "goods_id": "100088",
+      "app_group_code": "aion2global",
+      "goods_name": "BM_Skinshop_Skin_WP_897_b",
+      "sale_status": "2",
+      "effective_from": "2025-01-01T05:00:00+09:00",
+      "effective_to": "2099-12-31T23:59:59+09:00",
+      "purchase_type": "1",
+      "is_subscribable": "0",
+      "is_delivery_confirmation": "0",
+      "refund_unit_type": "1",
+      "inventory_type": "0",
+      "goods_type": "1",
+      "goods_delivery_type": "0",
+      "is_single": "0",
+      "items": [
+        {
+          "item_id": "535710897",
+          "item_quantity": "1",
+          "item_receive_expiration_type": "1",
+          "item_name": "BM_Skinshop_Skin_WP_897_b",
+          "item_type": "103",
+          "game_item_key": "535710897"
+        }
+      ],
+      "pgs": [],
+      "display_names": [
+        {
+          "language_code": "en-US",
+          "goods_display_name": "BM_Skinshop_Skin_WP_897_b"
+        }
+      ],
+      "display_policies": [],
+      "goods_basic_price_policies": [
+        {
+          "currency_group_id": "145",
+          "goods_basic_price": "0.0000"
+        }
+      ],
+      "goods_basic_currency_price_policies": [],
+      "goods_missions": [],
+      "goods_data": "catl:Daily_Founderspack,catd:D_Daily_Founderspack,do:103,os:1",
+      "_source": "client_table"
+    },
+    {
+      "goods_id": "100089",
+      "app_group_code": "aion2global",
+      "goods_name": "BM_Skinshop_Skin_WP_898_b",
+      "sale_status": "2",
+      "effective_from": "2025-01-01T05:00:00+09:00",
+      "effective_to": "2099-12-31T23:59:59+09:00",
+      "purchase_type": "1",
+      "is_subscribable": "0",
+      "is_delivery_confirmation": "0",
+      "refund_unit_type": "1",
+      "inventory_type": "0",
+      "goods_type": "1",
+      "goods_delivery_type": "0",
+      "is_single": "0",
+      "items": [
+        {
+          "item_id": "535710898",
+          "item_quantity": "1",
+          "item_receive_expiration_type": "1",
+          "item_name": "BM_Skinshop_Skin_WP_898_b",
+          "item_type": "103",
+          "game_item_key": "535710898"
+        }
+      ],
+      "pgs": [],
+      "display_names": [
+        {
+          "language_code": "en-US",
+          "goods_display_name": "BM_Skinshop_Skin_WP_898_b"
+        }
+      ],
+      "display_policies": [],
+      "goods_basic_price_policies": [
+        {
+          "currency_group_id": "145",
+          "goods_basic_price": "0.0000"
+        }
+      ],
+      "goods_basic_currency_price_policies": [],
+      "goods_missions": [],
+      "goods_data": "catl:Daily_Founderspack,catd:D_Daily_Founderspack,do:103,os:1",
+      "_source": "client_table"
+    },
+    {
+      "goods_id": "100090",
+      "app_group_code": "aion2global",
+      "goods_name": "BM_Skinshop_Skin_WP_899_b",
+      "sale_status": "2",
+      "effective_from": "2025-01-01T05:00:00+09:00",
+      "effective_to": "2099-12-31T23:59:59+09:00",
+      "purchase_type": "1",
+      "is_subscribable": "0",
+      "is_delivery_confirmation": "0",
+      "refund_unit_type": "1",
+      "inventory_type": "0",
+      "goods_type": "1",
+      "goods_delivery_type": "0",
+      "is_single": "0",
+      "items": [
+        {
+          "item_id": "535710899",
+          "item_quantity": "1",
+          "item_receive_expiration_type": "1",
+          "item_name": "BM_Skinshop_Skin_WP_899_b",
+          "item_type": "103",
+          "game_item_key": "535710899"
+        }
+      ],
+      "pgs": [],
+      "display_names": [
+        {
+          "language_code": "en-US",
+          "goods_display_name": "BM_Skinshop_Skin_WP_899_b"
+        }
+      ],
+      "display_policies": [],
+      "goods_basic_price_policies": [
+        {
+          "currency_group_id": "145",
+          "goods_basic_price": "0.0000"
+        }
+      ],
+      "goods_basic_currency_price_policies": [],
+      "goods_missions": [],
+      "goods_data": "catl:Daily_Founderspack,catd:D_Daily_Founderspack,do:103,os:1",
+      "_source": "client_table"
+    },
+    {
+      "goods_id": "100091",
+      "app_group_code": "aion2global",
+      "goods_name": "BM_Skinshop_Skin_WP_900_b",
+      "sale_status": "2",
+      "effective_from": "2025-01-01T05:00:00+09:00",
+      "effective_to": "2099-12-31T23:59:59+09:00",
+      "purchase_type": "1",
+      "is_subscribable": "0",
+      "is_delivery_confirmation": "0",
+      "refund_unit_type": "1",
+      "inventory_type": "0",
+      "goods_type": "1",
+      "goods_delivery_type": "0",
+      "is_single": "0",
+      "items": [
+        {
+          "item_id": "535710900",
+          "item_quantity": "1",
+          "item_receive_expiration_type": "1",
+          "item_name": "BM_Skinshop_Skin_WP_900_b",
+          "item_type": "103",
+          "game_item_key": "535710900"
+        }
+      ],
+      "pgs": [],
+      "display_names": [
+        {
+          "language_code": "en-US",
+          "goods_display_name": "BM_Skinshop_Skin_WP_900_b"
+        }
+      ],
+      "display_policies": [],
+      "goods_basic_price_policies": [
+        {
+          "currency_group_id": "145",
+          "goods_basic_price": "0.0000"
+        }
+      ],
+      "goods_basic_currency_price_policies": [],
+      "goods_missions": [],
+      "goods_data": "catl:Daily_Founderspack,catd:D_Daily_Founderspack,do:103,os:1",
+      "_source": "client_table"
+    },
+    {
+      "goods_id": "100092",
+      "app_group_code": "aion2global",
+      "goods_name": "BM_Skinshop_Skin_WP_901_b",
+      "sale_status": "2",
+      "effective_from": "2025-01-01T05:00:00+09:00",
+      "effective_to": "2099-12-31T23:59:59+09:00",
+      "purchase_type": "1",
+      "is_subscribable": "0",
+      "is_delivery_confirmation": "0",
+      "refund_unit_type": "1",
+      "inventory_type": "0",
+      "goods_type": "1",
+      "goods_delivery_type": "0",
+      "is_single": "0",
+      "items": [
+        {
+          "item_id": "535710901",
+          "item_quantity": "1",
+          "item_receive_expiration_type": "1",
+          "item_name": "BM_Skinshop_Skin_WP_901_b",
+          "item_type": "103",
+          "game_item_key": "535710901"
+        }
+      ],
+      "pgs": [],
+      "display_names": [
+        {
+          "language_code": "en-US",
+          "goods_display_name": "BM_Skinshop_Skin_WP_901_b"
+        }
+      ],
+      "display_policies": [],
+      "goods_basic_price_policies": [
+        {
+          "currency_group_id": "145",
+          "goods_basic_price": "0.0000"
+        }
+      ],
+      "goods_basic_currency_price_policies": [],
+      "goods_missions": [],
+      "goods_data": "catl:Daily_Founderspack,catd:D_Daily_Founderspack,do:103,os:1",
+      "_source": "client_table"
+    },
+    {
+      "goods_id": "100093",
+      "app_group_code": "aion2global",
+      "goods_name": "BM_Skinshop_Skin_WP_902_b",
+      "sale_status": "2",
+      "effective_from": "2025-01-01T05:00:00+09:00",
+      "effective_to": "2099-12-31T23:59:59+09:00",
+      "purchase_type": "1",
+      "is_subscribable": "0",
+      "is_delivery_confirmation": "0",
+      "refund_unit_type": "1",
+      "inventory_type": "0",
+      "goods_type": "1",
+      "goods_delivery_type": "0",
+      "is_single": "0",
+      "items": [
+        {
+          "item_id": "535710902",
+          "item_quantity": "1",
+          "item_receive_expiration_type": "1",
+          "item_name": "BM_Skinshop_Skin_WP_902_b",
+          "item_type": "103",
+          "game_item_key": "535710902"
+        }
+      ],
+      "pgs": [],
+      "display_names": [
+        {
+          "language_code": "en-US",
+          "goods_display_name": "BM_Skinshop_Skin_WP_902_b"
+        }
+      ],
+      "display_policies": [],
+      "goods_basic_price_policies": [
+        {
+          "currency_group_id": "145",
+          "goods_basic_price": "0.0000"
+        }
+      ],
+      "goods_basic_currency_price_policies": [],
+      "goods_missions": [],
+      "goods_data": "catl:Daily_Founderspack,catd:D_Daily_Founderspack,do:103,os:1",
+      "_source": "client_table"
+    },
+    {
+      "goods_id": "100094",
+      "app_group_code": "aion2global",
+      "goods_name": "BM_Skinshop_Skin_WP_903_b",
+      "sale_status": "2",
+      "effective_from": "2025-01-01T05:00:00+09:00",
+      "effective_to": "2099-12-31T23:59:59+09:00",
+      "purchase_type": "1",
+      "is_subscribable": "0",
+      "is_delivery_confirmation": "0",
+      "refund_unit_type": "1",
+      "inventory_type": "0",
+      "goods_type": "1",
+      "goods_delivery_type": "0",
+      "is_single": "0",
+      "items": [
+        {
+          "item_id": "535710903",
+          "item_quantity": "1",
+          "item_receive_expiration_type": "1",
+          "item_name": "BM_Skinshop_Skin_WP_903_b",
+          "item_type": "103",
+          "game_item_key": "535710903"
+        }
+      ],
+      "pgs": [],
+      "display_names": [
+        {
+          "language_code": "en-US",
+          "goods_display_name": "BM_Skinshop_Skin_WP_903_b"
+        }
+      ],
+      "display_policies": [],
+      "goods_basic_price_policies": [
+        {
+          "currency_group_id": "145",
+          "goods_basic_price": "0.0000"
+        }
+      ],
+      "goods_basic_currency_price_policies": [],
+      "goods_missions": [],
+      "goods_data": "catl:Daily_Founderspack,catd:D_Daily_Founderspack,do:103,os:1",
+      "_source": "client_table"
+    },
+    {
+      "goods_id": "100095",
+      "app_group_code": "aion2global",
+      "goods_name": "BM_Skinshop_Skin_WP_904_b",
+      "sale_status": "2",
+      "effective_from": "2025-01-01T05:00:00+09:00",
+      "effective_to": "2099-12-31T23:59:59+09:00",
+      "purchase_type": "1",
+      "is_subscribable": "0",
+      "is_delivery_confirmation": "0",
+      "refund_unit_type": "1",
+      "inventory_type": "0",
+      "goods_type": "1",
+      "goods_delivery_type": "0",
+      "is_single": "0",
+      "items": [
+        {
+          "item_id": "535710904",
+          "item_quantity": "1",
+          "item_receive_expiration_type": "1",
+          "item_name": "BM_Skinshop_Skin_WP_904_b",
+          "item_type": "103",
+          "game_item_key": "535710904"
+        }
+      ],
+      "pgs": [],
+      "display_names": [
+        {
+          "language_code": "en-US",
+          "goods_display_name": "BM_Skinshop_Skin_WP_904_b"
+        }
+      ],
+      "display_policies": [],
+      "goods_basic_price_policies": [
+        {
+          "currency_group_id": "145",
+          "goods_basic_price": "0.0000"
+        }
+      ],
+      "goods_basic_currency_price_policies": [],
+      "goods_missions": [],
+      "goods_data": "catl:Daily_Founderspack,catd:D_Daily_Founderspack,do:103,os:1",
+      "_source": "client_table"
+    },
+    {
       "goods_id": "100134",
       "app_group_code": "aion2global",
       "goods_name": "G_event_Recharge_RewardTicket_PartyDungeon_Common_01a_A_s_02_b",

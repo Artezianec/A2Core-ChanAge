@@ -9,6 +9,7 @@ public readonly record struct ContainerSlotExtendView(int InventoryByItem, int I
     public int[] ToWireCounts() => [InventoryByItem, InventoryByGold, Storage, StorageByItem, CharacterStorageByGold, CharacterStorageByItem];
     public int BagSlotLimit => GameSession.BaseBagSlotCount + InventoryByGold * GameSession.BagSlotsPerRow + InventoryByItem * GameSession.BagSlotsPerRow;
     public int StorageSlotLimit => GameSession.BaseStorageSlotCount + Storage * GameSession.StorageSlotsPerLine + StorageByItem * GameSession.StorageSlotsPerLine;
+    public int AccountStorageSlotLimit => GameSession.BaseStorageSlotCount + CharacterStorageByGold * GameSession.StorageSlotsPerLine + CharacterStorageByItem * GameSession.StorageSlotsPerLine;
 
     /// <summary>ItemContainerSlotExtend RS/NT tail counts for the requested EItemContainerType.</summary>
     public (byte ByItem, byte ByGold) WireExtendPair(byte container) => container switch

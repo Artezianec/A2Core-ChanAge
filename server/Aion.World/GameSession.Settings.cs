@@ -63,6 +63,7 @@ public sealed partial class GameSession
         LoadDailyRecords(Read<Dictionary<string, int[]>>("daily_dungeon_records"));
         restoreCounts = Read<Dictionary<int, RestoreCount>>("item_restores") ?? [];
         bookmarks = Read<List<BookmarkEntry>>("bookmarks") ?? [];
+        LoadSkinVisibility(Read<int[]>("skin_hidden"));
         LoadArcana(Read<long[]>("arcana_create"), Read<Dictionary<string, int>>("arcana_exp"));
     }
 

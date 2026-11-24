@@ -64,7 +64,7 @@ NOTES = {
     'projectile': ('ok', 'SkillFireProjectile + delayed hit by SkillProjectile.Speed'),
     'summon': ('ok', 'PcSummons (Spawn rows of pc-summons.json)'),
     'trap': ('ok', 'PcTraps (Explosion Trap)'),
-    'zone': ('ok', 'PcZones: the Spawn marker stays at the target and damages the area every tick (values improvised)'),
+    'zone': ('ok', 'PcZones: the Spawn marker stays at the target and ticks improvised area damage and/or ally buff abnormals until it expires'),
     'summon_marker': ('missing', 'a Spawn of an invisible summon with no attacks, trap or zone entry: the cast places nothing and applies nothing'),
     'damage_missing': ('missing', 'an attack-shaped skill (chain follow-up, area or projectile) with no Damage row: it casts and hits for nothing'),
     'spirit_condition': ('ok', 'usable only while a spirit is out (Skill.dat CanUseWhenElementalSummonSpawned); not applied to elemental summon cast skills (PcSummons Spawn).'),
@@ -109,7 +109,7 @@ NOTES = {
 }
 LABELS = {
     'damage': 'damage', 'area': 'multi-target area', 'ground_aoe': 'ground AoE', 'projectile': 'projectile',
-    'summon': 'summon', 'trap': 'trap', 'zone': 'damage zone (Spawn marker)',
+    'summon': 'summon', 'trap': 'trap', 'zone': 'zone (Spawn marker)',
     'summon_marker': 'summon marker without behaviour', 'damage_missing': 'attack skill without Damage rows',
     'spirit_condition': 'needs a summoned spirit', 'skill_cond': 'needs SkillCond abnormal (Precision, …)', 'utility': 'utility without damage or effect row', 'chain': 'combo chain', 'dodge': 'dodge', 'passive': 'passive abnormal',
     'cc_hold': 'CC: hold (stun / hold / sleep / ...)', 'cc_slow': 'CC: slow / snare', 'cc_silence': 'CC: silence / block skill',

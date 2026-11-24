@@ -250,6 +250,11 @@ def native_host_env(runtime_dir: Path) -> dict[str, str]:
     geolocation.write_text(json.dumps(geolocation_response('59.9139,10.7522,NO')), encoding='utf-8')
     env['Aion__Platform__GeolocationFile'] = str(geolocation.resolve())
     env.update(_playtest_debug_env())
+    env.update({
+        'Aion__Database__MigrateOnStartup': 'true',
+        'Aion__Database__Tool': str((ROOT / 'tools/postgres_dev.py').resolve()),
+        'Aion__Database__PgHome': str(HOME.resolve()),
+    })
     return env
 
 

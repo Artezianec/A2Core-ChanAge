@@ -333,6 +333,9 @@ public interface IGameplayStore
     Task<bool> MoveBagItemAsync(VerifiedAccount account, Guid character, Guid item, long revision, int slot, CancellationToken ct = default);
     /// <summary>Moves a bag or warehouse item to a slot of 'bag' or 'storage' (the item on that slot takes the old one).</summary>
     Task<bool> MoveItemToContainerAsync(VerifiedAccount account, Guid character, Guid item, long revision, string location, int slot, CancellationToken ct = default) => Task.FromResult(false);
+    /// <summary>Batch move between bag, personal storage, and account storage (ItemStore / ItemTakeOut). "ok", "none", "failed", or "full".</summary>
+    Task<string> TransferContainerItemsAsync(VerifiedAccount account, Guid character, string fromLocation, string toLocation,
+        IReadOnlyList<(long WireKey, long Count)> transfers, int maxDestinationSlots, CancellationToken ct = default) => Task.FromResult("none");
     /// <summary>The character's mail, newest first (deleted ones left out).</summary>
     Task<IReadOnlyList<PostRecord>> PostsAsync(VerifiedAccount account, Guid character, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<PostRecord>>([]);
     /// <summary>Trusted server call (staff): a mail to any character; returns the stored post.</summary>
@@ -468,7 +471,7 @@ public interface IGameplayStore
     /// </summary>
     Task<RideRecord?> UseRideItemAsync(VerifiedAccount account, Guid character, Guid item, long revision, int rideId, CancellationToken ct = default);
     /// <summary>Uses up one soul item: the ride gains soul points (owned or not). Null when the item does not match.</summary>
-    Task<RideRecord?> AddRideSoulsAsync(VerifiedAccount account, Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct = default);
+    Task<RideRecord?> AddRideSoulsAsync(VerifiedAccount account, Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct = default, int consumeItems = 1);
     /// <summary>
     /// Acquires a ride for <paramref name="cost"/> soul points (VehicleList NeedSoul); missing points are
     /// paid with crystals of <paramref name="crystalType"/>, then All crystals. Null when it cannot.
@@ -477,7 +480,7 @@ public interface IGameplayStore
     /// <summary>Raises an owned ride's level for <paramref name="cost"/> soul points (VehicleLevel NeedSoulCount), crystals as above.</summary>
     Task<RideRecord?> LevelUpRideAsync(VerifiedAccount account, Guid character, int rideId, int cost, int crystalType, int maxLevel, CancellationToken ct = default);
     /// <summary>Uses up one crystal item: crystals of its type. The new amount, or null when the item does not match.</summary>
-    Task<int?> AddRideCrystalsAsync(VerifiedAccount account, Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct = default);
+    Task<int?> AddRideCrystalsAsync(VerifiedAccount account, Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct = default, int consumeItems = 1);
     /// <summary>
     /// Stores a creature board, paying crystals (by ESoulCrystalType) and Kina (a bag stack, revision-checked)
     /// in the same transaction; false when something is short or changed.

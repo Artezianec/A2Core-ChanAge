@@ -19,13 +19,48 @@
         ],
         "effect_id": 1528000211,
         "value4": "7",
-        "level_group": "Sorcerer_Skill028_LvUp"
+        "level_group": "Sorcerer_Skill025_LvUp"
       },
       "notes": {
         "source": "client export 2026-11-22",
         "spawn_lifetime_ms": "Spawn EffectValueList[7] = 0, 10000",
         "damage": "SkillEffect group 152800021 Damage row 1528000211",
         "tick_ms": "marker pulse NeedCoolTime when >= 250 ms else 1000 ms (OURS until summon AI)"
+      }
+    },
+    "17150000": {
+      "name": "Divine Aura",
+      "npc": 2920637,
+      "lifetime_ms": 9500,
+      "tick_ms": 800,
+      "radius": 400,
+      "max": 99,
+      "ally_abnormals": [
+        171500031,
+        171500041
+      ],
+      "abnormal_duration_ms": 1000,
+      "damage": {
+        "flat": [
+          394,
+          394
+        ],
+        "ratio": [
+          43108,
+          43108
+        ],
+        "effect_id": 1715000211,
+        "value4": "5"
+      },
+      "notes": {
+        "source": "client export 2026-11-22",
+        "spawn_lifetime_ms": "Spawn EffectValueList[7] = 500, 9500",
+        "ally_abnormals": "marker pulse skills 17150003/17150004 Abnormal_Passive groups 171500031/171500041",
+        "damage": "marker pulse skill 17150002 SkillEffect group 171500021 Damage row 1715000211",
+        "tick_ms": "marker pulse 17150002 NeedCoolTime 800 ms",
+        "radius": "Spawn EffectValueList[0] = 400",
+        "abnormal_duration_ms": "OURS until marker AI (buff renew between pulses)",
+        "max": "OURS (client Self pulse filter TargetCountMax 1 is not the aura ally cap)"
       }
     }
   }

@@ -600,7 +600,8 @@ var basicSkill = data.Skill(basic)!;
 var landAt = killAt + SkillTiming.HitLandMs(basicSkill, basicSkill.Damage.Length - 1) + 100;
 await game.HandleAsync(Cast(basic, Combat.TrainingDummyKey, pos), killAt);
 var kill = await game.TickAsync(landAt);
-Check(dummy.Dead && kill.Any(b => b.SequenceEqual(GamePackets.NpcHp(Combat.TrainingDummyKey, 0))), "HP 0 is the kill");
+Check(!dummy.Dead && dummy.Hp >= 1 && !kill.Any(b => b.SequenceEqual(GamePackets.NpcHp(Combat.TrainingDummyKey, 0))), "training dummy stays alive at 1 HP (retail TraDummy)");
+Check(!kill.Any(b => Op(b) == 0x8d04), "training dummy kill packet is not sent");
 Check(game.Level == 1 && game.Experience == 0 && !kill.Any(b => Op(b) == 0x8d07), "a level-1 character gets no kill experience (none below level 10, as recorded)");
 // Kill experience (GameSession.Experience.cs): grade 3 pays 390.8 x 1.085^level, grades 1/2/4 5/13, 8/13, 18/13 of it, less by
 // the level gap from +6, nothing below own level 10 or inside an instance.
@@ -612,7 +613,7 @@ static bool Near(long value, long recorded) => Math.Abs(value - recorded) <= rec
 Check(GameSession.GapFactor(5) == 1 && GameSession.GapFactor(7) == 0.6 && GameSession.GapFactor(9) == 0.2 && GameSession.GapFactor(24) == 0.1 && GameSession.GapFactor(-6) == 1,
       "the level gap: full to +5, 0.6/0.4/0.2 at +7/+8/+9, 0.1 from +10, full for stronger monsters");
 var respawn = await game.TickAsync(landAt + GameSession.RespawnMs + 50);
-Check(respawn.Any(b => b.SequenceEqual(GamePackets.Death(Combat.TrainingDummyKey))) && dummy.Hp == dummy.HpMax, "corpse respawns at full HP");
+Check(!respawn.Any(b => b.SequenceEqual(GamePackets.Death(Combat.TrainingDummyKey))) && dummy.Hp >= 1, "training dummy never enters corpse respawn");
 Check((await game.HandleAsync([0x30, 0x36], Now)).Single().SequenceEqual(GamePackets.Logout()), "logout reply");
 async Task<GameSession> BarSession(int level = 1)
 {
@@ -984,8 +985,9 @@ Check(new PacketWriter().String(new string('a', 130)).ToArray().AsSpan(0, 2).Seq
     hqElite.Hp = 0;
     HqRun(500);
     var stoodAt = hqSalros.Position;
-    Check(hqAi.Brains[3000].Mode == NpcAi.Mode.Idle && !hqAi.Brains[3000].Directed && hqAi.Brains[3001].Mode == NpcAi.Mode.Idle,
-          "when the prey dies both stand where the fight ended");
+    Check(hqAi.Brains[3000].Mode == NpcAi.Mode.Idle && !hqAi.Brains[3000].Directed && !hqAi.Brains[3000].Engaged
+          && hqAi.Brains[3001].Mode == NpcAi.Mode.Idle && !hqAi.Brains[3001].Engaged,
+          "when the prey dies both stand where the fight ended, not still Engaged (map-event walks would wait FightWaitMs)");
     HqRun(5000);
     Check(hqSalros.Position.DistanceSquared(stoodAt) < 1, "and stay there (no walk home)");
     hqAi.Walk(hqSalros, data.Route(100011, "N_L0_Starter_HQ002_Salros_Waypoints_2")!, hqNow);
@@ -1155,6 +1157,8 @@ Check(staffListing.Length == unflaggedListing.Length && staffListing.Zip(unflagg
       "staff account with a flagged character: Login_RS admin flag set, nothing else changes; a player account never gets it");
 Check(Listing(new GameSessionOptions { StaffRole = (_, _) => throw new InvalidOperationException("db down") }).SequenceEqual(listing),
       "failed role lookup logs in without the flag");
+Check(staffListing.SequenceEqual(Listing(new GameSessionOptions { StaffRole = gmOptions.StaffRole, ClientGmPanel = false }, flaggedStore)),
+      "ClientGmPanel off: Login_RS without the admin flag even when a staff character exists");
 Check(new[] { "GM_Elyra", "[GM]Elyra", "[GM] Elyra", "gm elyra", "GMElyra", "GameMaster", "Admin", "[Admin]Elyra", "admin_x", "Administrator" }.All(CharacterNames.IsStaffStyle)
       && !new[] { "Gmork", "Magma", "Elyra", "Agm", "Adminah" }.Any(CharacterNames.IsStaffStyle), "staff-style names");
 Check(CharacterNames.Display("Elyra", "gamemaster") == "[GM] Elyra" && CharacterNames.Display("Elyra", "admin") == "[Admin] Elyra"
@@ -2901,9 +2905,9 @@ sealed class FakeStore : INativeCharacterStore
         foreach (var type in types) { var take = Math.Min(CrystalRows.GetValueOrDefault(type), rest); CrystalRows[type] = CrystalRows.GetValueOrDefault(type) - take; rest -= take; }
         return true;
     }
-    public Task<int?> AddRideCrystalsAsync(Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct)
+    public Task<int?> AddRideCrystalsAsync(Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct, int consumeItems = 1)
     {
-        if (!Consume(item, revision, 1)) return Task.FromResult<int?>(null);
+        if (consumeItems > 0 && !Consume(item, revision, consumeItems)) return Task.FromResult<int?>(null);
         CrystalRows[crystalType] = CrystalRows.GetValueOrDefault(crystalType) + count;
         return Task.FromResult<int?>(CrystalRows[crystalType]);
     }
@@ -3217,9 +3221,9 @@ sealed class FakeStore : INativeCharacterStore
             States[idx] = States[idx] with { Progress = States[idx].Progress with { Level = level, Experience = experience } };
         return Task.FromResult(true);
     }
-    public Task<RideRecord?> AddRideSoulsAsync(Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct)
+    public Task<RideRecord?> AddRideSoulsAsync(Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct, int consumeItems = 1)
     {
-        if (!Consume(item, revision, 1)) return Task.FromResult<RideRecord?>(null);
+        if (consumeItems > 0 && !Consume(item, revision, consumeItems)) return Task.FromResult<RideRecord?>(null);
         var index = RideRows.FindIndex(r => r.RideId == rideId);
         if (index >= 0) RideRows[index] = RideRows[index] with { SoulPoints = RideRows[index].SoulPoints + souls };
         else RideRows.Add(new RideRecord(rideId, 1, souls, Owned: false));

@@ -35,3 +35,31 @@ Observed official response (POST `/`, `application/octet-stream` body, 2026-11-0
 - **Body:** empty (`Content-Length: 0`)
 
 A private sink must not answer `404 text/plain`; that pattern correlates with NCGuard closing the session (`0xE0000015`).
+
+## sdk.gpa.ncsoft.com (GPA SDK, NCGuard port)
+
+After `POST /authz/token` the client refreshes the token about **every 60 s** and sends **`POST /api/device/data`**
+with JSON telemetry (often once early in the session; a later retry may open TLS without completing HTTP — see logging).
+The GPA SDK treats **`access_token` as a JWT**: `exp`/`iat` must line up with `expires_in`. An opaque string still
+returns HTTP 200 but correlates with a timed self-disconnect (~7–8 min).
+When the sink answered **404** on that path (playtest 2026-11-23), the session ended about **seven minutes**
+after login: a new TLS handshake to `sdk.gpa.ncsoft.com`, the chat **/stomp** WebSocket aborted, then the game TCP
+connection closed (`0xe259` NCGuardData_RQ bursts precede the drop; those stay **silent** — see above).
+
+Built-in sink replies (**CANDIDATE** until an official capture is in-repo):
+
+- `/authz/token` and `/authn/token`: OAuth JSON with HS256 JWT `access_token` / `refresh_token` (`GpaOAuthTokens`).
+- `/api/device/*`: `200` `application/json` `{"errorCode":0,"message":"success"}`.
+
+**Logging:** every `sdk.gpa.ncsoft.com` HTTP exchange logs grant type (from `grant_type=` only), protocol, sizes, and
+status; TLS closes without a completed HTTP exchange log as **TLS closed without a completed HTTP exchange** (the
+22:52:09 handshake-with-no-HTTP pattern).
+
+**Fixtures:** do not pin a static `/authz/token` body in `fixture.json` — that bypasses the JWT builtin and restores
+the 159-byte opaque token.
+
+## STOMP vs game disconnect
+
+When the client self-disconnects after GPA failure, **/stomp** is torn down in the same moment (`the application aborted
+the connection` on the server). That is the client exiting, not an independent chat idle timeout (negotiated heart-beats
+keep the socket open when GPA is healthy).

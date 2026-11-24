@@ -9,17 +9,18 @@ namespace Aion.Host.NcGuard;
 /// </summary>
 public static class NcGuardBuiltinResponses
 {
-    sealed record BuiltinRule(string Host, string? Method, string? Path, string ContentType, byte[] Body);
+    sealed record BuiltinRule(string Host, string? Method, string? Path, string? PathPrefix, string ContentType, byte[] Body);
 
     static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = null };
 
     static readonly BuiltinRule[] Rules =
     [
         // Observed official: POST / with binary telemetry → 200 text/html, empty body (research/e259-ncguard.md).
-        new("bladnoch.ncsoft.com", "POST", "/", "text/html", []),
-        new("sdk.gpa.ncsoft.com", "POST", "/authz/token", "application/json", AuthzTokenBody()),
-        // CANDIDATE: some client builds call authn after authz; same token envelope until a capture refines it.
-        new("sdk.gpa.ncsoft.com", "POST", "/authn/token", "application/json", AuthzTokenBody()),
+        new("bladnoch.ncsoft.com", "POST", "/", null, "text/html", []),
+        // authz/authn/token: dynamic JWT replies via <see cref="GpaOAuthTokens"/> in <see cref="NcGuardSink"/>.
+        // CANDIDATE: periodic GPA telemetry (~7 min without this → 404 and the client self-disconnects). Shape is
+        // inferred from other NC GPA JSON (errorCode 0); refine when an official sdk.gpa capture is in-repo.
+        new("sdk.gpa.ncsoft.com", "POST", null, "/api/device/", "application/json", DeviceApiSuccessBody()),
     ];
 
     public static bool TryReply(string host, string method, string path, out byte[] body, out string contentType)
@@ -29,6 +30,7 @@ public static class NcGuardBuiltinResponses
             if (!string.Equals(rule.Host, host, StringComparison.OrdinalIgnoreCase)) continue;
             if (rule.Method is not null && !string.Equals(rule.Method, method, StringComparison.OrdinalIgnoreCase)) continue;
             if (rule.Path is not null && path != rule.Path) continue;
+            if (rule.Path is null && rule.PathPrefix is not null && !path.StartsWith(rule.PathPrefix, StringComparison.Ordinal)) continue;
             body = rule.Body;
             contentType = rule.ContentType;
             return true;
@@ -38,12 +40,9 @@ public static class NcGuardBuiltinResponses
         return false;
     }
 
-    static byte[] AuthzTokenBody() => Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
+    static byte[] DeviceApiSuccessBody() => Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
     {
-        access_token = "aion-local-gpa-access-token",
-        token_type = "Bearer",
-        expires_in = 86_400,
-        refresh_token = "aion-local-gpa-refresh-token",
-        scope = "openid profile",
+        errorCode = 0,
+        message = "success",
     }, Json));
 }

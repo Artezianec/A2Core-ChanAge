@@ -24,7 +24,8 @@ public sealed class BittercoldWindTests
         var zone = PcZones.For(BittercoldWind)!;
         Assert.Equal(2920011, zone.Npc);
         Assert.Equal(10, zone.Ticks);
-        Assert.Equal(1528000211, zone.Damage.EffectId);
+        Assert.NotNull(zone.Damage);
+        Assert.Equal(1528000211, zone.Damage!.EffectId);
         Assert.Equal(238, zone.Damage.Flat[0]);
         Assert.Equal(23225, zone.Damage.Ratio[0]);
         Assert.Equal("7", zone.Damage.Value4);

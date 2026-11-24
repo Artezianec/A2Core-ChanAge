@@ -45,6 +45,8 @@ public sealed record NativeOptions
     public bool ExperimentalRandomShopArcana { get; init; } = true;
     /// <summary>Development logins only: character names allowed to use the /gm chat commands.</summary>
     public string[] DevelopmentGmNames { get; init; } = [];
+    /// <summary>When true (default), Login_RS _is_admin is set for staff lobby accounts and 0x362e is handled.</summary>
+    public bool ClientGmPanel { get; init; } = true;
     /// <summary>Ground grids (tools/TerrainProbe: &lt;dir&gt;/&lt;map id&gt;/terrain.bin); unset: research/local/terrain above the host, if any.</summary>
     public string? TerrainDirectory { get; init; }
     /// <summary>Navigation meshes (tools/NavProbe: &lt;dir&gt;/&lt;map id&gt;/nav.bin); unset: research/local/navmesh above the host, if any.</summary>
@@ -66,6 +68,15 @@ public sealed record NativeOptions
     public bool MapEventAskNpcProximityFallback { get; init; }
 
     public bool Development => string.Equals(Logins, "development", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Env <c>AION_CLIENT_GM_PANEL</c> overrides <paramref name="fromConfig"/> when set.</summary>
+    public static bool ResolveClientGmPanel(bool? fromConfig = null)
+    {
+        var raw = Environment.GetEnvironmentVariable("AION_CLIENT_GM_PANEL");
+        if (!string.IsNullOrWhiteSpace(raw))
+            return raw.Trim() is not ("0" or "false" or "False" or "off" or "no");
+        return fromConfig ?? true;
+    }
 }
 
 /// <summary>
@@ -339,6 +350,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
             AutoResurrectMsOverride = Options.Development ? GameSession.ReviveDelayMs : null,
             MapEventAskNpcProximityFallback = Options.MapEventAskNpcProximityFallback,
             Rates = services.GetService<ServerRates>() ?? ServerRates.Official,
+            ClientGmPanel = Options.ClientGmPanel,
         }, new Random());
         session.ConnectionLog = text => Logger.LogInformation("Native game {Message}", text);
         // With a shared world, sessions take turns (WorldTurn): world work alone, map work in parallel per map;

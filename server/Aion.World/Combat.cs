@@ -141,6 +141,13 @@ public static class Combat
     public const int TrainingDummyKey = 1000;
     // NpcData 2400032 M_D1_FV_TraDummy_01_01 (training-dummy model, level 10).
     public const int SandbagNpcId = 2400032, SandbagLevel = 10;
+    /// <summary>Retail TraDummy NPCs (MapData names, sandbag NpcData, dev key 1000) take damage but normally do not die.</summary>
+    public static bool IsTrainingDummy(Target t) =>
+        t.Key == TrainingDummyKey || t.NpcId == SandbagNpcId || t.Name.Contains("TraDummy", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>HP after a hit; training dummies stay at or above 1 HP unless <paramref name="killAllowed"/>.</summary>
+    public static int HpAfterDamage(Target t, int hpBefore, int damage, bool killAllowed) =>
+        killAllowed || !IsTrainingDummy(t) ? Math.Max(0, hpBefore - damage) : Math.Max(1, hpBefore - damage);
     // Entity keys: 1 is the player, 1000 the training dummy, map NPCs from 2000.
     public const int FirstNpcKey = 2000;
     // Official 0x3641 HP of ordinary NPCs by NpcData level; other levels interpolated.

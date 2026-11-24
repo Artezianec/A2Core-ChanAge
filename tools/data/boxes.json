@@ -4,6 +4,7 @@
     "AscensionGrade",
     "Fix_VehicleCreatureLevel",
     "GetDaevanionPoint",
+    "GetDutyQuest",
     "GetKina",
     "GetNonBindingKina",
     "GetQuest",

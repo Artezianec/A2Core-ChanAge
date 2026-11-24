@@ -69,6 +69,7 @@ public sealed partial class GameSession
         if (Godstones.Of(stoneId) is null) return null;
         var consumed = await Stored(async () => await store.ConsumeItemAsync(character, row.InstanceId, row.Revision, useCount, ct) ? [[]] : []);
         if (consumed.Count == 0) return null;
+        usedCountApplied = true;
         await RegisterGodstonesAsync([(stoneId, useCount)], ct);
         var count = godstoneCollection.GetValueOrDefault(stoneId);
         return
@@ -254,7 +255,7 @@ public sealed partial class GameSession
             var damage = target.Landed(Godstones.ProcDamage(stone));
             if (damage > 0 && !target.Dead && !target.Immune)
             {
-                target.Hp = Math.Max(0, target.Hp - damage);
+                target.Hp = ApplyDamageToNpc(target, damage);
                 var effect = Godstones.ProcEffectId(stone);
                 replies.Add(GamePackets.SkillHit(target.Key, playerKey, skill, effect, damage, false, 99));
                 replies.Add(GamePackets.NpcHp(target.Key, target.Hp));
