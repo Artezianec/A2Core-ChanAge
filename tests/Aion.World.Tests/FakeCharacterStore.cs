@@ -1070,6 +1070,29 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         RewardLimits.AddRange(rows);
         return Task.FromResult(true);
     }
+    public List<BattlePassWeeklyRecord> BattlePassWeekly { get; } = [];
+    public Task<IReadOnlyList<BattlePassWeeklyRecord>> BattlePassWeeklyAsync(Guid character, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<BattlePassWeeklyRecord>>(BattlePassWeekly.ToList());
+    public int BattlePassWeeklySaves { get; private set; }
+    public bool BattlePassWeeklySaveFails { get; set; }
+    public Task<bool> SaveBattlePassWeeklyAsync(Guid character, IReadOnlyList<BattlePassWeeklyRecord> rows, CancellationToken ct)
+    {
+        BattlePassWeeklySaves++;
+        if (BattlePassWeeklySaveFails) return Task.FromResult(false);
+        foreach (var row in rows)
+        {
+            var index = BattlePassWeekly.FindIndex(r => r.GroupId == row.GroupId);
+            if (index < 0) BattlePassWeekly.Add(row);
+            else
+            {
+                var prev = BattlePassWeekly[index];
+                if (row.WeekStartMs > prev.WeekStartMs) BattlePassWeekly[index] = row;
+                else if (row.WeekStartMs == prev.WeekStartMs)
+                    BattlePassWeekly[index] = row with { Exp = Math.Max(prev.Exp, row.Exp) };
+            }
+        }
+        return Task.FromResult(true);
+    }
     public List<DungeonCooltimeRecord> DungeonCooltimes { get; } = [];
     public Task<IReadOnlyList<DungeonCooltimeRecord>> DungeonCooltimesAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<DungeonCooltimeRecord>>(DungeonCooltimes.ToList());
     public int DungeonCooltimeSaves { get; private set; }

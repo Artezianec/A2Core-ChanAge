@@ -65,6 +65,8 @@ public sealed partial class GameSession
         if (def.Damage.Length > 0 || resources is null) return [];
         var rows = PortedSkillAbnormals.SelfRows(skill);
         if (rows.Count == 0) rows = PortedSkillAbnormals.TargetRows(skill);
+        if (rows.Count == 0 && (StigmaData.IsStigma(skill) || StigmaData.StigmaOfVariant(skill) is not null))
+            rows = StigmaData.SelfRows(skill);
         if (rows.Count == 0) return [];
         var replies = new List<byte[]>();
         var speedBefore = BuffStat("MoveSpeed");

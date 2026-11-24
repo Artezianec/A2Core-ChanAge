@@ -155,6 +155,8 @@ public interface INativeCharacterStore : IAsyncDisposable
     Task ApplyWeeklyLegionResetsAsync(long weeklyBoundaryMs, CancellationToken ct) => Task.CompletedTask;
     Task<IReadOnlyList<RewardLimitRecord>> RewardLimitsAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<RewardLimitRecord>>([]);
     Task<bool> SaveRewardLimitsAsync(Guid character, IReadOnlyList<RewardLimitRecord> rows, CancellationToken ct) => Task.FromResult(false);
+    Task<IReadOnlyList<BattlePassWeeklyRecord>> BattlePassWeeklyAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<BattlePassWeeklyRecord>>([]);
+    Task<bool> SaveBattlePassWeeklyAsync(Guid character, IReadOnlyList<BattlePassWeeklyRecord> rows, CancellationToken ct) => Task.FromResult(false);
     Task<IReadOnlyList<DungeonCooltimeRecord>> DungeonCooltimesAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<DungeonCooltimeRecord>>([]);
     Task<bool> SaveDungeonCooltimesAsync(Guid character, IReadOnlyList<DungeonCooltimeRecord> rows, CancellationToken ct) => Task.FromResult(false);
     Task<IReadOnlyList<SkillPartRecord>> SkillPartsAsync(Guid character, CancellationToken ct) => Task.FromResult<IReadOnlyList<SkillPartRecord>>([]);

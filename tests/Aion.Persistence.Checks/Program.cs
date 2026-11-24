@@ -5,6 +5,7 @@ using Aion.Core;
 using Aion.Core.Accounts;
 using Aion.Core.Characters;
 using Aion.Infrastructure.Postgres;
+using Aion.World;
 using Npgsql;
 
 var connectionString = Environment.GetEnvironmentVariable("AION_TEST_DATABASE")
@@ -427,10 +428,13 @@ await using(var source=NpgsqlDataSource.Create(connectionString))
     await game.SaveResetCursorsAsync(1204,cursor);
     Check(true,"world reset cursors save");
     Check(await game.SaveRewardLimitsAsync(first,id,[new RewardLimitRecord(1,"2026-10-16",3)]),"reward limits save");
+    var passWeek=ContentResetSchedule.WeeklyStartMs(DateTimeOffset.Parse("2026-10-14T08:00:00Z").ToUnixTimeMilliseconds());
+    Check(await game.SaveBattlePassWeeklyAsync(first,id,[new BattlePassWeeklyRecord(10044,passWeek,1200)]),"battle pass weekly save");
     Check(await game.SaveDungeonCooltimesAsync(first,id,[new DungeonCooltimeRecord(600000,DateTimeOffset.Parse("2026-10-20T07:00:00Z").ToUnixTimeMilliseconds())]),"dungeon cooltimes save");
     Check((await store2.PostsAsync(first,id))!.Any(p=>p.Id==mail!.Id),"mail survives restart");
     Check((await store2.ResetCursorsAsync(1204)).DailyBoundaryMs==cursor.DailyBoundaryMs,"reset cursors survive restart");
     Check((await store2.RewardLimitsAsync(first,id)).Single().Count==3,"reward limits survive restart");
+    Check((await store2.BattlePassWeeklyAsync(first,id)).Single(r=>r.GroupId==10044).Exp==1200,"battle pass weekly survives restart");
     Check((await store2.DungeonCooltimesAsync(first,id)).Single().DungeonId==600000,"dungeon cooltimes survive restart");
     var nativeReload=await new PostgresCharacterRepository(reopened).LoadOwnedAsync(first.AccountId,id,default);
     Check(nativeReload!.Progress.Level==12 && nativeReload.Progress.Experience==98765,"level and experience survive restart");

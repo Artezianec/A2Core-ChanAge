@@ -92,7 +92,7 @@ public sealed class SubscribeWindowTests
             Assert.Equal(GameSession.MembershipDurationMs, s.End - s.Start);
         });
 
-        var passes = Passes(entry.Single(p => Op(p) == GameSession.BattlePassInfoListNt));
+        var passes = Passes(entry.Last(p => Op(p) == GameSession.BattlePassInfoListNt));
         Assert.Equal([10044, 10045], passes.Select(g => g.Id).Order().ToList());
         var global = passes.Single(g => g.Id == GlobalPass);
         Assert.Equal([100150], global.Held);
@@ -107,9 +107,10 @@ public sealed class SubscribeWindowTests
         store.Items.Add(FakeCharacterStore.BagItem(PlatformGoodsTables.Embedded.QunaItemId, 10_000, 7000));
         var (session, _, _) = await EnterAsync(store, LiveNow);
 
+        var totalBefore = session.AchievementCount(FreeExp);
         var exp = session.GrantBattlePassExp(3000, LiveNow);
-        Assert.Equal(3000, Passes(exp.Last(p => Op(p) == GameSession.BattlePassInfoListNt)).Single(g => g.Id == GlobalPass).TotalExp);
-        Assert.Equal(3000, session.AchievementCount(FreeExp));
+        Assert.Equal(totalBefore + 3000, Passes(exp.Last(p => Op(p) == GameSession.BattlePassInfoListNt)).Single(g => g.Id == GlobalPass).TotalExp);
+        Assert.Equal(totalBefore + 3000, session.AchievementCount(FreeExp));
 
         var claimed = await session.HandleAsync(Claim(GlobalPass, FreeExp, 2), LiveNow + 1);
         Assert.Equal(GameSession.TakeBattlePassRewardRs, Op(claimed[0]));

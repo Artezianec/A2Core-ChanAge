@@ -288,13 +288,15 @@ public sealed partial class GameSession
             "GetDaevanionPoint" => await UseDaevanionPointItemAsync(store, character, row, use, reply: false, ct, useCount),
             "GetStigmaShard" => await UseStigmaShardItemAsync(store, character, row, use, reply: false, ct, useCount),
             "GetGodstone" => await UseGodstoneItemAsync(store, character, row, reply: false, useCount, ct),
+            "BattlePassExp" or "AddContentsTicket" or "Fix_DaevanionPoint" or "GetStigmaShardSuperior" =>
+                await UseItemAsync(uid, now, ct, reply: false, count: useCount),
             "RewardBox" => await OpenBoxAsync(uid, 0, useCount, now, ct),
             _ => await UseItemAsync(uid, now, ct, reply: false, count: useCount),
         };
         if (effectReplies is null)
         {
             if (use is not null)
-                LogItemUseRefused(itemId, use.Effect, Boxes.ImplementsUseEffect(use.Effect) ? "handler_failed" : "unimplemented_use_effect");
+                LogItemUseRefused(itemId, use.Effect, ItemUseRefusalReason(use.Effect));
             return Fail(uid);
         }
         if (effectReplies.Count == 0) return Fail(uid);
@@ -304,7 +306,7 @@ public sealed partial class GameSession
         {
             var cooldown = Boxes.Cooldown(row.TemplateId);
             // Return scroll: the cooldown starts when the cast completes (CompleteItemCastAsync).
-            if (cooldown.Group != "None" && use.Effect != "Telpo_Home")
+            if (cooldown.Group != "None" && use.Effect is not "Telpo_Home" and not "Telpo_Agit")
             {
                 itemCooldowns[cooldown.Group] = now + cooldown.CooldownMs;
                 MarkItemCooldownDirty();
@@ -352,36 +354,14 @@ public sealed partial class GameSession
         }
         var cooldown = Boxes.Cooldown(row.TemplateId);
         if (cooldown.Group != "None" && now < itemCooldowns.GetValueOrDefault(cooldown.Group)) return Fail();
-        var replies = use.Effect switch
-        {
-            "GetVehicle" => await UsePetItemAsync(store, character, row, use, reply, ct),
-            "GetVehicleSoul" => await UseSoulItemAsync(store, character, row, use, reply, ct, count),
-            "GetVehicleSoulCrystal" => await UseCrystalItemAsync(store, character, row, use, reply, ct, count),
-            "Fix_VehicleCreatureLevel" => await UseBoardLevelItemAsync(store, character, row, use, reply, ct),
-            "Skill" => await UseSkillItemAsync(store, character, row, use, reply, now, ct),
-            "Telpo_Home" when itemCast is null => StartItemCast(row, cooldown, reply, now),
-            "GetKina" or "GetNonBindingKina" when use.Values is [var amount, ..] && long.TryParse(amount, out var kina) && kina > 0 =>
-                await UseKinaItemAsync(store, character, row, kina, Math.Clamp(count, 1, (int)Math.Min(int.MaxValue, row.Quantity)), reply, ct),
-            "GetTitle" when use.Values is [var titleText, ..] && int.TryParse(titleText, out var titleId) => await UseTitleItemAsync(store, character, row, titleId, reply, ct),
-            "GetSkin" or "GetSkinSet" when use.Values is [{ Length: > 0 }, ..] => await UseSkinItemAsync(store, character, row, use, reply, ct),
-            "GetSocialAction" when use.Values is [var emoteText, ..] && int.TryParse(emoteText, out var emote) => await UseSocialActionItemAsync(store, character, row, emote, reply, ct),
-            "GetDaevanionPoint" => await UseDaevanionPointItemAsync(store, character, row, use, reply, ct, count),
-            "GetStigmaShard" => await UseStigmaShardItemAsync(store, character, row, use, reply, ct, count),
-            "GetGodstone" => await UseGodstoneItemAsync(store, character, row, reply, count, ct),
-            "GetWing" when use.Values is [var wingText, ..] && int.TryParse(wingText, out var wing) && wing > 0 => await UseWingItemAsync(store, character, row, wing, reply, ct),
-            "AscensionGrade" when use.Values is [var gradeText, ..] && int.TryParse(gradeText.Split('_')[^1], out var grade) && grade is >= 2 and <= 6 =>
-                await UseAscensionItemAsync(store, character, row, grade, reply, ct),
-            "GetQuest" => null,
-            _ when AgitDecoTables.Embedded.TryDecoId(row.TemplateId, out var decoId) => await UseAgitDecoItemAsync(store, character, row, decoId, reply, ct),
-            _ => null,
-        };
+        var replies = await DispatchItemUseEffectAsync(store, character, row, use, reply, now, ct, count);
         if (replies is null)
         {
-            LogItemUseRefused(itemId, use.Effect, Boxes.ImplementsUseEffect(use.Effect) ? "handler_failed" : "unimplemented_use_effect");
+            LogItemUseRefused(itemId, use.Effect, ItemUseRefusalReason(use.Effect));
             return Fail();
         }
         // Return scroll: the cooldown starts when the cast completes (CompleteItemCastAsync), not at cast start.
-        if (cooldown.Group != "None" && use.Effect != "Telpo_Home")
+        if (cooldown.Group != "None" && use.Effect is not "Telpo_Home" and not "Telpo_Agit")
         {
             itemCooldowns[cooldown.Group] = now + cooldown.CooldownMs;
             MarkItemCooldownDirty();
@@ -623,7 +603,10 @@ public sealed partial class GameSession
         }
         var completed = RidePackets.ItemUseCompleted(playerKey, cast.Key, cast.ItemId);
         worldPlayer?.Map?.Broadcast(worldPlayer, [completed]);
-        var (targetMap, home) = TelpoHomeDestination();
+        var use = Boxes.Use(cast.ItemId);
+        var (targetMap, home) = use?.Effect == "Telpo_Agit" ? TelpoAgitDestination() : TelpoHomeDestination();
+        if (use?.Effect == "Telpo_Agit" && (guild?.AgitId is not > 0 || targetMap == 0))
+            return [RidePackets.ItemUseInterrupted(playerKey, cast.Key, cast.ItemId, 0)];
         return [completed, RidePackets.ItemUsed(cast.Key, cast.ItemId), .. await InventoryChangesAsync(ct, 0, DecreaseItemUse), .. Teleport(targetMap, home, now)];
     }
 

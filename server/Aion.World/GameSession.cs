@@ -41,6 +41,8 @@ public sealed record GameSessionOptions
     public bool TrainingDummy { get; init; }
     /// <summary>Refuse dungeon entries without the ticket MapEntrance names (GameSession.ContentTickets.cs); off: count only.</summary>
     public bool EnforceContentTickets { get; init; }
+    /// <summary>Clamp Daeva Pass EXP gains to the group's weekly limit (Aion:BattlePass:EnforceWeeklyCap; default off).</summary>
+    public bool EnforceBattlePassWeeklyCap { get; init; }
     /// <summary>The live Black Cloud Merchants and Arcana requests (GameSession.BlackCloudShop.cs, GameSession.Arcana.cs); default on, as official.</summary>
     public bool ExperimentalRandomShopArcana { get; init; } = true;
     /// <summary>The race of the world this wire account picked on the login port (<see cref="WorldChoices"/>); null: none known.</summary>
@@ -1512,6 +1514,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 await LoadSeasonRankingAsync(store, state.Summary.CharacterId, now, ct);   // GameSession.Ranking.cs
                 LoadContentTickets(await store.ContentTicketsAsync(state.Summary.CharacterId, ct));   // GameSession.ContentTickets.cs
                 LoadRewardLimits(await store.RewardLimitsAsync(state.Summary.CharacterId, ct));
+                LoadBattlePassWeekly(await store.BattlePassWeeklyAsync(state.Summary.CharacterId, ct));
                 LoadDungeonCooltimes(await store.DungeonCooltimesAsync(state.Summary.CharacterId, ct));
                 LoadAbyss(await store.AbyssAsync(state.Summary.CharacterId, ct), now);
                 await EnsureAirspaceLoadedAsync(ct);
@@ -3210,6 +3213,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         ContentTicketRechargeTick(now);
         replies.AddRange(ContentTicketUpdates());   // 0x610c for the tickets spent or recharged since the last tick
         await FlushRewardLimitsAsync(now, ct);
+        await FlushBattlePassWeeklyAsync(now, ct);
         await FlushDungeonCooltimesAsync(now, ct);
         await FlushBuffSettingsAsync(now, ct);
         // Play time: a minute at a time to the ElapsedTime achievements without a movement state (steps are minutes:
@@ -3319,6 +3323,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         await FlushDailyRecordsAsync(ct);
         await FlushContentTicketsAsync(ct);
         await FlushRewardLimitsAsync(now, ct, force: true);
+        await FlushBattlePassWeeklyAsync(now, ct, force: true);
         await FlushDungeonCooltimesAsync(now, ct, force: true);
         await FlushContentResetWorkAsync(ct);
         await SaveLogoutStateAsync(now, ct);   // the buffs' time left and the flight gauge (GameSession.Buffs.cs)

@@ -19,8 +19,11 @@ def _handled_effects(boxes: dict) -> set[str]:
         return set(handled)
     return {
         'RewardBox', 'GetVehicle', 'GetVehicleSoul', 'GetVehicleSoulCrystal', 'Fix_VehicleCreatureLevel',
-        'Skill', 'Telpo_Home', 'GetKina', 'GetNonBindingKina', 'GetTitle', 'GetSkin', 'GetSkinSet',
-        'GetSocialAction', 'GetDaevanionPoint', 'GetQuest', 'GetWing', 'AscensionGrade',
+        'Skill', 'Telpo_Home', 'Telpo_Agit', 'GetKina', 'GetNonBindingKina', 'GetTitle', 'GetSkin', 'GetSkinSet',
+        'GetSocialAction', 'GetDaevanionPoint', 'Fix_DaevanionPoint', 'GetGodstone', 'GetStigmaShard',
+        'GetStigmaShardSuperior', 'GetDutyQuest', 'GetQuest', 'GetWing', 'AscensionGrade',
+        'BattlePassExp', 'BattlePassUnlock', 'AddContentsTicket', 'GetDeco',
+        'Customize', 'Succession', 'EnchantScroll', 'SoulAdd', 'ImprintMagicStone', 'SealStone',
     }
 
 SKILL_INSTANT = {'HpHeal_Item', 'HpHealRatio_Item', 'MpHeal_Item', 'FpHeal_Item', 'Dispel_True', 'NoEffect'}

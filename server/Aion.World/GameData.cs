@@ -115,7 +115,9 @@ public sealed record SkillDefinition(
     [property: JsonPropertyName("end_ms")] double? EndMs = null,
     // SkillLv.dat NeedCoolTime at skill levels 2, 3, ... when it differs from level 1.
     [property: JsonPropertyName("cooldown_levels")] int[]? CooldownLevels = null,
-    [property: JsonPropertyName("hold_charge")] SkillHoldCharge? HoldCharge = null)
+    [property: JsonPropertyName("hold_charge")] SkillHoldCharge? HoldCharge = null,
+    /// <summary>Stigma self-buffs on cast: [abnormal, min_ms, max_ms, level, chance, effect_row] (tools/stigmas.py self_buffs).</summary>
+    [property: JsonPropertyName("self_buffs")] int[][]? SelfBuffs = null)
 {
     /// <summary>Cooldown at a skill level: SkillLv.dat when level 2+ lists one (level N uses row N, CANDIDATE), else <see cref="CooldownMs"/>.</summary>
     public int CooldownAt(int skillLevel) =>

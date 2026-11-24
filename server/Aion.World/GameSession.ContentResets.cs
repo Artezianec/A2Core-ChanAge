@@ -70,9 +70,15 @@ public sealed partial class GameSession
         }
         if (weekly > characterWeeklyResetMs)
         {
+            var firstWeek = characterWeeklyResetMs == 0;
             characterWeeklyResetMs = weekly;
             replies.AddRange(ResetWeeklyAchievementStates(now));
-            if (notifyClient) replies.Add(RewardLimitResetPacket([2]));
+            if (!firstWeek)
+            {
+                ResetPassWeeklyExpForWeek(now);
+                if (notifyClient) replies.AddRange([RewardLimitResetPacket([2]), BattlePassInfoList(now)]);
+            }
+            else if (notifyClient) replies.Add(RewardLimitResetPacket([2]));
         }
         var monthly = ContentResetSchedule.PeriodStartMs(3, now);
         if (monthly > characterMonthlyResetMs)

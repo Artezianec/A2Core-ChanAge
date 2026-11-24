@@ -2613,6 +2613,34 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
         await t.CommitAsync(ct); return true;
     }
 
+    public async Task<IReadOnlyList<BattlePassWeeklyRecord>> BattlePassWeeklyAsync(VerifiedAccount account, Guid character, CancellationToken ct=default)
+    {
+        await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
+        if(!await Own(c,t,account.AccountId,character,ct)) return new List<BattlePassWeeklyRecord>();
+        var rows=new List<BattlePassWeeklyRecord>();
+        await using var q=Query(c,t,"SELECT group_id,week_start_ms,exp FROM game.character_battle_pass_weekly WHERE character_id=$1",character);
+        await using var r=await q.ExecuteReaderAsync(ct);
+        while(await r.ReadAsync(ct)) rows.Add(new(r.GetInt32(0),r.GetInt64(1),r.GetInt32(2)));
+        return rows;
+    }
+
+    public async Task<bool> SaveBattlePassWeeklyAsync(VerifiedAccount account, Guid character, IReadOnlyList<BattlePassWeeklyRecord> rows, CancellationToken ct=default)
+    {
+        await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
+        if(!await Own(c,t,account.AccountId,character,ct)) return false;
+        foreach(var row in rows)
+            await Execute(c,t,"INSERT INTO game.character_battle_pass_weekly(character_id,group_id,week_start_ms,exp,updated_at) VALUES($1,$2,$3,$4,now()) "
+                +"ON CONFLICT (character_id,group_id) DO UPDATE SET "
+                +"week_start_ms=CASE WHEN EXCLUDED.week_start_ms>game.character_battle_pass_weekly.week_start_ms THEN EXCLUDED.week_start_ms "
+                +"WHEN EXCLUDED.week_start_ms<game.character_battle_pass_weekly.week_start_ms THEN game.character_battle_pass_weekly.week_start_ms "
+                +"ELSE EXCLUDED.week_start_ms END, "
+                +"exp=CASE WHEN EXCLUDED.week_start_ms>game.character_battle_pass_weekly.week_start_ms THEN EXCLUDED.exp "
+                +"WHEN EXCLUDED.week_start_ms<game.character_battle_pass_weekly.week_start_ms THEN game.character_battle_pass_weekly.exp "
+                +"ELSE GREATEST(game.character_battle_pass_weekly.exp,EXCLUDED.exp) END, "
+                +"updated_at=now()",ct,character,row.GroupId,row.WeekStartMs,row.Exp);
+        await t.CommitAsync(ct); return true;
+    }
+
     public async Task<IReadOnlyList<DungeonCooltimeRecord>> DungeonCooltimesAsync(VerifiedAccount account, Guid character, CancellationToken ct=default)
     {
         await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);

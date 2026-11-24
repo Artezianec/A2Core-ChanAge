@@ -104,6 +104,8 @@ public sealed record AirspaceWorldRecord(IReadOnlyList<AirspaceOwnerRecord> Owne
 public sealed record WorldResetCursorRecord(long DailyBoundaryMs, long WeeklyBoundaryMs);
 /// <summary>ContentsReset reward limit counter (migration 081).</summary>
 public sealed record RewardLimitRecord(int LimitType, string Period, int Count);
+/// <summary>Daeva Pass weekly EXP for a group (migration 143).</summary>
+public sealed record BattlePassWeeklyRecord(int GroupId, long WeekStartMs, int Exp);
 /// <summary>Instance lockout until Unix ms (migration 082).</summary>
 public sealed record DungeonCooltimeRecord(int DungeonId, long UntilMs);
 /// <summary>Craft recipe periodic limit (migration 083): target 1 char, 2 account, 3 world.</summary>
@@ -407,6 +409,10 @@ public interface IGameplayStore
     Task<IReadOnlyList<RewardLimitRecord>> RewardLimitsAsync(VerifiedAccount account, Guid character, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<RewardLimitRecord>>([]);
     Task<bool> SaveRewardLimitsAsync(VerifiedAccount account, Guid character, IReadOnlyList<RewardLimitRecord> rows, CancellationToken ct = default) => Task.FromResult(false);
+    Task<IReadOnlyList<BattlePassWeeklyRecord>> BattlePassWeeklyAsync(VerifiedAccount account, Guid character, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<BattlePassWeeklyRecord>>([]);
+    Task<bool> SaveBattlePassWeeklyAsync(VerifiedAccount account, Guid character, IReadOnlyList<BattlePassWeeklyRecord> rows, CancellationToken ct = default) =>
+        Task.FromResult(false);
     Task<IReadOnlyList<DungeonCooltimeRecord>> DungeonCooltimesAsync(VerifiedAccount account, Guid character, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<DungeonCooltimeRecord>>([]);
     Task<bool> SaveDungeonCooltimesAsync(VerifiedAccount account, Guid character, IReadOnlyList<DungeonCooltimeRecord> rows, CancellationToken ct = default) => Task.FromResult(false);

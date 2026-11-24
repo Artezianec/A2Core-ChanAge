@@ -63,14 +63,16 @@ public sealed class DaevanionPointItemTests
         await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 1);
         await GameSessionTestHelpers.LoadInventoryAsync(session, Now + 2);
 
+        var morphBefore = session.DaevanionAvailableForTests(1);
         var morphReplies = await session.HandleAsync(UseByItemId(901, morphCrystal, 2), Now + 3);
         var morphRs = morphReplies.Single(p => GameSessionTestHelpers.Op(p) == RidePackets.ItemUseByItemIdRs);
         Assert.Equal(0, BitConverter.ToInt32(morphRs, 2));
-        Assert.Equal(6, session.DaevanionAvailableForTests(1));
+        Assert.Equal(morphBefore + 6, session.DaevanionAvailableForTests(1));
 
+        var battleBefore = session.DaevanionAvailableForTests(5);
         var battleReplies = await session.HandleAsync(UseByItemId(902, battleCrystal), Now + 4);
         var battleRs = battleReplies.Single(p => GameSessionTestHelpers.Op(p) == RidePackets.ItemUseByItemIdRs);
         Assert.Equal(0, BitConverter.ToInt32(battleRs, 2));
-        Assert.Equal(3, session.DaevanionAvailableForTests(5));
+        Assert.Equal(battleBefore + 3, session.DaevanionAvailableForTests(5));
     }
 }

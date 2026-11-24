@@ -967,6 +967,18 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
         return await game.SaveRewardLimitsAsync(identity.Account, character, rows, ct);
     }
 
+    public async Task<IReadOnlyList<BattlePassWeeklyRecord>> BattlePassWeeklyAsync(Guid character, CancellationToken ct)
+    {
+        await ValidateAsync(ct);
+        return await game.BattlePassWeeklyAsync(identity.Account, character, ct);
+    }
+
+    public async Task<bool> SaveBattlePassWeeklyAsync(Guid character, IReadOnlyList<BattlePassWeeklyRecord> rows, CancellationToken ct)
+    {
+        await ValidateAsync(ct);
+        return await game.SaveBattlePassWeeklyAsync(identity.Account, character, rows, ct);
+    }
+
     public async Task<IReadOnlyList<DungeonCooltimeRecord>> DungeonCooltimesAsync(Guid character, CancellationToken ct)
     {
         await ValidateAsync(ct);

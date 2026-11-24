@@ -40,6 +40,8 @@ public sealed record NativeOptions
     public bool TrainingDummy { get; init; }
     /// <summary>Refuse dungeon entries without their entry ticket (ContentsTicket.dat counts; default off: counted only).</summary>
     public bool EnforceContentTickets { get; init; }
+    /// <summary>Clamp Daeva Pass EXP gains to the group's weekly limit (Aion:BattlePass:EnforceWeeklyCap; default off).</summary>
+    public bool EnforceBattlePassWeeklyCap { get; init; }
     /// <summary>Answer the live Black Cloud Merchants (0x5691-0x5699) and Arcana (0x564f-0x5658) requests (default on, as official;
     /// false turns both off).</summary>
     public bool ExperimentalRandomShopArcana { get; init; } = true;
@@ -345,6 +347,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
             World = services.GetService<SharedWorld>(), DevelopmentMap = Options.Development ? Options.DevelopmentStartMap : null,
             TrainingDummy = Options.Development && Options.TrainingDummy,
             EnforceContentTickets = Options.EnforceContentTickets,
+            EnforceBattlePassWeeklyCap = Options.EnforceBattlePassWeeklyCap,
             ExperimentalRandomShopArcana = Options.ExperimentalRandomShopArcana,
             WorldRace = services.GetService<WorldChoices>() is { } choices ? choices.Race : null,
             AutoResurrectMsOverride = Options.Development ? GameSession.ReviveDelayMs : null,

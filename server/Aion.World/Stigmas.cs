@@ -78,6 +78,19 @@ public sealed class StigmaTable
     public SkillDefinition? Skill(int skillId) =>
         file.Generated.Skills?.GetValueOrDefault(skillId.ToString(CultureInfo.InvariantCulture));
 
+    /// <summary>Self-buff rows for a stigma cast: its self_buffs, else its stigma's when <paramref name="skillId"/> is a level variant.</summary>
+    public IReadOnlyList<PortedSkillAbnormals.Row> SelfRows(int skillId)
+    {
+        var rows = SelfRowsOf(skillId);
+        return rows.Count > 0 ? rows : StigmaOfVariant(skillId) is { } stigma ? SelfRowsOf(stigma) : rows;
+    }
+
+    IReadOnlyList<PortedSkillAbnormals.Row> SelfRowsOf(int skillId) =>
+        Skill(skillId)?.SelfBuffs is { } raw
+            ? raw.Where(r => r.Length >= 5 && r[0] > 0).Select(r =>
+                new PortedSkillAbnormals.Row(r[0], r[1], r[2], Math.Clamp(r[3], 1, 255), r[4], r.Length > 5 ? r[5] : 0)).ToList()
+            : [];
+
     public bool IsStigma(int skillId) => owner.ContainsKey(skillId);
 
     public bool IsStigmaOf(string? className, int skillId) =>

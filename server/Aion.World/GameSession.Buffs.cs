@@ -96,12 +96,14 @@ public sealed partial class GameSession
     static bool ItemSkillSupported(IReadOnlyList<SkillEffectRow> effects)
     {
         if (effects.Count == 0) return false;
+        var instant = false;
         foreach (var e in effects)
         {
             switch (e.Type)
             {
                 case "HpHeal_Item" or "HpHealRatio_Item" or "MpHeal_Item" or "FpHeal_Item" or "Dispel_True" or "NoEffect":
-                    return true;
+                    instant = true;
+                    break;
                 case "Abnormal_True" when e.Value(2) > 0:
                     if (Boxes.Abnormal(e.Value(2)) is null) return false;
                     break;
@@ -111,7 +113,7 @@ public sealed partial class GameSession
                     return false;
             }
         }
-        return AbnormalIds(effects).Any();
+        return instant || AbnormalIds(effects).Any();
     }
 
     AbnormalWire Wire(Buff b) => WireBuff(b, b.CasterKey ?? playerKey, b.RangeBase);

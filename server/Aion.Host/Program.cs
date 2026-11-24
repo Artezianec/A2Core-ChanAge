@@ -197,6 +197,7 @@ var native = (nativeSection.Get<NativeOptions>() ?? new NativeOptions()) with
     // Multi-world is opt-in (docs/MULTI_WORLD.md): Aion:Worlds:Enabled on the login host; a world-role process always.
     MultiWorld = worldProcess is not null || builder.Configuration.GetValue<bool>("Aion:Worlds:Enabled"),
     ClientGmPanel = NativeOptions.ResolveClientGmPanel(nativeSection.GetValue<bool?>("ClientGmPanel")),
+    EnforceBattlePassWeeklyCap = builder.Configuration.GetValue("Aion:BattlePass:EnforceWeeklyCap", false),
 };
 if (worldProcess is not null)
 {

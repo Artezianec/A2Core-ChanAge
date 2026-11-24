@@ -51,8 +51,10 @@ MAP_EVENTS = ROOT / 'tools/data/map-events.json'
 # UseEffect types with a handler in GameSession.Rides.cs (audit + boxes.json handled_use_effects).
 HANDLED_USE_EFFECTS = {
     'RewardBox', 'GetVehicle', 'GetVehicleSoul', 'GetVehicleSoulCrystal', 'Fix_VehicleCreatureLevel', 'Skill',
-    'Telpo_Home', 'GetKina', 'GetNonBindingKina', 'GetTitle', 'GetSkin', 'GetSkinSet', 'GetSocialAction',
-    'GetDaevanionPoint', 'GetDutyQuest', 'GetQuest', 'GetWing', 'AscensionGrade', 'GetStigmaShard',
+    'Telpo_Home', 'Telpo_Agit', 'GetKina', 'GetNonBindingKina', 'GetTitle', 'GetSkin', 'GetSkinSet', 'GetSocialAction',
+    'GetDaevanionPoint', 'Fix_DaevanionPoint', 'GetDutyQuest', 'GetQuest', 'GetWing', 'AscensionGrade',
+    'GetStigmaShard', 'GetStigmaShardSuperior', 'GetGodstone', 'BattlePassExp', 'BattlePassUnlock',
+    'AddContentsTicket', 'GetDeco', 'Customize', 'Succession', 'EnchantScroll', 'SoulAdd', 'ImprintMagicStone', 'SealStone',
 }
 GODSTONES = ROOT / 'tools/data/godstones.json'
 CRYSTALS = {'SoulCrystalFeral': 1, 'SoulCrystalIntellect': 2, 'SoulCrystalNature': 3, 'SoulCrystalTrans': 4, 'SoulCrystalSpecial': 5,
