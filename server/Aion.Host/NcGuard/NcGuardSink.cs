@@ -168,7 +168,7 @@ public sealed class NcGuardSink : BackgroundService
         listener.Use(next => async context =>
         {
             var sni = context.Features.Get<ITlsHandshakeFeature>()?.HostName;
-            var remote = context.Connection.RemoteEndPoint;
+            var remote = context.RemoteEndPoint;
             var started = DateTimeOffset.UtcNow;
             try
             {
