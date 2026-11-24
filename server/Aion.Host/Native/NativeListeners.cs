@@ -391,6 +391,14 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         Task? wake = null;
         var lastData = DateTimeOffset.UtcNow;
         string? present = null;
+        void SyncWorldPresence()
+        {
+            var name = session.CharacterName;
+            if (name == present) return;
+            if (present is not null) presence.Leave(present, session);
+            present = name;
+            if (present is not null) presence.Enter(present, session, session.Store?.AccountId);
+        }
         var unanswered = new HashSet<int>();
         var diagnostics = services.GetService<HostDiagnostics>();
         var trace = Options.TraceDirectory is { Length: > 0 } traceDir ? new ClientTrace(traceDir) : null;
@@ -470,7 +478,9 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
                     trace?.Record(plain);
                     var errorsBefore = session.PersistenceErrors.Count;
                     var mapRequest = GameSession.IsMapRequest(plain);
+                    SyncWorldPresence();
                     var replies = await InTurnAsync(() => session.HandleClientPacketSafeAsync(plain, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), ct), () => mapRequest);
+                    SyncWorldPresence();
                     // A request the store refused (constraint, missing row): which one and why (it was silent before).
                     if (session.PersistenceErrors.Count > errorsBefore)
                     {
@@ -533,13 +543,6 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
                         diagnostics?.Unanswered(header, first);
                         if (first) Logger.LogInformation("Native game unanswered opcode 0x{Opcode:x4} ({Length} bytes): {Body}", header, plain.Length,
                             Convert.ToHexString(plain.AsSpan(0, Math.Min(plain.Length, 64))));
-                    }
-                    // In the world after 0x3622; out of it again on 0x3625 (back to character selection).
-                    if (session.CharacterName != present)
-                    {
-                        if (present is not null) presence.Leave(present, session);
-                        present = session.CharacterName;
-                        if (present is not null) presence.Enter(present, session, session.Store?.AccountId);
                     }
                 }
                 pending ??= stream.ReadAsync(chunk, ct).AsTask();

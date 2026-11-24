@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aion.Protocol.Native;
@@ -39,8 +40,42 @@ public static class SkillEffectConditions
 
     public static IReadOnlyList<Condition> DebuffConditions(int skillId, int abnormalId)
     {
-        if (file.Value.Skills?.TryGetValue(skillId.ToString(), out var skill) != true || skill?.Debuffs is null) return [];
-        return skill.Debuffs.TryGetValue(abnormalId.ToString(), out var list) ? list : [];
+        foreach (var key in ConditionKeys(skillId))
+        {
+            if (file.Value.Skills?.TryGetValue(Key(key), out var skill) != true || skill?.Debuffs is null) continue;
+            if (skill.Debuffs.TryGetValue(abnormalId.ToString(), out var list)) return list;
+        }
+        return [];
+    }
+
+    static string Key(int id) => id.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// SkillEffectConditionList rows attach to Skill.dat ids; mastery variants (13060047) may differ from the family skill the kit learns (13060000).
+    /// </summary>
+    static IEnumerable<int> ConditionKeys(int skillId)
+    {
+        foreach (var key in SkillSideData.LookupKeys(skillId))
+            yield return key;
+        var family = skillId / 10_000 * 10_000;
+        if (family != skillId) yield return family;
+        var suffix = skillId - family;
+        if (suffix > 0 && suffix < 10_000)
+        {
+            var variant = family + suffix % 100;
+            if (variant != skillId) yield return variant;
+        }
+    }
+
+    /// <summary>Abnormal ids a skill may apply (for SkillCond producer audit).</summary>
+    public static IEnumerable<int> ProducerAbnormals(int skillId)
+    {
+        foreach (var key in ConditionKeys(skillId))
+        {
+            if (file.Value.Skills?.TryGetValue(Key(key), out var skill) != true || skill?.Debuffs is not { } debuffs) continue;
+            foreach (var ab in debuffs.Keys)
+                if (int.TryParse(ab, out var id)) yield return id;
+        }
     }
 
     public static bool DebuffAllowed(int skillId, int abnormalId, Context ctx)

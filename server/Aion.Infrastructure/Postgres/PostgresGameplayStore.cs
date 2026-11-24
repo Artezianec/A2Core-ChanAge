@@ -468,6 +468,24 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
         await t.CommitAsync(ct); return total;
     }
 
+    public async Task<int> SkillBonusPointsAsync(VerifiedAccount account, Guid character, CancellationToken ct=default)
+    {
+        await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
+        if(!await Own(c,t,account.AccountId,character,ct)) return 0;
+        var points=(int?)await Scalar(c,t,"SELECT points FROM game.character_skill_bonus WHERE character_id=$1",ct,character) ?? 0;
+        await t.CommitAsync(ct); return points;
+    }
+
+    public async Task<int?> AddSkillBonusPointsAsync(VerifiedAccount account, Guid character, int amount, CancellationToken ct=default)
+    {
+        if(amount<=0) throw new GameplayException("invalid_skill_bonus");
+        await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
+        if(!await Own(c,t,account.AccountId,character,ct)) return null;
+        var total=(int?)await Scalar(c,t,"INSERT INTO game.character_skill_bonus(character_id,points) VALUES($1,$2) ON CONFLICT (character_id) DO UPDATE SET points=game.character_skill_bonus.points+EXCLUDED.points,updated_at=now() RETURNING points",ct,character,amount);
+        if(total is null) return null;
+        await t.CommitAsync(ct); return total;
+    }
+
     public async Task<bool> SpendKinahAndForgetStigmasAsync(VerifiedAccount account, Guid character, long kinah, IReadOnlyList<int> skillIds, CancellationToken ct=default)
     {
         if(kinah<0) throw new GameplayException("invalid_stigma_reset_kinah");

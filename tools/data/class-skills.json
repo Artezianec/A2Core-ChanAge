@@ -6171,7 +6171,12 @@
       "chain_deactivate": "None",
       "context_register": "All",
       "group_cooldown_id": 1101,
-      "range": 0.0
+      "range": 0.0,
+      "skill_cond_grant": {
+        "abnormal": 11021,
+        "duration_ms": -1
+      },
+      "skill_cond_grant_source": "ToggleOnAbnormalId"
     },
     "1102": {
       "name": "Quick Gliding",
@@ -6300,7 +6305,12 @@
       "chain_deactivate": "None",
       "context_register": "All",
       "group_cooldown_id": 7000,
-      "range": 0.0
+      "range": 0.0,
+      "skill_cond_grant": {
+        "abnormal": 11021,
+        "duration_ms": -1
+      },
+      "skill_cond_grant_source": "ToggleOnAbnormalId"
     },
     "4020": {
       "name": "Equip Gladiator Weapon",
@@ -6375,7 +6385,12 @@
       "context_register": "All",
       "group_cooldown_id": 9079,
       "end_ms": 545.0,
-      "range": 0.0
+      "range": 0.0,
+      "skill_cond_grant": {
+        "abnormal": 11021,
+        "duration_ms": -1
+      },
+      "skill_cond_grant_source": "ToggleOnAbnormalId"
     },
     "9865": {
       "name": "Vicious Strike",
@@ -6417,7 +6432,12 @@
       "context_register": "FixSlot",
       "group_cooldown_id": 9865,
       "end_ms": 485.0,
-      "range": 400.0
+      "range": 400.0,
+      "skill_cond_grant": {
+        "abnormal": 11021,
+        "duration_ms": -1
+      },
+      "skill_cond_grant_source": "ToggleOnAbnormalId"
     },
     "9868": {
       "name": "Pummel",
@@ -6485,7 +6505,12 @@
       "context_register": "All",
       "group_cooldown_id": 9868,
       "end_ms": 650.0,
-      "range": 400.0
+      "range": 400.0,
+      "skill_cond_grant": {
+        "abnormal": 11021,
+        "duration_ms": -1
+      },
+      "skill_cond_grant_source": "ToggleOnAbnormalId"
     },
     "9870": {
       "name": "None",
@@ -7074,7 +7099,13 @@
       "context_register": "All",
       "group_cooldown_id": 11190000,
       "end_ms": 895.0,
-      "range": 2000.0
+      "range": 2000.0,
+      "skill_cond_grant": {
+        "abnormal": 111900271,
+        "duration_ms": 3000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "11200000": {
       "name": "Ankle Slice",
@@ -8445,7 +8476,13 @@
         "cond_id": 12000017,
         "abnormal_group": 122400071
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 122400071,
+        "duration_ms": 2000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "12260000": {
       "name": "Defiance",
@@ -8629,7 +8666,13 @@
         "cond_id": 12000009,
         "abnormal_group": 123000001
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 123000001,
+        "duration_ms": 3000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "12300037": {
       "name": "None",
@@ -9379,7 +9422,13 @@
       "context_register": "All",
       "group_cooldown_id": 13060000,
       "end_ms": 700.0,
-      "range": 400.0
+      "range": 400.0,
+      "skill_cond_grant": {
+        "abnormal": 130600471,
+        "duration_ms": 3000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "13070000": {
       "name": "Shadowstrike",
@@ -9894,7 +9943,13 @@
         "cond_id": 13000006,
         "abnormal_group": 132200381
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 132200381,
+        "duration_ms": 3000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "13220037": {
       "name": "Shadow Fall",
@@ -10172,7 +10227,13 @@
         "cond_id": 13000001,
         "abnormal_group": 133500081
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 133500081,
+        "duration_ms": 3000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "13350007": {
       "name": "Heart Gore",
@@ -10755,7 +10816,13 @@
         "cond_id": 14000001,
         "abnormal_group": 140500081
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 140500081,
+        "duration_ms": 3000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "14050007": {
       "name": "Drill Dart",
@@ -13021,7 +13088,13 @@
       "stagger_gauge": 7,
       "stagger_gauge_source": "override",
       "end_ms": 420.0,
-      "range": 2000.0
+      "range": 2000.0,
+      "skill_cond_grant": {
+        "abnormal": 163300000,
+        "duration_ms": 3000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "16110000": {
       "name": "Summon: Water Spirit",
@@ -13479,7 +13552,13 @@
         "cond_id": 16000003,
         "abnormal_group": 163000002
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 163000002,
+        "duration_ms": 10000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "16300001": {
       "name": "Elemental Fusion",
@@ -15330,7 +15409,13 @@
         "cond_id": 18000013,
         "abnormal_group": 180800381
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 180800381,
+        "duration_ms": 3000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "18080037": {
       "name": "Wave Blow",
@@ -15404,7 +15489,13 @@
       "context_register": "All",
       "group_cooldown_id": 18090000,
       "end_ms": 650.0,
-      "range": 2000.0
+      "range": 2000.0,
+      "skill_cond_grant": {
+        "abnormal": 180900302,
+        "duration_ms": 3000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "18100000": {
       "name": "Dark Crush",
@@ -15460,7 +15551,13 @@
         "cond_id": 18000019,
         "abnormal_group": 183300071
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 183300071,
+        "duration_ms": 2000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "18120000": {
       "name": "Recuperation",
@@ -16190,7 +16287,13 @@
       "chain_deactivate": "None",
       "context_register": "All",
       "group_cooldown_id": 19000100,
-      "range": 0.0
+      "range": 0.0,
+      "skill_cond_grant": {
+        "abnormal": 190000003,
+        "duration_ms": 3000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "19010000": {
       "name": "???",
@@ -16435,7 +16538,13 @@
       "context_register": "All",
       "group_cooldown_id": 19070000,
       "end_ms": 360.0,
-      "range": 2000.0
+      "range": 2000.0,
+      "skill_cond_grant": {
+        "abnormal": 190700102,
+        "duration_ms": 5000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "19090000": {
       "name": "???",
@@ -17539,7 +17648,12 @@
       "chain_next": [
         9023
       ],
-      "range": 350.0
+      "range": 350.0,
+      "skill_cond_grant": {
+        "abnormal": 11021,
+        "duration_ms": -1
+      },
+      "skill_cond_grant_source": "ToggleOnAbnormalId"
     },
     "9023": {
       "name": "Chain Skill C",
@@ -17587,7 +17701,12 @@
       "chain_next": [
         9025
       ],
-      "range": 310.0
+      "range": 310.0,
+      "skill_cond_grant": {
+        "abnormal": 11021,
+        "duration_ms": -1
+      },
+      "skill_cond_grant_source": "ToggleOnAbnormalId"
     },
     "9024": {
       "name": "Chain Skill D",
@@ -17622,7 +17741,12 @@
       "chain_deactivate": "None",
       "context_register": "All",
       "group_cooldown_id": 9024,
-      "range": 300.0
+      "range": 300.0,
+      "skill_cond_grant": {
+        "abnormal": 11021,
+        "duration_ms": -1
+      },
+      "skill_cond_grant_source": "ToggleOnAbnormalId"
     },
     "9025": {
       "name": "Chain Skill E",
@@ -17670,7 +17794,12 @@
       "chain_deactivate": "None",
       "context_register": "All",
       "group_cooldown_id": 9025,
-      "range": 300.0
+      "range": 300.0,
+      "skill_cond_grant": {
+        "abnormal": 11021,
+        "duration_ms": -1
+      },
+      "skill_cond_grant_source": "ToggleOnAbnormalId"
     },
     "11999001": {
       "name": "Test Branch",
@@ -129738,7 +129867,13 @@
         "cond_id": 18000019,
         "abnormal_group": 183300071
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 183300071,
+        "duration_ms": 2000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "18100140": {
       "name": "Dark Crush",
@@ -129796,7 +129931,13 @@
         "cond_id": 18000019,
         "abnormal_group": 183300071
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 183300071,
+        "duration_ms": 2000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "18100240": {
       "name": "Dark Crush",
@@ -129877,7 +130018,13 @@
         "cond_id": 18000019,
         "abnormal_group": 183300071
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 183300071,
+        "duration_ms": 2000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "18100340": {
       "name": "Dark Crush",
@@ -129935,7 +130082,13 @@
         "cond_id": 18000019,
         "abnormal_group": 183300071
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 183300071,
+        "duration_ms": 2000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "18100450": {
       "name": "Dark Crush",
@@ -129993,7 +130146,13 @@
         "cond_id": 18000019,
         "abnormal_group": 183300071
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 183300071,
+        "duration_ms": 2000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "18101240": {
       "name": "Dark Crush",
@@ -130074,7 +130233,13 @@
         "cond_id": 18000019,
         "abnormal_group": 183300071
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 183300071,
+        "duration_ms": 2000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "18101340": {
       "name": "Dark Crush",
@@ -130132,7 +130297,13 @@
         "cond_id": 18000019,
         "abnormal_group": 183300071
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 183300071,
+        "duration_ms": 2000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "18101450": {
       "name": "Dark Crush",
@@ -130190,7 +130361,13 @@
         "cond_id": 18000019,
         "abnormal_group": 183300071
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 183300071,
+        "duration_ms": 2000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "18102340": {
       "name": "Dark Crush",
@@ -130271,7 +130448,13 @@
         "cond_id": 18000019,
         "abnormal_group": 183300071
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 183300071,
+        "duration_ms": 2000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "18102450": {
       "name": "Dark Crush",
@@ -130352,7 +130535,13 @@
         "cond_id": 18000019,
         "abnormal_group": 183300071
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 183300071,
+        "duration_ms": 2000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "18103450": {
       "name": "Dark Crush",
@@ -130410,7 +130599,13 @@
         "cond_id": 18000019,
         "abnormal_group": 183300071
       },
-      "skill_cond_source": "SkillCond.dat"
+      "skill_cond_source": "SkillCond.dat",
+      "skill_cond_grant": {
+        "abnormal": 183300071,
+        "duration_ms": 2000,
+        "select_target": "Self"
+      },
+      "skill_cond_grant_source": "SkillEffect.dat"
     },
     "18200010": {
       "name": "Defiance",
@@ -164908,7 +165103,7 @@
     "client_build": "Steam build 26262663: stats, cooldowns, casting, costs and damage values from PcStatLevel/Skill/SkillEffect (tools/client_build_update.py)",
     "damage_source": "chain follow-ups without exported SkillEffect rows carry improvised Damage rows scaled from their parent (damage_source: override, tools/data/skill-damage-overrides.json)",
     "use_conditions": "Skill.dat CanUseWhenElementalSummonSpawned / CanUseWhenPeaceState / CanUseSkillCostType; from client:Skill; 16140000: Jointstrike: Curse needs a summoned spirit; CanUseWhenElementalSummonSpawned groups not in committed export (any spirit counts, OURS).; use_condition_source \"override\" marks OURS.",
-    "skill_cond": "SkillCond.dat SkillCondTableItem (CondType, CondAbnormalGroupId, CondAbnormalEffectType, CondSkillList, CondSelectTarget); grants from ToggleOnAbnormalId; self Abnormal_True on caster filters is applied from skill-areas caster_debuffs at hit time; skill_cond_*_source \"override\" marks OURS. needs from research/client-export/SkillCond.json.gz; grants from Skill.dat/SkillEffect (client:Skill); 14090000: Marking Shot grants Precision for 10s on cast (client SkillEffect Precision is target-facing; CANDIDATE cast grant).",
+    "skill_cond": "SkillCond.dat SkillCondTableItem (CondType, CondAbnormalGroupId, CondAbnormalEffectType, CondSkillList, CondSelectTarget); grants from ToggleOnAbnormalId; self Abnormal_True on caster filters is applied from skill-areas caster_debuffs at hit time; skill_cond_*_source \"override\" marks OURS. needs from research/client-export/SkillCond.json.gz; grants from Skill.dat/SkillEffect (client:Skill); 14090000: Marking Shot grants Precision for 10s on cast (client SkillEffect Precision is target-facing; CANDIDATE cast grant).; 100000002: DATA_MISSING: Rush Strike Self group 100000002 — no SkillEffect grant in export (CANDIDATE shared shock buff).; 113000381: DATA_MISSING: Aerial Snare Target group 113000381 — producer not in class kit export.; 152200381: DATA_MISSING: Frost Burst Target group 152200381 — Frost Mark chain; partial SkillEffect engine only.; 157100071: DATA_MISSING: Blaze Target group 157100071 — Sorcerer mark prerequisite not exported to skill-areas.",
     "client_export": "research/client-export/2026-11-22: Skill/SkillEffect/SkillLv/SkillCharge via tools/client_skill_sync.py"
   },
   "skill_customizing": {

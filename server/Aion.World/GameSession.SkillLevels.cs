@@ -99,13 +99,13 @@ public sealed partial class GameSession
         return ids.Sum(id => SpentOnSkill(id, MasteryLevel(id)));
     }
 
-    public int SkillPointsLeft => Math.Max(0, data.SkillPoints(level) - SpentSkillPoints());
+    public int SkillPointsLeft => Math.Max(0, data.SkillPoints(level) + SkillBonusPoints - SpentSkillPoints());
 
     /// <summary>0x5105 after skill-point spend sync: cumulative points spent (official wire, capture 234615).</summary>
     byte[] SkillPointUpdate() => GamePackets.SkillPointUpdate(SpentSkillPoints());
 
     /// <summary>Total skill points earned at this level (Exp.dat); wire stat 0x68 on 0x364a / 0x3649.</summary>
-    public int SkillPointsEarned => data.SkillPoints(level);
+    public int SkillPointsEarned => data.SkillPoints(level) + SkillBonusPoints;
 
     void RefreshWireClientSkillList(IReadOnlyList<(int SkillId, int Level)> kitAfterChainOverlay) =>
         wireClientSkillList = kitAfterChainOverlay.ToList();

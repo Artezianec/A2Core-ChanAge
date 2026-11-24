@@ -162,16 +162,41 @@ public sealed class GmCommands(WorldPresence presence, BuilderCommands builder) 
         if (actor is null) return "Enter the world first.";
         try
         {
+            if (line.StartsWith("gm", StringComparison.OrdinalIgnoreCase) && (line.Length == 2 || char.IsWhiteSpace(line[2])))
+            {
+                var gmArgs = line[2..].Trim();
+                if (gmArgs.Equals("menu", StringComparison.OrdinalIgnoreCase))
+                    return await builder.AllowedAsync(actor.Session, ct)
+                        ? BuilderCommands.StaffMenuText(staffRole: actor.Session.StaffRole)
+                        : "GM permission required.";
+                if (gmArgs.StartsWith("menu", StringComparison.OrdinalIgnoreCase)
+                    && (gmArgs.Length == 4 || char.IsWhiteSpace(gmArgs[4])))
+                {
+                    var group = gmArgs[4..].Trim();
+                    if (group.Length == 0)
+                        return await builder.AllowedAsync(actor.Session, ct)
+                            ? BuilderCommands.StaffMenuText(staffRole: actor.Session.StaffRole)
+                            : "GM permission required.";
+                    return await builder.AllowedAsync(actor.Session, ct)
+                        ? BuilderCommands.StaffMenuText(group, actor.Session.StaffRole)
+                        : "GM permission required.";
+                }
+                if (gmArgs.Length == 0)
+                    return await builder.AllowedAsync(actor.Session, ct)
+                        ? (actor.Session.ClientGmPanelAvailable()
+                            ? "GM: F10 dev helper (Ctrl+~ test UI) when the lobby admin flag is on; re-login after a staff change. "
+                              + "Server menu: //gm menu (groups) or //gm menu <group>. //help lists // commands."
+                            : "GM: client F10 panel off (AION_CLIENT_GM_PANEL). Server menu: //gm menu. //help lists // commands.")
+                        : "GM permission required.";
+            }
             // "//admin": the client's own in-game panel is its DevHelper (InputKeyMapping Dev_DevHelper = F10,
             // Dev_DevTestUI = Ctrl+~, both bDev), enabled by Login_RS _is_admin; the server only explains it.
-            if (line.Equals("admin", StringComparison.OrdinalIgnoreCase)
-                || line.Equals("gm", StringComparison.OrdinalIgnoreCase) || line.Equals("panel", StringComparison.OrdinalIgnoreCase))
+            if (line.Equals("admin", StringComparison.OrdinalIgnoreCase) || line.Equals("panel", StringComparison.OrdinalIgnoreCase))
                 return await builder.AllowedAsync(actor.Session, ct)
                     ? actor.Session.ClientGmPanelAvailable()
                         ? "GM panel: press F10 (client dev helper; Ctrl+~ dev test UI). It needs the lobby admin flag: re-login after a staff change. "
-                          + "Builder commands (in chat: //<command>; console: s <command>): " + string.Join(", ", BuilderCommands.Supported)
-                        : "Client GM panel is off (AION_CLIENT_GM_PANEL). Builder commands in chat: //<command>. Supported: "
-                          + string.Join(", ", BuilderCommands.Supported)
+                          + "Server menu: //gm menu. Builder commands: //<command>."
+                        : "Client GM panel is off (AION_CLIENT_GM_PANEL). Server menu: //gm menu. Builder commands: //<command>."
                     : "GM permission required.";
             if (IsQaCommand(line))
             {

@@ -196,6 +196,10 @@ public interface IGameplayStore
     Task<int> StigmaBonusShardsAsync(VerifiedAccount account, Guid character, CancellationToken ct = default) => Task.FromResult(0);
     /// <summary>Adds bonus shards (amount must be &gt; 0) and returns the new total, or null when not owned.</summary>
     Task<int?> AddStigmaBonusShardsAsync(VerifiedAccount account, Guid character, int amount, CancellationToken ct = default) => Task.FromResult<int?>(null);
+    /// <summary>Bonus skill points from items (game.character_skill_bonus); 0 when none.</summary>
+    Task<int> SkillBonusPointsAsync(VerifiedAccount account, Guid character, CancellationToken ct = default) => Task.FromResult(0);
+    /// <summary>Adds bonus skill points (amount &gt; 0) and returns the new total, or null when the write fails.</summary>
+    Task<int?> AddSkillBonusPointsAsync(VerifiedAccount account, Guid character, int amount, CancellationToken ct = default) => Task.FromResult<int?>(null);
     /// <summary>
     /// Forgets the listed stigmas and, when <paramref name="kinah"/> is greater than 0, deducts that many Kinah in the same
     /// transaction. False when the character is not owned, Kinah is short, or the write fails; stigmas and Kinah stay unchanged.

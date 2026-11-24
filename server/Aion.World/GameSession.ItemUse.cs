@@ -68,6 +68,8 @@ public sealed partial class GameSession
           ? await UseSocialActionItemAsync(s, c, r, emote, reply, ct) : null,
       ["GetDaevanionPoint"] = (s, c, r, u, reply, _, ct, n) => UseDaevanionPointItemAsync(s, c, r, u, reply, ct, n),
       ["Fix_DaevanionPoint"] = UseFixDaevanionPointItemAsync,
+      ["GetSkillPoint"] = (s, c, r, u, reply, _, ct, n) => UseGetSkillPointItemAsync(s, c, r, u, reply, ct, n),
+      ["Fix_StigmaSkillPoint"] = (s, c, r, u, reply, _, ct, n) => UseFixStigmaSkillPointItemAsync(s, c, r, u, reply, ct, n),
       ["GetStigmaShard"] = (s, c, r, u, reply, _, ct, n) => UseStigmaShardItemAsync(s, c, r, u, reply, ct, n),
       ["GetStigmaShardSuperior"] = UseStigmaShardSuperiorItemAsync,
       ["GetGodstone"] = (s, c, r, _, reply, _, ct, n) => UseGodstoneItemAsync(s, c, r, reply, n, ct),
@@ -83,6 +85,43 @@ public sealed partial class GameSession
       ["GetDeco"] = UseGetDecoItemAsync,
       ["GetQuest"] = (_, _, _, _, _, _, _, _) => Task.FromResult<List<byte[]>?>(null),
     };
+
+  async Task<List<byte[]>?> UseGetSkillPointItemAsync(INativeCharacterStore store, Guid character, ItemState row, ItemUse use, bool reply, CancellationToken ct, int useCount)
+  {
+    useCount = (int)Math.Clamp((long)useCount, 1L, Math.Min(row.Quantity, int.MaxValue));
+    var perItem = 1;
+    if (use.Values is [var amountText, ..] && int.TryParse(amountText, out var parsed) && parsed > 0) perItem = parsed;
+    var grant = perItem * useCount;
+    var consumed = await Stored(async () => await store.ConsumeItemAsync(character, row.InstanceId, row.Revision, useCount, ct) ? [[]] : []);
+    if (consumed.Count == 0) return null;
+    var total = await store.AddSkillBonusPointsAsync(character, grant, ct);
+    if (total is null) return null;
+    skillBonusPoints = total.Value;
+    usedCountApplied = true;
+    return
+    [
+      .. Used(row, reply),
+      UpdateItemSkillPointWire(grant),
+      SkillPointStatSheetUpdate(),
+      .. await InventoryChangesAsync(ct, 0, DecreaseItemUse),
+    ];
+  }
+
+  async Task<List<byte[]>?> UseFixStigmaSkillPointItemAsync(INativeCharacterStore store, Guid character, ItemState row, ItemUse use, bool reply, CancellationToken ct, int useCount)
+  {
+    if (!StigmasOn || level < StigmaData.UnlockLevel) return null;
+    useCount = (int)Math.Clamp((long)useCount, 1L, Math.Min(row.Quantity, int.MaxValue));
+    var perItem = 1;
+    if (use.Values is [var amountText, ..] && int.TryParse(amountText, out var parsed) && parsed > 0) perItem = parsed;
+    var grant = perItem * useCount;
+    var consumed = await Stored(async () => await store.ConsumeItemAsync(character, row.InstanceId, row.Revision, useCount, ct) ? [[]] : []);
+    if (consumed.Count == 0) return null;
+    var total = await store.AddStigmaBonusShardsAsync(character, grant, ct);
+    if (total is null) return null;
+    stigmaBonusShards = total.Value;
+    usedCountApplied = true;
+    return [.. Used(row, reply), .. await InventoryChangesAsync(ct, 0, DecreaseItemUse), .. StigmaShardSync()];
+  }
 
   async Task<List<byte[]>?> UseFixDaevanionPointItemAsync(INativeCharacterStore store, Guid character, ItemState row, ItemUse use, bool reply, long _, CancellationToken ct, int useCount)
   {

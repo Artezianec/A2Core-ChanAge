@@ -14,7 +14,7 @@ public static class ItemUseEffects
     [
         "AddMultiContentsTicket", "AlchemyMastery", "BlacksmithingMastery", "CharacterSlotUnlock", "CookingMastery",
         "EnchantScroll", "ExtendCharacterStorageSlot", "ExtendInventorySlot", "ExtendStorageSlot", "ExtractForceMastery",
-        "Fix_StigmaSkillPoint", "Fix_VehicleLevel", "GetArcana", "GetGameBindingCash", "GetGameCash", "GetGamePendingCash", "GetSkillPoint",
+        "Fix_VehicleLevel", "GetArcana", "GetGameBindingCash", "GetGameCash", "GetGamePendingCash",
         "JewelcraftingMastery", "MonolithAllClear", "OccupationTerritoryAllClear", "RegisterConversionRecipe",
         "SealAllClear", "SetupKisk", "ShowNote", "SkinExtraction", "SoulBind", "SoulBindReroll", "Subscribe", "Surpass",
         "TailoringMastery",
@@ -25,7 +25,8 @@ public static class ItemUseEffects
     [
         "RewardBox", "GetVehicle", "GetVehicleSoul", "GetVehicleSoulCrystal", "Fix_VehicleCreatureLevel", "Skill",
         "Telpo_Home", "Telpo_Agit", "GetKina", "GetNonBindingKina", "GetTitle", "GetSkin", "GetSkinSet", "GetSocialAction",
-        "GetDaevanionPoint", "Fix_DaevanionPoint", "GetGodstone", "GetStigmaShard", "GetStigmaShardSuperior", "GetQuest",
+        "GetDaevanionPoint", "Fix_DaevanionPoint", "GetGodstone", "GetSkillPoint", "Fix_StigmaSkillPoint",
+        "GetStigmaShard", "GetStigmaShardSuperior", "GetQuest",
         "GetDutyQuest", "GetWing", "AscensionGrade", "BattlePassExp", "BattlePassUnlock", "AddContentsTicket", "GetDeco",
         .. NotDirectUse,
     ];

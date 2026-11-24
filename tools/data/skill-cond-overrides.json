@@ -1,9 +1,38 @@
 {
   "note": "Improvised SkillCond rows when SkillCond.dat is not exported or a row is absent from the bundle. Export wins when present.",
   "evidence": {
-    "14090000": "Marking Shot grants Precision for 10s on cast (client SkillEffect Precision is target-facing; CANDIDATE cast grant)."
+    "14090000": "Marking Shot grants Precision for 10s on cast (client SkillEffect Precision is target-facing; CANDIDATE cast grant).",
+    "100000002": "DATA_MISSING: Rush Strike Self group 100000002 — no SkillEffect grant in export (CANDIDATE shared shock buff).",
+    "113000381": "DATA_MISSING: Aerial Snare Target group 113000381 — producer not in class kit export.",
+    "152200381": "DATA_MISSING: Frost Burst Target group 152200381 — Frost Mark chain; partial SkillEffect engine only.",
+    "157100071": "DATA_MISSING: Blaze Target group 157100071 — Sorcerer mark prerequisite not exported to skill-areas."
   },
-  "needs": {},
+  "needs": {
+    "11360000": {
+      "type": "HasAbnormalGroupId",
+      "select_target": "Self",
+      "abnormal_group": 100000002,
+      "evidence": "DATA_MISSING"
+    },
+    "11300000": {
+      "type": "HasAbnormalGroupId",
+      "select_target": "Target",
+      "abnormal_group": 113000381,
+      "evidence": "DATA_MISSING"
+    },
+    "15220000": {
+      "type": "HasAbnormalGroupId",
+      "select_target": "Target",
+      "abnormal_group": 152200381,
+      "evidence": "DATA_MISSING"
+    },
+    "15050000": {
+      "type": "HasAbnormalGroupId",
+      "select_target": "Target",
+      "abnormal_group": 157100071,
+      "evidence": "DATA_MISSING"
+    }
+  },
   "grants": {
     "14090000": {
       "abnormal": 140900001,

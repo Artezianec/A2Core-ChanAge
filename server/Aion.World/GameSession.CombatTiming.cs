@@ -293,11 +293,12 @@ partial class GameSession
             hit = hit with { Amount = 0 };
         target.Hp = ApplyDamageToNpc(target, hit.Amount);
         NoteNpcHit(target.Key, hit.Critical, now);
+        var effectId = SkillSideData.WireEffectId(hit.EffectId, scheduled.SkillId);
         var replies = new List<byte[]>
         {
             CastArea(scheduled.SkillId) is { Projectile: > 0 }
-                ? GamePackets.ProjectileHit(target.Key, playerKey, scheduled.SkillId, hit.EffectId, hit.Amount, hit.Critical, scheduled.ActionUid, scheduled.Seq, AttackSpeed)
-                : GamePackets.SkillHit(target.Key, playerKey, scheduled.SkillId, hit.EffectId, hit.Amount, hit.Critical, scheduled.ActionUid, scheduled.Seq, AttackSpeed),
+                ? GamePackets.ProjectileHit(target.Key, playerKey, scheduled.SkillId, effectId, hit.Amount, hit.Critical, scheduled.ActionUid, scheduled.Seq, AttackSpeed)
+                : GamePackets.SkillHit(target.Key, playerKey, scheduled.SkillId, effectId, hit.Amount, hit.Critical, scheduled.ActionUid, scheduled.Seq, AttackSpeed),
             GamePackets.NpcHp(target.Key, target.Hp),
         };
         if (hit.Amount > 0) replies.AddRange(AfterCombatHitDealt(scheduled.SkillId, target, hit.Amount, hit.Critical, now));
@@ -353,9 +354,10 @@ partial class GameSession
         if (opponent.Key != scheduled.TargetKey || opponent.Session.resources is not { } theirs) return [];
         var hit = scheduled.Hit;
         theirs.Hp = Math.Max(1, theirs.Hp - hit.Amount);
+        var effectId = SkillSideData.WireEffectId(hit.EffectId, scheduled.SkillId);
         var packets = new List<byte[]>
         {
-            GamePackets.SkillHit(opponent.Key, playerKey, scheduled.SkillId, hit.EffectId, hit.Amount, hit.Critical, scheduled.ActionUid, scheduled.Seq),
+            GamePackets.SkillHit(opponent.Key, playerKey, scheduled.SkillId, effectId, hit.Amount, hit.Critical, scheduled.ActionUid, scheduled.Seq),
             theirs.Update(),
         };
         opponent.Send(packets);
@@ -377,9 +379,10 @@ partial class GameSession
             || match.RespawnAt.ContainsKey(victim.Key)) return [];
         var hit = scheduled.Hit;
         theirs.Hp = Math.Max(1, theirs.Hp - hit.Amount);
+        var effectId = SkillSideData.WireEffectId(hit.EffectId, scheduled.SkillId);
         var packets = new List<byte[]>
         {
-            GamePackets.SkillHit(victim.Key, playerKey, scheduled.SkillId, hit.EffectId, hit.Amount, hit.Critical, scheduled.ActionUid, scheduled.Seq),
+            GamePackets.SkillHit(victim.Key, playerKey, scheduled.SkillId, effectId, hit.Amount, hit.Critical, scheduled.ActionUid, scheduled.Seq),
             theirs.Update(),
         };
         victim.Send(packets);
@@ -398,9 +401,10 @@ partial class GameSession
         if (worldPlayer?.Map is not { } map || !map.Players.TryGetValue(scheduled.TargetKey, out var victim)
             || victim.Session.resources is null || !MayFactionPvp(victim)) return [];
         var hit = scheduled.Hit;
+        var effectId = SkillSideData.WireEffectId(hit.EffectId, scheduled.SkillId);
         var packets = new List<byte[]>
         {
-            GamePackets.SkillHit(victim.Key, playerKey, scheduled.SkillId, hit.EffectId, hit.Amount, hit.Critical, scheduled.ActionUid, scheduled.Seq),
+            GamePackets.SkillHit(victim.Key, playerKey, scheduled.SkillId, effectId, hit.Amount, hit.Critical, scheduled.ActionUid, scheduled.Seq),
         };
         packets.AddRange(victim.Session.NpcHitsPlayer(hit.Amount, now, playerKey));
         victim.Send(packets);

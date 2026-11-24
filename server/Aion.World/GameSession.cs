@@ -1559,6 +1559,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 LoadStigmas(await store.StigmasAsync(state.Summary.CharacterId, ct));
                 LoadSkillParts(await store.SkillPartsAsync(state.Summary.CharacterId, ct));   // GameSession.Specialization.cs
                 LoadStigmaBonus(await store.StigmaBonusShardsAsync(state.Summary.CharacterId, ct));
+                LoadSkillBonus(await store.SkillBonusPointsAsync(state.Summary.CharacterId, ct));
                 await TrimStigmasAsync(store, state.Summary.CharacterId, ct);
                 var savedMap = state.Progress.MapId.Value;
                 // Logged out inside an instance layer: back at its exit on the field map (the copy is gone).
@@ -1744,6 +1745,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 CustomizingData = character?.CustomizingData ?? [], VoiceType = character?.VoiceType ?? 0,
                 Ascension = selected?.Ascension ?? 1, DbId = selected?.WireId ?? 0,
                 SpentSkillPoints = SpentSkillPoints(), SpentStigmaPoints = StigmasOn ? StigmaShardsSpent : 0,
+                ItemSkillPoints = SkillBonusPoints,
                 ItemStigmaPoints = StigmasOn ? StigmaShardsBonus : 0,
                 WingId = wingId, Fp = resources.Fp, FpMax = resources.FpMax,
                 EquipItemLevel = armed, HighestTotalItemLevel = armed,
@@ -2345,6 +2347,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 return [];
             }
         }, () => done.TrySetCanceled()));
+        WakeOutbox();
         return done.Task;
     }
 

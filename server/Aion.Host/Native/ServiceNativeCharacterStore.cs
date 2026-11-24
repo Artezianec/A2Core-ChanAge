@@ -1277,6 +1277,18 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
         return await game.AddStigmaBonusShardsAsync(identity.Account, character, amount, ct);
     }
 
+    public async Task<int> SkillBonusPointsAsync(Guid character, CancellationToken ct)
+    {
+        await ValidateAsync(ct);
+        return await game.SkillBonusPointsAsync(identity.Account, character, ct);
+    }
+
+    public async Task<int?> AddSkillBonusPointsAsync(Guid character, int amount, CancellationToken ct)
+    {
+        await ValidateAsync(ct);
+        return await game.AddSkillBonusPointsAsync(identity.Account, character, amount, ct);
+    }
+
     public async Task<bool> SpendKinahAndForgetStigmasAsync(Guid character, long kinah, IReadOnlyList<int> skillIds, CancellationToken ct)
     {
         await ValidateAsync(ct);

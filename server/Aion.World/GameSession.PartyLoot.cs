@@ -22,7 +22,8 @@ public sealed partial class GameSession
     {
         if (Social is not { } social || worldPlayer is null) return replies;
         var eligible = PartyLootEligible(party);
-        if (eligible.Count == 0 && party.Members.Count < 2) return DropLootSolo(target, now, rolled, replies);
+        // No other members in loot range: killer's share is a normal ground drop (party rules need someone to roll/loot).
+        if (eligible.Count == 0) return DropLootSolo(target, now, rolled, replies);
 
         foreach (var (item, count) in rolled)
         {
@@ -128,7 +129,13 @@ public sealed partial class GameSession
         var inForce = Social?.ForceOf(worldPlayer!) is not null;
         if (party.Distribution == PartyOptions.DistributionManual || winner is null)
         {
-            if (inForce && Social!.ForceOf(worldPlayer!) is { } force)
+            if (winner is null && party.Distribution != PartyOptions.DistributionManual && worldPlayer is not null)
+            {
+                // Random/sequence/leader found no on-map recipient: killer owns the bag like solo loot.
+                ownerType = DropOwnerPlayer;
+                owner = selected?.WireId ?? playerKey;
+            }
+            else if (inForce && Social!.ForceOf(worldPlayer!) is { } force)
             {
                 ownerType = DropOwnerForce;
                 owner = force.Key;
@@ -286,9 +293,13 @@ public sealed partial class GameSession
                     && await store.GrantLootAsync(character, [(roll.ItemId, roll.Count)], default) ? [[]] : []);
             if (granted.Count == 0) return (false, []);
             var inv = await winner.Session.InventoryChangesAsync(default, IncreaseDropItemGet, 0);
+            var autoUse = await winner.Session.AutoUseAcquiredItemsAsync([roll.ItemId], now, default);
             if (social.Parties.TryGetValue(roll.PartyKey, out var lootParty))
                 NotifyGroupLoot(winner, roll.ItemId, lootParty);
-            return (true, inv);
+            var merged = new List<byte[]>(inv.Count + autoUse.Count);
+            merged.AddRange(inv);
+            merged.AddRange(autoUse);
+            return (true, merged);
         });
         return packets;
     }
@@ -386,9 +397,13 @@ public sealed partial class GameSession
                     && await store.GrantLootAsync(character, [(bid.ItemId, bid.Count)], default) ? [[]] : []);
             if (granted.Count == 0) return (false, []);
             var inv = await winner.Session.InventoryChangesAsync(default, IncreaseDropItemGet, 0);
+            var autoUse = await winner.Session.AutoUseAcquiredItemsAsync([bid.ItemId], now, default);
             if (social.Parties.TryGetValue(bid.PartyKey, out var lootParty))
                 NotifyGroupLoot(winner, bid.ItemId, lootParty);
-            return (true, inv);
+            var merged = new List<byte[]>(inv.Count + autoUse.Count);
+            merged.AddRange(inv);
+            merged.AddRange(autoUse);
+            return (true, merged);
         });
         return packets;
     }

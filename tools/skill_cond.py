@@ -221,6 +221,10 @@ def patch(doc):
     grants = _self_abnormal_grants(skill_table, effect_table, needs)
     for sid, row in overrides['grants'].items():
         grants[sid] = {k: v for k, v in row.items() if k != 'evidence'}
+    # Mastery variants (13060047, …) carry the grant row; the kit learns the family id (13060000).
+    for sid, grant in list(grants.items()):
+        root = sid // 10_000 * 10_000
+        grants.setdefault(root, grant)
 
     patched_needs, patched_grants = [], []
     for sid_str, skill in doc.get('skills', {}).items():

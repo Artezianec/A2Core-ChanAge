@@ -61,6 +61,10 @@ public sealed class SpecializedSkillTables
     public int? ParentOf(int childId) => childParent.TryGetValue(childId, out var p) ? p : null;
     /// <summary>Is <paramref name="childId"/> a child of <paramref name="parent"/> (SpecializedSkill.dat, or a chain step's child)?</summary>
     public bool IsChild(int parent, int childId) => childrenOf.TryGetValue(parent, out var kids) && kids.Contains(childId);
+
+    /// <summary>Every specialization child cast id of a mastery parent.</summary>
+    public IEnumerable<int> ChildrenOf(int parentId) =>
+        childrenOf.TryGetValue(parentId, out var kids) ? kids.OrderBy(id => id) : [];
     /// <summary>Cast data of a child skill (Skill.dat), else null.</summary>
     public SkillDefinition? Skill(int skillId) => file.Skills.GetValueOrDefault(Key(skillId));
 

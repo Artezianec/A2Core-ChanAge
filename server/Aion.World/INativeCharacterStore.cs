@@ -281,6 +281,10 @@ public interface INativeCharacterStore : IAsyncDisposable
     Task<int> StigmaBonusShardsAsync(Guid character, CancellationToken ct) => Task.FromResult(0);
     /// <summary>Adds bonus shards (amount &gt; 0) and returns the new total, or null when the write fails.</summary>
     Task<int?> AddStigmaBonusShardsAsync(Guid character, int amount, CancellationToken ct) => Task.FromResult<int?>(null);
+    /// <summary>Bonus skill points from items; 0 when none.</summary>
+    Task<int> SkillBonusPointsAsync(Guid character, CancellationToken ct) => Task.FromResult(0);
+    /// <summary>Adds bonus skill points (amount &gt; 0) and returns the new total, or null when the write fails.</summary>
+    Task<int?> AddSkillBonusPointsAsync(Guid character, int amount, CancellationToken ct) => Task.FromResult<int?>(null);
     /// <summary>Forgets the listed stigmas and deducts Kinah in one step (0 Kinah = no charge). False leaves both unchanged.</summary>
     Task<bool> SpendKinahAndForgetStigmasAsync(Guid character, long kinah, IReadOnlyList<int> skillIds, CancellationToken ct) => Task.FromResult(false);
     /// <summary>Titles, skins and masteries (read at character selection).</summary>

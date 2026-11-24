@@ -1679,6 +1679,18 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         return Task.FromResult<int?>(StigmaBonusShards);
     }
 
+    /// <summary>Bonus skill points (game.character_skill_bonus).</summary>
+    public int SkillBonusPoints { get; set; }
+
+    public Task<int> SkillBonusPointsAsync(Guid character, CancellationToken ct) => Task.FromResult(SkillBonusPoints);
+
+    public Task<int?> AddSkillBonusPointsAsync(Guid character, int amount, CancellationToken ct)
+    {
+        if (amount <= 0) return Task.FromResult<int?>(null);
+        SkillBonusPoints += amount;
+        return Task.FromResult<int?>(SkillBonusPoints);
+    }
+
     public Task<bool> SpendKinahAndForgetStigmasAsync(Guid character, long kinah, IReadOnlyList<int> skillIds, CancellationToken ct)
     {
         if (FailStigmaSaves > 0)

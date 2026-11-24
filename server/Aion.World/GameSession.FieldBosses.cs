@@ -96,6 +96,7 @@ public sealed partial class GameSession
             if (granted.Count > 0)
             {
                 replies.AddRange(await InventoryChangesAsync(default, IncreaseDropItemGet, 0));
+                replies.AddRange(await AutoUseAcquiredItemsAsync(rolled.Select(r => r.Item1), now, default));
                 if (FieldBosses.Options.ParticipantNotices)
                     replies.Add(Notice(FieldBosses.RewardCollected.English, FieldBosses.RewardCollected.Russian, 20, "FFFFFF"));
             }

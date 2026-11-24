@@ -24,17 +24,46 @@ def _value(v):
 
 
 def _rows(path):
+    if isinstance(path, str) and path.startswith('client:'):
+        from client_export import load_rows
+        return load_rows(path.split(':', 1)[1])
     return json.loads(Path(path).read_text(encoding='utf-8'))['Properties']['Data']
 
 
 def _effect_table():
     found = sorted(LOCAL.glob('skill-tables-*/table-001.json'))
-    return found[-1] if found else None
+    if found:
+        return found[-1]
+    try:
+        from client_export import load_rows
+        load_rows('SkillEffect')
+        return 'client:SkillEffect'
+    except FileNotFoundError:
+        return None
 
 
 def _skill_table():
     found = sorted(LOCAL.glob('skill-tables-*/table-000.json'))
-    return found[-1] if found else None
+    if found:
+        return found[-1]
+    try:
+        from client_export import load_rows
+        load_rows('Skill')
+        return 'client:Skill'
+    except FileNotFoundError:
+        return None
+
+
+def _propagate_family(skill_map):
+    """Attach variant Skill.dat debuff conditions to the family id the server usually casts."""
+    for sid, entry in list(skill_map.items()):
+        skill_id = int(sid)
+        family = skill_id // 10_000 * 10_000
+        if family == skill_id:
+            continue
+        dest = str(family)
+        skill_map.setdefault(dest, {'debuffs': {}})
+        skill_map[dest]['debuffs'].update(entry.get('debuffs') or {})
 
 
 def conditions_of(effect):
@@ -78,6 +107,7 @@ def build():
                 debuffs.update(group_debuffs[group])
         if debuffs:
             skill_map[sid] = {'debuffs': debuffs}
+    _propagate_family(skill_map)
     doc = json.loads(OUT.read_text(encoding='utf-8'))
     doc['skills'] = skill_map
     return doc

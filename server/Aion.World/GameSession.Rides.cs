@@ -286,6 +286,7 @@ public sealed partial class GameSession
         List<byte[]>? effectReplies = use?.Effect switch
         {
             "GetDaevanionPoint" => await UseDaevanionPointItemAsync(store, character, row, use, reply: false, ct, useCount),
+            "GetSkillPoint" => await UseGetSkillPointItemAsync(store, character, row, use, reply: false, ct, useCount),
             "GetStigmaShard" => await UseStigmaShardItemAsync(store, character, row, use, reply: false, ct, useCount),
             "GetGodstone" => await UseGodstoneItemAsync(store, character, row, reply: false, useCount, ct),
             "BattlePassExp" or "AddContentsTicket" or "Fix_DaevanionPoint" or "GetStigmaShardSuperior" =>
