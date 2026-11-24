@@ -1,0 +1,33 @@
+name: Server build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            server/**/packages.lock.json
+            **/*.csproj
+
+      - name: Build Aion.Host
+        env:
+          AION_SKIP_WEB: 1
+        run: dotnet build server/Aion.Host/Aion.Host.csproj -c Release
+
+      - name: Build Aion.World.Tests (compile only)
+        env:
+          AION_SKIP_WEB: 1
+        run: dotnet build tests/Aion.World.Tests/Aion.World.Tests.csproj -c Release
