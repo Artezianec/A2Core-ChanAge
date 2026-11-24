@@ -86,6 +86,27 @@ def _damage_row(effect: dict) -> dict | None:
     return payload
 
 
+def _cast_visual_effects(skill_row: dict, effects: dict[int, list[dict]]) -> list[dict]:
+    """NoEffect / Spawn SkillEffect rows in SkillEffectTimeDataList order (client cast / preview VFX)."""
+    out: list[dict] = []
+    seen: set[int] = set()
+    for timed in skill_row.get("SkillEffectTimeDataList") or []:
+        gid = _value(timed.get("SkillEffectGroupId", 0))
+        if not isinstance(gid, int) or not gid:
+            continue
+        for eff in effects.get(gid, []):
+            kind = _enum(eff.get("EffectType"))
+            if kind not in ("NoEffect", "Spawn"):
+                continue
+            eid = _value(eff.get("ID"))
+            if not isinstance(eid, int) or eid in seen:
+                break
+            out.append({"effect_id": eid, "target": "target" if kind == "Spawn" else "self"})
+            seen.add(eid)
+            break
+    return out
+
+
 def _filter_shape(filter_id: int, directory: Path | None = None) -> tuple[int | None, int | None]:
     for row in _rows("SkillEffectFilter", directory):
         if _value(row.get("ID")) != filter_id:
@@ -235,12 +256,16 @@ def build(directory: Path | None = None, only: set[str] | None = None) -> dict:
                 "tick_ms": "marker pulse NeedCoolTime when >= 250 ms else 1000 ms (OURS until summon AI)",
             },
         }
+        cast_effects = _cast_visual_effects(skill_row, effects)
         if damage is not None:
             if skill_id == 15_280_000:
-                # Marker pulse Damage rows cite Sorcerer_Skill028_LvUp in SkillEffect.dat; tick FX should match skill 025 (Bittercold Wind).
+                # Marker pulse damage uses LvUp group 025; wire effect id stays 028 (1528000211), not Pyroclasm 1525000011.
                 damage = {**damage, "level_group": "Sorcerer_Skill025_LvUp"}
             zone["damage"] = damage
             zone["notes"]["damage"] = f"SkillEffect group {damage['effect_id'] // 10} Damage row {damage['effect_id']}"
+        if cast_effects:
+            zone["cast_effects"] = cast_effects
+            zone["notes"]["cast_effects"] = "SkillEffectTimeDataList NoEffect / Spawn rows (client cast VFX)"
         if ally_abnormals:
             zone["ally_abnormals"] = ally_abnormals
             zone["abnormal_duration_ms"] = max(tick_ms + 200, 1_000)

@@ -102,9 +102,19 @@ public static class PortedSkillAbnormals
 
     static IReadOnlyList<Row> Rows(Dictionary<string, int[][]>? table, int skillId)
     {
-        if (table is null || !table.TryGetValue(Key(skillId), out var rows) || rows is null) return [];
-        return rows.Where(r => r.Length >= 5 && r[0] > 0).Select(r =>
+        if (table is null) return [];
+        foreach (var key in SkillSideData.LookupKeys(skillId))
+            if (TryRows(table, key, out var rows)) return rows;
+        return [];
+    }
+
+    static bool TryRows(Dictionary<string, int[][]> table, int skillId, out IReadOnlyList<Row> parsed)
+    {
+        parsed = [];
+        if (!table.TryGetValue(Key(skillId), out var rows) || rows is null) return false;
+        parsed = rows.Where(r => r.Length >= 5 && r[0] > 0).Select(r =>
             new Row(r[0], r[1], r[2], Math.Clamp(r[3], 1, 255), r[4], r.Length > 5 ? r[5] : 0)).ToList();
+        return true;
     }
 
     static string Key(int id) => id.ToString(CultureInfo.InvariantCulture);

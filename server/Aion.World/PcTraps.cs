@@ -37,6 +37,7 @@ public static class PcTraps
         return JsonSerializer.Deserialize<TrapFile>(stream) ?? throw new InvalidOperationException("Empty game data pc-traps.json");
     });
 
-    /// <summary>The trap a class skill places, or null.</summary>
-    public static Trap? For(int skillId) => file.Value.Traps.GetValueOrDefault(skillId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    /// <summary>The trap a class skill places, or null (specialization children reuse the parent trap).</summary>
+    public static Trap? For(int skillId) =>
+        SkillSideData.FirstHit(skillId, k => file.Value.Traps.TryGetValue(k, out var trap) ? trap : null);
 }

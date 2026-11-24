@@ -15,7 +15,7 @@ Not in the client data, so ours: HP and NPC damage (combat calibration). HP_BY_L
 recording (research/official-combat-capture.md, 0x3641 HP of ordinary NPCs, all
 multiples of 133); other levels are interpolated. Spawn conditions (initial spawn,
 quest phases), respawn timers and AI live elsewhere (map cell AionSpawnUnit actors,
-server rules) and are not applied: every record spawns at world entry.
+tools/spawn_respawn.py -> tools/data/spawn-respawn.json) and are not applied: every record spawns at world entry.
 
     python tools/world_npcs.py build     # writes tools/data/world-npcs.json
 
@@ -46,7 +46,7 @@ DATA = ROOT / 'tools/data/world-npcs.json'
 MAPDATA = {1000: ROOT / 'research/local/reuse-mapdata-probe/table-001.json'}
 ALL_MAPDATA = ROOT / 'research/local/all-mapdata-full'
 # The open world: Light starter and the two Light field maps, Dark starter and the two Dark field maps.
-FIELD_MAPS = (1010, 1011, 1100, 1110, 1111, 20, 22, 23)   # the Reshanta Abyss maps are shared field maps (Dungeon.dat type Abyss)
+FIELD_MAPS = (1010, 1011, 1100, 1110, 1111, 20, 21, 22, 23)   # Reshanta Lower (20) / Middle (21) / Upper (22–23)
 # Instance layers the server runs (tools/data/instances.json): one copy per player.
 MAP_EVENTS = ROOT / 'tools/data/map-events.json'
 
@@ -533,12 +533,44 @@ def hits_catalog(skill_table=SKILLDATA, effect_table=EFFECTDATA, data_path=DATA)
     return skill_hits_catalog(skill_ids, skill_table, effect_table)
 
 
+def _table_or_client(path: Path, client_table: str):
+    return path if path.is_file() else f'client:{client_table}'
+
+
+def import_map_spawn_list(map_id: int, mapdata_path: Path, npc_table=NPCDATA, aggro_table=AGGRODATA, skill_table=SKILLDATA, effect_table=EFFECTDATA):
+    """Merge one decoded MapData JSON into tools/data/world-npcs.json for ``map_id`` (Middle Abyss 21 when export lands)."""
+    path = Path(mapdata_path)
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    npc_table = _table_or_client(Path(npc_table), 'NpcData')
+    aggro_table = _table_or_client(Path(aggro_table), 'NpcAggroData')
+    skill_table = _table_or_client(Path(skill_table), 'Skill')
+    effect_table = _table_or_client(Path(effect_table), 'SkillEffect')
+    out = json.loads(DATA.read_text(encoding='utf-8'))
+    partial = build({map_id: path}, npc_table=npc_table, aggro_table=aggro_table, skill_table=skill_table, effect_table=effect_table)
+    out['templates'].update(partial['templates'])
+    out['maps'][str(map_id)] = partial['maps'][str(map_id)]
+    out['routes'][str(map_id)] = partial['routes'].get(str(map_id), [])
+    out.setdefault('npc_skills', {}).update(partial.get('npc_skills', {}))
+    used = {int(k) for k in out['npc_skills']}
+    out['skill_hits'] = skill_hits_catalog(used, skill_table, effect_table)
+    src = out.setdefault('source', {})
+    try:
+        src[f'mapdata_{map_id}'] = str(path.relative_to(ROOT))
+    except ValueError:
+        src[f'mapdata_{map_id}'] = str(path)
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest='command')
     sub.add_parser('build', help='write tools/data/world-npcs.json')
     sub.add_parser('extend', help='add the Abyss rift monsters to tools/data/world-npcs.json from the client export (no research/local needed)')
     sub.add_parser('check-extend', help='exit 1 when world-npcs.json lacks a rift monster template')
+    imp = sub.add_parser('import-map', help='merge MapData SpawnInfoList for one map (e.g. Middle Abyss 21) into world-npcs.json')
+    imp.add_argument('--map', type=int, required=True)
+    imp.add_argument('mapdata_json', type=Path)
     hits = sub.add_parser('hits', help='skill hit catalog from Skill.dat')
     hits.add_argument('--catalog', action='store_true', help='print skill_hits json for npc_skills')
     args = parser.parse_args()
@@ -557,6 +589,10 @@ def main():
         if added:
             print('world-npcs.json lacks templates:', added)
             raise SystemExit(1)
+    elif args.command == 'import-map':
+        out = import_map_spawn_list(args.map, args.mapdata_json)
+        write_data_json(DATA, out)
+        print(f'map {args.map}: {len(out["maps"][str(args.map)])} spawns -> {DATA.relative_to(ROOT)}')
     elif args.command == 'hits' and args.catalog:
         print(json.dumps(hits_catalog(), indent=2, sort_keys=True))
     else:

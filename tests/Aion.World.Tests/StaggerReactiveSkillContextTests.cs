@@ -60,7 +60,7 @@ public sealed class StaggerReactiveSkillContextTests
     {
         Assert.Equal(5000, StaggerGaugeCombat.StaggerDurationMs);
         var skill = GameSessionTestHelpers.LiveGameData.Skill(SwordAuraRampage)!;
-        Assert.Equal("Stagger", skill.SkillCond!.AbnormalEffect);
+        Assert.Equal("Groggy", skill.SkillCond!.AbnormalEffect);
     }
 
     [Fact]

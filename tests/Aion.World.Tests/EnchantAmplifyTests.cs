@@ -20,13 +20,31 @@ public sealed class EnchantAmplifyTests
     }
 
     [Fact]
-    public void Amplify_cap_by_item_level()
+    public void Amplify_cap_by_item_level_fallback_when_unmapped()
     {
         var tables = ExceedEnchantTables.Embedded;
-        Assert.Equal(0, tables.MaxSurpass(53));
-        Assert.Equal(1, tables.MaxSurpass(54));
-        Assert.Equal(3, tables.MaxSurpass(70));
-        Assert.Equal(5, tables.MaxSurpass(102));
+        Assert.Equal(0, tables.MaxSurpass(0, 53));
+        Assert.Equal(1, tables.MaxSurpass(0, 54));
+        Assert.Equal(3, tables.MaxSurpass(0, 70));
+        Assert.Equal(5, tables.MaxSurpass(0, 102));
+    }
+
+    [Fact]
+    public void Amplify_uses_exceed_group_cap_for_mapped_items()
+    {
+        var tables = ExceedEnchantTables.Embedded;
+        Assert.Equal(1, tables.MaxSurpass(110130035, 54));
+        Assert.Equal(5, tables.MaxSurpass(110120003, 102));
+        Assert.Null(tables.Next(110130035, 54, 15, 1));
+        Assert.NotNull(tables.Next(110130035, 54, 15, 0));
+    }
+
+    [Fact]
+    public void Amplify_weapon_unique_62_group_allows_exceed_step()
+    {
+        var step = ExceedEnchantTables.Embedded.Next(110530098, 62, 15, 0);
+        Assert.NotNull(step);
+        Assert.Equal(6600, step!.Success);
     }
 
     [Fact]

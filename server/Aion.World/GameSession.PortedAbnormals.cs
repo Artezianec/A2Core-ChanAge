@@ -76,7 +76,7 @@ public sealed partial class GameSession
             if (row.Abnormal == DodgeAbnormal) continue;
             if (row.Chance < 10_000 && rng.Next(10_000) >= row.Chance) continue;
             if (row.EffectRow > 0)
-                replies.Add(GamePackets.SkillEffect(playerKey, playerKey, skill, actionUid, row.EffectRow));
+                replies.Add(GamePackets.SkillEffect(playerKey, playerKey, skill, actionUid, SkillSideData.WireEffectId(row.EffectRow, skill)));
             var duration = Math.Max(1, rng.Next(Math.Min(row.MinMs, row.MaxMs), Math.Max(row.MinMs, row.MaxMs) + 1));
             if (AddBuff(row.Abnormal, duration, skill, now, replies, path: SelfAbnormalPath.ClassSelfBuff) is not null)
                 applied = true;

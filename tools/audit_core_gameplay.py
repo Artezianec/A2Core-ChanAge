@@ -77,15 +77,22 @@ def audit_amplify():
         return {'export_present': False}
     ex = _load('exceed_enchant.json')
     steps = ex.get('steps') or []
+    groups = ex.get('groups') or {}
+    items = ex.get('items') or {}
+    notes = ex.get('export_notes') or {}
     return {
         'export_present': True,
         'wire_opcode_game': '0x5624 ItemExceedEnchant_RQ (not dev 0x3769)',
         'amplify_stone_item': ex.get('amplify_stone_item'),
         'step_count': len(steps),
         'step0_success_prob': steps[0][0] if steps else None,
+        'exceed_group_count': len(groups),
+        'mapped_item_count': len(items),
+        'dat_group_count': notes.get('dat_group_count'),
+        'candidate_step_groups': len(notes.get('candidate_step_groups') or []),
         'max_surpass_at_ilvl_102': _max_surpass_for_ilvl(ex.get('max_surpass_by_item_level', []), 102),
-        'server_handler': 'GameSession.ExceedEnchantAsync + ExceedEnchantTables (merged parity-amplify-exceed)',
-        'dat_rebuild_note': 'tools/exceed_enchant_data.py uses curated ladder when research/local ExceedEnchant tables absent',
+        'server_handler': 'GameSession.ExceedEnchantAsync + ExceedEnchantTables',
+        'dat_rebuild_note': notes.get('missing_tables') or 'tools/exceed_enchant_data.py',
     }
 
 
@@ -130,10 +137,11 @@ def run_audit():
         findings['gaps'].append('Keen Strike effective cooldown mismatch')
     if not amplify.get('export_present'):
         findings['gaps'].append('Amplify: missing tools/data/exceed_enchant.json')
-    elif 'curated' in (_load('exceed_enchant.json').get('source') or '').lower() or 'aion2.gg' in (_load('exceed_enchant.json').get('source') or ''):
+    elif (_load('exceed_enchant.json').get('export_notes') or {}).get('candidate_step_groups'):
+        notes = _load('exceed_enchant.json').get('export_notes') or {}
         findings['caveats'].append(
-            'Amplify odds/costs: exceed_enchant.json is partly curated (Global web sanity + scale /10000); '
-            'full ExceedEnchant.dat row export pending research tables.'
+            f"Amplify: {len(notes.get('candidate_step_groups') or [])} exceed groups use CANDIDATE ◆ ladders; "
+            'rebuild after WorldProbe export of ExceedEnchant.dat + AdditionalStat.dat.'
         )
     return findings
 

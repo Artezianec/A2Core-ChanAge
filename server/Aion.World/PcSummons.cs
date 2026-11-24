@@ -35,9 +35,16 @@ public static class PcSummons
     static string Id(int id) => id.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>The summon a class skill places, with its template: null for other skills and for summons that neither move nor attack (traps, markers).</summary>
-    public static (SummonSkill Skill, SummonTemplate Template)? For(int skillId) =>
-        file.Value.Skills.GetValueOrDefault(Id(skillId)) is { } skill && file.Value.Templates.GetValueOrDefault(Id(skill.Npc)) is { Skills.Length: > 0 } template
-            ? (skill, template) : null;
+    public static (SummonSkill Skill, SummonTemplate Template)? For(int skillId)
+    {
+        foreach (var key in SkillSideData.LookupKeys(skillId))
+        {
+            if (file.Value.Skills.GetValueOrDefault(Id(key)) is not { } skill) continue;
+            if (file.Value.Templates.GetValueOrDefault(Id(skill.Npc)) is { Skills.Length: > 0 } template)
+                return (skill, template);
+        }
+        return null;
+    }
 
     /// <summary>A summon's damaging attack (Skill.dat + its SkillEffect damage row), or null.</summary>
     public static NpcSkill? Skill(int skillId) =>

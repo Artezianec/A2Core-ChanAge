@@ -3,7 +3,7 @@ using Aion.Protocol.Native;
 
 namespace Aion.World;
 
-// Skill option customizing (SkillEffectFilterId → skill id, priority). SkillCondTable is not in the client export;
+// Skill option customizing (SkillEffectFilterId → skill id, priority). SkillCond rows live in SkillCond.json.gz;
 // defaults come from tools/data/class-skills.json (Skill.dat effect rows). Updates: 0x36EE / 0x36EF.
 public sealed partial class GameSession
 {

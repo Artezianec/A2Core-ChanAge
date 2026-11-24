@@ -17,14 +17,17 @@ public sealed partial class GameSession
 
     /// <summary>
     /// A killed monster's respawn delay: an official WorldMapFieldNamed timer (stored) when this is that spawn, else
-    /// its field-boss window (Aion:FieldBosses), else <see cref="RespawnMs"/>.
+    /// its field-boss window (Aion:FieldBosses), else per-spawn client data, else <see cref="RespawnMs"/>.
     /// </summary>
     long KillRespawnMs(Target target, long now)
     {
-        if (!FieldBosses.Options.Enabled) return RespawnMs;
+        if (!FieldBosses.Options.Enabled) return MobRespawnMs(target);
         if (worldPlayer?.Map?.RecordFieldBossKill(target, now) is { } until) return until - now;
-        return FieldRankOf(target) is not FieldRank.None and var rank ? FieldBosses.RespawnMs(target, rank, rng) : RespawnMs;
+        return FieldRankOf(target) is not FieldRank.None and var rank ? FieldBosses.RespawnMs(target, rank, rng) : MobRespawnMs(target);
     }
+
+    /// <summary>Ordinary field mob respawn: spawn-actor export when present, else the OURS fallback.</summary>
+    internal long MobRespawnMs(Target target) => target.SpawnRespawnMs > 0 ? target.SpawnRespawnMs : RespawnMs;
 
     /// <summary>True when this kill should skip the usual ground loot and give every contributor a personal bag reward instead.</summary>
     bool FieldBossPersonalRewards(Target target) =>

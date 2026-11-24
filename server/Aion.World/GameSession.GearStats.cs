@@ -101,6 +101,10 @@ public sealed partial class GameSession
             var value = AggregatedStat(name, wire);
             if (value != 0) extras[wire] = value;
         }
+        // Wish of Concentration and similar buffs raise DamageRatio (425); the character panel's attack amp line uses AmplifyAllDamage (28).
+        if (ItemStats.WireOf("DamageRatio") is { } ratioWire && extras.GetValueOrDefault(ratioWire) is var ratioBp and not 0
+            && ItemStats.WireOf("AmplifyAllDamage") is { } ampWire)
+            extras[ampWire] = extras.GetValueOrDefault(ampWire) + ratioBp;
         return extras;
     }
 
@@ -224,6 +228,8 @@ public sealed partial class GameSession
     internal WeaponStats WeaponStatsForTests() => PlayerWeaponStats();
 
     internal (IReadOnlyList<(int Type, int Value)> Stats, int HpMax) StatSheetForTests() => StatSheet();
+
+    internal int StatWireValueForTests(int wire) => StatWireValue(wire);
 
     internal int SetStatForTests(string stat) => SetStat(stat);
 

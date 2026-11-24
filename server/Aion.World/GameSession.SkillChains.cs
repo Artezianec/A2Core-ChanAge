@@ -344,8 +344,9 @@ public sealed partial class GameSession
     }
 
     static bool TargetSkillCondNeedsAbnormalEffect(SkillCondNeed cond, string effectType) =>
-        cond.Type.Equals("HasAbnormalEffectType", StringComparison.OrdinalIgnoreCase)
-        && cond.AbnormalEffect?.Equals(effectType, StringComparison.OrdinalIgnoreCase) == true;
+        cond.Type.Equals(SkillCondRegistry.HasAbnormalEffectType, StringComparison.OrdinalIgnoreCase)
+        && cond.AbnormalEffect is { Length: > 0 } need
+        && SkillCondRegistry.EffectTypesMatch(need, effectType);
 
     /// <summary>Last NPC/player key that opened a target-Stagger context select (hotbar revert when it ends).</summary>
     int? staggerReactiveTargetKey;

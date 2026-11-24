@@ -63,6 +63,8 @@ public sealed class Target
     public const long PermanentExpiry = 0x3bb2ad57580;
     /// <summary>MapData spawn UniqueKey (low 32 bits): the appear's spawn_unique_key.</summary>
     public uint UniqueKey { get; init; }
+    /// <summary>Client spawn-actor respawn delay in ms; 0 uses <see cref="GameSession.RespawnMs"/>.</summary>
+    public long SpawnRespawnMs { get; init; }
     /// <summary>The looping idle animation (social action) set in the appear, and when it started (Unix ms).</summary>
     public int SocialAction { get; init; }
     public long SocialStart { get; init; }
@@ -378,7 +380,8 @@ public static class Combat
                 NpcId = spawn.NpcId, Level = spawn.Level, Direction = spawn.Yaw, Relationship = spawn.Relationship,
                 Aggressive = spawn.Aggressive, WalkSpeed = spawn.WalkSpeed, RunSpeed = spawn.RunSpeed, Radius = spawn.Radius,
                 Function = spawn.Function, Aggro = spawn.Aggro, Skills = spawn.Skills ?? [], NoRotation = spawn.NoRotation,
-                UniqueKey = spawn.UniqueKey, SocialAction = spawn.SocialAction, SocialStart = spawn.SocialAction != 0 ? StartedAt : 0, Route = spawn.Route,
+                UniqueKey = spawn.UniqueKey, SpawnRespawnMs = spawn.SpawnRespawnMs,
+                SocialAction = spawn.SocialAction, SocialStart = spawn.SocialAction != 0 ? StartedAt : 0, Route = spawn.Route,
                 Air = spawn.Air, AirMonster = spawn.Air && spawn.SubType.EndsWith("Monster", StringComparison.Ordinal), DamageScale = DamageScale(spawn.SubType, spawn.Grade),
                 SubType = spawn.SubType, Grade = spawn.Grade, TemplateGroggyMax = spawn.GroggyGuardMax,
                 Defense = NpcDefense(spawn.Level, spawn.SubType, spawn.Grade, data.BaseStats("Gladiator", spawn.Level).GetValueOrDefault("Defense")),

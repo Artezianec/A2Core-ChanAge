@@ -1,0 +1,18 @@
+{
+  "source": "tools/spawn_respawn.py: AionSpawnUnit actors (summarize_world) and MapData SpawnInfoList when present; matched to tools/data/world-npcs.json by map + name / UniqueKey.",
+  "limitations": [
+    "research/local/spawn-actors-20261029/ (AionSpawnUnit WorldProbe) not in repo; run summarize_world on probe output then rebuild.",
+    "research/local/all-mapdata-full/ absent; MapData SpawnInfoList respawn fields skipped.",
+    "Map 1010 M_L1_AC_A_ForestWisp_01_1: 12000 ms test fixture until spawn-actor export."
+  ],
+  "maps": {
+    "1010": {
+      "M_L1_AC_A_ForestWisp_01_1": 12000
+    }
+  },
+  "by_unique_key": {
+    "1010": {
+      "3999549652": 12000
+    }
+  }
+}

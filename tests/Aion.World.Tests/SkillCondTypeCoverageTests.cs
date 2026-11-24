@@ -18,7 +18,7 @@ public sealed class SkillCondTypeCoverageTests
         {
             var skill = data.Skill(id)!;
             Assert.Equal("HasAbnormalEffectType", skill.SkillCond!.Type);
-            Assert.Equal("Stagger", skill.SkillCond.AbnormalEffect);
+            Assert.Equal("Groggy", skill.SkillCond.AbnormalEffect);
             Assert.Equal("Target", skill.SkillCond.SelectTarget);
         }
     }

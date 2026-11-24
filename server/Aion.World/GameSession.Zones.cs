@@ -34,6 +34,7 @@ partial class GameSession
         summonKeys[group] = key;
         seenNpcs.Add(key);
         replies.Add(GamePackets.NpcAppear(t.Appearance() with { Reason = NpcAppearance.NpcSpawnReason }));
+        replies.AddRange(ZoneCastEffects(skillId, zone, request, actionUid));
         zones.Add(new PlacedZone(key, group, skillId, zone, request, actionUid, zone.Ticks, now + NpcAi.HitDelayMs));
         return replies;
     }
@@ -67,6 +68,21 @@ partial class GameSession
         return replies;
     }
 
+    /// <summary>Timed NoEffect / Spawn rows of the cast skill (client preview VFX; Bittercold Wind 1528000011 / 1528000021).</summary>
+    List<byte[]> ZoneCastEffects(int skillId, PcZones.Zone zone, CastRequest request, byte actionUid)
+    {
+        if (zone.CastEffects is not { Length: > 0 } rows) return [];
+        var effectTarget = request.TargetKey != 0 ? request.TargetKey : playerKey;
+        var replies = new List<byte[]>();
+        foreach (var row in rows)
+        {
+            var to = string.Equals(row.Target, "target", StringComparison.OrdinalIgnoreCase) ? effectTarget : playerKey;
+            var effectId = SkillSideData.WireEffectId(row.EffectId, skillId);
+            replies.Add(GamePackets.SkillEffect(to, playerKey, skillId, actionUid, effectId));
+        }
+        return replies;
+    }
+
     List<byte[]> ZoneDamage(PlacedZone placed, Target marker, long at)
     {
         if (placed.Zone.Damage is not { } damageRow) return [];
@@ -74,10 +90,12 @@ partial class GameSession
         var victims = targets!.Values
             .Where(t => TrapVictim(t) && area.Contains(marker.Position, marker.Direction, t.Position, t.Radius))
             .OrderBy(t => t.Position.DistanceSquared(marker.Position)).Take(Math.Max(1, area.Max)).ToList();
+        var skillLevel = CastSkillLevel(placed.SkillId);
         var replies = new List<byte[]>();
         foreach (var victim in victims)
         {
-            var hit = PlayerRowHits([damageRow], victim.Defense)[0];
+            var wired = damageRow with { EffectId = SkillSideData.WireEffectId(damageRow.EffectId, placed.SkillId) };
+            var hit = PlayerRowHits([wired], victim.Defense, victimLevel: victim.Level, skillLevel: skillLevel)[0];
             var questKill = questLog?.OpenKillNpcIds().Contains(victim.NpcId) == true;
             var mapEventKill = mapEventRuns.Any(run => run.OpenKillNpcIds().Contains(victim.NpcId));
             replies.AddRange(ApplyScheduledCombatHit(new ScheduledCombatHit(placed.SkillId, placed.Request, placed.ActionUid, victim.Key, hit, 1, at,

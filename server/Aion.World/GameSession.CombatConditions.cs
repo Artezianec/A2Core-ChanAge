@@ -18,10 +18,11 @@ partial class GameSession
     internal bool PlayerHasAbnormalEffect(string? effectType, long now, int? casterKey)
     {
         if (string.IsNullOrEmpty(effectType)) return false;
-        if (effectType.Equals("Stagger", StringComparison.OrdinalIgnoreCase))
+        if (SkillCondRegistry.RequiresStaggerWindow(new SkillCondNeed(SkillCondRegistry.HasAbnormalEffectType,
+                AbnormalEffect: effectType, SelectTarget: "Target")))
             return PlayerHasGroggyBreakStagger(now);
         return buffs.Any(b => (!casterKey.HasValue || b.Uid != 0)
-            && AbnormalSpecs.Types(b.AbnormalId).Any(t => t.Equals(effectType, StringComparison.OrdinalIgnoreCase)));
+            && AbnormalSpecs.Types(b.AbnormalId).Any(t => SkillCondRegistry.EffectTypesMatch(effectType, t)));
     }
 
     internal bool PlayerHasAbnormalGroup(int group, int? casterKey) =>
@@ -34,10 +35,11 @@ partial class GameSession
     {
         if (targets?.TryGetValue(targetKey, out var victim) != true || victim is null) return false;
         if (string.IsNullOrEmpty(effectType)) return false;
-        if (effectType.Equals("Stagger", StringComparison.OrdinalIgnoreCase))
+        if (SkillCondRegistry.RequiresStaggerWindow(new SkillCondNeed(SkillCondRegistry.HasAbnormalEffectType,
+                AbnormalEffect: effectType, SelectTarget: "Target")))
             return NpcHasGroggyBreakStagger(targetKey, now);
         if (!npcBuffs.TryGetValue(targetKey, out var list)) return false;
-        return list.Any(b => b.ExpireAt > now && AbnormalSpecs.Types(b.AbnormalId).Any(t => t.Equals(effectType, StringComparison.OrdinalIgnoreCase)));
+        return list.Any(b => b.ExpireAt > now && AbnormalSpecs.Types(b.AbnormalId).Any(t => SkillCondRegistry.EffectTypesMatch(effectType, t)));
     }
 
     internal bool NpcHasAbnormalGroup(int targetKey, int group, int? casterKey)

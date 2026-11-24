@@ -26,6 +26,9 @@ public sealed class BittercoldWindTests
         Assert.Equal(10, zone.Ticks);
         Assert.NotNull(zone.Damage);
         Assert.Equal(1528000211, zone.Damage!.EffectId);
+        Assert.NotNull(zone.CastEffects);
+        Assert.Contains(zone.CastEffects!, r => r.EffectId == 1528000011);
+        Assert.Contains(zone.CastEffects!, r => r.EffectId == 1528000021);
         Assert.Equal(238, zone.Damage.Flat[0]);
         Assert.Equal(23225, zone.Damage.Ratio[0]);
         Assert.Equal("7", zone.Damage.Value4);
@@ -161,6 +164,8 @@ public sealed class BittercoldWindTests
         var replies = await session.HandleAsync(Cast(BittercoldWind, mob.Key, mob.Position), castAt);
         Assert.True(CastAccepted(replies));
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3802 && ContainsI32(p, BittercoldWind));
+        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3804 && ContainsI32(p, 1528000011));
+        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3804 && ContainsI32(p, 1528000021));
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3641);
         Assert.Equal(1, session.PlacedZoneCount);
         await session.TickAsync(castAt + 700);

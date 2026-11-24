@@ -12,6 +12,10 @@ namespace Aion.World;
 /// </summary>
 public static class PcZones
 {
+    public sealed record CastEffect(
+        [property: JsonPropertyName("effect_id")] int EffectId,
+        [property: JsonPropertyName("target")] string Target = "self");
+
     public sealed record Zone(
         [property: JsonPropertyName("name")] string Name,
         [property: JsonPropertyName("npc")] int Npc,
@@ -22,7 +26,8 @@ public static class PcZones
         [property: JsonPropertyName("damage")] DamageRow? Damage = null,
         [property: JsonPropertyName("ally_abnormals")] int[]? AllyAbnormals = null,
         [property: JsonPropertyName("abnormal_duration_ms")] int? AbnormalDurationMs = null,
-        [property: JsonPropertyName("debuffs")] int[][]? Debuffs = null)
+        [property: JsonPropertyName("debuffs")] int[][]? Debuffs = null,
+        [property: JsonPropertyName("cast_effects")] CastEffect[]? CastEffects = null)
     {
         /// <summary>The ticks one zone deals: one at the end of every <see cref="TickMs"/> of its life.</summary>
         public int Ticks => Math.Max(1, LifetimeMs / Math.Max(1, TickMs));
@@ -42,6 +47,7 @@ public static class PcZones
         return JsonSerializer.Deserialize<ZoneFile>(stream) ?? throw new InvalidOperationException("Empty game data pc-zones.json");
     });
 
-    /// <summary>The zone a class skill places, or null.</summary>
-    public static Zone? For(int skillId) => file.Value.Zones.GetValueOrDefault(skillId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    /// <summary>The zone a class skill places, or null (specialization children reuse the parent zone).</summary>
+    public static Zone? For(int skillId) =>
+        SkillSideData.FirstHit(skillId, k => file.Value.Zones.TryGetValue(k, out var zone) ? zone : null);
 }

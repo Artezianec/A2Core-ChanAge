@@ -46,6 +46,15 @@ public sealed class SorcererSkillsRegressionTests
     }
 
     [Fact]
+    public void Specialized_hellfire_child_from_export_has_damage_rows()
+    {
+        var data = GameSessionTestHelpers.LiveGameData;
+        var variant = 15_060_120;
+        Assert.NotNull(data.Skill(variant));
+        Assert.NotEmpty(data.Skill(variant)!.Damage);
+    }
+
+    [Fact]
     public async Task Hellfire_cast_deals_damage()
     {
         var (session, mob) = await SorcererWithMobAsync();
@@ -80,6 +89,14 @@ public sealed class SorcererSkillsRegressionTests
     }
 
     [Fact]
+    public void Bittercold_specialized_variant_uses_family_zone()
+    {
+        const int variant = 15_280_120;
+        Assert.NotNull(PcZones.For(variant));
+        Assert.Equal(PcZones.For(BittercoldWind)!.Damage?.EffectId, PcZones.For(variant)!.Damage?.EffectId);
+    }
+
+    [Fact]
     public async Task Wish_of_concentration_applies_attack_and_accuracy_buff()
     {
         var (session, mob) = await SorcererWithMobAsync();
@@ -89,6 +106,8 @@ public sealed class SorcererSkillsRegressionTests
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3801 && GameSession.CastResultCode(p) == 0);
         Assert.Equal(100, session.BuffStatForTests("Accuracy") - accuracyBefore);
         Assert.Equal(1000, session.BuffStatForTests("DamageRatio"));
+        Assert.Equal(1000, session.StatSheetForTests().Stats.FirstOrDefault(s => s.Type == 425).Value);
+        Assert.True(session.StatWireValueForTests(28) >= 1000, "DamageRatio should appear on AmplifyAllDamage wire for the attack panel");
         Assert.Contains(153100001, session.ActiveBuffs);
     }
 }

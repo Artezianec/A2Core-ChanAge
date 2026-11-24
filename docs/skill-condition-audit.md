@@ -102,13 +102,13 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 
 | Metric | Count |
 | --- | ---: |
-| Skills with any cast condition row | 1530 |
-| Total condition rows | 2816 |
+| Skills with any cast condition row | 1522 |
+| Total condition rows | 2579 |
 | `chain_prev` rows | 857 |
 | `skill_cond.HasAbnormalEffectType` rows | 106 |
 | `skill_cond.HasAbnormalGroupId` rows | 88 |
-| `spirit_summon` rows | 11 |
-| `toggle_grant` rows | 234 |
+| `spirit_summon` rows | 7 |
+| `toggle_grant` rows | 1 |
 | `weapon` rows | 1520 |
 
 ### Server enforcement (this branch)
@@ -118,15 +118,14 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | `chain_prev` | 857 | **yes** | GameSession.SkillChains |
 | `skill_cond.HasAbnormalEffectType` | 106 | **yes** | GameSession.SkillConditions + NpcTargetHasAbnormalEffect / player buffs |
 | `skill_cond.HasAbnormalGroupId` | 88 | **yes** | GameSession.SkillConditions.SkillCondMet |
-| `spirit_summon` | 11 | **yes** | GameSession.Summons.SpiritConditionMet |
-| `toggle_grant` | 234 | **yes** | ApplySkillCondGrant on prerequisite cast |
+| `spirit_summon` | 7 | **yes** | GameSession.Summons.SpiritConditionMet |
+| `toggle_grant` | 1 | **yes** | ApplySkillCondGrant on prerequisite cast |
 | `weapon` | 1520 | **yes** | GameSession cast: NeedMainWeaponTypes |
 
 ## Per-class skills with conditions
 
 | Class | Skill | Kind | Detail | Server | State producer |
 | --- | --- | --- | --- | --- | --- |
-| Gladiator | Dodge `11000100` | `toggle_grant` | abnormal 3015 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Gladiator | Rending Blow `11010000` | `weapon` | Greatsword | yes | equipped weapon type |
 | Gladiator | Rending Blow `11010010` | `weapon` | Greatsword | yes | equipped weapon type |
 | Gladiator | Rending Blow `11010020` | `weapon` | Greatsword | yes | equipped weapon type |
@@ -457,44 +456,31 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Gladiator | STR_SKILL_PC_GLADIATOR_11212450 `11212450` | `chain_prev` | after 11202450 | yes | prior chain skill cast within window |
 | Gladiator | Defiance `11260000` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Gladiator | Defiance `11260000` | `weapon` | Greatsword | yes | equipped weapon type |
-| Gladiator | Defiance `11260000` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Gladiator | Defiance `11260010` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Gladiator | Defiance `11260010` | `weapon` | Greatsword | yes | equipped weapon type |
-| Gladiator | Defiance `11260010` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Gladiator | Defiance `11260120` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Gladiator | Defiance `11260120` | `weapon` | Greatsword | yes | equipped weapon type |
-| Gladiator | Defiance `11260120` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Gladiator | Defiance `11260130` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Gladiator | Defiance `11260130` | `weapon` | Greatsword | yes | equipped weapon type |
-| Gladiator | Defiance `11260130` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Gladiator | Defiance `11260140` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Gladiator | Defiance `11260140` | `weapon` | Greatsword | yes | equipped weapon type |
-| Gladiator | Defiance `11260140` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Gladiator | Defiance `11260150` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Gladiator | Defiance `11260150` | `weapon` | Greatsword | yes | equipped weapon type |
-| Gladiator | Defiance `11260150` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Gladiator | Defiance `11261230` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Gladiator | Defiance `11261230` | `weapon` | Greatsword | yes | equipped weapon type |
-| Gladiator | Defiance `11261230` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Gladiator | Defiance `11261240` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Gladiator | Defiance `11261240` | `weapon` | Greatsword | yes | equipped weapon type |
-| Gladiator | Defiance `11261240` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Gladiator | Defiance `11261250` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Gladiator | Defiance `11261250` | `weapon` | Greatsword | yes | equipped weapon type |
-| Gladiator | Defiance `11261250` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Gladiator | Defiance `11261340` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Gladiator | Defiance `11261340` | `weapon` | Greatsword | yes | equipped weapon type |
-| Gladiator | Defiance `11261340` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Gladiator | Defiance `11261350` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Gladiator | Defiance `11261350` | `weapon` | Greatsword | yes | equipped weapon type |
-| Gladiator | Defiance `11261350` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Gladiator | Defiance `11261450` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Gladiator | Defiance `11261450` | `weapon` | Greatsword | yes | equipped weapon type |
-| Gladiator | Defiance `11261450` | `toggle_grant` | abnormal 100200101 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
-| Gladiator | Sword Aura Rampage `11280000` | `skill_cond.HasAbnormalEffectType` | Target Stagger [override] | yes | 16040000 stagger_gauge +3; 16070000 stagger_gauge +15; 16100000 stagger_gauge +7 … |
+| Gladiator | Sword Aura Rampage `11280000` | `skill_cond.HasAbnormalEffectType` | Target Groggy | yes | no server producer found |
 | Gladiator | Sword Aura Rampage `11280000` | `weapon` | Greatsword | yes | equipped weapon type |
 | Gladiator | Mocking Blade `11290000` | `weapon` | Greatsword | yes | equipped weapon type |
-| Gladiator | Mocking Blade `11290000` | `toggle_grant` | abnormal 112900001 50ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Gladiator | Aerial Snare `11300000` | `skill_cond.HasAbnormalGroupId` | Target group 113000381 | yes | none in export |
 | Gladiator | Aerial Snare `11300000` | `weapon` | Greatsword | yes | equipped weapon type |
 | Gladiator | Aerial Snare `11300040` | `skill_cond.HasAbnormalGroupId` | Target group 113000381 | yes | none in export |
@@ -642,7 +628,6 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Gladiator | STR_SKILL_PC_GLADIATOR_11443450 `11443450` | `chain_prev` | after 11173450 | yes | prior chain skill cast within window |
 | Gladiator | Branch A `11999002` | `chain_prev` | after 11999001 | yes | prior chain skill cast within window |
 | Gladiator | Branch B `11999003` | `chain_prev` | after 11999001 | yes | prior chain skill cast within window |
-| Templar | Dodge `12000100` | `toggle_grant` | abnormal 3015 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Vicious Strike `12010000` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | Vicious Strike `12010010` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | Vicious Strike `12010020` | `weapon` | Sword | yes | equipped weapon type |
@@ -852,90 +837,63 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Templar | Punishing Strike `12063450` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | Punishing Strike `12063450` | `chain_prev` | after 12043450 | yes | prior chain skill cast within window |
 | Templar | Punishment `12090000` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Punishment `12090000` | `toggle_grant` | abnormal 120900001 20000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Shield Smite `12100000` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | Poach `12130000` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Poach `12130000` | `toggle_grant` | abnormal 121300001 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Judgment `12240000` | `skill_cond.HasAbnormalGroupId` | Self group 122400071 | yes | none in export |
 | Templar | Judgment `12240000` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | Defiance `12260000` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Templar | Defiance `12260000` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Defiance `12260000` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Defiance `12260010` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Templar | Defiance `12260010` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Defiance `12260010` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Defiance `12260120` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Templar | Defiance `12260120` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Defiance `12260120` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Defiance `12260130` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Templar | Defiance `12260130` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Defiance `12260130` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Defiance `12260140` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Templar | Defiance `12260140` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Defiance `12260140` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Defiance `12260150` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Templar | Defiance `12260150` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Defiance `12260150` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Defiance `12261230` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Templar | Defiance `12261230` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Defiance `12261230` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Defiance `12261240` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Templar | Defiance `12261240` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Defiance `12261240` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Defiance `12261250` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Templar | Defiance `12261250` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Defiance `12261250` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Defiance `12261340` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Templar | Defiance `12261340` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Defiance `12261340` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Defiance `12261350` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Templar | Defiance `12261350` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Defiance `12261350` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Defiance `12261450` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Templar | Defiance `12261450` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Defiance `12261450` | `toggle_grant` | abnormal 100200101 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Debilitating Smash `12270000` | `skill_cond.HasAbnormalEffectType` | Self CondDefenceBlock | yes | no server producer found |
 | Templar | Debilitating Smash `12270000` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Debilitating Smash `12270000` | `toggle_grant` | abnormal 122700001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Annihilate `12300000` | `skill_cond.HasAbnormalGroupId` | Self group 123000001 | yes | none in export |
 | Templar | Annihilate `12300000` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12330010` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12330010` | `chain_prev` | after 12260010 | yes | prior chain skill cast within window |
-| Templar | STR_SKILL_PC_TEMPLAR_12330000 `12330010` | `toggle_grant` | abnormal 123300001 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12330120` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12330120` | `chain_prev` | after 12260120 | yes | prior chain skill cast within window |
-| Templar | STR_SKILL_PC_TEMPLAR_12330000 `12330120` | `toggle_grant` | abnormal 123300001 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12330130` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12330130` | `chain_prev` | after 12260130 | yes | prior chain skill cast within window |
-| Templar | STR_SKILL_PC_TEMPLAR_12330000 `12330130` | `toggle_grant` | abnormal 123300001 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12330140` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12330140` | `chain_prev` | after 12260140 | yes | prior chain skill cast within window |
-| Templar | STR_SKILL_PC_TEMPLAR_12330000 `12330140` | `toggle_grant` | abnormal 123300001 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12330150` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12330150` | `chain_prev` | after 12260150 | yes | prior chain skill cast within window |
-| Templar | STR_SKILL_PC_TEMPLAR_12330000 `12330150` | `toggle_grant` | abnormal 123300001 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331230` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331230` | `chain_prev` | after 12261230 | yes | prior chain skill cast within window |
-| Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331230` | `toggle_grant` | abnormal 123300001 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331240` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331240` | `chain_prev` | after 12261240 | yes | prior chain skill cast within window |
-| Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331240` | `toggle_grant` | abnormal 123300001 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331250` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331250` | `chain_prev` | after 12261250 | yes | prior chain skill cast within window |
-| Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331250` | `toggle_grant` | abnormal 123300001 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331340` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331340` | `chain_prev` | after 12261340 | yes | prior chain skill cast within window |
-| Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331340` | `toggle_grant` | abnormal 123300001 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331350` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331350` | `chain_prev` | after 12261350 | yes | prior chain skill cast within window |
-| Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331350` | `toggle_grant` | abnormal 123300001 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331450` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331450` | `chain_prev` | after 12261450 | yes | prior chain skill cast within window |
-| Templar | STR_SKILL_PC_TEMPLAR_12330000 `12331450` | `toggle_grant` | abnormal 123300001 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
-| Templar | Flash Rampage `12340000` | `skill_cond.HasAbnormalEffectType` | Target Stagger [override] | yes | 16040000 stagger_gauge +3; 16070000 stagger_gauge +15; 16100000 stagger_gauge +7 … |
+| Templar | Flash Rampage `12340000` | `skill_cond.HasAbnormalEffectType` | Target Groggy | yes | no server producer found |
 | Templar | Flash Rampage `12340000` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | Warding Strike `12350000` | `weapon` | Sword | yes | equipped weapon type |
-| Templar | Warding Strike `12350000` | `toggle_grant` | abnormal 123500001 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Templar | Shield Rush `12430000` | `skill_cond.HasAbnormalGroupId` | Self group 100000002 | yes | none in export |
 | Templar | Shield Rush `12430000` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | STR_SKILL_PC_TEMPLAR_12440050 `12440050` | `weapon` | Sword | yes | equipped weapon type |
@@ -960,7 +918,6 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Templar | STR_SKILL_PC_TEMPLAR_12442450 `12442450` | `chain_prev` | after 12032450 | yes | prior chain skill cast within window |
 | Templar | STR_SKILL_PC_TEMPLAR_12443450 `12443450` | `weapon` | Sword | yes | equipped weapon type |
 | Templar | STR_SKILL_PC_TEMPLAR_12443450 `12443450` | `chain_prev` | after 12033450 | yes | prior chain skill cast within window |
-| Assassin | Dodge `13000100` | `toggle_grant` | abnormal 3015 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Quick Slice `13010000` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Quick Slice `13010010` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Quick Slice `13010020` | `weapon` | Dagger | yes | equipped weapon type |
@@ -1095,255 +1052,164 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Assassin | Ambush `13060000` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Shadowstrike `13070000` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Roar `13100000` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100000` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13100010` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100010` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13100020` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100020` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13100030` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100030` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13100040` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100040` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13100050` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100050` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13100120` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100120` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13100130` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100130` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13100140` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100140` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13100150` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100150` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13100230` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100230` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13100240` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100240` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13100250` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100250` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13100340` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100340` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13100350` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100350` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13100450` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13100450` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13101230` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13101230` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13101240` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13101240` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13101250` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13101250` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13101340` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13101340` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13101350` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13101350` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13101450` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13101450` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13102340` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13102340` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13102350` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13102350` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13102450` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13102450` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Roar `13103450` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Savage Roar `13103450` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110000` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110000` | `chain_prev` | after 13100000 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110000` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110010` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110010` | `chain_prev` | after 13100010 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110010` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110020` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110020` | `chain_prev` | after 13100020 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110020` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110030` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110030` | `chain_prev` | after 13100030 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110030` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110040` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110040` | `chain_prev` | after 13100040 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110040` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110050` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110050` | `chain_prev` | after 13100050 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110050` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110120` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110120` | `chain_prev` | after 13100120 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110120` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110130` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110130` | `chain_prev` | after 13100130 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110130` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110140` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110140` | `chain_prev` | after 13100140 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110140` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110150` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110150` | `chain_prev` | after 13100150 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110150` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110230` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110230` | `chain_prev` | after 13100230 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110230` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110240` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110240` | `chain_prev` | after 13100240 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110240` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110250` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110250` | `chain_prev` | after 13100250 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110250` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110340` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110340` | `chain_prev` | after 13100340 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110340` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110350` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110350` | `chain_prev` | after 13100350 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110350` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13110450` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13110450` | `chain_prev` | after 13100450 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13110450` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13111230` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13111230` | `chain_prev` | after 13101230 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13111230` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13111240` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13111240` | `chain_prev` | after 13101240 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13111240` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13111250` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13111250` | `chain_prev` | after 13101250 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13111250` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13111340` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13111340` | `chain_prev` | after 13101340 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13111340` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13111350` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13111350` | `chain_prev` | after 13101350 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13111350` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13111450` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13111450` | `chain_prev` | after 13101450 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13111450` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13112340` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13112340` | `chain_prev` | after 13102340 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13112340` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13112350` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13112350` | `chain_prev` | after 13102350 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13112350` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13112450` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13112450` | `chain_prev` | after 13102450 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13112450` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Back Kick `13113450` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Back Kick `13113450` | `chain_prev` | after 13103450 | yes | prior chain skill cast within window |
-| Assassin | Savage Back Kick `13113450` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120000` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120000` | `chain_prev` | after 13110000 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120000` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120010` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120010` | `chain_prev` | after 13110010 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120010` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120020` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120020` | `chain_prev` | after 13110020 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120020` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120030` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120030` | `chain_prev` | after 13110030 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120030` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120040` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120040` | `chain_prev` | after 13110040 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120040` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120050` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120050` | `chain_prev` | after 13110050 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120050` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120120` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120120` | `chain_prev` | after 13110120 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120120` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120130` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120130` | `chain_prev` | after 13110130 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120130` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120140` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120140` | `chain_prev` | after 13110140 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120140` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120150` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120150` | `chain_prev` | after 13110150 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120150` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120230` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120230` | `chain_prev` | after 13110230 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120230` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120240` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120240` | `chain_prev` | after 13110240 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120240` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120250` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120250` | `chain_prev` | after 13110250 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120250` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120340` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120340` | `chain_prev` | after 13110340 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120340` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120350` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120350` | `chain_prev` | after 13110350 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120350` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13120450` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13120450` | `chain_prev` | after 13110450 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13120450` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13121230` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13121230` | `chain_prev` | after 13111230 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13121230` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13121240` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13121240` | `chain_prev` | after 13111240 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13121240` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13121250` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13121250` | `chain_prev` | after 13111250 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13121250` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13121340` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13121340` | `chain_prev` | after 13111340 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13121340` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13121350` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13121350` | `chain_prev` | after 13111350 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13121350` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13121450` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13121450` | `chain_prev` | after 13111450 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13121450` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13122340` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13122340` | `chain_prev` | after 13112340 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13122340` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13122350` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13122350` | `chain_prev` | after 13112350 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13122350` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13122450` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13122450` | `chain_prev` | after 13112450 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13122450` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Savage Smash `13123450` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Savage Smash `13123450` | `chain_prev` | after 13113450 | yes | prior chain skill cast within window |
-| Assassin | Savage Smash `13123450` | `toggle_grant` | abnormal 130000011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Insignia Explosion `13130000` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Whirlwind Slice `13210000` | `skill_cond.HasAbnormalGroupId` | Self group 130600471 | yes | none in export |
 | Assassin | Whirlwind Slice `13210000` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Shadow Fall `13220000` | `skill_cond.HasAbnormalGroupId` | Self group 132200381 | yes | none in export |
 | Assassin | Shadow Fall `13220000` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Shadow Fall `13220000` | `toggle_grant` | abnormal 132200002 250ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Defiance `13260000` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Assassin | Defiance `13260000` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Defiance `13260000` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Defiance `13260010` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Assassin | Defiance `13260010` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Defiance `13260010` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Defiance `13260120` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Assassin | Defiance `13260120` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Defiance `13260120` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Defiance `13260130` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Assassin | Defiance `13260130` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Defiance `13260130` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Defiance `13260140` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Assassin | Defiance `13260140` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Defiance `13260140` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Defiance `13260150` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Assassin | Defiance `13260150` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Defiance `13260150` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Defiance `13261230` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Assassin | Defiance `13261230` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Defiance `13261230` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Defiance `13261240` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Assassin | Defiance `13261240` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Defiance `13261240` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Defiance `13261250` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Assassin | Defiance `13261250` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Defiance `13261250` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Defiance `13261340` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Assassin | Defiance `13261340` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Defiance `13261340` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Defiance `13261350` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Assassin | Defiance `13261350` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Defiance `13261350` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | Defiance `13261450` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Assassin | Defiance `13261450` | `weapon` | Dagger | yes | equipped weapon type |
-| Assassin | Defiance `13261450` | `toggle_grant` | abnormal 100200101 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | STR_SKILL_PC_ASSASSIN_13330000 `13330010` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | STR_SKILL_PC_ASSASSIN_13330000 `13330010` | `chain_prev` | after 13260010 | yes | prior chain skill cast within window |
 | Assassin | STR_SKILL_PC_ASSASSIN_13330000 `13330120` | `weapon` | Dagger | yes | equipped weapon type |
@@ -1366,7 +1232,7 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Assassin | STR_SKILL_PC_ASSASSIN_13330000 `13331350` | `chain_prev` | after 13261350 | yes | prior chain skill cast within window |
 | Assassin | STR_SKILL_PC_ASSASSIN_13330000 `13331450` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | STR_SKILL_PC_ASSASSIN_13330000 `13331450` | `chain_prev` | after 13261450 | yes | prior chain skill cast within window |
-| Assassin | Storm Rampage `13340000` | `skill_cond.HasAbnormalEffectType` | Target Stagger [override] | yes | 16040000 stagger_gauge +3; 16070000 stagger_gauge +15; 16100000 stagger_gauge +7 … |
+| Assassin | Storm Rampage `13340000` | `skill_cond.HasAbnormalEffectType` | Target Groggy | yes | no server producer found |
 | Assassin | Storm Rampage `13340000` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | Heart Gore `13350000` | `skill_cond.HasAbnormalGroupId` | Self group 133500081 | yes | none in export |
 | Assassin | Heart Gore `13350000` | `weapon` | Dagger | yes | equipped weapon type |
@@ -1396,38 +1262,26 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Assassin | Infiltrate `13363450` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13380040` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13380040` | `chain_prev` | after 13360040 | yes | prior chain skill cast within window |
-| Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13380040` | `toggle_grant` | abnormal 100000501 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13380140` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13380140` | `chain_prev` | after 13360140 | yes | prior chain skill cast within window |
-| Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13380140` | `toggle_grant` | abnormal 100000501 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13380240` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13380240` | `chain_prev` | after 13360240 | yes | prior chain skill cast within window |
-| Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13380240` | `toggle_grant` | abnormal 100000501 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13380340` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13380340` | `chain_prev` | after 13360340 | yes | prior chain skill cast within window |
-| Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13380340` | `toggle_grant` | abnormal 100000501 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13380450` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13380450` | `chain_prev` | after 13360450 | yes | prior chain skill cast within window |
-| Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13380450` | `toggle_grant` | abnormal 100000501 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13381240` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13381240` | `chain_prev` | after 13361240 | yes | prior chain skill cast within window |
-| Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13381240` | `toggle_grant` | abnormal 100000501 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13381340` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13381340` | `chain_prev` | after 13361340 | yes | prior chain skill cast within window |
-| Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13381340` | `toggle_grant` | abnormal 100000501 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13381450` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13381450` | `chain_prev` | after 13361450 | yes | prior chain skill cast within window |
-| Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13381450` | `toggle_grant` | abnormal 100000501 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13382340` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13382340` | `chain_prev` | after 13362340 | yes | prior chain skill cast within window |
-| Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13382340` | `toggle_grant` | abnormal 100000501 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13382450` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13382450` | `chain_prev` | after 13362450 | yes | prior chain skill cast within window |
-| Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13382450` | `toggle_grant` | abnormal 100000501 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13383450` | `weapon` | Dagger | yes | equipped weapon type |
 | Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13383450` | `chain_prev` | after 13363450 | yes | prior chain skill cast within window |
-| Assassin | STR_SKILL_PC_ASSASSIN_13380000 `13383450` | `toggle_grant` | abnormal 100000501 200ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
-| Ranger | Dodge `14000100` | `toggle_grant` | abnormal 3015 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Ranger | Deadshot `14010000` | `weapon` | Bow | yes | equipped weapon type |
 | Ranger | Snipe `14020000` | `weapon` | Bow | yes | equipped weapon type |
 | Ranger | Snipe `14020010` | `weapon` | Bow | yes | equipped weapon type |
@@ -1561,9 +1415,9 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Ranger | Spiral Arrow `14043450` | `chain_prev` | after 14033450 | yes | prior chain skill cast within window |
 | Ranger | Drill Dart `14050000` | `skill_cond.HasAbnormalGroupId` | Self group 140500081 | yes | none in export |
 | Ranger | Drill Dart `14050000` | `weapon` | Bow | yes | equipped weapon type |
-| Ranger | Suppressing Arrow `14070000` | `skill_cond.HasAbnormalGroupId` | Self group 140900001 [override] | yes | 14090000 skill_cond_grant |
+| Ranger | Suppressing Arrow `14070000` | `skill_cond.HasAbnormalGroupId` | Self group 140900001 | yes | 14090000 skill_cond_grant |
 | Ranger | Suppressing Arrow `14070000` | `weapon` | Bow | yes | equipped weapon type |
-| Ranger | Burst Arrow `14080000` | `skill_cond.HasAbnormalEffectType` | Target Snare | yes | 14130000 debuff 100000041; 14130040 debuff 100000041; 14130240 debuff 100000041 … |
+| Ranger | Burst Arrow `14080000` | `skill_cond.HasAbnormalEffectType` | Target Snare | yes | 14130000 debuff 100000041; 14130040 debuff 100000041; 14130140 debuff 100000061 … |
 | Ranger | Burst Arrow `14080000` | `weapon` | Bow | yes | equipped weapon type |
 | Ranger | Marking Shot `14090000` | `weapon` | Bow | yes | equipped weapon type |
 | Ranger | Marking Shot `14090000` | `toggle_grant` | abnormal 140900001 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
@@ -1627,41 +1481,29 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Ranger | Explosion Trap `14170000` | `weapon` | Bow | yes | equipped weapon type |
 | Ranger | Defiance `14260000` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Ranger | Defiance `14260000` | `weapon` | Bow | yes | equipped weapon type |
-| Ranger | Defiance `14260000` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Ranger | Defiance `14260010` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Ranger | Defiance `14260010` | `weapon` | Bow | yes | equipped weapon type |
-| Ranger | Defiance `14260010` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Ranger | Defiance `14260120` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Ranger | Defiance `14260120` | `weapon` | Bow | yes | equipped weapon type |
-| Ranger | Defiance `14260120` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Ranger | Defiance `14260130` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Ranger | Defiance `14260130` | `weapon` | Bow | yes | equipped weapon type |
-| Ranger | Defiance `14260130` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Ranger | Defiance `14260140` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Ranger | Defiance `14260140` | `weapon` | Bow | yes | equipped weapon type |
-| Ranger | Defiance `14260140` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Ranger | Defiance `14260150` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Ranger | Defiance `14260150` | `weapon` | Bow | yes | equipped weapon type |
-| Ranger | Defiance `14260150` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Ranger | Defiance `14261230` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Ranger | Defiance `14261230` | `weapon` | Bow | yes | equipped weapon type |
-| Ranger | Defiance `14261230` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Ranger | Defiance `14261240` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Ranger | Defiance `14261240` | `weapon` | Bow | yes | equipped weapon type |
-| Ranger | Defiance `14261240` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Ranger | Defiance `14261250` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Ranger | Defiance `14261250` | `weapon` | Bow | yes | equipped weapon type |
-| Ranger | Defiance `14261250` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Ranger | Defiance `14261340` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Ranger | Defiance `14261340` | `weapon` | Bow | yes | equipped weapon type |
-| Ranger | Defiance `14261340` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Ranger | Defiance `14261350` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Ranger | Defiance `14261350` | `weapon` | Bow | yes | equipped weapon type |
-| Ranger | Defiance `14261350` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Ranger | Defiance `14261450` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Ranger | Defiance `14261450` | `weapon` | Bow | yes | equipped weapon type |
-| Ranger | Defiance `14261450` | `toggle_grant` | abnormal 100200101 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
-| Ranger | Arrow Scattershot `14330000` | `skill_cond.HasAbnormalEffectType` | Target Stagger [override] | yes | 16040000 stagger_gauge +3; 16070000 stagger_gauge +15; 16100000 stagger_gauge +7 … |
+| Ranger | Arrow Scattershot `14330000` | `skill_cond.HasAbnormalEffectType` | Target Groggy | yes | no server producer found |
 | Ranger | Arrow Scattershot `14330000` | `weapon` | Bow | yes | equipped weapon type |
 | Ranger | Tempest Shot `14340000` | `weapon` | Bow | yes | equipped weapon type |
 | Ranger | STR_SKILL_PC_RANGER_14370000 `14370010` | `weapon` | Bow | yes | equipped weapon type |
@@ -1686,8 +1528,7 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Ranger | STR_SKILL_PC_RANGER_14370000 `14371350` | `chain_prev` | after 14261350 | yes | prior chain skill cast within window |
 | Ranger | STR_SKILL_PC_RANGER_14370000 `14371450` | `weapon` | Bow | yes | equipped weapon type |
 | Ranger | STR_SKILL_PC_RANGER_14370000 `14371450` | `chain_prev` | after 14261450 | yes | prior chain skill cast within window |
-| Sorcerer | Dodge `15000100` | `toggle_grant` | abnormal 3015 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
-| Sorcerer | Flame Scattershot `15010000` | `skill_cond.HasAbnormalEffectType` | Target Stagger [override] | yes | 16040000 stagger_gauge +3; 16070000 stagger_gauge +15; 16100000 stagger_gauge +7 … |
+| Sorcerer | Flame Scattershot `15010000` | `skill_cond.HasAbnormalEffectType` | Target Groggy | yes | no server producer found |
 | Sorcerer | Flame Scattershot `15010000` | `weapon` | Magicbook | yes | equipped weapon type |
 | Sorcerer | Burst `15030000` | `weapon` | Magicbook | yes | equipped weapon type |
 | Sorcerer | Burst `15030000` | `chain_prev` | after 15210000 | yes | prior chain skill cast within window |
@@ -1866,40 +1707,28 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Sorcerer | Frost Burst `15220000` | `weapon` | Magicbook | yes | equipped weapon type |
 | Sorcerer | Defiance `15240000` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Sorcerer | Defiance `15240000` | `weapon` | Magicbook | yes | equipped weapon type |
-| Sorcerer | Defiance `15240000` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Sorcerer | Defiance `15240010` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Sorcerer | Defiance `15240010` | `weapon` | Magicbook | yes | equipped weapon type |
-| Sorcerer | Defiance `15240010` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Sorcerer | Defiance `15240120` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Sorcerer | Defiance `15240120` | `weapon` | Magicbook | yes | equipped weapon type |
-| Sorcerer | Defiance `15240120` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Sorcerer | Defiance `15240130` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Sorcerer | Defiance `15240130` | `weapon` | Magicbook | yes | equipped weapon type |
-| Sorcerer | Defiance `15240130` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Sorcerer | Defiance `15240140` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Sorcerer | Defiance `15240140` | `weapon` | Magicbook | yes | equipped weapon type |
-| Sorcerer | Defiance `15240140` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Sorcerer | Defiance `15240150` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Sorcerer | Defiance `15240150` | `weapon` | Magicbook | yes | equipped weapon type |
-| Sorcerer | Defiance `15240150` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Sorcerer | Defiance `15241230` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Sorcerer | Defiance `15241230` | `weapon` | Magicbook | yes | equipped weapon type |
-| Sorcerer | Defiance `15241230` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Sorcerer | Defiance `15241240` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Sorcerer | Defiance `15241240` | `weapon` | Magicbook | yes | equipped weapon type |
-| Sorcerer | Defiance `15241240` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Sorcerer | Defiance `15241250` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Sorcerer | Defiance `15241250` | `weapon` | Magicbook | yes | equipped weapon type |
-| Sorcerer | Defiance `15241250` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Sorcerer | Defiance `15241340` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Sorcerer | Defiance `15241340` | `weapon` | Magicbook | yes | equipped weapon type |
-| Sorcerer | Defiance `15241340` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Sorcerer | Defiance `15241350` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Sorcerer | Defiance `15241350` | `weapon` | Magicbook | yes | equipped weapon type |
-| Sorcerer | Defiance `15241350` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Sorcerer | Defiance `15241450` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Sorcerer | Defiance `15241450` | `weapon` | Magicbook | yes | equipped weapon type |
-| Sorcerer | Defiance `15241450` | `toggle_grant` | abnormal 100200101 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Sorcerer | Pyroclasm `15250000` | `weapon` | Magicbook | yes | equipped weapon type |
 | Sorcerer | Pyroclasm `15250000` | `chain_prev` | after 15030000 | yes | prior chain skill cast within window |
 | Sorcerer | Pyroclasm `15250010` | `weapon` | Magicbook | yes | equipped weapon type |
@@ -1954,7 +1783,6 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Sorcerer | Pyroclasm `15253450` | `chain_prev` | after 15033450 | yes | prior chain skill cast within window |
 | Sorcerer | Bittercold Wind `15280000` | `weapon` | Magicbook | yes | equipped weapon type |
 | Sorcerer | Wish of Concentration `15310000` | `weapon` | Magicbook | yes | equipped weapon type |
-| Sorcerer | Wish of Concentration `15310000` | `toggle_grant` | abnormal 153100001 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Sorcerer | STR_SKILL_PC_SORCERER_15330040 `15330040` | `weapon` | Magicbook | yes | equipped weapon type |
 | Sorcerer | STR_SKILL_PC_SORCERER_15330040 `15330040` | `chain_prev` | after 15110040 | yes | prior chain skill cast within window |
 | Sorcerer | STR_SKILL_PC_SORCERER_15330140 `15330140` | `weapon` | Magicbook | yes | equipped weapon type |
@@ -1999,7 +1827,6 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Sorcerer | STR_SKILL_PC_SORCERER_15341350 `15341350` | `chain_prev` | after 15241350 | yes | prior chain skill cast within window |
 | Sorcerer | STR_SKILL_PC_SORCERER_15341450 `15341450` | `weapon` | Magicbook | yes | equipped weapon type |
 | Sorcerer | STR_SKILL_PC_SORCERER_15341450 `15341450` | `chain_prev` | after 15241450 | yes | prior chain skill cast within window |
-| Elementalist | Dodge `16000100` | `toggle_grant` | abnormal 3015 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Elementalist | Return: All Spirits `16009999` | `spirit_summon` | Fire, Water, Earth, Wind, Ancient | yes | GameSession.Summons elemental spirits |
 | Elementalist | Return: All Spirits `16009999` | `weapon` | Orb | yes | equipped weapon type |
 | Elementalist | Cold Shock `16010000` | `weapon` | Orb | yes | equipped weapon type |
@@ -2167,57 +1994,36 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Elementalist | STR_SKILL_PC_ELEMENTALIST_16053450 `16053450` | `weapon` | Orb | yes | equipped weapon type |
 | Elementalist | STR_SKILL_PC_ELEMENTALIST_16053450 `16053450` | `chain_prev` | after 16043450 | yes | prior chain skill cast within window |
 | Elementalist | Soul's Cry `16070000` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Summon: Fire Spirit `16100000` | `spirit_summon` | Fire, Water, Earth, Wind, Ancient | yes | GameSession.Summons elemental spirits |
 | Elementalist | Summon: Fire Spirit `16100000` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Summon: Fire Spirit `16100000` | `toggle_grant` | abnormal 167300011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
-| Elementalist | Summon: Water Spirit `16110000` | `spirit_summon` | Fire, Water, Earth, Wind, Ancient | yes | GameSession.Summons elemental spirits |
 | Elementalist | Summon: Water Spirit `16110000` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Summon: Water Spirit `16110000` | `toggle_grant` | abnormal 167300011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
-| Elementalist | Summon: Wind Spirit `16120000` | `spirit_summon` | Fire, Water, Earth, Wind, Ancient | yes | GameSession.Summons elemental spirits |
 | Elementalist | Summon: Wind Spirit `16120000` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Summon: Wind Spirit `16120000` | `toggle_grant` | abnormal 167300011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
-| Elementalist | Summon: Earth Spirit `16130000` | `spirit_summon` | Fire, Water, Earth, Wind, Ancient | yes | GameSession.Summons elemental spirits |
 | Elementalist | Summon: Earth Spirit `16130000` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Summon: Earth Spirit `16130000` | `toggle_grant` | abnormal 167300011 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Elementalist | Jointstrike: Curse `16140000` | `spirit_summon` | Fire, Water, Earth, Wind, Ancient | yes | GameSession.Summons elemental spirits |
 | Elementalist | Jointstrike: Curse `16140000` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Jointstrike: Curse `16140000` | `toggle_grant` | abnormal 161400001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Elementalist | Defiance `16200000` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Elementalist | Defiance `16200000` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Defiance `16200000` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Elementalist | Defiance `16200010` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Elementalist | Defiance `16200010` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Defiance `16200010` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Elementalist | Defiance `16200120` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Elementalist | Defiance `16200120` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Defiance `16200120` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Elementalist | Defiance `16200130` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Elementalist | Defiance `16200130` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Defiance `16200130` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Elementalist | Defiance `16200140` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Elementalist | Defiance `16200140` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Defiance `16200140` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Elementalist | Defiance `16200150` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Elementalist | Defiance `16200150` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Defiance `16200150` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Elementalist | Defiance `16201230` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Elementalist | Defiance `16201230` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Defiance `16201230` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Elementalist | Defiance `16201240` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Elementalist | Defiance `16201240` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Defiance `16201240` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Elementalist | Defiance `16201250` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Elementalist | Defiance `16201250` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Defiance `16201250` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Elementalist | Defiance `16201340` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Elementalist | Defiance `16201340` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Defiance `16201340` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Elementalist | Defiance `16201350` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Elementalist | Defiance `16201350` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Defiance `16201350` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Elementalist | Defiance `16201450` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Elementalist | Defiance `16201450` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Defiance `16201450` | `toggle_grant` | abnormal 100200101 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Elementalist | STR_SKILL_PC_ELEMENTALIST_16210000 `16210010` | `weapon` | Orb | yes | equipped weapon type |
 | Elementalist | STR_SKILL_PC_ELEMENTALIST_16210000 `16210010` | `chain_prev` | after 16200010 | yes | prior chain skill cast within window |
 | Elementalist | STR_SKILL_PC_ELEMENTALIST_16210000 `16210120` | `weapon` | Orb | yes | equipped weapon type |
@@ -2254,10 +2060,8 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Elementalist | Elemental Fusion `16300000` | `weapon` | Orb | yes | equipped weapon type |
 | Elementalist | Dimensional Control `16330000` | `skill_cond.HasAbnormalGroupId` | Self group 163300000 | yes | none in export |
 | Elementalist | Dimensional Control `16330000` | `weapon` | Orb | yes | equipped weapon type |
-| Elementalist | Dimensional Control `16330000` | `toggle_grant` | abnormal 163300001 100ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
-| Elementalist | Rapid Scattershot `16340000` | `skill_cond.HasAbnormalEffectType` | Target Stagger [override] | yes | 16040000 stagger_gauge +3; 16070000 stagger_gauge +15; 16100000 stagger_gauge +7 … |
+| Elementalist | Rapid Scattershot `16340000` | `skill_cond.HasAbnormalEffectType` | Target Groggy | yes | no server producer found |
 | Elementalist | Rapid Scattershot `16340000` | `weapon` | Orb | yes | equipped weapon type |
-| Cleric | Dodge `17000100` | `toggle_grant` | abnormal 3015 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | Earth's Retribution `17010000` | `weapon` | Mace | yes | equipped weapon type |
 | Cleric | Earth's Retribution `17010010` | `weapon` | Mace | yes | equipped weapon type |
 | Cleric | Earth's Retribution `17010020` | `weapon` | Mace | yes | equipped weapon type |
@@ -2468,50 +2272,35 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Cleric | Divine Punishment `17053450` | `chain_prev` | after 17043450 | yes | prior chain skill cast within window |
 | Cleric | Bolt `17060000` | `weapon` | Mace | yes | equipped weapon type |
 | Cleric | Chain of Torment `17070000` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Chain of Torment `17070000` | `toggle_grant` | abnormal 170700001 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | Debilitating Mark `17080000` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Debilitating Mark `17080000` | `toggle_grant` | abnormal 170800001 10000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | Light of Regeneration `17090000` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Light of Regeneration `17090000` | `toggle_grant` | abnormal 170900001 30000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | Healing Light `17100000` | `weapon` | Mace | yes | equipped weapon type |
 | Cleric | Radiant Recovery `17120000` | `weapon` | Mace | yes | equipped weapon type |
 | Cleric | Divine Aura `17150000` | `weapon` | Mace | yes | equipped weapon type |
 | Cleric | Defiance `17240000` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Cleric | Defiance `17240000` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Defiance `17240000` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | Defiance `17240010` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Cleric | Defiance `17240010` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Defiance `17240010` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | Defiance `17240120` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Cleric | Defiance `17240120` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Defiance `17240120` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | Defiance `17240130` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Cleric | Defiance `17240130` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Defiance `17240130` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | Defiance `17240140` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Cleric | Defiance `17240140` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Defiance `17240140` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | Defiance `17240150` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Cleric | Defiance `17240150` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Defiance `17240150` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | Defiance `17241230` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Cleric | Defiance `17241230` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Defiance `17241230` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | Defiance `17241240` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Cleric | Defiance `17241240` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Defiance `17241240` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | Defiance `17241250` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Cleric | Defiance `17241250` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Defiance `17241250` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | Defiance `17241340` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Cleric | Defiance `17241340` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Defiance `17241340` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | Defiance `17241350` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Cleric | Defiance `17241350` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Defiance `17241350` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | Defiance `17241450` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Cleric | Defiance `17241450` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Defiance `17241450` | `toggle_grant` | abnormal 100200101 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Cleric | STR_SKILL_PC_CLERIC_17320000 `17320010` | `weapon` | Mace | yes | equipped weapon type |
 | Cleric | STR_SKILL_PC_CLERIC_17320000 `17320010` | `chain_prev` | after 17240010 | yes | prior chain skill cast within window |
 | Cleric | STR_SKILL_PC_CLERIC_17320000 `17320120` | `weapon` | Mace | yes | equipped weapon type |
@@ -2534,11 +2323,10 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Cleric | STR_SKILL_PC_CLERIC_17320000 `17321350` | `chain_prev` | after 17241350 | yes | prior chain skill cast within window |
 | Cleric | STR_SKILL_PC_CLERIC_17320000 `17321450` | `weapon` | Mace | yes | equipped weapon type |
 | Cleric | STR_SKILL_PC_CLERIC_17320000 `17321450` | `chain_prev` | after 17241450 | yes | prior chain skill cast within window |
-| Cleric | Condemnation `17350000` | `skill_cond.HasAbnormalGroupId` | Target group 170700001 | yes | 17070000 skill_cond_grant; 17070000 debuff 170700001 |
+| Cleric | Condemnation `17350000` | `skill_cond.HasAbnormalGroupId` | Target group 170700001 | yes | 17070000 debuff 170700001 |
 | Cleric | Condemnation `17350000` | `weapon` | Mace | yes | equipped weapon type |
-| Cleric | Lightning Strike Scattershot `17370000` | `skill_cond.HasAbnormalEffectType` | Target Stagger [override] | yes | 16040000 stagger_gauge +3; 16070000 stagger_gauge +15; 16100000 stagger_gauge +7 … |
+| Cleric | Lightning Strike Scattershot `17370000` | `skill_cond.HasAbnormalEffectType` | Target Groggy | yes | no server producer found |
 | Cleric | Lightning Strike Scattershot `17370000` | `weapon` | Mace | yes | equipped weapon type |
-| Chanter | Dodge `18000100` | `toggle_grant` | abnormal 3015 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Onslaught `18010000` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Onslaught `18010010` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Onslaught `18010020` | `weapon` | Staff | yes | equipped weapon type |
@@ -2705,7 +2493,6 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Chanter | Bursting Blow `18050030` | `chain_prev` | after 18040030 | yes | prior chain skill cast within window |
 | Chanter | Bursting Blow `18050040` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18050040` | `chain_prev` | after 18040040 | yes | prior chain skill cast within window |
-| Chanter | Bursting Blow `18050040` | `toggle_grant` | abnormal 180500401 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Bursting Blow `18050050` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18050050` | `chain_prev` | after 18040050 | yes | prior chain skill cast within window |
 | Chanter | Bursting Blow `18050120` | `weapon` | Staff | yes | equipped weapon type |
@@ -2714,54 +2501,43 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Chanter | Bursting Blow `18050130` | `chain_prev` | after 18040130 | yes | prior chain skill cast within window |
 | Chanter | Bursting Blow `18050140` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18050140` | `chain_prev` | after 18040140 | yes | prior chain skill cast within window |
-| Chanter | Bursting Blow `18050140` | `toggle_grant` | abnormal 180500401 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Bursting Blow `18050150` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18050150` | `chain_prev` | after 18040150 | yes | prior chain skill cast within window |
 | Chanter | Bursting Blow `18050230` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18050230` | `chain_prev` | after 18040230 | yes | prior chain skill cast within window |
 | Chanter | Bursting Blow `18050240` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18050240` | `chain_prev` | after 18040240 | yes | prior chain skill cast within window |
-| Chanter | Bursting Blow `18050240` | `toggle_grant` | abnormal 180500401 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Bursting Blow `18050250` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18050250` | `chain_prev` | after 18040250 | yes | prior chain skill cast within window |
 | Chanter | Bursting Blow `18050340` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18050340` | `chain_prev` | after 18040340 | yes | prior chain skill cast within window |
-| Chanter | Bursting Blow `18050340` | `toggle_grant` | abnormal 180500401 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Bursting Blow `18050350` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18050350` | `chain_prev` | after 18040350 | yes | prior chain skill cast within window |
 | Chanter | Bursting Blow `18050450` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18050450` | `chain_prev` | after 18040450 | yes | prior chain skill cast within window |
-| Chanter | Bursting Blow `18050450` | `toggle_grant` | abnormal 180500401 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Bursting Blow `18051230` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18051230` | `chain_prev` | after 18041230 | yes | prior chain skill cast within window |
 | Chanter | Bursting Blow `18051240` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18051240` | `chain_prev` | after 18041240 | yes | prior chain skill cast within window |
-| Chanter | Bursting Blow `18051240` | `toggle_grant` | abnormal 180500401 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Bursting Blow `18051250` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18051250` | `chain_prev` | after 18041250 | yes | prior chain skill cast within window |
 | Chanter | Bursting Blow `18051340` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18051340` | `chain_prev` | after 18041340 | yes | prior chain skill cast within window |
-| Chanter | Bursting Blow `18051340` | `toggle_grant` | abnormal 180500401 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Bursting Blow `18051350` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18051350` | `chain_prev` | after 18041350 | yes | prior chain skill cast within window |
 | Chanter | Bursting Blow `18051450` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18051450` | `chain_prev` | after 18041450 | yes | prior chain skill cast within window |
-| Chanter | Bursting Blow `18051450` | `toggle_grant` | abnormal 180500401 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Bursting Blow `18052340` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18052340` | `chain_prev` | after 18042340 | yes | prior chain skill cast within window |
-| Chanter | Bursting Blow `18052340` | `toggle_grant` | abnormal 180500401 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Bursting Blow `18052350` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18052350` | `chain_prev` | after 18042350 | yes | prior chain skill cast within window |
 | Chanter | Bursting Blow `18052450` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18052450` | `chain_prev` | after 18042450 | yes | prior chain skill cast within window |
-| Chanter | Bursting Blow `18052450` | `toggle_grant` | abnormal 180500401 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Bursting Blow `18053450` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Bursting Blow `18053450` | `chain_prev` | after 18043450 | yes | prior chain skill cast within window |
-| Chanter | Bursting Blow `18053450` | `toggle_grant` | abnormal 180500401 3000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Impactful Crush `18060000` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Wave Blow `18080000` | `skill_cond.HasAbnormalGroupId` | Self group 180800381 | yes | none in export |
 | Chanter | Wave Blow `18080000` | `weapon` | Staff | yes | equipped weapon type |
-| Chanter | Wave Blow `18080000` | `toggle_grant` | abnormal 180800001 500ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Rushing Smash `18090000` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Dark Crush `18100000` | `skill_cond.HasAbnormalGroupId` | Self group 183300071 | yes | none in export |
 | Chanter | Dark Crush `18100000` | `weapon` | Staff | yes | equipped weapon type |
@@ -2788,45 +2564,32 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Chanter | Dark Crush `18103450` | `skill_cond.HasAbnormalGroupId` | Self group 183300071 | yes | none in export |
 | Chanter | Dark Crush `18103450` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Recuperation `18120000` | `weapon` | Staff | yes | equipped weapon type |
-| Chanter | Recuperation `18120000` | `toggle_grant` | abnormal 181200001 8000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Heat Wave Blow `18150000` | `skill_cond.HasAbnormalGroupId` | Self group 180900302 | yes | none in export |
 | Chanter | Heat Wave Blow `18150000` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Defiance `18200000` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Chanter | Defiance `18200000` | `weapon` | Staff | yes | equipped weapon type |
-| Chanter | Defiance `18200000` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Defiance `18200010` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Chanter | Defiance `18200010` | `weapon` | Staff | yes | equipped weapon type |
-| Chanter | Defiance `18200010` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Defiance `18200120` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Chanter | Defiance `18200120` | `weapon` | Staff | yes | equipped weapon type |
-| Chanter | Defiance `18200120` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Defiance `18200130` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Chanter | Defiance `18200130` | `weapon` | Staff | yes | equipped weapon type |
-| Chanter | Defiance `18200130` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Defiance `18200140` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Chanter | Defiance `18200140` | `weapon` | Staff | yes | equipped weapon type |
-| Chanter | Defiance `18200140` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Defiance `18200150` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Chanter | Defiance `18200150` | `weapon` | Staff | yes | equipped weapon type |
-| Chanter | Defiance `18200150` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Defiance `18201230` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Chanter | Defiance `18201230` | `weapon` | Staff | yes | equipped weapon type |
-| Chanter | Defiance `18201230` | `toggle_grant` | abnormal 100200001 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Defiance `18201240` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Chanter | Defiance `18201240` | `weapon` | Staff | yes | equipped weapon type |
-| Chanter | Defiance `18201240` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Defiance `18201250` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Chanter | Defiance `18201250` | `weapon` | Staff | yes | equipped weapon type |
-| Chanter | Defiance `18201250` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Defiance `18201340` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Chanter | Defiance `18201340` | `weapon` | Staff | yes | equipped weapon type |
-| Chanter | Defiance `18201340` | `toggle_grant` | abnormal 100200001 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Defiance `18201350` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Chanter | Defiance `18201350` | `weapon` | Staff | yes | equipped weapon type |
-| Chanter | Defiance `18201350` | `toggle_grant` | abnormal 100200101 5000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Defiance `18201450` | `skill_cond.HasAbnormalEffectType` | Self DeletableFear | yes | no server producer found |
 | Chanter | Defiance `18201450` | `weapon` | Staff | yes | equipped weapon type |
-| Chanter | Defiance `18201450` | `toggle_grant` | abnormal 100200101 7000ms | yes | self buff on cast (ToggleOnAbnormalId / SkillEffect) |
 | Chanter | Tremor Crush `18210000` | `skill_cond.HasAbnormalGroupId` | Self group 100000002 | yes | none in export |
 | Chanter | Tremor Crush `18210000` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Tremor Crush `18210040` | `skill_cond.HasAbnormalGroupId` | Self group 100000002 | yes | none in export |
@@ -2852,7 +2615,7 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 | Chanter | Tremor Crush `18213450` | `skill_cond.HasAbnormalGroupId` | Self group 100000002 | yes | none in export |
 | Chanter | Tremor Crush `18213450` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | Spinning Strike `18290000` | `weapon` | Staff | yes | equipped weapon type |
-| Chanter | Gust Rampage `18300000` | `skill_cond.HasAbnormalEffectType` | Target Stagger [override] | yes | 16040000 stagger_gauge +3; 16070000 stagger_gauge +15; 16100000 stagger_gauge +7 … |
+| Chanter | Gust Rampage `18300000` | `skill_cond.HasAbnormalEffectType` | Target Groggy | yes | no server producer found |
 | Chanter | Gust Rampage `18300000` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | STR_SKILL_PC_CHANTER_18370050 `18370050` | `weapon` | Staff | yes | equipped weapon type |
 | Chanter | STR_SKILL_PC_CHANTER_18370050 `18370050` | `chain_prev` | after 18030050 | yes | prior chain skill cast within window |
@@ -2947,7 +2710,7 @@ via `SkillEffectSupport`; they are listed here for completeness, not as hotbar S
 
 | Gap | Why |
 | --- | --- |
-| **SkillCond.dat export** not in repo | Committed `class-skills.json` uses `tools/data/skill-cond-overrides.json`; run `tools/skill_cond.py` with `research/local/skillcond-*/table-000.json` for full coverage. |
+| **SkillCond.dat export** | `research/client-export/2026-11-22/SkillCond.json.gz` via `tools/skill_cond.py`; `skill-cond-overrides.json` only fills gaps. |
 | **AP resource thresholds** | `ECanUseSkillCostType` AP_* values are accepted permissively until player AP exists on `Resources`. |
 | **ESkillEffectConditionType** on effect rows | Proc conditions (back attack, distance, gauge equal, …) are not cast grey rules; partial support lives under combat effect application. |
 | **Player-target SkillCond** | `HasAbnormalEffectType` on enemy players in PvP uses player buffs; stagger gauge is NPC-only today. |

@@ -81,6 +81,10 @@ public sealed partial class GameSession
     bool SpecializedCastAllowed(int skill) =>
         Specialized.ParentOf(skill) is null || SpecializedChildren().Any(c => c.Child == skill);
 
+    /// <summary>Tests: equip a specialization part without the 0x3901 wire.</summary>
+    internal void SetSkillPartForTests(int parent, int slot, int part) =>
+        (skillParts.TryGetValue(parent, out var slots) ? slots : skillParts[parent] = [])[slot] = part;
+
     /// <summary>Every child in effect: each mastery skill's and its chain steps' (for 0x5100 and the casts).</summary>
     List<(int Child, int Parent)> SpecializedChildren()
     {

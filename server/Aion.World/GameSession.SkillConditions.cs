@@ -12,7 +12,7 @@ partial class GameSession
         || SpiritConditionMet(definition, skillId)
             && PeaceConditionMet(definition)
             && ResourceConditionMet(definition)
-            && SkillCondMet(definition, now, castTargetKey);
+            && SkillCondMet(definition, now, castTargetKey, skillId);
 
     bool PeaceConditionMet(SkillDefinition? definition) =>
         definition is not { NeedsPeace: true } || !inCombat;
@@ -22,27 +22,32 @@ partial class GameSession
             && SkillResourceThreshold.Met(definition.NeedsResource, resources.Hp, resources.HpMax, resources.Mp, resources.MpMax, resources.Ap, resources.ApMax);
 
     /// <summary>Whether the required abnormal state for a conditional skill is present (CondSelectTarget Self / Target).</summary>
-    bool SkillCondMet(SkillDefinition? definition, long now, int castTargetKey = 0)
+    bool SkillCondMet(SkillDefinition? definition, long now, int castTargetKey = 0, int skillId = 0)
     {
         if (definition?.SkillCond is not { } cond) return true;
+        if (!SkillCondRegistry.IsKnownType(cond.Type))
+        {
+            SkillCondRegistry.NoteUnknownType(cond.Type, skillId);
+            return true;
+        }
         return cond.SelectTarget?.Equals("Target", StringComparison.OrdinalIgnoreCase) == true
             ? SkillCondMetOnTarget(cond, now, castTargetKey)
             : SkillCondMetOnSelf(cond);
     }
 
-    bool SkillCondMet(SkillDefinition? definition) => SkillCondMet(definition, 0, 0);
+    bool SkillCondMet(SkillDefinition? definition) => SkillCondMet(definition, 0, 0, 0);
 
     /// <summary>Target Stagger reactive skills (16340000, …): official break window allows spam without GCD/cooldown (capture 233052).</summary>
     bool StaggerReactiveFreeCast(SkillDefinition? definition, long now, int castTargetKey) =>
-        definition?.SkillCond is { AbnormalEffect: { Length: > 0 } effect, SelectTarget: { } select }
+        definition?.SkillCond is { SelectTarget: { } select } cond
         && select.Equals("Target", StringComparison.OrdinalIgnoreCase)
-        && effect.Equals("Stagger", StringComparison.OrdinalIgnoreCase)
-        && SkillCondMet(definition, now, castTargetKey);
+        && SkillCondRegistry.RequiresStaggerWindow(cond)
+        && SkillCondMet(definition, now, castTargetKey, 0);
 
     bool SkillCondMetOnSelf(SkillCondNeed cond) => cond.Type switch
     {
-        "HasAbnormalGroupId" when cond.AbnormalGroup is int group and > 0 => HasAbnormalGroup(group),
-        "HasAbnormalEffectType" when cond.AbnormalEffect is { Length: > 0 } effect => HasAbnormalEffect(effect),
+        SkillCondRegistry.HasAbnormalGroupId when cond.AbnormalGroup is int group and > 0 => HasAbnormalGroup(group),
+        SkillCondRegistry.HasAbnormalEffectType when cond.AbnormalEffect is { Length: > 0 } effect => HasAbnormalEffect(effect),
         _ => false,
     };
 
@@ -56,22 +61,26 @@ partial class GameSession
             return false;
         }
         if (targets?.TryGetValue(key, out var npc) != true || npc is null || npc.Dead || npc.OwnerKey != 0) return false;
-        if (cond.Type == "HasAbnormalGroupId" && cond.AbnormalGroup is int group && group > 0)
-            return npcBuffs.TryGetValue(npc.Key, out var list) && list.Any(b => b.AbnormalId == group || AbnormalStackRules.GroupOf(b.AbnormalId) == group);
-        if (cond.Type == "HasAbnormalEffectType" && cond.AbnormalEffect is { Length: > 0 } effect)
+        if (cond.Type == SkillCondRegistry.HasAbnormalGroupId && cond.AbnormalGroup is int group && group > 0)
+            return npcBuffs.TryGetValue(npc.Key, out var list) && list.Any(b => b.ExpireAt > now
+                && (b.AbnormalId == group || AbnormalStackRules.GroupOf(b.AbnormalId) == group));
+        if (cond.Type == SkillCondRegistry.HasAbnormalEffectType && cond.AbnormalEffect is { Length: > 0 } effect)
             return NpcTargetHasAbnormalEffect(npc.Key, effect, now);
         return false;
     }
 
     static bool PlayerTargetSkillCond(GameSession target, SkillCondNeed cond, long now) => cond.Type switch
     {
-        "HasAbnormalGroupId" when cond.AbnormalGroup is int group && group > 0 => target.PlayerHasAbnormalGroup(group, null),
-        "HasAbnormalEffectType" when cond.AbnormalEffect is { Length: > 0 } effect => target.PlayerHasAbnormalEffect(effect, now, null),
+        SkillCondRegistry.HasAbnormalGroupId when cond.AbnormalGroup is int group && group > 0 => target.PlayerHasAbnormalGroup(group, null),
+        SkillCondRegistry.HasAbnormalEffectType when cond.AbnormalEffect is { Length: > 0 } effect => target.PlayerHasAbnormalEffect(effect, now, null),
         _ => false,
     };
 
     bool HasAbnormalEffect(string effectType) =>
-        buffs.Any(b => AbnormalSpecs.Info(b.AbnormalId)?.Effects.Any(e => e.Type == effectType) == true);
+        buffs.Any(b => AbnormalSpecs.Info(b.AbnormalId)?.Effects.Any(e => SkillCondRegistry.EffectTypesMatch(effectType, e.Type)) == true);
+
+    internal bool UseConditionMetForTests(SkillDefinition? definition, long now, int castTargetKey = 0, int skillId = 0) =>
+        UseConditionMet(definition, now, castTargetKey, skillId);
 
     /// <summary>After accept: apply the buff a prerequisite skill grants (Precision from Marking Shot on the caster, toggles on self, …).</summary>
     List<byte[]> ApplySkillCondGrant(int skillId, SkillDefinition definition, long now, CastRequest request)

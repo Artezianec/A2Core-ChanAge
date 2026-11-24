@@ -63,6 +63,7 @@
     <EmbeddedResource Include="../../tools/data/guilds.json" LogicalName="guilds.json" />
     <EmbeddedResource Include="../../tools/data/agit_deco.json" LogicalName="agit_deco.json" />
     <EmbeddedResource Include="../../tools/data/world-npcs.json" LogicalName="world-npcs.json" />
+    <EmbeddedResource Include="../../tools/data/spawn-respawn.json" LogicalName="spawn-respawn.json" />
     <EmbeddedResource Include="../../tools/data/map-bases.json" LogicalName="map-bases.json" />
     <EmbeddedResource Include="../../tools/data/map-points.json" LogicalName="map-points.json" />
     <EmbeddedResource Include="../../tools/data/dev-menu.json" LogicalName="dev-menu.json" />

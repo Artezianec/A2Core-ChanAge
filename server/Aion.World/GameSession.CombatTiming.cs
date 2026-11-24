@@ -17,6 +17,9 @@ partial class GameSession
             new Hit(damage, false, 0), 1, dueMs, CombatHitKind.Npc, false, false));
 
     internal int PendingCombatHitCountForTests => pendingCombatHits.Count;
+    internal int PendingProjectileCountForTests => pendingProjectiles.Count;
+    internal (int ProjectileId, long DueMs)? NextProjectileForTests() =>
+        pendingProjectiles.Count == 0 ? null : (pendingProjectiles[0].ProjectileId, pendingProjectiles[0].DueMs);
 
     /// <summary>Schedules 0x3804 and HP changes at Skill.dat cast and per-row hit times (see <see cref="SkillTiming"/>).</summary>
     List<byte[]> ScheduleCombatHits(int skill, CastRequest request, long now, byte actionUid)
@@ -24,7 +27,8 @@ partial class GameSession
         var replies = RespawnTargets(now);
         // A new cast no longer drops the rows still in flight from the previous one: the Templar's Pummel (rows at 600/1000/1400 ms)
         // lost its 2nd and 3rd hits to the next Vicious Strike swing (live 2026-10-30, Tunapre Lake Cave boss).
-        if (data.Skill(skill) is not { Damage.Length: > 0 } definition) return replies;
+        var skillDef = data.Skill(skill) ?? data.Skill(skill / 10_000 * 10_000);
+        if (skillDef is not { Damage.Length: > 0 } definition) return replies;
         if (holdChargeDamageRow is int chargeRow)
         {
             chargeRow = Math.Clamp(chargeRow, 0, definition.Damage.Length - 1);
@@ -88,14 +92,16 @@ partial class GameSession
             var splash = ground || (area is { OnTarget: true, IsArea: true } && target != shotAt);
             for (var i = 0; i < hits.Count; i++)
             {
-                if (area is { Projectile: > 0 })
+                var row = timedRows[Math.Min(i, timedRows.Length - 1)];
+                var damageRow = definition.Damage[Math.Min(i, definition.Damage.Length - 1)];
+                var projectile = damageRow.Projectile > 0 ? damageRow.Projectile
+                    : area is { Projectile: > 0 } ? area.ProjectileFor(row) : 0;
+                if (projectile > 0)
                 {
                     // One arrow per timed row; its other effects (Deadshot's second) land with it under the same seq.
-                    var row = timedRows[Math.Min(i, timedRows.Length - 1)];
                     var release = now + SkillTiming.ProjectileReleaseAtMs(definition, row);
-                    var projectile = area.ProjectileFor(row);
-                    var landsAfter = projectile == 0 ? 0 : splash ? mainFlight : flight;
-                    if (projectile > 0 && !splash && (i == 0 || timedRows[i - 1] != row))
+                    var landsAfter = splash ? mainFlight : flight;
+                    if (!splash && (i == 0 || timedRows[Math.Min(i - 1, timedRows.Length - 1)] != row))
                         pendingProjectiles.Add(new(release, skill, actionUid, target.Key, projectile, flight, row + 1));
                     pendingCombatHits.Add(new(skill, request, actionUid, target.Key, hits[i], row + 1, release + landsAfter, CombatHitKind.Npc,
                         questKill, mapEventKill, i));
@@ -129,7 +135,7 @@ partial class GameSession
             return own is null ? shared : own with { Projectile = shared.Projectile, Projectiles = shared.Projectiles, Speed = shared.Speed };
         var root = family;
         for (var i = 0; i < 8 && data.Skill(root) is { ChainPrev: > 0 } step; i++) root = step.ChainPrev;
-        if (root == family) return own;
+        if (root == family) return own ?? SkillAreas.For(family);
         var rooted = SkillAreas.For(root) is { Projectile: > 0 } r ? r : SkillAreas.For(root / 10_000 * 10_000);
         if (rooted is not { Projectile: > 0 }) return own;
         var stepArea = own ?? SkillAreas.For(family) ?? new SkillAreas.Area(null, null, 1, false, 0, 0);

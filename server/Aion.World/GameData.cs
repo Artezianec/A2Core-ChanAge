@@ -35,7 +35,8 @@ public sealed record DamageRow(
     // Skill.dat Damage EffectValueList[4] (tools/class_skills.py, build 26262663).
     [property: JsonPropertyName("value4")] string? Value4 = null,
     // SkillEffectLvGroupId: flat min/max at skill levels 2+ (GameData.LevelFlat). Null: the same at every level.
-    [property: JsonPropertyName("level_group")] string? LevelGroup = null)
+    [property: JsonPropertyName("level_group")] string? LevelGroup = null,
+    [property: JsonPropertyName("projectile")] int Projectile = 0)
 {
     /// <summary>
     /// What this row's damage is divided by: EffectValueList[4] when it reads as a number above 1, else 1.
@@ -58,7 +59,8 @@ public sealed record SkillCondNeed(
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("abnormal_group")] int? AbnormalGroup = null,
     [property: JsonPropertyName("abnormal_effect")] string? AbnormalEffect = null,
-    [property: JsonPropertyName("select_target")] string? SelectTarget = null);
+    [property: JsonPropertyName("select_target")] string? SelectTarget = null,
+    [property: JsonPropertyName("cond_id")] int CondId = 0);
 
 public sealed record SkillCondGrant(
     [property: JsonPropertyName("abnormal")] int Abnormal,
@@ -176,7 +178,9 @@ public sealed record NpcSpawn(
     [property: JsonPropertyName("groggy_guard_max")] int GroggyGuardMax = 0,
     [property: JsonPropertyName("untouchable")] bool Untouchable = false,
     // NpcData bHitCountBased: every hit removes 1 HP and hp_max is that hit count.
-    bool HitCount = false);
+    bool HitCount = false,
+    /// <summary>Client spawn-actor / MapData respawn delay in ms; 0 uses <see cref="GameSession.RespawnMs"/>.</summary>
+    long SpawnRespawnMs = 0);
 
 /// <summary>
 /// A MapData waypoint set an NPC walks (tools/world_npcs.py routes): points, Circular / TwoWay / OneWay, walk or run.
@@ -389,6 +393,11 @@ public sealed class GameData
             return [];
         }
     });
+
+    static readonly Lazy<SpawnRespawn> spawnRespawn = new(SpawnRespawn.LoadEmbedded);
+
+    /// <summary>Per-placement respawn delays (tools/data/spawn-respawn.json).</summary>
+    public SpawnRespawn SpawnRespawn => spawnRespawn.Value;
 
     static readonly Lazy<GameData> embedded = new(() => new GameData(
         Load<Dictionary<string, StarterProfile>>("starter-skills.json"), Load<ClassFile>("class-skills.json"), Load<NpcFile>("world-npcs.json"),
@@ -814,7 +823,7 @@ public sealed class GameData
             if (SpecializedSkillTables.Embedded.ParentOf(skillId) is not { } parentId
                 || !classes.Skills.TryGetValue(parentId.ToString(System.Globalization.CultureInfo.InvariantCulture), out var parent))
                 return own;
-            var damage = InheritLevelGroups(own.Damage, parent.Damage);
+            var damage = InheritDamageRows(own.Damage, parent.Damage);
             var levels = own.CooldownLevels ?? parent.CooldownLevels;
             var end = own.EndMs ?? parent.EndMs;
             return ReferenceEquals(damage, own.Damage) && levels == own.CooldownLevels && end == own.EndMs
@@ -846,7 +855,7 @@ public sealed class GameData
                 ChainDeactivate = parent.ChainDeactivate, ContextRegister = parent.ContextRegister,
                 GroupCooldownId = parent.GroupCooldownId > 0 ? parent.GroupCooldownId : parentId,
                 ChainNext = parent.ChainNext?.Select(Moved).ToArray(), SealStone = parent.SealStone, NeedsSpirit = parent.NeedsSpirit,
-                Damage = InheritLevelGroups(own.Damage, parent.Damage),
+                Damage = InheritDamageRows(own.Damage, parent.Damage),
                 CooldownLevels = own.CooldownLevels ?? parent.CooldownLevels,
                 EndMs = own.EndMs ?? parent.EndMs,
                 NeedsPeace = parent.NeedsPeace, NeedsResource = parent.NeedsResource, UseConditionSource = parent.UseConditionSource,
@@ -897,6 +906,10 @@ public sealed class GameData
     /// A specialisation child's rows keep the parent's SkillEffectLv group when the level-1 flats match (the child export does not
     /// carry SkillEffectLvGroupId). Different flats stay on the candidate per-level scale.
     /// </summary>
+    /// <summary>Specialisation children in class-skills often have no Damage rows; combat uses the family's rows.</summary>
+    static DamageRow[] InheritDamageRows(DamageRow[] child, DamageRow[] parent) =>
+        child.Length > 0 ? InheritLevelGroups(child, parent) : parent.Length > 0 ? parent : child;
+
     static DamageRow[] InheritLevelGroups(DamageRow[] child, DamageRow[] parent)
     {
         if (child.Length == 0 || child.Length != parent.Length) return child;
@@ -1014,12 +1027,18 @@ public sealed class GameData
     public IReadOnlyList<NpcSpawn> Spawns(int mapId) =>
         spawnsByMap.GetOrAdd(mapId, id => (npcs.Maps.GetValueOrDefault(id.ToString(System.Globalization.CultureInfo.InvariantCulture)) ?? [])
             .Select(s => (s, t: npcs.Templates[s[1].GetInt32().ToString(System.Globalization.CultureInfo.InvariantCulture)]))
-            .Select(x => new NpcSpawn(x.s[0].GetString()!, x.s[1].GetInt32(), x.t.Level, x.t.Relationship, x.t.Aggressive, x.t.WalkSpeed, x.t.RunSpeed,
-                x.t.Radius, x.t.Function, [x.s[2].GetDouble(), x.s[3].GetDouble(), x.s[4].GetDouble()], x.s[5].GetDouble(), x.t.AggroType, x.t.Aggro,
-                x.t.Skills, x.t.Height, x.t.NoRotation,
-                x.s.Length > 6 ? (uint)x.s[6].GetInt64() : 0, x.s.Length > 7 ? x.s[7].GetInt32() : 0,
-                x.s.Length > 8 && x.s[8].GetInt32() is >= 0 and var route && npcs.Routes?.GetValueOrDefault(id.ToString(System.Globalization.CultureInfo.InvariantCulture)) is { } routes
-                    && route < routes.Length ? routes[route] : null, x.t.SubType, x.t.Grade, x.t.Air, x.t.HpMax, x.t.GroggyGuardMax, x.t.Untouchable, x.t.HitCount)).ToList());
+            .Select(x =>
+            {
+                var name = x.s[0].GetString()!;
+                var uniqueKey = x.s.Length > 6 ? (uint)x.s[6].GetInt64() : 0u;
+                var respawnMs = SpawnRespawn.RespawnMs(id, name, uniqueKey) ?? 0;
+                return new NpcSpawn(name, x.s[1].GetInt32(), x.t.Level, x.t.Relationship, x.t.Aggressive, x.t.WalkSpeed, x.t.RunSpeed,
+                    x.t.Radius, x.t.Function, [x.s[2].GetDouble(), x.s[3].GetDouble(), x.s[4].GetDouble()], x.s[5].GetDouble(), x.t.AggroType, x.t.Aggro,
+                    x.t.Skills, x.t.Height, x.t.NoRotation, uniqueKey, x.s.Length > 7 ? x.s[7].GetInt32() : 0,
+                    x.s.Length > 8 && x.s[8].GetInt32() is >= 0 and var route && npcs.Routes?.GetValueOrDefault(id.ToString(System.Globalization.CultureInfo.InvariantCulture)) is { } routes
+                        && route < routes.Length ? routes[route] : null, x.t.SubType, x.t.Grade, x.t.Air, x.t.HpMax, x.t.GroggyGuardMax, x.t.Untouchable, x.t.HitCount,
+                    SpawnRespawnMs: respawnMs);
+            }).ToList());
 
     readonly System.Collections.Concurrent.ConcurrentDictionary<int, IReadOnlyList<NpcSpawn>> spawnsByMap = new();
 

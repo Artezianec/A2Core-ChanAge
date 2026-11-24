@@ -7344,10 +7344,11 @@
       "group_cooldown_id": 11280000,
       "skill_cond": {
         "type": "HasAbnormalEffectType",
-        "abnormal_effect": "Stagger",
-        "select_target": "Target"
+        "select_target": "Target",
+        "cond_id": 11000005,
+        "abnormal_effect": "Groggy"
       },
-      "skill_cond_source": "override",
+      "skill_cond_source": "SkillCond.dat",
       "end_ms": 630.0,
       "range": 400.0
     },
@@ -8772,10 +8773,11 @@
       "group_cooldown_id": 12340000,
       "skill_cond": {
         "type": "HasAbnormalEffectType",
-        "abnormal_effect": "Stagger",
-        "select_target": "Target"
+        "select_target": "Target",
+        "cond_id": 12000006,
+        "abnormal_effect": "Groggy"
       },
-      "skill_cond_source": "override",
+      "skill_cond_source": "SkillCond.dat",
       "end_ms": 630.0,
       "range": 400.0
     },
@@ -10108,10 +10110,11 @@
       "group_cooldown_id": 13340000,
       "skill_cond": {
         "type": "HasAbnormalEffectType",
-        "abnormal_effect": "Stagger",
-        "select_target": "Target"
+        "select_target": "Target",
+        "cond_id": 13000007,
+        "abnormal_effect": "Groggy"
       },
-      "skill_cond_source": "override",
+      "skill_cond_source": "SkillCond.dat",
       "end_ms": 630.0,
       "range": 400.0
     },
@@ -10827,10 +10830,11 @@
       "group_cooldown_id": 14070000,
       "skill_cond": {
         "type": "HasAbnormalGroupId",
-        "abnormal_group": 140900001,
-        "select_target": "Self"
+        "select_target": "Self",
+        "cond_id": 14000012,
+        "abnormal_group": 140900001
       },
-      "skill_cond_source": "override",
+      "skill_cond_source": "SkillCond.dat",
       "end_ms": 1000.0,
       "range": 2000.0
     },
@@ -11257,10 +11261,11 @@
       "group_cooldown_id": 14330000,
       "skill_cond": {
         "type": "HasAbnormalEffectType",
-        "abnormal_effect": "Stagger",
-        "select_target": "Target"
+        "select_target": "Target",
+        "cond_id": 14000005,
+        "abnormal_effect": "Groggy"
       },
-      "skill_cond_source": "override",
+      "skill_cond_source": "SkillCond.dat",
       "end_ms": 630.0,
       "range": 2000.0
     },
@@ -11752,10 +11757,11 @@
       "group_cooldown_id": 15010000,
       "skill_cond": {
         "type": "HasAbnormalEffectType",
-        "abnormal_effect": "Stagger",
-        "select_target": "Target"
+        "select_target": "Target",
+        "cond_id": 15000002,
+        "abnormal_effect": "Groggy"
       },
-      "skill_cond_source": "override",
+      "skill_cond_source": "SkillCond.dat",
       "end_ms": 630.0,
       "range": 2000.0
     },
@@ -13550,10 +13556,11 @@
       "stagger_gauge_source": "override",
       "skill_cond": {
         "type": "HasAbnormalGroupId",
-        "abnormal_group": 163300000,
-        "select_target": "Self"
+        "select_target": "Self",
+        "cond_id": 16000004,
+        "abnormal_group": 163300000
       },
-      "skill_cond_source": "override",
+      "skill_cond_source": "SkillCond.dat",
       "end_ms": 441.667,
       "range": 2000.0
     },
@@ -13674,10 +13681,11 @@
       "group_cooldown_id": 16340000,
       "skill_cond": {
         "type": "HasAbnormalEffectType",
-        "abnormal_effect": "Stagger",
-        "select_target": "Target"
+        "select_target": "Target",
+        "cond_id": 16000002,
+        "abnormal_effect": "Groggy"
       },
-      "skill_cond_source": "override",
+      "skill_cond_source": "SkillCond.dat",
       "end_ms": 630.0,
       "range": 2000.0
     },
@@ -14739,10 +14747,11 @@
       "group_cooldown_id": 17370000,
       "skill_cond": {
         "type": "HasAbnormalEffectType",
-        "abnormal_effect": "Stagger",
-        "select_target": "Target"
+        "select_target": "Target",
+        "cond_id": 17000004,
+        "abnormal_effect": "Groggy"
       },
-      "skill_cond_source": "override",
+      "skill_cond_source": "SkillCond.dat",
       "end_ms": 630.0,
       "range": 2000.0
     },
@@ -15851,10 +15860,11 @@
       "group_cooldown_id": 18300000,
       "skill_cond": {
         "type": "HasAbnormalEffectType",
-        "abnormal_effect": "Stagger",
-        "select_target": "Target"
+        "select_target": "Target",
+        "cond_id": 18000005,
+        "abnormal_effect": "Groggy"
       },
-      "skill_cond_source": "override",
+      "skill_cond_source": "SkillCond.dat",
       "end_ms": 630.0,
       "range": 400.0
     },
@@ -164898,7 +164908,7 @@
     "client_build": "Steam build 26262663: stats, cooldowns, casting, costs and damage values from PcStatLevel/Skill/SkillEffect (tools/client_build_update.py)",
     "damage_source": "chain follow-ups without exported SkillEffect rows carry improvised Damage rows scaled from their parent (damage_source: override, tools/data/skill-damage-overrides.json)",
     "use_conditions": "Skill.dat CanUseWhenElementalSummonSpawned / CanUseWhenPeaceState / CanUseSkillCostType; from client:Skill; 16140000: Jointstrike: Curse needs a summoned spirit; CanUseWhenElementalSummonSpawned groups not in committed export (any spirit counts, OURS).; use_condition_source \"override\" marks OURS.",
-    "skill_cond": "SkillCond.dat SkillCondTableItem (CondType, CondAbnormalGroupId, CondAbnormalEffectType, CondSkillList, CondSelectTarget); grants from ToggleOnAbnormalId; self Abnormal_True on caster filters is applied from skill-areas caster_debuffs at hit time; skill_cond_*_source \"override\" marks OURS. needs from research/client-export/SkillCond.json.gz; grants from Skill.dat/SkillEffect (client:Skill); 14070000: Suppressing Arrow tooltip: while Precision is active; Marking Shot grants Precision (client skill text, 10s).; 14090000: Marking Shot grants Precision for 10s (SkillEffect Abnormal_True group not in committed skill-areas.json).; 16330000: Dimensional Control: Self HasAbnormalGroupId 163300000 from Water spirit 16107000 (capture 000220).; 16340000: Rapid Scattershot: target afflicted with Stagger (SkillCond.dat HasAbnormalEffectType, CondSelectTarget Target).",
+    "skill_cond": "SkillCond.dat SkillCondTableItem (CondType, CondAbnormalGroupId, CondAbnormalEffectType, CondSkillList, CondSelectTarget); grants from ToggleOnAbnormalId; self Abnormal_True on caster filters is applied from skill-areas caster_debuffs at hit time; skill_cond_*_source \"override\" marks OURS. needs from research/client-export/SkillCond.json.gz; grants from Skill.dat/SkillEffect (client:Skill); 14090000: Marking Shot grants Precision for 10s on cast (client SkillEffect Precision is target-facing; CANDIDATE cast grant).",
     "client_export": "research/client-export/2026-11-22: Skill/SkillEffect/SkillLv/SkillCharge via tools/client_skill_sync.py"
   },
   "skill_customizing": {
