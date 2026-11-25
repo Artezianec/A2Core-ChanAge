@@ -5,19 +5,41 @@ using Newtonsoft.Json;
 using CUE4Parse.GameTypes.Aion2.Objects;
 using Newtonsoft.Json.Linq;
 
-if (args.Length is < 6 or > 7 || (args.Length == 7 && args[6] != "--map-summary"))
-    throw new ArgumentException("WorldProbe <Paks> <key-report> <oodle-dll> <usmap> <selection-json> <new-local-output-directory> [--map-summary]");
-var mapSummary = args.Length == 7;
+var positional = new List<string>(6);
+string? appVersion = null;
+var mapSummary = false;
+for (var index = 0; index < args.Length; index++)
+{
+    switch (args[index])
+    {
+        case "--map-summary":
+            mapSummary = true;
+            break;
+        case "--app-version":
+            if (++index >= args.Length) throw new ArgumentException("--app-version needs a value");
+            appVersion = args[index];
+            break;
+        default:
+            if (args[index].StartsWith("--", StringComparison.Ordinal))
+                throw new ArgumentException($"Unknown option {args[index]}");
+            positional.Add(args[index]);
+            break;
+    }
+}
+
+if (positional.Count != 6)
+    throw new ArgumentException("WorldProbe <Paks> <key-report> <oodle-dll> <usmap> <selection-json> <new-local-output-directory> [--map-summary] [--app-version X.Y.Z]");
+
 var local = Path.GetFullPath("research/local") + Path.DirectorySeparatorChar;
-var output = Path.GetFullPath(args[5]);
+var output = Path.GetFullPath(positional[5]);
 if (!output.StartsWith(local, StringComparison.OrdinalIgnoreCase) || Directory.Exists(output))
     throw new ArgumentException("Use a new directory under research/local/");
-var selection = System.Text.Json.JsonSerializer.Deserialize<string[]>(File.ReadAllText(args[4]))!;
+var selection = System.Text.Json.JsonSerializer.Deserialize<string[]>(File.ReadAllText(positional[4]))!;
 if (selection.Length > (mapSummary ? 4096 : 64)) throw new ArgumentException("Selection exceeds probe limit");
 if (mapSummary && selection.Any(p => !p.Contains("/Data/Map/", StringComparison.OrdinalIgnoreCase)
     || !p.EndsWith("/MapData.dat", StringComparison.OrdinalIgnoreCase)))
     throw new ArgumentException("Summary mode accepts only Data/Map/.../MapData.dat paths");
-using var session = AionClientSession.Open(args[0], args[1], args[2], args[3]);
+using var session = AionClientSession.Open(positional[0], positional[1], positional[2], positional[3], appVersion);
 var provider = session.Provider;
 Directory.CreateDirectory(output);
 // Mount-visible inventory is separate from the IoStore-only asset catalog.

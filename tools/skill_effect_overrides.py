@@ -59,15 +59,11 @@ ABNORMALS = {
     100000701: ([['Dot_TargetMaxHP', '1000', '300', '0']], 'Flash Slice, Infiltrate (Assassin): a bleed, 3 % of the maximum over its 3 s.'),
     100000801: ([['Dot_TargetMaxHP', '1000', '300', '0']], 'Heat Wave Blow (Chanter): a burn, 3 % of the maximum over its 3 s.'),
     170700001: ([['Dot_TargetMaxHP', '1000', '500', '0']], 'Chain of Torment (Cleric): torment damage, 5 % of the maximum over its 10 s.'),
-    170800001: ([
-        ['Dot_NormalCalc', '1000', 'TRUE', 'TRUE', '74', '74', '14190', '14190', '1'],
-        ['StatChange', 'PvEAmplifyDamage', '-500', '0', '0', '1'],
-        ['StatChange', 'PvPAmplifyDamage', '-250', '0', '0', '1'],
-    ], 'Debilitating Mark (Cleric, 10 s): client SkillAbnormalEffect rows; victim amplify wired in NpcVictimAmplify.'),
     112900072: ([['Taunt']], 'Mocking Blade (Gladiator): the name says it taunts (1.7 s).'),
     120900001: ([['Taunt']], 'Punishment (Templar, 20 s): the provoke of the class.'),
     170900001: ([['Hot_Ratio', '1000', '1500', '1500', '0']], 'Light of Regeneration (Cleric, 30 s): a heal over time, 15 % of the maximum in total.'),
     181200001: ([['Hot_Ratio', '1000', '2000', '2000', '0']], 'Recuperation (Chanter, 8 s): a heal over time, 20 % of the maximum in total.'),
+    153100001: ([['StatChange', 'MPUseDecrease', '3000']], 'Wish of Concentration (Sorcerer, 10 s): 30 % cheaper skills.'),
     100200001: ([['ImmuneAbnormal', '0', '0', '0', '0', '0', 'Stun,Hold,Sleep,Frozen,Knockdown,Aerial,Silence,Slow,Snare,Taunt', 'None']],
                 'Defiance (every class, 5 s): immune to crowd control.'),
     100000401: ([['Stagger']], 'Legacy stagger break fallback when no breaking skill id (5 s).'),
@@ -77,13 +73,14 @@ ABNORMALS = {
 }
 
 SKILLS = {
-    11190000: {'effects': [['CasterMove', 'Forward', '1500']],
-               'evidence': 'Leaping Slam (Gladiator): the client SkillEffect row uses CasterMoveDirection Forward toward the locked target; '
-                           '1500 cm caps the leap at roughly melee reach when tables are absent (tools/skill_areas.py patch).'},
-    13070000: {'effects': [['Teleport_Caster']],
-               'evidence': 'Assassin Shadowstrike jumps behind its target and stuns it for 3 s (reported on the live server; Skill.dat names '
-                           'the only abnormal 100000301, 3000 ms). Teleport_Caster is the client\'s ESkillEffectType for a caster teleport; '
-                           'its values are unknown, so the server uses OURS offsets (GameSession.SkillMoves.cs).'},
+    11190000: {'effects': [['Teleport_Caster', 'TargetLocation_CasterToTargetDirection', '100', '180', '100']],
+               'evidence': 'Leaping Slam (Gladiator): SkillEffect group 111900071 row 1119000711 is Teleport_Caster '
+                           'TargetLocation_CasterToTargetDirection (100, 180, 100): the caster lands on its own side of the target. '
+                           'The 2026-11-24 2.0.12 export carries the row; this is the fallback when the client tables are absent.'},
+    13070000: {'effects': [['Teleport_Caster', 'TargetLocation_TargetDirection', '150', '180', '50']],
+               'evidence': 'Assassin Shadowstrike jumps behind its target and stuns it for 3 s. The 2.0.12 SkillEffect row is '
+                           'Teleport_Caster TargetLocation_TargetDirection (150, 180, 50): 180 degrees from the target facing is its back. '
+                           'Skill.dat names the only abnormal 100000301, 3000 ms.'},
     17100000: {'effects': [['HpHealRatio', '2500', '2500']], 'scope': 'target', 'evidence': 'Healing Light (Cleric, 6 s): a single-target heal of 25 % of the maximum.'},
     17120000: {'effects': [['HpHealRatio', '1500', '1500']], 'scope': 'party', 'scope_range': 1500,
                'evidence': 'Radiant Recovery (Cleric, 12 s): a group heal of 15 % of the maximum within 15 m.'},

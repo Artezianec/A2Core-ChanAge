@@ -3,11 +3,11 @@ using Aion.Protocol.Native;
 
 namespace Aion.World;
 
-// Skill option customizing (SkillEffectFilterId → skill id, priority). SkillCond rows live in SkillCond.json.gz;
-// defaults come from tools/data/class-skills.json (Skill.dat effect rows). Updates: 0x36EE / 0x36EF.
+// Skill option customizing (SkillEffectFilterId → skill id, priority). SkillCondTable is not in the client export;
+// defaults come from tools/data/class-skills.json (Skill.dat effect rows). Updates: 0x3845 / 0x3846.
 public sealed partial class GameSession
 {
-    public const ushort SkillCustomizingUpdateRq = 0x36EE, SkillCustomizingUpdateRs = 0x36EF;
+    public const ushort SkillCustomizingUpdateRq = 0x3845, SkillCustomizingUpdateRs = 0x3846;   // RQ CANDIDATE (RS-1)
     const string SkillCustomizingSetting = "skill_customizing";
 
     readonly List<(int CondId, int SkillId, byte Priority)> skillCustomizing = [];

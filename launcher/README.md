@@ -19,7 +19,7 @@ Design and evidence: `research/client-installer.md`.
 - `AionLauncher/`: the WinForms app and its elevated helper modes.
 - `A2Core.Redirect/`: optional Windows x64 hook DLL (CMake + MinHook); injected in the default play path.
 - `supported-build.json`: every file of the supported Steam depot manifest (path, size, hashes).
-  Embedded in the launcher; regenerate with the BuildTool (do not hand-edit).
+  Embedded in the launcher; regenerate with the BuildTool (or the local fallback below; do not hand-edit).
 - `launcher.json`: the server (account URL, IPv4 address, bootstrap port, private saved-folder suffix).
   `accountUrl` must be `https://` except on loopback (`http://127.0.0.1`, `http://localhost`, or `http://[::1]`).
   Embedded; a `launcher.json` next to the exe overrides it. Optional `certificateThumbprint` (below).
@@ -71,7 +71,7 @@ next one itself; the player only confirms and answers Windows prompts.
    no extra space) or copied. Otherwise the launcher downloads it from Steam itself
    (`Aion.Launcher.Core/SteamDownload.cs`, SteamKit2): the player signs in by scanning a QR code with
    the Steam mobile app (no password reaches the launcher), then the launcher asks for the depot key
-   and the manifest request code of depot 3393111 manifest 1699273097574069541 and fetches every
+   and the manifest request code of depot 3393111 manifest 4848810977640627068 and fetches every
    chunk from Steam's content servers into the private folder (16 chunks in parallel, each checked
    against its SHA-1 id; a bad chunk is fetched again from another server). The folder is
    `%LOCALAPPDATA%\A2CorePrivate\AION2` when the system drive has room, else `<drive>:\A2CorePrivate\AION2`
@@ -119,11 +119,8 @@ The Play page has a **Client version** dropdown (dark theme, like the rest). The
 `selectedClientVersion` in the `launcher.json` next to the exe (created from the embedded one if missing;
 other keys are kept).
 
-- `2.0.9.0` (default): the launcher's private copy, checked against `supported-build.json`, with the
+- `2.0.12.0` (default): the launcher's private copy, checked against `supported-build.json`, with the
   firewall rules and the optional Client Editor patch paks, exactly as before.
-- `2.0.13 (experimental, unverified)` (`2.0.13`): listed only when a pak AES key is present in the client
-  profile table (not published in this tree). Same read-only Steam-folder rules as `steam-latest`
-  (see `docs/client-2.0.13.md`). Off the default selection.
 - `Official latest (Steam)` (`steam-latest`): the player's own Steam install, started in place and
   **read-only**: no file in the Steam folder is written, so no patch paks (they would land in its Paks
   folder), no size/hash check (it is newer than the reference) and no firewall rules (they are per exe
@@ -135,14 +132,14 @@ other keys are kept).
   PC yet and Steam has moved past it (every official patch, e.g. 2026-11-11), the download page offers
   "Use my Steam copy" next to the 88 GB download, so the version picker on the Play page is not the only way to it.
 
-The server still runs 2.0.6.0 data and opcodes and has no client-version check, so a newer client may
+The server data and opcodes target 2.0.12 (Steam build 26728906); a client of another build may
 start but fail or misbehave in-game. Optional keys:
 
 ```json
 "steamClientPath": "Z:\\SteamLibrary\\steamapps\\common\\AION2",
 "selectedClientVersion": "steam-latest",
 "clientVersions": [
-  { "id": "2.0.9.0", "name": "2.0.9.0", "kind": "private" },
+  { "id": "2.0.12.0", "name": "2.0.12.0", "kind": "private" },
   { "id": "steam-latest", "name": "Official latest (Steam)", "kind": "steam", "launchArgs": [] }
 ]
 ```
@@ -184,6 +181,21 @@ When the server moves to a new official Steam build:
 
 2. Commit `launcher/supported-build.json` and rebuild/publish the launcher so the embedded copy updates.
 
+### Local fallback (no Steam sign-in)
+
+On the machine that already has the supported build installed, the reference can be built
+without a Steam account or QR:
+
+```bash
+python tools/local_supported_build.py
+```
+
+It reads `buildid`/`manifest` from `steamapps/appmanifest_3393110.acf`, hashes the installed
+quick set for SHA-256 and every other file for SHA-1, and writes `launcher/supported-build.json`.
+The result pins the **installed** build, so run it before updating the client. `--sha1 none`
+is faster but leaves no hashes for the full verify/repair check. Commit the JSON and rebuild
+the launcher as above.
+
 Legacy: `tools/launcher_build.py --manifest-id <gid> …` from a full local `verification.json` still
 works but requires a verified on-disk copy and SHA-256 for all files.
 
@@ -196,5 +208,5 @@ it equal to `<Version>` in AionLauncher.csproj).
 
 - A full run on a second PC: remote certificate acceptance by the client, Steam ownership checks
   without our dev tools, the per-session hosts helper, and the firewall rules with a remote server.
-- Whether Steam still serves manifest 1699273097574069541 to `download_depot`.
+- Whether Steam still serves manifest 4848810977640627068 to `download_depot`.
 - The exe is not code-signed: Windows SmartScreen warns on first start ("More info" -> "Run anyway").

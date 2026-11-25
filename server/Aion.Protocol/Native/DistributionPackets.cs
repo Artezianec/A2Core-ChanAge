@@ -1,18 +1,18 @@
 namespace Aion.Protocol.Native;
 
 /// <summary>
-/// Party loot rolls and special distribution (usmap game opcodes; layouts CANDIDATE where no capture exists).
-/// Dice: 0x381C BeginRollingDice_NT … 0x3826 RollDiceWithdraw_NT. Bid family 0x3813..0x3827 (bid treated as dice on Global).
+/// Party loot rolls and special distribution (2.0.12 dispatch opcodes; layouts CANDIDATE where no capture exists).
+/// Dice: 0x5721 BeginRollingDice_NT … 0x572C BidItemWithdraw_NT. Bid family 0x5718..0x572C (bid treated as dice on Global).
 /// </summary>
 public static class DistributionOpcodes
 {
-    public const ushort BeginItemBiddingNt = 0x3813, BidItemRq = 0x3814, BidItemRs = 0x3815,
-        BidItemWithdrawRq = 0x3816, BidItemWithdrawRs = 0x3817, BidItemNt = 0x3818, BidItemWinNt = 0x3819,
-        BidItemResultNt = 0x381a, BidItemResultFailNt = 0x381b, BidItemWithdrawNt = 0x3827;
-    public const ushort BeginRollingDiceNt = 0x381c, RollDiceRq = 0x381d, RollDiceRs = 0x381e,
-        RollDiceWithdrawRq = 0x381f, RollDiceWithdrawRs = 0x3820, RollDiceNt = 0x3821, RollDiceWinNt = 0x3822,
-        RollDiceResultNt = 0x3823, ReRollDiceNt = 0x3824, RollDiceResultFailNt = 0x3825, RollDiceWithdrawNt = 0x3826,
-        SpecialDistributionListNt = 0x3828, RewardDistributionResultNt = 0x3830;
+    public const ushort BeginItemBiddingNt = 0x5718, BidItemRq = 0x5719, BidItemRs = 0x571a,
+        BidItemWithdrawRq = 0x571b, BidItemWithdrawRs = 0x571c, BidItemNt = 0x571d, BidItemWinNt = 0x571e,
+        BidItemResultNt = 0x571f, BidItemResultFailNt = 0x5720, BidItemWithdrawNt = 0x572c;
+    public const ushort BeginRollingDiceNt = 0x5721, RollDiceRq = 0x5722, RollDiceRs = 0x5723,
+        RollDiceWithdrawRq = 0x5724, RollDiceWithdrawRs = 0x5725, RollDiceNt = 0x5726, RollDiceWinNt = 0x5727,
+        RollDiceResultNt = 0x5728, ReRollDiceNt = 0x5729, RollDiceResultFailNt = 0x572a, RollDiceWithdrawNt = 0x572b,
+        SpecialDistributionListNt = 0x572d, RewardDistributionResultNt = 0x5735;
 }
 
 public static class DistributionPackets

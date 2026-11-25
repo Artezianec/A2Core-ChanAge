@@ -27,8 +27,6 @@ public sealed partial class GameSession
     long displacedUntil;
     /// <summary>Position reports rejected as too fast (research and the staff overview).</summary>
     public int SpeedRejects { get; private set; }
-    long lastMoveRejectLogAt;
-    string? lastMoveRejectLogReason;
     /// <summary>Builder Speed command multiplier (1 = normal); client MoveSpeed stat and anti-cheat both use <see cref="WireMoveSpeedPermille"/>.</summary>
     double builderSpeedMultiplier = 1;
 
@@ -71,28 +69,17 @@ public sealed partial class GameSession
     /// <summary>Null when the report is accepted; else the reject for the client (the report must be dropped).</summary>
     List<byte[]>? CheckMovement(byte[] plain, Vector3d reported, long now)
     {
-        if (now >= displacedUntil && pendingSelfMoveStop is null) displacedUntil = 0;
         var op = Opcode(plain);
-        ushort RejectOpcode() => op switch { 0x3700 => MoveStartReject, 0x3718 => MoveStopReject, _ => MoveUpdateReject };
-        if (!IsAdmin && (position ?? moveAnchor) is { } held)
+        // A hold, a snare or a server-driven displacement (knockback, pull, airborne): the client stays where the server put it.
+        if ((MovementBlocked || now < displacedUntil) && !IsAdmin && (position ?? moveAnchor) is { } held)
         {
-            if (MovementBlockedAt(now))
-            {
-                var cc = buffs.FirstOrDefault(b => BuffActive(b, now) && b.Combat is { Held: true } or { Rooted: true });
-                var detail = cc?.Combat?.Rooted == true ? "cc_rooted" : "cc_held";
-                LogMoveReject(detail, now, cc?.AbnormalId, displacedUntil > now ? displacedUntil - now : 0);
-                return [PlayerPackets.MoveReject(RejectOpcode(), playerKey, held)];
-            }
-            if (now < displacedUntil)
-            {
-                LogMoveReject("displaced", now, remainMs: displacedUntil - now);
-                return [PlayerPackets.MoveReject(RejectOpcode(), playerKey, held)];
-            }
+            var anchored = op switch { 0x3700 => MoveStartReject, 0x3718 => MoveStopReject, _ => MoveUpdateReject };
+            return [PlayerPackets.MoveReject(anchored, playerKey, held)];
         }
         if (!IsAdmin && (position ?? moveAnchor) is { } from && CombatAi().FireWallBlocksMove(from, reported, now))
         {
-            LogMoveReject("fire_wall", now);
-            return [PlayerPackets.MoveReject(RejectOpcode(), playerKey, from)];
+            var anchored = op switch { 0x3700 => MoveStartReject, 0x3718 => MoveStopReject, _ => MoveUpdateReject };
+            return [PlayerPackets.MoveReject(anchored, playerKey, from)];
         }
         if (op is 0x3706 or 0x3707 or 0x370a or 0x370b or 0x3712 or 0x3713 || IsAdmin || moveAnchor is not { } anchor || now < skillMoveGraceUntil)
         {
@@ -110,24 +97,8 @@ public sealed partial class GameSession
             return null;
         }
         SpeedRejects++;
-        LogMoveReject("speed", now, budget: moveBudget, allowed: AllowedSpeed(), dist: distance);
-        return [PlayerPackets.MoveReject(RejectOpcode(), playerKey, anchor)];
-    }
-
-    void LogMoveReject(string reason, long now, int? abnormalId = null, long remainMs = 0, double budget = 0, double allowed = 0, double dist = 0)
-    {
-        if (reason == lastMoveRejectLogReason && now - lastMoveRejectLogAt < 2000) return;
-        lastMoveRejectLogReason = reason;
-        lastMoveRejectLogAt = now;
-        PlaytestDebug.Action("move_reject",
-            ("reason", reason),
-            ("playerKey", playerKey),
-            ("map", worldMap),
-            ("abnormalId", abnormalId),
-            ("remainMs", remainMs > 0 ? remainMs : null),
-            ("budget", reason == "speed" ? budget : null),
-            ("allowedSpeed", reason == "speed" ? allowed : null),
-            ("distance", reason == "speed" ? dist : null));
+        var reject = op switch { 0x3700 => MoveStartReject, 0x3718 => MoveStopReject, _ => MoveUpdateReject };
+        return [PlayerPackets.MoveReject(reject, playerKey, anchor)];
     }
 
     /// <summary>

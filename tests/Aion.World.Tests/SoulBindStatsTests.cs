@@ -29,6 +29,56 @@ public sealed class SoulBindStatsTests
     }
 
     [Fact]
+    public void Attune_reply_has_the_client_reader_layout()
+    {
+        var packet = GamePackets.SoulBindAttune(0x53, 128, 0, true, (128, 42), (0, 0));
+        var reader = new PacketReader(packet) { Offset = 2 };
+        Assert.Equal(0, reader.U16());
+        Assert.Equal(0x53, (long)reader.I64());
+        Assert.Equal(128, reader.U16());
+        Assert.Equal(0, reader.I32());
+        Assert.True((reader.U8() & 1) != 0);
+        Assert.Equal(128, reader.U16());
+        Assert.Equal(42, reader.I32());
+        Assert.Equal(0, reader.I32());
+        Assert.Equal(0, reader.U8());
+        Assert.True(reader.End);
+    }
+
+    [Fact]
+    public async Task Attune_request_answers_5632_and_applies_the_selected_pool_stat()
+    {
+        const long Now = 1_793_368_800_000;
+        const int Gloves = 210_540_022;   // holds a soul-bind pool (see the bind test below)
+        const int Cost = 210_130_001;
+        var store = new FakeCharacterStore();
+        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now);
+        var bind = SoulBindPools.Of(Gloves)!;
+        var pick = bind.Pool[0][0];
+        store.Items.Add(FakeCharacterStore.BagItem(Gloves, 1, 0x60,
+            upgrades: JsonSerializer.SerializeToElement(new { soul_bind = 1 })));
+        store.Items.Add(FakeCharacterStore.BagItem(Cost, 1, 0x61));
+        await GameSessionTestHelpers.LoadInventoryAsync(session, Now);
+
+        var replies = await session.HandleAsync(new PacketWriter().U16(0x5631).I64(0x60).U16(pick & 0xFFFF).I32(0).I64(0x61).ToArray(), Now + 1);
+
+        var rs = Assert.Single(replies, p => GameSessionTestHelpers.Op(p) == 0x5632);
+        var reader = new PacketReader(rs) { Offset = 2 };
+        Assert.Equal(0, reader.U16());
+        Assert.Equal(0x60, (long)reader.I64());
+        Assert.Equal((short)pick, (short)reader.U16());
+        Assert.Equal(0, reader.I32());
+        Assert.True((reader.U8() & 1) != 0);
+        var newType = (int)reader.U16();
+        Assert.NotEqual(pick, newType);   // the window must show a different option
+        var stored = store.Items.Single(i => i.WireId == 0x60);
+        var stats = stored.Upgrades.GetProperty("soul_stats").EnumerateArray().Select(e => (e[0].GetInt32(), e[1].GetInt32())).ToList();
+        Assert.Contains(stats, s => s.Item1 == newType);
+        Assert.DoesNotContain(stats, s => s.Item1 == pick);
+        Assert.DoesNotContain(store.Items, i => i.WireId == 0x61);
+    }
+
+    [Fact]
     public void Binding_draws_half_then_all_of_the_pool_and_raises_kept_stats()
     {
         var gloves = SoulBindPools.Of(210540022);

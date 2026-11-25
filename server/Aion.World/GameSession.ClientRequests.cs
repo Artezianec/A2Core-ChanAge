@@ -18,10 +18,11 @@ public sealed partial class GameSession
     /// Client packets that expect no reply: ClientTime_RT 0x3601 (i64 client ms), UpdateVisibleLen_RQ 0x3651 (f32 view
     /// radius, no RS in the protocol), CustomizingStart/End_RT 0xe34f/0xe350, NCGuardData_RQ 0xe259 (opaque guard data,
     /// research/e259-ncguard.md) and the 0xffa0/0xffa1 pair (no struct; 0xffa1 every 30 s). Not logged as unanswered.
+    /// 0xffb3 is the 2.0.12 ClientKeyBindingInfo_RT (a client telemetry dump; the server has nothing to answer).
     /// 0xe259 stays unanswered: replaying the official 0xe25a (2026-10-24) made the client flood hundreds of requests and
     /// drop the connection 10-50 s later in every long session (live 2026-10-24/25); unanswered it sent 4-7 per session.
     /// </summary>
-    public static readonly IReadOnlySet<int> SilentRequests = new HashSet<int> { 0x3601, 0x3651, 0xe34f, 0xe350, 0xe259, 0xffa0, 0xffa1 };
+    public static readonly IReadOnlySet<int> SilentRequests = new HashSet<int> { 0x3601, 0x3651, 0xe34f, 0xe350, 0xe259, 0xffa0, 0xffa1, 0xffb3 };
 
     /// <summary>
     /// The official reply to a RetrieveMyLatestSeasonRanking_RQ, pushed at the world entry (#462 of capture 20261013-144836):
@@ -38,8 +39,9 @@ public sealed partial class GameSession
             // LoadMessageCardBlockList_RQ (no body): no blocked message-card senders (usmap: result, MessageCardBlock list). CANDIDATE.
             case MessageCardBlockListRq when plain.Length == 2:
                 return [PacketWriter.Opcode(MessageCardBlockListRs).U16(0).Varint(0).ToArray()];
+            // SkinDecoInstanceList_RQ (no body): the reply carries only a result (usmap). CANDIDATE.
             case SkinDecoInstanceListRq when plain.Length == 2:
-                return SkinDecoInstanceListReplies();
+                return [PacketWriter.Opcode(SkinDecoInstanceListRs).U16(0).ToArray()];
             case WorldMapAbyssRankerInfoRq when plain.Length == 2:
                 return WorldMapAbyssRankerInfo(plain);
             // WorldMapContentsInfo_RQ {i32 map id}: Field Boss / Exploration tab. See GameSession.FieldBosses.

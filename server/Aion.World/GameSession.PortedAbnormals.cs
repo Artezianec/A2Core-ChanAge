@@ -65,8 +65,6 @@ public sealed partial class GameSession
         if (def.Damage.Length > 0 || resources is null) return [];
         var rows = PortedSkillAbnormals.SelfRows(skill);
         if (rows.Count == 0) rows = PortedSkillAbnormals.TargetRows(skill);
-        if (rows.Count == 0 && (StigmaData.IsStigma(skill) || StigmaData.StigmaOfVariant(skill) is not null))
-            rows = StigmaData.SelfRows(skill);
         if (rows.Count == 0) return [];
         var replies = new List<byte[]>();
         var speedBefore = BuffStat("MoveSpeed");
@@ -76,7 +74,7 @@ public sealed partial class GameSession
             if (row.Abnormal == DodgeAbnormal) continue;
             if (row.Chance < 10_000 && rng.Next(10_000) >= row.Chance) continue;
             if (row.EffectRow > 0)
-                replies.Add(GamePackets.SkillEffect(playerKey, playerKey, skill, actionUid, SkillSideData.WireEffectId(row.EffectRow, skill)));
+                replies.Add(GamePackets.SkillEffect(playerKey, playerKey, skill, actionUid, row.EffectRow));
             var duration = Math.Max(1, rng.Next(Math.Min(row.MinMs, row.MaxMs), Math.Max(row.MinMs, row.MaxMs) + 1));
             if (AddBuff(row.Abnormal, duration, skill, now, replies, path: SelfAbnormalPath.ClassSelfBuff) is not null)
                 applied = true;

@@ -58,6 +58,9 @@ DEFAULT_HOSTS = [
     'sdk.gpa.ncsoft.com',
     'stun.gpa.ncsoft.com',
     'nccr-api.global.nc.com',
+    'mobileappconfig.g.nc.com',
+    'mobileappconfig-ncus.g.nc.com',
+    'api.g.nc.com',
 ]
 
 

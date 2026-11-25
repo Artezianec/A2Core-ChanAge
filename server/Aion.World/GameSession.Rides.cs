@@ -75,10 +75,16 @@ public sealed partial class GameSession
         return [GamePackets.ContentsUnlockUpdate([RideContentsUnlock])];
     }
 
-    async Task PersistDefaultRideIfUnsetAsync(int rideId, CancellationToken ct)
+    /// <summary>
+    /// Remembers the first acquired ride as the default and tells the client (0x900c), so its C mount key has a
+    /// ride to summon. Call it after the ride is in the dictionary: the ownership check reads it.
+    /// </summary>
+    async Task<List<byte[]>> PersistDefaultRideIfUnsetAsync(int rideId, CancellationToken ct)
     {
-        if (defaultRide != 0 || rideId == 0 || Store is not { } store || CharacterId is not { } character || !OwnsRide(rideId)) return;
-        if (await store.SetDefaultRideAsync(character, rideId, ct)) defaultRide = rideId;
+        if (defaultRide != 0 || rideId == 0 || Store is not { } store || CharacterId is not { } character || !OwnsRide(rideId)) return [];
+        if (!await store.SetDefaultRideAsync(character, rideId, ct)) return [];
+        defaultRide = rideId;
+        return [RidePackets.DefaultSetNotice(playerKey, 0, rideId)];
     }
 
     bool SubzoneAllowsRideNow()
@@ -134,13 +140,16 @@ public sealed partial class GameSession
         mountSummonUntilMs = Environment.TickCount64 + 5000;
         var (moveState, moveSubstate) = MountMoveAckFields();
         var notice = RidePackets.GetOnNotice(playerKey, ride, moveState, moveSubstate, isSprinting: sprinting && moving);
+        // The NT is for the players around (the official dismounting player gets the RS only; #831/#1374).
         worldPlayer?.Map?.Broadcast(worldPlayer, [notice]);
         worldPlayer?.Map?.UpdateVisibility(worldPlayer, refresh: true);
         return
         [
             .. InterruptItemCast(),
-            RidePackets.GetOnReply(playerKey, 0, ride, moveState, moveSubstate, isSprinting: sprinting && moving),
-            notice,
+            // Official 2.0.12 CharGetOnRide_RS leaves all three movement fields zero (#831). The move state belongs
+            // on the broadcast notice; echoing Run/Sprint fields in the action reply can leave the client transfer
+            // state out of sync when it dismounts during a dash.
+            RidePackets.GetOnReply(playerKey, RidePackets.OnSuccess, ride),
             .. RefreshStats(),
         ];
     }
@@ -173,7 +182,6 @@ public sealed partial class GameSession
         var boxCooldown = Boxes.Cooldown(row.TemplateId);
         if (boxCooldown.Group != "None" && now < itemCooldowns.GetValueOrDefault(boxCooldown.Group)) return Fail();
         count = (int)Math.Min(Math.Clamp(count, 1, Math.Max(1, Boxes.MaxOpen(group))), row.Quantity);
-        select = WeaponSkinBoxSelectIndex(select, group);
         if (count < 1 || Boxes.Roll(group, select, count, rng) is not { } rolled) return Fail();
         var rewards = options.Rates.WithKinah(rolled);
         var done = await Stored(async () => await store.ConsumeAndGrantAsync(character, row.InstanceId, row.Revision, count, rewards, ct) ? [[]] : []);
@@ -185,12 +193,7 @@ public sealed partial class GameSession
         }
         var replies = new List<byte[]> { RidePackets.OpenBoxReply(0, uid, itemId, select, count, rewards) };
         replies.AddRange(await InventoryChangesAsync(ct, IncreaseOpenRewardBox, DecreaseOpenRewardBox));
-        var autoUse = await AutoUseAcquiredItemsAsync(rewards.Select(r => r.Item1), now, ct);
-        replies.AddRange(autoUse);
-        var backup = await EnsureBoxSkinGrantsAsync(rewards, autoUse, now, ct);
-        replies.AddRange(backup);
-        if (autoUse.Any(p => Opcode(p) == SkinUpdateNt) || backup.Count > 0)
-            replies.Add(SkinInfo());
+        replies.AddRange(await AutoUseAcquiredItemsAsync(rewards.Select(r => r.Item1), now, ct));
         return replies;
     }
 
@@ -292,18 +295,15 @@ public sealed partial class GameSession
         List<byte[]>? effectReplies = use?.Effect switch
         {
             "GetDaevanionPoint" => await UseDaevanionPointItemAsync(store, character, row, use, reply: false, ct, useCount),
-            "GetSkillPoint" => await UseGetSkillPointItemAsync(store, character, row, use, reply: false, ct, useCount),
             "GetStigmaShard" => await UseStigmaShardItemAsync(store, character, row, use, reply: false, ct, useCount),
             "GetGodstone" => await UseGodstoneItemAsync(store, character, row, reply: false, useCount, ct),
-            "BattlePassExp" or "AddContentsTicket" or "Fix_DaevanionPoint" or "GetStigmaShardSuperior" =>
-                await UseItemAsync(uid, now, ct, reply: false, count: useCount),
             "RewardBox" => await OpenBoxAsync(uid, 0, useCount, now, ct),
             _ => await UseItemAsync(uid, now, ct, reply: false, count: useCount),
         };
         if (effectReplies is null)
         {
             if (use is not null)
-                LogItemUseRefused(itemId, use.Effect, ItemUseRefusalReason(use.Effect));
+                LogItemUseRefused(itemId, use.Effect, Boxes.ImplementsUseEffect(use.Effect) ? "handler_failed" : "unimplemented_use_effect");
             return Fail(uid);
         }
         if (effectReplies.Count == 0) return Fail(uid);
@@ -313,7 +313,7 @@ public sealed partial class GameSession
         {
             var cooldown = Boxes.Cooldown(row.TemplateId);
             // Return scroll: the cooldown starts when the cast completes (CompleteItemCastAsync).
-            if (cooldown.Group != "None" && use.Effect is not "Telpo_Home" and not "Telpo_Agit")
+            if (cooldown.Group != "None" && use.Effect != "Telpo_Home")
             {
                 itemCooldowns[cooldown.Group] = now + cooldown.CooldownMs;
                 MarkItemCooldownDirty();
@@ -345,7 +345,7 @@ public sealed partial class GameSession
         var questAcquire = await TryQuestAcquireFromItemAsync(store, character, row, use, now, reply, ct);
         if (questAcquire.Count > 0) return questAcquire;
         // Duty scrolls (Item.dat UseEffect GetDutyQuest [group]): a duty quest of the group (GameSession.Duty.cs).
-        if (ResolveDutyScrollGroup(row.TemplateId, use) is { } dutyGroup)
+        if (DutyData.ScrollGroup(row.TemplateId) is { } dutyGroup)
         {
             var dutyCooldown = Boxes.Cooldown(row.TemplateId);
             if (dutyCooldown.Group != "None" && now < itemCooldowns.GetValueOrDefault(dutyCooldown.Group)) return Fail();
@@ -361,20 +361,42 @@ public sealed partial class GameSession
         }
         var cooldown = Boxes.Cooldown(row.TemplateId);
         if (cooldown.Group != "None" && now < itemCooldowns.GetValueOrDefault(cooldown.Group)) return Fail();
-        var replies = await DispatchItemUseEffectAsync(store, character, row, use, reply, now, ct, count);
+        var replies = use.Effect switch
+        {
+            "GetVehicle" => await UsePetItemAsync(store, character, row, use, reply, ct),
+            "GetVehicleSoul" => await UseSoulItemAsync(store, character, row, use, reply, ct),
+            "GetVehicleSoulCrystal" => await UseCrystalItemAsync(store, character, row, use, reply, ct),
+            "Fix_VehicleCreatureLevel" => await UseBoardLevelItemAsync(store, character, row, use, reply, ct),
+            "Skill" => await UseSkillItemAsync(store, character, row, use, reply, now, ct),
+            "Telpo_Home" when itemCast is null => StartItemCast(row, cooldown, reply, now),
+            "GetKina" or "GetNonBindingKina" when use.Values is [var amount, ..] && long.TryParse(amount, out var kina) && kina > 0 =>
+                await UseKinaItemAsync(store, character, row, kina, Math.Clamp(count, 1, (int)Math.Min(int.MaxValue, row.Quantity)), reply, ct),
+            "GetTitle" when use.Values is [var titleText, ..] && int.TryParse(titleText, out var titleId) => await UseTitleItemAsync(store, character, row, titleId, reply, ct),
+            "GetSkin" or "GetSkinSet" when use.Values is [{ Length: > 0 }, ..] => await UseSkinItemAsync(store, character, row, use, reply, ct),
+            "GetSocialAction" when use.Values is [var emoteText, ..] && int.TryParse(emoteText, out var emote) => await UseSocialActionItemAsync(store, character, row, emote, reply, ct),
+            "GetDaevanionPoint" => await UseDaevanionPointItemAsync(store, character, row, use, reply, ct),
+            "GetStigmaShard" => await UseStigmaShardItemAsync(store, character, row, use, reply, ct, count),
+            "GetGodstone" => await UseGodstoneItemAsync(store, character, row, reply, 1, ct),
+            "GetWing" when use.Values is [var wingText, ..] && int.TryParse(wingText, out var wing) && wing > 0 => await UseWingItemAsync(store, character, row, wing, reply, ct),
+            "AscensionGrade" when use.Values is [var gradeText, ..] && int.TryParse(gradeText.Split('_')[^1], out var grade) && grade is >= 2 and <= 6 =>
+                await UseAscensionItemAsync(store, character, row, grade, reply, ct),
+            "GetQuest" => null,
+            _ when AgitDecoTables.Embedded.TryDecoId(row.TemplateId, out var decoId) => await UseAgitDecoItemAsync(store, character, row, decoId, reply, ct),
+            _ => null,
+        };
         if (replies is null)
         {
-            LogItemUseRefused(itemId, use.Effect, ItemUseRefusalReason(use.Effect));
+            LogItemUseRefused(itemId, use.Effect, Boxes.ImplementsUseEffect(use.Effect) ? "handler_failed" : "unimplemented_use_effect");
             return Fail();
         }
         // Return scroll: the cooldown starts when the cast completes (CompleteItemCastAsync), not at cast start.
-        if (cooldown.Group != "None" && use.Effect is not "Telpo_Home" and not "Telpo_Agit")
+        if (cooldown.Group != "None" && use.Effect != "Telpo_Home")
         {
             itemCooldowns[cooldown.Group] = now + cooldown.CooldownMs;
             MarkItemCooldownDirty();
         }
         replies.AddRange(AchieveItemUse(itemId, use.Effect));
-        if (reply) LogItemUse(itemId, use.Effect);
+        LogItemUse(itemId, use.Effect);
         return replies;
     }
 
@@ -410,8 +432,8 @@ public sealed partial class GameSession
             var (extra, board) = await RideBoardAsync(info, 1, ct);
             replies.Add(RidePackets.Acquired(playerKey, rideId, ride.Level, (byte)info.Type, board?.Level ?? 1, board?.Exp ?? 0));
             replies.AddRange(extra);
-            await PersistDefaultRideIfUnsetAsync(rideId, ct);
             replies.AddRange(RememberRide(ride, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
+            replies.AddRange(await PersistDefaultRideIfUnsetAsync(rideId, ct));
         }
         replies.AddRange(UnlockRideContentsIfNeeded());
         replies.AddRange(await InventoryChangesAsync(ct, IncreaseItemUse, DecreaseItemUse));
@@ -424,36 +446,30 @@ public sealed partial class GameSession
     }
 
     /// <summary>A soul item [ride, count]: soul points for the ride, owned or not (0x900d).</summary>
-    async Task<List<byte[]>?> UseSoulItemAsync(INativeCharacterStore store, Guid character, ItemState row, ItemUse use, bool reply, CancellationToken ct, int useCount = 1)
+    async Task<List<byte[]>?> UseSoulItemAsync(INativeCharacterStore store, Guid character, ItemState row, ItemUse use, bool reply, CancellationToken ct)
     {
         if (use.Values is not [var value, var amount, ..] || !int.TryParse(value, out var rideId) || !int.TryParse(amount, out var souls) || souls < 1
             || Boxes.Ride(rideId) is null) return null;
-        useCount = (int)Math.Clamp((long)useCount, 1L, Math.Min(row.Quantity, int.MaxValue));
-        var totalSouls = souls * useCount;
         RideRecord? ride = null;
-        await Stored(async () => (ride = await store.AddRideSoulsAsync(character, row.InstanceId, row.Revision, rideId, totalSouls, ct, consumeItems: useCount)) is null ? [] : [[]]);
+        await Stored(async () => (ride = await store.AddRideSoulsAsync(character, row.InstanceId, row.Revision, rideId, souls, ct)) is null ? [] : [[]]);
         if (ride is null) return null;
-        if (useCount > 1) usedCountApplied = true;
         Remember(ride);
         var replies = Used(row, reply);
-        replies.Add(RidePackets.SoulPoints([(rideId, totalSouls)]));
+        replies.Add(RidePackets.SoulPoints([(rideId, souls)]));
         replies.AddRange(await TryAutoAcquireRideRepliesAsync(rideId, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), ct));
         replies.AddRange(await InventoryChangesAsync(ct, IncreaseItemUse, DecreaseItemUse));
         return replies;
     }
 
     /// <summary>A crystal item [ESoulCrystalType name, count]: crystals of that type (0x9011 reason Item).</summary>
-    async Task<List<byte[]>?> UseCrystalItemAsync(INativeCharacterStore store, Guid character, ItemState row, ItemUse use, bool reply, CancellationToken ct, int useCount = 1)
+    async Task<List<byte[]>?> UseCrystalItemAsync(INativeCharacterStore store, Guid character, ItemState row, ItemUse use, bool reply, CancellationToken ct)
     {
-        if (use.Values is not [var name, var amount, ..] || !CrystalTypes.TryGetValue(name, out var type) || !int.TryParse(amount, out var perItem) || perItem < 1) return null;
-        useCount = (int)Math.Clamp((long)useCount, 1L, Math.Min(row.Quantity, int.MaxValue));
-        var grant = perItem * useCount;
+        if (use.Values is not [var name, var amount, ..] || !CrystalTypes.TryGetValue(name, out var type) || !int.TryParse(amount, out var count) || count < 1) return null;
         int? total = null;
-        await Stored(async () => (total = await store.AddRideCrystalsAsync(character, row.InstanceId, row.Revision, type, grant, ct, consumeItems: useCount)) is null ? [] : [[]]);
+        await Stored(async () => (total = await store.AddRideCrystalsAsync(character, row.InstanceId, row.Revision, type, count, ct)) is null ? [] : [[]]);
         if (total is not { } now) return null;
-        if (useCount > 1) usedCountApplied = true;
         crystals[type] = now;
-        return [.. Used(row, reply), RidePackets.CrystalsGained(new Dictionary<int, int> { [type] = grant }, RidePackets.ItemReason),
+        return [.. Used(row, reply), RidePackets.CrystalsGained(new Dictionary<int, int> { [type] = count }, RidePackets.ItemReason),
             .. await InventoryChangesAsync(ct, IncreaseItemUse, DecreaseItemUse)];
     }
 
@@ -610,10 +626,7 @@ public sealed partial class GameSession
         }
         var completed = RidePackets.ItemUseCompleted(playerKey, cast.Key, cast.ItemId);
         worldPlayer?.Map?.Broadcast(worldPlayer, [completed]);
-        var use = Boxes.Use(cast.ItemId);
-        var (targetMap, home) = use?.Effect == "Telpo_Agit" ? TelpoAgitDestination() : TelpoHomeDestination();
-        if (use?.Effect == "Telpo_Agit" && (guild?.AgitId is not > 0 || targetMap == 0))
-            return [RidePackets.ItemUseInterrupted(playerKey, cast.Key, cast.ItemId, 0)];
+        var (targetMap, home) = TelpoHomeDestination();
         return [completed, RidePackets.ItemUsed(cast.Key, cast.ItemId), .. await InventoryChangesAsync(ct, 0, DecreaseItemUse), .. Teleport(targetMap, home, now)];
     }
 
@@ -646,10 +659,11 @@ public sealed partial class GameSession
         if (ride is null) return [RidePackets.AcquireReply(playerKey, 1)];
         var paid = Paid(rideId, soulsBefore, info.NeedSoul);
         var (extra, board) = await RideBoardAsync(info, 1, ct);
-        await PersistDefaultRideIfUnsetAsync(rideId, ct);
         var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var remembered = RememberRide(ride, nowMs);
+        var defaultSet = await PersistDefaultRideIfUnsetAsync(rideId, ct);
         return [RidePackets.AcquireReply(playerKey, 0), .. paid, RidePackets.Acquired(playerKey, rideId, ride.Level, (byte)info.Type, board?.Level ?? 1, board?.Exp ?? 0),
-            .. extra, .. RememberRide(ride, nowMs), .. RefreshStats(), .. UnlockRideContentsIfNeeded()];
+            .. extra, .. remembered, .. defaultSet, .. RefreshStats(), .. UnlockRideContentsIfNeeded()];
     }
 
     /// <summary>0x9013 RideLevelUp_RQ {i32 ride}: an acquired ride levels up for VehicleLevel NeedSoulCount soul points.</summary>
@@ -682,10 +696,10 @@ public sealed partial class GameSession
         if (ride is null) return [];
         var paid = Paid(rideId, soulsBefore, info.NeedSoul);
         var (extra, board) = await RideBoardAsync(info, 1, ct);
-        Remember(ride);
-        await PersistDefaultRideIfUnsetAsync(rideId, ct);
+        var remembered = RememberRide(ride, nowMs);
+        var defaultSet = await PersistDefaultRideIfUnsetAsync(rideId, ct);
         return [.. paid, RidePackets.Acquired(playerKey, rideId, ride.Level, (byte)info.Type, board?.Level ?? 1, board?.Exp ?? 0),
-            .. extra, .. RememberRide(ride, nowMs), .. RefreshStats(), .. UnlockRideContentsIfNeeded()];
+            .. extra, .. remembered, .. defaultSet, .. RefreshStats(), .. UnlockRideContentsIfNeeded()];
     }
 
     string MountRefusalReason(int ride)
@@ -738,7 +752,7 @@ public sealed partial class GameSession
         var off = RidePackets.GetOffNotice(playerKey, RidePackets.ByClient, bySwap);
         worldPlayer?.Map?.Broadcast(worldPlayer, [off]);
         worldPlayer?.Map?.UpdateVisibility(worldPlayer, refresh: true);
-        return [RidePackets.GetOffReply(playerKey, 0), off, .. RefreshStats()];
+        return [RidePackets.GetOffReply(playerKey, RidePackets.OffSuccess, RidePackets.ByClient), .. RefreshStats()];
     }
 
     /// <summary>The server takes the player off its ride (a cast, death): 0x9006 to the player and those nearby.</summary>

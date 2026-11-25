@@ -1,126 +1,11 @@
 {
   "source": {
-    "note": "NpcData from research/client-export/2026-11-22 when present; spawn positions CANDIDATE until MapData map 21 import.",
-    "map21_mapdata": "MapData.dat for Reshanta Middle (MapId 21): WorldProbe with MapData under AION2/Content/Data/Map/… then python tools/world_npcs.py import-map --map 21 <research/local/.../table-NNN.json>",
-    "donor_fallback_ids": [],
-    "festival_spawns": "emulator_forced",
+    "note": "Synthetic templates cloned from nearest exported NpcData rows; spawns OURS until map 21 MapData export.",
+    "donors": "tools/quest_supplement.py DONOR_BY_NPC + ABYSS_MIDDLE_DONOR",
     "community": "Middle Abyss duty scrolls match Aion2.gg / in-game Middle Abyss kill quests (Reshanta N7 mobs)."
   },
   "templates": {
-    "2100006": {
-      "level": 13,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 100.0,
-      "run_speed": 700.0,
-      "radius": 100,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1226520,
-        1226550,
-        1226530,
-        1226540
-      ],
-      "height": 250,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 3
-    },
-    "2100015": {
-      "level": 13,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 150.0,
-      "run_speed": 600.0,
-      "radius": 90,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1222740,
-        1222750,
-        1222760,
-        1222770
-      ],
-      "height": 200,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 3
-    },
-    "2100145": {
-      "level": 18,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 100.0,
-      "run_speed": 700.0,
-      "radius": 100,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": null,
-      "skills": [
-        1226520,
-        1226550,
-        1226530,
-        1226540
-      ],
-      "height": 250,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 3
-    },
     "2100159": {
-      "level": 24,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": true,
-      "walk_speed": 202.0,
-      "run_speed": 877.0,
-      "radius": 105,
-      "function": "None",
-      "aggro_type": "Aggro_A",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1226480,
-        1226490,
-        1226500,
-        1226510
-      ],
-      "height": 220,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 3
-    },
-    "2100180": {
       "level": 26,
       "type": "Monster",
       "relationship": 6,
@@ -150,94 +35,7 @@
       "sub_type": "NormalMonster",
       "grade": 3
     },
-    "2100181": {
-      "level": 26,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 156.0,
-      "run_speed": 600.0,
-      "radius": 95,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1226440,
-        1226450,
-        1226460,
-        1226470
-      ],
-      "height": 210,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 3
-    },
-    "2100182": {
-      "level": 25,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": true,
-      "walk_speed": 120.0,
-      "run_speed": 450.0,
-      "radius": 60,
-      "function": "None",
-      "aggro_type": "Aggro_A",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1216770,
-        1216780,
-        1216790,
-        1216800
-      ],
-      "height": 250,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 1
-    },
-    "2100192": {
-      "level": 18,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 60.0,
-      "run_speed": 420.0,
-      "radius": 60,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1228190
-      ],
-      "height": 160,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 1
-    },
-    "2100286": {
+    "2290174": {
       "level": 18,
       "type": "Monster",
       "relationship": 6,
@@ -260,183 +58,7 @@
       "sub_type": "NormalMonster",
       "grade": 3
     },
-    "2290174": {
-      "level": 18,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": true,
-      "walk_speed": 200.0,
-      "run_speed": 600.0,
-      "radius": 50,
-      "function": "None",
-      "aggro_type": "Aggro_A",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1227470,
-        1227480,
-        1227490,
-        1227500
-      ],
-      "height": 140,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 2
-    },
-    "2400056": {
-      "level": 14,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 0.0,
-      "run_speed": 0.0,
-      "radius": 80,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "Circle",
-        "radius": 1000,
-        "angle": 0,
-        "inner": 0,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1226200,
-        1226210,
-        1226220
-      ],
-      "height": 200,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 3
-    },
-    "2400057": {
-      "level": 14,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 80.0,
-      "run_speed": 800.0,
-      "radius": 50,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1231260,
-        1231270,
-        1231280,
-        1231290
-      ],
-      "height": 150,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 3
-    },
-    "2406112": {
-      "level": 48,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": true,
-      "walk_speed": 202.0,
-      "run_speed": 513.0,
-      "radius": 65,
-      "function": "None",
-      "aggro_type": "Aggro_A",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1243240,
-        1243250,
-        1243260
-      ],
-      "height": 285,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 3
-    },
-    "2406113": {
-      "level": 48,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 150.0,
-      "run_speed": 380.0,
-      "radius": 50,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1242880,
-        1242900,
-        1242890
-      ],
-      "height": 220,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 3
-    },
-    "2406114": {
-      "level": 48,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 150.0,
-      "run_speed": 380.0,
-      "radius": 50,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1244020,
-        1244030,
-        1244040
-      ],
-      "height": 220,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 3
-    },
-    "2406115": {
+    "2406116": {
       "level": 48,
       "type": "Monster",
       "relationship": 6,
@@ -465,13 +87,13 @@
       "sub_type": "NormalMonster",
       "grade": 3
     },
-    "2406116": {
-      "level": 48,
+    "2600101": {
+      "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 150.0,
-      "run_speed": 380.0,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
       "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
@@ -484,56 +106,27 @@
         "z": "Upper"
       },
       "skills": [
-        1242880,
-        1242900,
-        1242890
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
       "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 3
-    },
-    "2600101": {
-      "level": 50,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": true,
-      "walk_speed": 150.0,
-      "run_speed": 400.0,
-      "radius": 100,
-      "function": "None",
-      "aggro_type": "Aggro_A",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1240130,
-        1240140,
-        1240150,
-        1240160
-      ],
-      "height": 280,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 7
+      "grade": 2
     },
     "2600102": {
-      "level": 50,
+      "level": 53,
       "type": "Monster",
       "relationship": 6,
-      "aggressive": true,
+      "aggressive": false,
       "walk_speed": 180.0,
-      "run_speed": 1400.0,
-      "radius": 120,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
-      "aggro_type": "Aggro_A",
+      "aggro_type": "AggroNormal",
       "aggro": {
         "shape": "ArcCircle",
         "radius": 1000,
@@ -543,26 +136,27 @@
         "z": "Upper"
       },
       "skills": [
-        1239910,
-        1239930,
-        1239940
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 175,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 7
+      "grade": 2
     },
     "2600103": {
-      "level": 50,
+      "level": 53,
       "type": "Monster",
       "relationship": 6,
-      "aggressive": true,
-      "walk_speed": 170.0,
-      "run_speed": 700.0,
-      "radius": 110,
+      "aggressive": false,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
-      "aggro_type": "Aggro_A",
+      "aggro_type": "AggroNormal",
       "aggro": {
         "shape": "ArcCircle",
         "radius": 1000,
@@ -572,25 +166,25 @@
         "z": "Upper"
       },
       "skills": [
-        1216400,
-        1216430,
-        1216420,
-        1216410
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 280,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 7
+      "grade": 2
     },
     "2600104": {
-      "level": 50,
+      "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 198.0,
-      "run_speed": 567.0,
-      "radius": 60,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
       "aggro": {
@@ -602,25 +196,25 @@
         "z": "Upper"
       },
       "skills": [
-        1228730,
-        1228740,
-        1228750,
-        1228760
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
       "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 6
+      "grade": 2
     },
     "2600105": {
-      "level": 51,
+      "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 200.0,
-      "run_speed": 800.0,
-      "radius": 70,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
       "aggro": {
@@ -632,26 +226,25 @@
         "z": "Upper"
       },
       "skills": [
-        1224350,
-        1224360,
-        1224370,
-        1224380,
-        1224390
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 250,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 7
+      "grade": 2
     },
     "2600107": {
-      "level": 50,
+      "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 200.0,
-      "run_speed": 400.0,
-      "radius": 60,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
       "aggro": {
@@ -663,25 +256,25 @@
         "z": "Upper"
       },
       "skills": [
-        1229340,
-        1229350,
-        1229360,
-        1229370
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 280,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 6
+      "grade": 2
     },
     "2600108": {
-      "level": 51,
+      "level": 65,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 200.0,
-      "run_speed": 400.0,
-      "radius": 60,
+      "walk_speed": 500.0,
+      "run_speed": 1100.0,
+      "radius": 250,
       "function": "None",
       "aggro_type": "AggroNormal",
       "aggro": {
@@ -693,25 +286,28 @@
         "z": "Upper"
       },
       "skills": [
-        1229290,
-        1229300,
-        1229310,
-        1229320,
-        1229330
+        1219570,
+        1219580,
+        1219590,
+        1219600,
+        1219610,
+        1219620,
+        1219630,
+        1219575
       ],
-      "height": 280,
+      "height": 1000,
       "no_rotation": false,
       "rotate_max": 0,
-      "sub_type": "EliteMonster",
-      "grade": 6
+      "sub_type": "HeroMonster",
+      "grade": 2
     },
     "2600109": {
-      "level": 50,
+      "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 150.0,
-      "run_speed": 700.0,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
       "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
@@ -724,330 +320,26 @@
         "z": "Upper"
       },
       "skills": [
-        1233920,
-        1233930,
-        1233940,
-        1233950
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 250,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 6
+      "grade": 2
     },
     "2600110": {
-      "level": 50,
+      "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 80.0,
-      "run_speed": 500.0,
-      "radius": 60,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1234140,
-        1234150,
-        1234160,
-        1234170
-      ],
-      "height": 200,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 6
-    },
-    "2600111": {
-      "level": 50,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 90.0,
-      "run_speed": 600.0,
-      "radius": 90,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1233770,
-        1233780,
-        1233790,
-        1233800,
-        1233810
-      ],
-      "height": 250,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 7
-    },
-    "2600112": {
-      "level": 51,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": true,
-      "walk_speed": 100.0,
-      "run_speed": 400.0,
-      "radius": 80,
-      "function": "None",
-      "aggro_type": "Aggro_A",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1234660,
-        1234670,
-        1234680,
-        1234690,
-        1234700
-      ],
-      "height": 280,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "EliteMonster",
-      "grade": 6
-    },
-    "2600113": {
-      "level": 50,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 100.0,
-      "run_speed": 200.0,
-      "radius": 120,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1239870,
-        1239880,
-        1239890,
-        1239900
-      ],
-      "height": 350,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 6
-    },
-    "2600114": {
-      "level": 50,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 150.0,
-      "run_speed": 600.0,
-      "radius": 60,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1224640,
-        1224650,
-        1224660,
-        1224670
-      ],
-      "height": 200,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 7
-    },
-    "2600115": {
-      "level": 50,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 150.0,
-      "run_speed": 600.0,
-      "radius": 60,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1224520,
-        1224530,
-        1224540,
-        1224550
-      ],
-      "height": 200,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 6
-    },
-    "2600116": {
-      "level": 51,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": true,
       "walk_speed": 180.0,
-      "run_speed": 600.0,
-      "radius": 60,
-      "function": "None",
-      "aggro_type": "Aggro_A",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1221790,
-        1221800,
-        1221810,
-        1221820,
-        1221830
-      ],
-      "height": 220,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "EliteMonster",
-      "grade": 6
-    },
-    "2600117": {
-      "level": 51,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": true,
-      "walk_speed": 180.0,
-      "run_speed": 720.0,
-      "radius": 60,
-      "function": "None",
-      "aggro_type": "Aggro_A",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1224270,
-        1224280,
-        1224290,
-        1224300,
-        1224310
-      ],
-      "height": 220,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "EliteMonster",
-      "grade": 6
-    },
-    "2600118": {
-      "level": 52,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 120.0,
-      "run_speed": 450.0,
-      "radius": 100,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1217040,
-        1217050,
-        1217060,
-        1217070
-      ],
-      "height": 280,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 7
-    },
-    "2600119": {
-      "level": 52,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": true,
-      "walk_speed": 80.0,
-      "run_speed": 800.0,
+      "run_speed": 540.0,
       "radius": 50,
       "function": "None",
-      "aggro_type": "Aggro_A",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1238620,
-        1238630,
-        1238640,
-        1238650
-      ],
-      "height": 150,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 7
-    },
-    "2600120": {
-      "level": 52,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 190.0,
-      "run_speed": 450.0,
-      "radius": 70,
-      "function": "None",
       "aggro_type": "AggroNormal",
       "aggro": {
         "shape": "ArcCircle",
@@ -1058,24 +350,25 @@
         "z": "Upper"
       },
       "skills": [
-        1233290,
-        1233310,
-        1233300
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
       "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 6
+      "grade": 2
     },
-    "2600125": {
-      "level": 52,
+    "2600111": {
+      "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 100.0,
-      "run_speed": 525.0,
-      "radius": 70,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
       "aggro": {
@@ -1087,27 +380,27 @@
         "z": "Upper"
       },
       "skills": [
-        1231060,
-        1231070,
-        1231080,
-        1231090
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 230,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 7
+      "grade": 2
     },
-    "2600126": {
-      "level": 54,
+    "2600112": {
+      "level": 65,
       "type": "Monster",
       "relationship": 6,
-      "aggressive": true,
-      "walk_speed": 100.0,
-      "run_speed": 700.0,
-      "radius": 70,
+      "aggressive": false,
+      "walk_speed": 500.0,
+      "run_speed": 1100.0,
+      "radius": 250,
       "function": "None",
-      "aggro_type": "Aggro_A",
+      "aggro_type": "AggroNormal",
       "aggro": {
         "shape": "ArcCircle",
         "radius": 1000,
@@ -1117,27 +410,337 @@
         "z": "Upper"
       },
       "skills": [
-        1235280,
-        1235290,
-        1235310,
-        1235320,
-        1235330,
-        1235300
+        1219570,
+        1219580,
+        1219590,
+        1219600,
+        1219610,
+        1219620,
+        1219630,
+        1219575
       ],
-      "height": 260,
+      "height": 1000,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 2
+    },
+    "2600113": {
+      "level": 53,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1227520,
+        1227530,
+        1227540,
+        1227550
+      ],
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 7
+      "grade": 2
+    },
+    "2600114": {
+      "level": 53,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1227520,
+        1227530,
+        1227540,
+        1227550
+      ],
+      "height": 220,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "NormalMonster",
+      "grade": 2
+    },
+    "2600115": {
+      "level": 53,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1227520,
+        1227530,
+        1227540,
+        1227550
+      ],
+      "height": 220,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "NormalMonster",
+      "grade": 2
+    },
+    "2600116": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 500.0,
+      "run_speed": 1100.0,
+      "radius": 250,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1219570,
+        1219580,
+        1219590,
+        1219600,
+        1219610,
+        1219620,
+        1219630,
+        1219575
+      ],
+      "height": 1000,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 2
+    },
+    "2600117": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 500.0,
+      "run_speed": 1100.0,
+      "radius": 250,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1219570,
+        1219580,
+        1219590,
+        1219600,
+        1219610,
+        1219620,
+        1219630,
+        1219575
+      ],
+      "height": 1000,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 2
+    },
+    "2600118": {
+      "level": 53,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1227520,
+        1227530,
+        1227540,
+        1227550
+      ],
+      "height": 220,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "NormalMonster",
+      "grade": 2
+    },
+    "2600119": {
+      "level": 53,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1227520,
+        1227530,
+        1227540,
+        1227550
+      ],
+      "height": 220,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "NormalMonster",
+      "grade": 2
+    },
+    "2600120": {
+      "level": 53,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1227520,
+        1227530,
+        1227540,
+        1227550
+      ],
+      "height": 220,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "NormalMonster",
+      "grade": 2
+    },
+    "2600125": {
+      "level": 53,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1227520,
+        1227530,
+        1227540,
+        1227550
+      ],
+      "height": 220,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "NormalMonster",
+      "grade": 2
+    },
+    "2600126": {
+      "level": 53,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1227520,
+        1227530,
+        1227540,
+        1227550
+      ],
+      "height": 220,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "NormalMonster",
+      "grade": 2
     },
     "2600128": {
       "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 120.0,
-      "run_speed": 450.0,
-      "radius": 100,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
       "aggro": {
@@ -1149,27 +752,27 @@
         "z": "Upper"
       },
       "skills": [
-        1217040,
-        1217050,
-        1217060,
-        1217070
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 280,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 7
+      "grade": 2
     },
     "2600131": {
       "level": 53,
       "type": "Monster",
       "relationship": 6,
-      "aggressive": true,
-      "walk_speed": 150.0,
-      "run_speed": 400.0,
-      "radius": 100,
+      "aggressive": false,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
-      "aggro_type": "Aggro_A",
+      "aggro_type": "AggroNormal",
       "aggro": {
         "shape": "ArcCircle",
         "radius": 1000,
@@ -1179,27 +782,27 @@
         "z": "Upper"
       },
       "skills": [
-        1240130,
-        1240140,
-        1240150,
-        1240160
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 280,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 7
+      "grade": 2
     },
     "2600132": {
       "level": 53,
       "type": "Monster",
       "relationship": 6,
-      "aggressive": true,
+      "aggressive": false,
       "walk_speed": 180.0,
-      "run_speed": 1400.0,
-      "radius": 120,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
-      "aggro_type": "Aggro_A",
+      "aggro_type": "AggroNormal",
       "aggro": {
         "shape": "ArcCircle",
         "radius": 1000,
@@ -1209,26 +812,27 @@
         "z": "Upper"
       },
       "skills": [
-        1239910,
-        1239930,
-        1239940
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 175,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 7
+      "grade": 2
     },
     "2600133": {
       "level": 53,
       "type": "Monster",
       "relationship": 6,
-      "aggressive": true,
-      "walk_speed": 170.0,
-      "run_speed": 700.0,
-      "radius": 110,
+      "aggressive": false,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
-      "aggro_type": "Aggro_A",
+      "aggro_type": "AggroNormal",
       "aggro": {
         "shape": "ArcCircle",
         "radius": 1000,
@@ -1238,25 +842,25 @@
         "z": "Upper"
       },
       "skills": [
-        1216400,
-        1216430,
-        1216420,
-        1216410
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 280,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 7
+      "grade": 2
     },
     "2600134": {
       "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 198.0,
-      "run_speed": 567.0,
-      "radius": 60,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
       "aggro": {
@@ -1268,25 +872,25 @@
         "z": "Upper"
       },
       "skills": [
-        1228730,
-        1228740,
-        1228750,
-        1228760
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
       "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 6
+      "grade": 2
     },
     "2600135": {
-      "level": 54,
+      "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 200.0,
-      "run_speed": 800.0,
-      "radius": 70,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
       "aggro": {
@@ -1298,26 +902,25 @@
         "z": "Upper"
       },
       "skills": [
-        1224350,
-        1224360,
-        1224370,
-        1224380,
-        1224390
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 250,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 7
+      "grade": 2
     },
     "2600137": {
       "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 200.0,
-      "run_speed": 400.0,
-      "radius": 60,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
       "aggro": {
@@ -1329,25 +932,25 @@
         "z": "Upper"
       },
       "skills": [
-        1229340,
-        1229350,
-        1229360,
-        1229370
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 280,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 6
+      "grade": 2
     },
     "2600138": {
-      "level": 54,
+      "level": 65,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 200.0,
-      "run_speed": 400.0,
-      "radius": 60,
+      "walk_speed": 500.0,
+      "run_speed": 1100.0,
+      "radius": 250,
       "function": "None",
       "aggro_type": "AggroNormal",
       "aggro": {
@@ -1359,25 +962,28 @@
         "z": "Upper"
       },
       "skills": [
-        1229290,
-        1229300,
-        1229310,
-        1229320,
-        1229330
+        1219570,
+        1219580,
+        1219590,
+        1219600,
+        1219610,
+        1219620,
+        1219630,
+        1219575
       ],
-      "height": 280,
+      "height": 1000,
       "no_rotation": false,
       "rotate_max": 0,
-      "sub_type": "EliteMonster",
-      "grade": 6
+      "sub_type": "HeroMonster",
+      "grade": 2
     },
     "2600139": {
       "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 150.0,
-      "run_speed": 700.0,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
       "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
@@ -1390,25 +996,25 @@
         "z": "Upper"
       },
       "skills": [
-        1233920,
-        1233930,
-        1233940,
-        1233950
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 250,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 6
+      "grade": 2
     },
     "2600140": {
       "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 80.0,
-      "run_speed": 500.0,
-      "radius": 60,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
       "aggro": {
@@ -1420,25 +1026,25 @@
         "z": "Upper"
       },
       "skills": [
-        1234140,
-        1234150,
-        1234160,
-        1234170
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 200,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 6
+      "grade": 2
     },
     "2600141": {
       "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 90.0,
-      "run_speed": 600.0,
-      "radius": 90,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
       "aggro": {
@@ -1450,28 +1056,27 @@
         "z": "Upper"
       },
       "skills": [
-        1233770,
-        1233780,
-        1233790,
-        1233800,
-        1233810
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 250,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 7
+      "grade": 2
     },
     "2600142": {
-      "level": 54,
+      "level": 65,
       "type": "Monster",
       "relationship": 6,
-      "aggressive": true,
-      "walk_speed": 100.0,
-      "run_speed": 400.0,
-      "radius": 80,
+      "aggressive": false,
+      "walk_speed": 500.0,
+      "run_speed": 1100.0,
+      "radius": 250,
       "function": "None",
-      "aggro_type": "Aggro_A",
+      "aggro_type": "AggroNormal",
       "aggro": {
         "shape": "ArcCircle",
         "radius": 1000,
@@ -1481,26 +1086,29 @@
         "z": "Upper"
       },
       "skills": [
-        1234660,
-        1234670,
-        1234680,
-        1234690,
-        1234700
+        1219570,
+        1219580,
+        1219590,
+        1219600,
+        1219610,
+        1219620,
+        1219630,
+        1219575
       ],
-      "height": 280,
+      "height": 1000,
       "no_rotation": false,
       "rotate_max": 0,
-      "sub_type": "EliteMonster",
-      "grade": 6
+      "sub_type": "HeroMonster",
+      "grade": 2
     },
     "2600143": {
       "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 100.0,
-      "run_speed": 200.0,
-      "radius": 120,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
       "aggro": {
@@ -1512,25 +1120,25 @@
         "z": "Upper"
       },
       "skills": [
-        1239870,
-        1239880,
-        1239890,
-        1239900
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 350,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 6
+      "grade": 2
     },
     "2600144": {
       "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 150.0,
-      "run_speed": 600.0,
-      "radius": 60,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
       "aggro": {
@@ -1542,250 +1150,24 @@
         "z": "Upper"
       },
       "skills": [
-        1224640,
-        1224650,
-        1224660,
-        1224670
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 200,
+      "height": 220,
       "no_rotation": false,
       "rotate_max": 0,
       "sub_type": "NormalMonster",
-      "grade": 7
+      "grade": 2
     },
     "2600145": {
       "level": 53,
       "type": "Monster",
       "relationship": 6,
       "aggressive": false,
-      "walk_speed": 150.0,
-      "run_speed": 600.0,
-      "radius": 60,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1224520,
-        1224530,
-        1224540,
-        1224550
-      ],
-      "height": 200,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 6
-    },
-    "2600146": {
-      "level": 54,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": true,
       "walk_speed": 180.0,
-      "run_speed": 600.0,
-      "radius": 60,
-      "function": "None",
-      "aggro_type": "Aggro_A",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1221790,
-        1221800,
-        1221810,
-        1221820,
-        1221830
-      ],
-      "height": 220,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "EliteMonster",
-      "grade": 6
-    },
-    "2600147": {
-      "level": 54,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": true,
-      "walk_speed": 180.0,
-      "run_speed": 720.0,
-      "radius": 60,
-      "function": "None",
-      "aggro_type": "Aggro_A",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1224270,
-        1224280,
-        1224290,
-        1224300,
-        1224310
-      ],
-      "height": 220,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "EliteMonster",
-      "grade": 6
-    },
-    "2600148": {
-      "level": 55,
-      "type": "Monster",
-      "relationship": 6,
-      "aggressive": false,
-      "walk_speed": 120.0,
-      "run_speed": 450.0,
-      "radius": 100,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1217040,
-        1217050,
-        1217060,
-        1217070
-      ],
-      "height": 280,
-      "no_rotation": false,
-      "rotate_max": 0,
-      "sub_type": "NormalMonster",
-      "grade": 7
-    },
-    "2930000": {
-      "level": 10,
-      "type": "Citizen",
-      "relationship": 3,
-      "aggressive": false,
-      "walk_speed": 126.0,
-      "run_speed": 500.0,
-      "radius": 40,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": null,
-      "skills": [
-        1000120,
-        1000130,
-        1000390,
-        1000380
-      ],
-      "height": 210,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2930056": {
-      "level": 13,
-      "type": "Citizen",
-      "relationship": 3,
-      "aggressive": false,
-      "walk_speed": 126.0,
-      "run_speed": 500.0,
-      "radius": 40,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1000100,
-        1000110
-      ],
-      "height": 210,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2930057": {
-      "level": 13,
-      "type": "Citizen",
-      "relationship": 3,
-      "aggressive": false,
-      "walk_speed": 126.0,
-      "run_speed": 500.0,
-      "radius": 40,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": null,
-      "skills": [
-        1000100,
-        1000110
-      ],
-      "height": 210,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2930330": {
-      "level": 22,
-      "type": "Citizen",
-      "relationship": 3,
-      "aggressive": false,
-      "walk_speed": 126.0,
-      "run_speed": 500.0,
-      "radius": 40,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1000100,
-        1000110
-      ],
-      "height": 210,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2950041": {
-      "level": 13,
-      "type": "Citizen",
-      "relationship": 4,
-      "aggressive": false,
-      "walk_speed": 126.0,
-      "run_speed": 500.0,
+      "run_speed": 540.0,
       "radius": 50,
       "function": "None",
       "aggro_type": "AggroNormal",
@@ -1798,22 +1180,119 @@
         "z": "Upper"
       },
       "skills": [
-        1000120,
-        1000130,
-        1000390,
-        1000380
+        1227520,
+        1227530,
+        1227540,
+        1227550
       ],
-      "height": 200,
+      "height": 220,
       "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
+      "rotate_max": 0,
+      "sub_type": "NormalMonster",
+      "grade": 2
     },
-    "2950453": {
-      "level": 13,
+    "2600146": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 500.0,
+      "run_speed": 1100.0,
+      "radius": 250,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1219570,
+        1219580,
+        1219590,
+        1219600,
+        1219610,
+        1219620,
+        1219630,
+        1219575
+      ],
+      "height": 1000,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 2
+    },
+    "2600147": {
+      "level": 65,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 500.0,
+      "run_speed": 1100.0,
+      "radius": 250,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1219570,
+        1219580,
+        1219590,
+        1219600,
+        1219610,
+        1219620,
+        1219630,
+        1219575
+      ],
+      "height": 1000,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "HeroMonster",
+      "grade": 2
+    },
+    "2600148": {
+      "level": 53,
+      "type": "Monster",
+      "relationship": 6,
+      "aggressive": false,
+      "walk_speed": 180.0,
+      "run_speed": 540.0,
+      "radius": 50,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1227520,
+        1227530,
+        1227540,
+        1227550
+      ],
+      "height": 220,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "NormalMonster",
+      "grade": 2
+    },
+    "2959363": {
+      "level": 45,
       "type": "Citizen",
-      "relationship": 4,
+      "relationship": 3,
       "aggressive": false,
       "walk_speed": 126.0,
       "run_speed": 500.0,
@@ -1829,24 +1308,75 @@
         "z": "Upper"
       },
       "skills": [
-        1000160,
-        1001240,
-        1001220,
-        1001200,
-        1001230,
-        1001210
+        1000510,
+        1000540
       ],
       "height": 210,
       "no_rotation": false,
-      "rotate_max": 30,
+      "rotate_max": 0,
       "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
+      "grade": 3
     },
-    "2959363": {
-      "level": 10,
+    "2959365": {
+      "level": 45,
       "type": "Citizen",
-      "relationship": 4,
+      "relationship": 3,
+      "aggressive": false,
+      "walk_speed": 126.0,
+      "run_speed": 500.0,
+      "radius": 40,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1000510,
+        1000540
+      ],
+      "height": 210,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "NormalCitizen",
+      "grade": 3
+    },
+    "2959366": {
+      "level": 45,
+      "type": "Citizen",
+      "relationship": 3,
+      "aggressive": false,
+      "walk_speed": 126.0,
+      "run_speed": 500.0,
+      "radius": 40,
+      "function": "None",
+      "aggro_type": "AggroNormal",
+      "aggro": {
+        "shape": "ArcCircle",
+        "radius": 1000,
+        "angle": 90,
+        "inner": 300,
+        "height": 1000,
+        "z": "Upper"
+      },
+      "skills": [
+        1000510,
+        1000540
+      ],
+      "height": 210,
+      "no_rotation": false,
+      "rotate_max": 0,
+      "sub_type": "NormalCitizen",
+      "grade": 3
+    },
+    "2989502": {
+      "level": 32,
+      "type": "Citizen",
+      "relationship": 3,
       "aggressive": false,
       "walk_speed": 70.0,
       "run_speed": 400.0,
@@ -1862,87 +1392,16 @@
         "z": "Upper"
       },
       "skills": [
-        1000520,
+        1000510,
         1000540
       ],
       "height": 200,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2959365": {
-      "level": 10,
-      "type": "Citizen",
-      "relationship": 4,
-      "aggressive": false,
-      "walk_speed": 126.0,
-      "run_speed": 500.0,
-      "radius": 40,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [],
-      "height": 210,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2959366": {
-      "level": 10,
-      "type": "Citizen",
-      "relationship": 4,
-      "aggressive": false,
-      "walk_speed": 126.0,
-      "run_speed": 500.0,
-      "radius": 40,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [],
-      "height": 210,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2970018": {
-      "level": 15,
-      "type": "Citizen",
-      "relationship": 5,
-      "aggressive": false,
-      "walk_speed": 126.0,
-      "run_speed": 500.0,
-      "radius": 40,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": null,
-      "skills": [],
-      "height": 210,
       "no_rotation": false,
       "rotate_max": 30,
       "sub_type": "NormalCitizen",
       "grade": 3
     },
-    "2989382": {
+    "2989504": {
       "level": 32,
       "type": "Citizen",
       "relationship": 3,
@@ -1968,118 +1427,10 @@
       "no_rotation": false,
       "rotate_max": 30,
       "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2989383": {
-      "level": 32,
-      "type": "Citizen",
-      "relationship": 3,
-      "aggressive": false,
-      "walk_speed": 70.0,
-      "run_speed": 400.0,
-      "radius": 50,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [],
-      "height": 200,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2989502": {
-      "level": 10,
-      "type": "Citizen",
-      "relationship": 5,
-      "aggressive": false,
-      "walk_speed": 70.0,
-      "run_speed": 400.0,
-      "radius": 50,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1000520,
-        1000540
-      ],
-      "height": 200,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2989504": {
-      "level": 10,
-      "type": "Citizen",
-      "relationship": 3,
-      "aggressive": false,
-      "walk_speed": 126.0,
-      "run_speed": 500.0,
-      "radius": 40,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [],
-      "height": 210,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
+      "grade": 3
     },
     "2989505": {
-      "level": 10,
-      "type": "Citizen",
-      "relationship": 3,
-      "aggressive": false,
-      "walk_speed": 126.0,
-      "run_speed": 500.0,
-      "radius": 40,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [],
-      "height": 210,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2990119": {
-      "level": 46,
+      "level": 32,
       "type": "Citizen",
       "relationship": 3,
       "aggressive": false,
@@ -2098,160 +1449,13 @@
       },
       "skills": [
         1000510,
-        1000020
+        1000540
       ],
       "height": 200,
       "no_rotation": false,
       "rotate_max": 30,
       "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2990247": {
-      "level": 48,
-      "type": "Citizen",
-      "relationship": 4,
-      "aggressive": false,
-      "walk_speed": 126.0,
-      "run_speed": 500.0,
-      "radius": 40,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1000120,
-        1000800,
-        1000380
-      ],
-      "height": 210,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2990249": {
-      "level": 48,
-      "type": "Citizen",
-      "relationship": 4,
-      "aggressive": false,
-      "walk_speed": 126.0,
-      "run_speed": 500.0,
-      "radius": 50,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1000120,
-        1000130
-      ],
-      "height": 200,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2990259": {
-      "level": 48,
-      "type": "Citizen",
-      "relationship": 4,
-      "aggressive": false,
-      "walk_speed": 126.0,
-      "run_speed": 500.0,
-      "radius": 40,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1000200,
-        1000210
-      ],
-      "height": 210,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2990523": {
-      "level": 48,
-      "type": "Citizen",
-      "relationship": 4,
-      "aggressive": false,
-      "walk_speed": 126.0,
-      "run_speed": 500.0,
-      "radius": 40,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1000100,
-        1000110
-      ],
-      "height": 210,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
-    },
-    "2990671": {
-      "level": 48,
-      "type": "Citizen",
-      "relationship": 4,
-      "aggressive": false,
-      "walk_speed": 126.0,
-      "run_speed": 500.0,
-      "radius": 50,
-      "function": "None",
-      "aggro_type": "AggroNormal",
-      "aggro": {
-        "shape": "ArcCircle",
-        "radius": 1000,
-        "angle": 90,
-        "inner": 300,
-        "height": 1000,
-        "z": "Upper"
-      },
-      "skills": [
-        1000200,
-        1000210
-      ],
-      "height": 200,
-      "no_rotation": false,
-      "rotate_max": 30,
-      "sub_type": "NormalCitizen",
-      "grade": 3,
-      "untouchable": true
+      "grade": 3
     }
   },
   "maps": {
@@ -2279,7 +1483,7 @@
         -1
       ],
       [
-        "N_L1_FQ_Event_ShugoBM_01_02",
+        "N_L1_FQ_Event_QuestSup_2989502",
         2989502,
         -8905.184,
         137186.125,
@@ -2290,7 +1494,7 @@
         -1
       ],
       [
-        "N_L1_FQ_Event_CLB01_02_01",
+        "N_L1_FQ_Event_QuestSup_2989504",
         2989504,
         -8755.184,
         137186.125,
@@ -2301,7 +1505,7 @@
         -1
       ],
       [
-        "N_L1_FQ_Event_CLB01_03_01",
+        "N_L1_FQ_Event_QuestSup_2989505",
         2989505,
         -8605.184,
         137186.125,
@@ -2314,7 +1518,7 @@
     ],
     "1110": [
       [
-        "N_D1_FQ_Event_ShugoBM_01_02",
+        "N_D1_FQ_Event_QuestSup_2959363",
         2959363,
         10108.556,
         -107977.289,
@@ -2325,7 +1529,7 @@
         -1
       ],
       [
-        "N_D1_FQ_Event_CLB01_02_01",
+        "N_D1_FQ_Event_QuestSup_2959365",
         2959365,
         10208.556,
         -107977.289,
@@ -2336,7 +1540,7 @@
         -1
       ],
       [
-        "N_D1_FQ_Event_CLB01_03_01",
+        "N_D1_FQ_Event_QuestSup_2959366",
         2959366,
         10308.556,
         -107977.289,
@@ -2362,7 +1566,7 @@
     ],
     "21": [
       [
-        "M_AR2_ACRA_Kalgolem_01_V04_001",
+        "M_AR2_ACRA_Kalgolem_01_V04_001_QuestSup",
         2600101,
         36842.2,
         16638.1,
@@ -2373,7 +1577,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_Zaif_01_V01_001",
+        "M_AR2_ACRA_Zaif_01_V01_001_QuestSup",
         2600102,
         37242.2,
         16638.1,
@@ -2384,7 +1588,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_ForestGuardianArcher_01",
+        "M_AR2_ACRA_ForestGuardianArcher_01_QuestSup",
         2600103,
         37642.2,
         16638.1,
@@ -2395,7 +1599,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_Varg_01_001",
+        "M_AR2_ACRA_Varg_01_001_QuestSup",
         2600104,
         38042.2,
         16638.1,
@@ -2406,7 +1610,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_Varg_03_001",
+        "M_AR2_ACRA_Varg_03_001_QuestSup",
         2600105,
         38442.2,
         16638.1,
@@ -2417,7 +1621,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_NornirVar_01_001",
+        "M_AR2_ACRA_NornirVar_01_001_QuestSup",
         2600107,
         38842.2,
         16638.1,
@@ -2428,7 +1632,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_NornirVar_02_001",
+        "M_AR2_ACRA_NornirVar_02_001_QuestSup",
         2600108,
         39242.2,
         16638.1,
@@ -2439,7 +1643,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_SuraWar_01_V03_001",
+        "M_AR2_ACRA_SuraWar_01_V03_001_QuestSup",
         2600109,
         39642.2,
         16638.1,
@@ -2450,7 +1654,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_SuraWar_02_V01_001",
+        "M_AR2_ACRA_SuraWar_02_V01_001_QuestSup",
         2600110,
         36842.2,
         17038.1,
@@ -2461,7 +1665,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_SuraWar_04_V01_001",
+        "M_AR2_ACRA_SuraWar_04_V01_001_QuestSup",
         2600111,
         37242.2,
         17038.1,
@@ -2472,7 +1676,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_SuraWar_05_V01_001",
+        "M_AR2_ACRA_SuraWar_05_V01_001_QuestSup",
         2600112,
         37642.2,
         17038.1,
@@ -2483,7 +1687,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_Agrint_01_V02_001",
+        "M_AR2_ACRA_Agrint_01_V02_001_QuestSup",
         2600113,
         38042.2,
         17038.1,
@@ -2494,7 +1698,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_DebGuard_04_001",
+        "M_AR2_ACRA_DebGuard_04_001_QuestSup",
         2600114,
         38442.2,
         17038.1,
@@ -2505,7 +1709,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_DebGuard_05_001",
+        "M_AR2_ACRA_DebGuard_05_001_QuestSup",
         2600115,
         38842.2,
         17038.1,
@@ -2516,7 +1720,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_DebGuard_02_001",
+        "M_AR2_ACRA_DebGuard_02_001_QuestSup",
         2600116,
         39242.2,
         17038.1,
@@ -2527,7 +1731,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_DebGuard_03_001",
+        "M_AR2_ACRA_DebGuard_03_001_QuestSup",
         2600117,
         39642.2,
         17038.1,
@@ -2538,7 +1742,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_EarthEleOd_01_001",
+        "M_AR2_ACRA_EarthEleOd_01_001_QuestSup",
         2600118,
         36842.2,
         17438.1,
@@ -2549,7 +1753,7 @@
         -1
       ],
       [
-        "M_AR2_ACRB_Imp_01_001",
+        "M_AR2_ACRB_Imp_01_001_QuestSup",
         2600119,
         37242.2,
         17438.1,
@@ -2560,7 +1764,7 @@
         -1
       ],
       [
-        "M_AR2_ACRB_WraKnt_01_V02_001",
+        "M_AR2_ACRB_WraKnt_01_V02_001_QuestSup",
         2600120,
         37642.2,
         17438.1,
@@ -2571,7 +1775,7 @@
         -1
       ],
       [
-        "M_AR2_ACRB_DstrArchon_01_001",
+        "M_AR2_ACRB_DstrArchon_01_001_QuestSup",
         2600125,
         38042.2,
         17438.1,
@@ -2582,7 +1786,7 @@
         -1
       ],
       [
-        "M_AR2_ACRB_DstrArchonE_01_001",
+        "M_AR2_ACRB_DstrArchonE_01_001_QuestSup",
         2600126,
         38442.2,
         17438.1,
@@ -2593,7 +1797,7 @@
         -1
       ],
       [
-        "M_AR2_ACRB_EarthEleOd_01_001",
+        "M_AR2_ACRB_EarthEleOd_01_001_QuestSup",
         2600128,
         38842.2,
         17438.1,
@@ -2604,7 +1808,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_Kalgolem_01_V04_001",
+        "M_AR2_ACRC_Kalgolem_01_V04_001_QuestSup",
         2600131,
         39242.2,
         17438.1,
@@ -2615,7 +1819,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_Zaif_01_V01_001",
+        "M_AR2_ACRC_Zaif_01_V01_001_QuestSup",
         2600132,
         39642.2,
         17438.1,
@@ -2626,7 +1830,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_ForestGuardianArcher_01",
+        "M_AR2_ACRC_ForestGuardianArcher_01_QuestSup",
         2600133,
         36842.2,
         17838.1,
@@ -2637,7 +1841,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_Varg_01_001",
+        "M_AR2_ACRC_Varg_01_001_QuestSup",
         2600134,
         37242.2,
         17838.1,
@@ -2648,7 +1852,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_Varg_03_001",
+        "M_AR2_ACRC_Varg_03_001_QuestSup",
         2600135,
         37642.2,
         17838.1,
@@ -2659,7 +1863,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_NornirVar_01_001",
+        "M_AR2_ACRC_NornirVar_01_001_QuestSup",
         2600137,
         38042.2,
         17838.1,
@@ -2670,7 +1874,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_NornirVar_02_001",
+        "M_AR2_ACRC_NornirVar_02_001_QuestSup",
         2600138,
         38442.2,
         17838.1,
@@ -2681,7 +1885,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_SuraWar_01_V03_001",
+        "M_AR2_ACRC_SuraWar_01_V03_001_QuestSup",
         2600139,
         38842.2,
         17838.1,
@@ -2692,7 +1896,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_SuraWar_02_V01_001",
+        "M_AR2_ACRC_SuraWar_02_V01_001_QuestSup",
         2600140,
         39242.2,
         17838.1,
@@ -2703,7 +1907,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_SuraWar_04_V01_001",
+        "M_AR2_ACRC_SuraWar_04_V01_001_QuestSup",
         2600141,
         39642.2,
         17838.1,
@@ -2714,7 +1918,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_SuraWar_05_V01_001",
+        "M_AR2_ACRC_SuraWar_05_V01_001_QuestSup",
         2600142,
         36842.2,
         18238.1,
@@ -2725,7 +1929,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_Agrint_01_V02_001",
+        "M_AR2_ACRC_Agrint_01_V02_001_QuestSup",
         2600143,
         37242.2,
         18238.1,
@@ -2736,7 +1940,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_DebGuard_04_001",
+        "M_AR2_ACRC_DebGuard_04_001_QuestSup",
         2600144,
         37642.2,
         18238.1,
@@ -2747,7 +1951,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_DebGuard_05_001",
+        "M_AR2_ACRC_DebGuard_05_001_QuestSup",
         2600145,
         38042.2,
         18238.1,
@@ -2758,7 +1962,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_DebGuard_02_001",
+        "M_AR2_ACRC_DebGuard_02_001_QuestSup",
         2600146,
         38442.2,
         18238.1,
@@ -2769,7 +1973,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_DebGuard_03_001",
+        "M_AR2_ACRC_DebGuard_03_001_QuestSup",
         2600147,
         38842.2,
         18238.1,
@@ -2780,7 +1984,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_EarthEleOd_01_001",
+        "M_AR2_ACRC_EarthEleOd_01_001_QuestSup",
         2600148,
         39242.2,
         18238.1,
@@ -2793,7 +1997,7 @@
     ],
     "20": [
       [
-        "M_AR2_ACRA_Kalgolem_01_V04_001_M20",
+        "M_AR2_ACRA_Kalgolem_01_V04_001_QuestSup_M20",
         2600101,
         36842.2,
         16638.1,
@@ -2804,7 +2008,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_Zaif_01_V01_001_M20",
+        "M_AR2_ACRA_Zaif_01_V01_001_QuestSup_M20",
         2600102,
         37242.2,
         16638.1,
@@ -2815,7 +2019,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_ForestGuardianArcher_01_M20",
+        "M_AR2_ACRA_ForestGuardianArcher_01_QuestSup_M20",
         2600103,
         37642.2,
         16638.1,
@@ -2826,7 +2030,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_Varg_01_001_M20",
+        "M_AR2_ACRA_Varg_01_001_QuestSup_M20",
         2600104,
         38042.2,
         16638.1,
@@ -2837,7 +2041,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_Varg_03_001_M20",
+        "M_AR2_ACRA_Varg_03_001_QuestSup_M20",
         2600105,
         38442.2,
         16638.1,
@@ -2848,7 +2052,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_NornirVar_01_001_M20",
+        "M_AR2_ACRA_NornirVar_01_001_QuestSup_M20",
         2600107,
         38842.2,
         16638.1,
@@ -2859,7 +2063,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_NornirVar_02_001_M20",
+        "M_AR2_ACRA_NornirVar_02_001_QuestSup_M20",
         2600108,
         39242.2,
         16638.1,
@@ -2870,7 +2074,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_SuraWar_01_V03_001_M20",
+        "M_AR2_ACRA_SuraWar_01_V03_001_QuestSup_M20",
         2600109,
         39642.2,
         16638.1,
@@ -2881,7 +2085,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_SuraWar_02_V01_001_M20",
+        "M_AR2_ACRA_SuraWar_02_V01_001_QuestSup_M20",
         2600110,
         36842.2,
         17038.1,
@@ -2892,7 +2096,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_SuraWar_04_V01_001_M20",
+        "M_AR2_ACRA_SuraWar_04_V01_001_QuestSup_M20",
         2600111,
         37242.2,
         17038.1,
@@ -2903,7 +2107,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_SuraWar_05_V01_001_M20",
+        "M_AR2_ACRA_SuraWar_05_V01_001_QuestSup_M20",
         2600112,
         37642.2,
         17038.1,
@@ -2914,7 +2118,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_Agrint_01_V02_001_M20",
+        "M_AR2_ACRA_Agrint_01_V02_001_QuestSup_M20",
         2600113,
         38042.2,
         17038.1,
@@ -2925,7 +2129,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_DebGuard_04_001_M20",
+        "M_AR2_ACRA_DebGuard_04_001_QuestSup_M20",
         2600114,
         38442.2,
         17038.1,
@@ -2936,7 +2140,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_DebGuard_05_001_M20",
+        "M_AR2_ACRA_DebGuard_05_001_QuestSup_M20",
         2600115,
         38842.2,
         17038.1,
@@ -2947,7 +2151,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_DebGuard_02_001_M20",
+        "M_AR2_ACRA_DebGuard_02_001_QuestSup_M20",
         2600116,
         39242.2,
         17038.1,
@@ -2958,7 +2162,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_DebGuard_03_001_M20",
+        "M_AR2_ACRA_DebGuard_03_001_QuestSup_M20",
         2600117,
         39642.2,
         17038.1,
@@ -2969,7 +2173,7 @@
         -1
       ],
       [
-        "M_AR2_ACRA_EarthEleOd_01_001_M20",
+        "M_AR2_ACRA_EarthEleOd_01_001_QuestSup_M20",
         2600118,
         36842.2,
         17438.1,
@@ -2980,7 +2184,7 @@
         -1
       ],
       [
-        "M_AR2_ACRB_Imp_01_001_M20",
+        "M_AR2_ACRB_Imp_01_001_QuestSup_M20",
         2600119,
         37242.2,
         17438.1,
@@ -2991,7 +2195,7 @@
         -1
       ],
       [
-        "M_AR2_ACRB_WraKnt_01_V02_001_M20",
+        "M_AR2_ACRB_WraKnt_01_V02_001_QuestSup_M20",
         2600120,
         37642.2,
         17438.1,
@@ -3002,7 +2206,7 @@
         -1
       ],
       [
-        "M_AR2_ACRB_DstrArchon_01_001_M20",
+        "M_AR2_ACRB_DstrArchon_01_001_QuestSup_M20",
         2600125,
         38042.2,
         17438.1,
@@ -3013,7 +2217,7 @@
         -1
       ],
       [
-        "M_AR2_ACRB_DstrArchonE_01_001_M20",
+        "M_AR2_ACRB_DstrArchonE_01_001_QuestSup_M20",
         2600126,
         38442.2,
         17438.1,
@@ -3024,7 +2228,7 @@
         -1
       ],
       [
-        "M_AR2_ACRB_EarthEleOd_01_001_M20",
+        "M_AR2_ACRB_EarthEleOd_01_001_QuestSup_M20",
         2600128,
         38842.2,
         17438.1,
@@ -3035,7 +2239,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_Kalgolem_01_V04_001_M20",
+        "M_AR2_ACRC_Kalgolem_01_V04_001_QuestSup_M20",
         2600131,
         39242.2,
         17438.1,
@@ -3046,7 +2250,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_Zaif_01_V01_001_M20",
+        "M_AR2_ACRC_Zaif_01_V01_001_QuestSup_M20",
         2600132,
         39642.2,
         17438.1,
@@ -3057,7 +2261,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_ForestGuardianArcher_01_M20",
+        "M_AR2_ACRC_ForestGuardianArcher_01_QuestSup_M20",
         2600133,
         36842.2,
         17838.1,
@@ -3068,7 +2272,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_Varg_01_001_M20",
+        "M_AR2_ACRC_Varg_01_001_QuestSup_M20",
         2600134,
         37242.2,
         17838.1,
@@ -3079,7 +2283,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_Varg_03_001_M20",
+        "M_AR2_ACRC_Varg_03_001_QuestSup_M20",
         2600135,
         37642.2,
         17838.1,
@@ -3090,7 +2294,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_NornirVar_01_001_M20",
+        "M_AR2_ACRC_NornirVar_01_001_QuestSup_M20",
         2600137,
         38042.2,
         17838.1,
@@ -3101,7 +2305,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_NornirVar_02_001_M20",
+        "M_AR2_ACRC_NornirVar_02_001_QuestSup_M20",
         2600138,
         38442.2,
         17838.1,
@@ -3112,7 +2316,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_SuraWar_01_V03_001_M20",
+        "M_AR2_ACRC_SuraWar_01_V03_001_QuestSup_M20",
         2600139,
         38842.2,
         17838.1,
@@ -3123,7 +2327,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_SuraWar_02_V01_001_M20",
+        "M_AR2_ACRC_SuraWar_02_V01_001_QuestSup_M20",
         2600140,
         39242.2,
         17838.1,
@@ -3134,7 +2338,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_SuraWar_04_V01_001_M20",
+        "M_AR2_ACRC_SuraWar_04_V01_001_QuestSup_M20",
         2600141,
         39642.2,
         17838.1,
@@ -3145,7 +2349,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_SuraWar_05_V01_001_M20",
+        "M_AR2_ACRC_SuraWar_05_V01_001_QuestSup_M20",
         2600142,
         36842.2,
         18238.1,
@@ -3156,7 +2360,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_Agrint_01_V02_001_M20",
+        "M_AR2_ACRC_Agrint_01_V02_001_QuestSup_M20",
         2600143,
         37242.2,
         18238.1,
@@ -3167,7 +2371,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_DebGuard_04_001_M20",
+        "M_AR2_ACRC_DebGuard_04_001_QuestSup_M20",
         2600144,
         37642.2,
         18238.1,
@@ -3178,7 +2382,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_DebGuard_05_001_M20",
+        "M_AR2_ACRC_DebGuard_05_001_QuestSup_M20",
         2600145,
         38042.2,
         18238.1,
@@ -3189,7 +2393,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_DebGuard_02_001_M20",
+        "M_AR2_ACRC_DebGuard_02_001_QuestSup_M20",
         2600146,
         38442.2,
         18238.1,
@@ -3200,7 +2404,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_DebGuard_03_001_M20",
+        "M_AR2_ACRC_DebGuard_03_001_QuestSup_M20",
         2600147,
         38842.2,
         18238.1,
@@ -3211,7 +2415,7 @@
         -1
       ],
       [
-        "M_AR2_ACRC_EarthEleOd_01_001_M20",
+        "M_AR2_ACRC_EarthEleOd_01_001_QuestSup_M20",
         2600148,
         39242.2,
         18238.1,
@@ -3227,7 +2431,7 @@
     "1010": [
       {
         "name": "Trigger_DQ1202072_01",
-        "id": 3114548828729294551,
+        "id": 3890387478755868434,
         "env": 1100001,
         "position": [
           -9055.184,
@@ -3245,7 +2449,7 @@
       },
       {
         "name": "Trigger_DQ1202072_02",
-        "id": 3440382960153763091,
+        "id": 2788231593767849494,
         "env": 1100001,
         "position": [
           -8755.184,
@@ -3265,7 +2469,7 @@
     "1110": [
       {
         "name": "Trigger_FQ_Event_1_1_0",
-        "id": 2272243744591745928,
+        "id": 3109621212293423435,
         "env": 1100001,
         "position": [
           10108.556,
@@ -3283,7 +2487,7 @@
       },
       {
         "name": "Trigger_FQ_Event_1_1_1",
-        "id": 334851147537292077,
+        "id": 1329356079039071263,
         "env": 1100001,
         "position": [
           10358.556,
@@ -3300,1499 +2504,5 @@
         "height": 1500
       }
     ]
-  },
-  "npc_skills": {
-    "1000020": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 100002011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1000100": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 100010011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1000110": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 100011011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1000120": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 100012011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1000130": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 100013011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1000160": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 100016011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1000200": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 100020011,
-      "damage_min": 1,
-      "damage_max": 1
-    },
-    "1000210": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 100021011,
-      "damage_min": 1,
-      "damage_max": 1
-    },
-    "1000380": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 5000,
-      "cast": 0,
-      "effect": 100038011,
-      "damage_min": 15000,
-      "damage_max": 18000
-    },
-    "1000390": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 10000,
-      "cast": 0,
-      "effect": 100039011,
-      "damage_min": 15000,
-      "damage_max": 18000
-    },
-    "1000510": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 100051011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1000520": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 100052011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1000540": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 100054011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1000800": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 5000,
-      "cast": 0,
-      "effect": 100080011,
-      "damage_min": 15000,
-      "damage_max": 18000
-    },
-    "1001200": {
-      "range": 1500.0,
-      "follow": 1450.0,
-      "cooldown": 8000,
-      "cast": 0,
-      "effect": 100120011,
-      "damage_min": 8000,
-      "damage_max": 9000
-    },
-    "1001210": {
-      "range": 850.0,
-      "follow": 800.0,
-      "cooldown": 10000,
-      "cast": 0,
-      "effect": 100121011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1001220": {
-      "range": 1500.0,
-      "follow": 1450.0,
-      "cooldown": 10000,
-      "cast": 0,
-      "effect": 100122011,
-      "damage_min": 7250,
-      "damage_max": 7250
-    },
-    "1001230": {
-      "range": 450.0,
-      "follow": 400.0,
-      "cooldown": 8000,
-      "cast": 0,
-      "effect": 100123011,
-      "damage_min": 9500,
-      "damage_max": 9500
-    },
-    "1001240": {
-      "range": 0.0,
-      "follow": 0.0,
-      "cooldown": 60000,
-      "cast": 0,
-      "effect": 0,
-      "damage_min": 0,
-      "damage_max": 0
-    },
-    "1216400": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 121640011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1216410": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 10000,
-      "cast": 800,
-      "effect": 121641011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1216420": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 8000,
-      "cast": 1500,
-      "effect": 121642011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1216430": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 8000,
-      "cast": 900,
-      "effect": 121643011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1216770": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 121677011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1216780": {
-      "range": 0.0,
-      "follow": 0.0,
-      "cooldown": 60000,
-      "cast": 870,
-      "effect": 0,
-      "damage_min": 0,
-      "damage_max": 0
-    },
-    "1216790": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 0,
-      "effect": 121679011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1216800": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 8000,
-      "cast": 500,
-      "effect": 121680011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1217040": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 121704011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1217050": {
-      "range": 0.0,
-      "follow": 0.0,
-      "cooldown": 60000,
-      "cast": 2000,
-      "effect": 0,
-      "damage_min": 0,
-      "damage_max": 0
-    },
-    "1217060": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 1000,
-      "effect": 121706011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1217070": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 8000,
-      "cast": 1070,
-      "effect": 121707011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1221790": {
-      "range": 300.0,
-      "follow": 150.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122179011,
-      "damage_min": 14000,
-      "damage_max": 16000
-    },
-    "1221800": {
-      "range": 200.0,
-      "follow": 150.0,
-      "cooldown": 10000,
-      "cast": 1000,
-      "effect": 122180011,
-      "damage_min": 12000,
-      "damage_max": 14000
-    },
-    "1221810": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 0,
-      "effect": 122181011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1221820": {
-      "range": 200.0,
-      "follow": 150.0,
-      "cooldown": 15000,
-      "cast": 700,
-      "effect": 122182011,
-      "damage_min": 12000,
-      "damage_max": 14000
-    },
-    "1221830": {
-      "range": 900.0,
-      "follow": 800.0,
-      "cooldown": 15000,
-      "cast": 1930,
-      "effect": 122183011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1222740": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122274011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1222750": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 10000,
-      "cast": 1000,
-      "effect": 122275011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1222760": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 8000,
-      "cast": 670,
-      "effect": 122276011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1222770": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 8000,
-      "cast": 1330,
-      "effect": 122277011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1224270": {
-      "range": 300.0,
-      "follow": 100.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122427011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1224280": {
-      "range": 0.0,
-      "follow": 0.0,
-      "cooldown": 60000,
-      "cast": 760,
-      "effect": 0,
-      "damage_min": 0,
-      "damage_max": 0
-    },
-    "1224290": {
-      "range": 550.0,
-      "follow": 500.0,
-      "cooldown": 10000,
-      "cast": 960,
-      "effect": 122429011,
-      "damage_min": 15000,
-      "damage_max": 18000
-    },
-    "1224300": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 10000,
-      "cast": 1400,
-      "effect": 122430011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1224310": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 20000,
-      "cast": 1130,
-      "effect": 122431011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1224350": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122435011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1224360": {
-      "range": 0.0,
-      "follow": 0.0,
-      "cooldown": 60000,
-      "cast": 500,
-      "effect": 0,
-      "damage_min": 0,
-      "damage_max": 0
-    },
-    "1224370": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 300,
-      "effect": 122437011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1224380": {
-      "range": 1000.0,
-      "follow": 900.0,
-      "cooldown": 20000,
-      "cast": 500,
-      "effect": 122438011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1224390": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 8000,
-      "cast": 500,
-      "effect": 122439011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1224520": {
-      "range": 300.0,
-      "follow": 100.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122452011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1224530": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 8000,
-      "cast": 1000,
-      "effect": 122453011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1224540": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 0,
-      "effect": 122454011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1224550": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 8000,
-      "cast": 1000,
-      "effect": 122455011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1224640": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122464011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1224650": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 8000,
-      "cast": 1000,
-      "effect": 122465011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1224660": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 8000,
-      "cast": 730,
-      "effect": 122466011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1224670": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 8000,
-      "cast": 860,
-      "effect": 122467011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1226200": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122620011,
-      "damage_min": 14000,
-      "damage_max": 16000
-    },
-    "1226210": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 30000,
-      "cast": 600,
-      "effect": 0,
-      "damage_min": 0,
-      "damage_max": 0
-    },
-    "1226220": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 30000,
-      "cast": 1000,
-      "effect": 122622011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1226400": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122640011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1226410": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 12000,
-      "cast": 200,
-      "effect": 122641011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1226420": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 0,
-      "effect": 122642011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1226430": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 8000,
-      "cast": 1060,
-      "effect": 122643011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1226440": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122644011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1226450": {
-      "range": 0.0,
-      "follow": 0.0,
-      "cooldown": 60000,
-      "cast": 200,
-      "effect": 0,
-      "damage_min": 0,
-      "damage_max": 0
-    },
-    "1226460": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 8000,
-      "cast": 660,
-      "effect": 122646011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1226470": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 8000,
-      "cast": 200,
-      "effect": 122647011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1226480": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122648011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1226490": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 12000,
-      "cast": 1160,
-      "effect": 122649011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1226500": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 0,
-      "effect": 122650011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1226510": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 8000,
-      "cast": 800,
-      "effect": 122651011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1226520": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122652011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1226530": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 6000,
-      "cast": 550,
-      "effect": 122653011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1226540": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 6000,
-      "cast": 970,
-      "effect": 122654011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1226550": {
-      "range": 400.0,
-      "follow": 300.0,
-      "cooldown": 12000,
-      "cast": 1130,
-      "effect": 122655021,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1227470": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122747011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1227480": {
-      "range": 0.0,
-      "follow": 0.0,
-      "cooldown": 60000,
-      "cast": 960,
-      "effect": 0,
-      "damage_min": 0,
-      "damage_max": 0
-    },
-    "1227490": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 0,
-      "effect": 122749011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1227500": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 6000,
-      "cast": 1260,
-      "effect": 122750011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1228190": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122819011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1228730": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122873011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1228740": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 8000,
-      "cast": 1500,
-      "effect": 122874011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1228750": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 0,
-      "effect": 122875011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1228760": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 8000,
-      "cast": 1500,
-      "effect": 122876011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1229290": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122929011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1229300": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 12000,
-      "cast": 1833,
-      "effect": 122930011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1229310": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 12000,
-      "cast": 1666,
-      "effect": 122931011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1229320": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 12000,
-      "cast": 1333,
-      "effect": 122932011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1229330": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 12000,
-      "cast": 2000,
-      "effect": 122933011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1229340": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 122934011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1229350": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 10000,
-      "cast": 2666,
-      "effect": 122935011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1229360": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 15000,
-      "cast": 2000,
-      "effect": 122936011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1229370": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 15000,
-      "cast": 2000,
-      "effect": 122937011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1231060": {
-      "range": 300.0,
-      "follow": 100.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 123106011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1231070": {
-      "range": 100.0,
-      "follow": 75.0,
-      "cooldown": 8000,
-      "cast": 1000,
-      "effect": 123107011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1231080": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 0,
-      "effect": 123108011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1231090": {
-      "range": 100.0,
-      "follow": 75.0,
-      "cooldown": 8000,
-      "cast": 1300,
-      "effect": 123109011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1231260": {
-      "range": 100.0,
-      "follow": 55.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 123126011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1231270": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 20000,
-      "cast": 1300,
-      "effect": 123127011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1231280": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 3000,
-      "cast": 0,
-      "effect": 123128011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1231290": {
-      "range": 700.0,
-      "follow": 650.0,
-      "cooldown": 15000,
-      "cast": 1500,
-      "effect": 123129011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1233290": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 123329011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1233300": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 530,
-      "effect": 123330011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1233310": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 12000,
-      "cast": 1500,
-      "effect": 123331011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1233770": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 123377011,
-      "damage_min": 14000,
-      "damage_max": 16000
-    },
-    "1233780": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 10000,
-      "cast": 1000,
-      "effect": 123378011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1233790": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 930,
-      "effect": 123379011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1233800": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 8000,
-      "cast": 670,
-      "effect": 123380011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1233810": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 8000,
-      "cast": 800,
-      "effect": 123381011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1233920": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 123392011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1233930": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 10000,
-      "cast": 1000,
-      "effect": 123393011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1233940": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 900,
-      "effect": 123394011,
-      "damage_min": 14000,
-      "damage_max": 16000
-    },
-    "1233950": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 8000,
-      "cast": 1500,
-      "effect": 123395011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1234140": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 123414011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1234150": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 10000,
-      "cast": 2000,
-      "effect": 123415011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1234160": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 1000,
-      "effect": 123416011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1234170": {
-      "range": 50.0,
-      "follow": 25.0,
-      "cooldown": 8000,
-      "cast": 1000,
-      "effect": 123417011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1234660": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 123466011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1234670": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 10000,
-      "cast": 1300,
-      "effect": 123467011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1234680": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 1000,
-      "effect": 123468011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1234690": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 8000,
-      "cast": 630,
-      "effect": 123469011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1234700": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 8000,
-      "cast": 600,
-      "effect": 123470011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1235280": {
-      "range": 300.0,
-      "follow": 100.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 123528011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1235290": {
-      "range": 200.0,
-      "follow": 150.0,
-      "cooldown": 8000,
-      "cast": 1330,
-      "effect": 123529011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1235300": {
-      "range": 1100.0,
-      "follow": 1000.0,
-      "cooldown": 8000,
-      "cast": 0,
-      "effect": 123530011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1235310": {
-      "range": 350.0,
-      "follow": 300.0,
-      "cooldown": 8000,
-      "cast": 1000,
-      "effect": 123531011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1235320": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 8000,
-      "cast": 1000,
-      "effect": 123532021,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1235330": {
-      "range": 200.0,
-      "follow": 150.0,
-      "cooldown": 8000,
-      "cast": 1000,
-      "effect": 123533011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1238620": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 123862011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1238630": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 16000,
-      "cast": 1500,
-      "effect": 123863011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1238640": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 8000,
-      "cast": 1500,
-      "effect": 123864011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1238650": {
-      "range": 250.0,
-      "follow": 200.0,
-      "cooldown": 10000,
-      "cast": 1500,
-      "effect": 123865011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1239870": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 123987011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1239880": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 8000,
-      "cast": 1330,
-      "effect": 123988011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1239890": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 0,
-      "effect": 123989011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1239900": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 8000,
-      "cast": 870,
-      "effect": 123990011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1239910": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 123991011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1239930": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 10000,
-      "cast": 1000,
-      "effect": 123993011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1239940": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 12000,
-      "cast": 1000,
-      "effect": 123994011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1240130": {
-      "range": 100.0,
-      "follow": 50.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 124013011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1240140": {
-      "range": 0.0,
-      "follow": 0.0,
-      "cooldown": 60000,
-      "cast": 1300,
-      "effect": 0,
-      "damage_min": 0,
-      "damage_max": 0
-    },
-    "1240150": {
-      "range": 1500.0,
-      "follow": 1400.0,
-      "cooldown": 3000,
-      "cast": 500,
-      "effect": 124015011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1240160": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 8000,
-      "cast": 1300,
-      "effect": 124016011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1242120": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 124212011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1242130": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 6000,
-      "cast": 1000,
-      "effect": 124213011,
-      "damage_min": 14000,
-      "damage_max": 16000
-    },
-    "1242140": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 8000,
-      "cast": 1500,
-      "effect": 124214011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1242880": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 0,
-      "cast": 0,
-      "effect": 124288011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1242890": {
-      "range": 2000.0,
-      "follow": 1900.0,
-      "cooldown": 25000,
-      "cast": 0,
-      "effect": 124289011,
-      "damage_min": 11000,
-      "damage_max": 13000
-    },
-    "1242900": {
-      "range": 400.0,
-      "follow": 300.0,
-      "cooldown": 18000,
-      "cast": 1170,
-      "effect": 0,
-      "damage_min": 0,
-      "damage_max": 0
-    },
-    "1243240": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 124324011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1243250": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 8000,
-      "cast": 1100,
-      "effect": 124325011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1243260": {
-      "range": 300.0,
-      "follow": 200.0,
-      "cooldown": 8000,
-      "cast": 600,
-      "effect": 124326011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    },
-    "1244020": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 1000,
-      "cast": 0,
-      "effect": 124402011,
-      "damage_min": 9000,
-      "damage_max": 11000
-    },
-    "1244030": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 8000,
-      "cast": 1100,
-      "effect": 124403011,
-      "damage_min": 13500,
-      "damage_max": 16500
-    },
-    "1244040": {
-      "range": 150.0,
-      "follow": 100.0,
-      "cooldown": 8000,
-      "cast": 1000,
-      "effect": 124404011,
-      "damage_min": 20000,
-      "damage_max": 22000
-    }
-  },
-  "supplement_npc_ids": [
-    2100006,
-    2100015,
-    2100145,
-    2100159,
-    2100180,
-    2100181,
-    2100182,
-    2100192,
-    2100286,
-    2290174,
-    2400056,
-    2400057,
-    2406112,
-    2406113,
-    2406114,
-    2406115,
-    2406116,
-    2600101,
-    2600102,
-    2600103,
-    2600104,
-    2600105,
-    2600107,
-    2600108,
-    2600109,
-    2600110,
-    2600111,
-    2600112,
-    2600113,
-    2600114,
-    2600115,
-    2600116,
-    2600117,
-    2600118,
-    2600119,
-    2600120,
-    2600125,
-    2600126,
-    2600128,
-    2600131,
-    2600132,
-    2600133,
-    2600134,
-    2600135,
-    2600137,
-    2600138,
-    2600139,
-    2600140,
-    2600141,
-    2600142,
-    2600143,
-    2600144,
-    2600145,
-    2600146,
-    2600147,
-    2600148,
-    2930000,
-    2930056,
-    2930057,
-    2930330,
-    2950041,
-    2950453,
-    2959363,
-    2959365,
-    2959366,
-    2970018,
-    2989382,
-    2989383,
-    2989502,
-    2989504,
-    2989505,
-    2990119,
-    2990247,
-    2990249,
-    2990259,
-    2990523,
-    2990671
-  ]
+  }
 }

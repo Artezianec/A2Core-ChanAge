@@ -31,7 +31,7 @@ public sealed class MountAttendanceSorcererFixesTests
         var rs = Assert.Single(mounted, p => GameSessionTestHelpers.Op(p) == RidePackets.GetOnRs);
         var reader = new PacketReader(rs) { Offset = 2 };
         Assert.Equal(session.PlayerKey, (int)reader.Varint());
-        Assert.Equal(0, reader.U16());
+        Assert.Equal(RidePackets.OnSuccess, reader.U16());
         Assert.Equal(PetRide, session.MountedRide);
         Assert.True(store.RideRows.Single(r => r.RideId == PetRide).Owned);
     }
@@ -43,11 +43,30 @@ public sealed class MountAttendanceSorcererFixesTests
         var board = GameSession.LatestAttendanceSeasons(1, Now).First().Board;
         store.Achievements.Add(new Application.Gameplay.AchievementRecord(board.Achievement, 3, null, 0, DateTimeOffset.FromUnixTimeMilliseconds(Now)));
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 11);
-        var reply = await session.HandleAsync([0x4d, 0xe3], Now);
-        Assert.Equal(0, BitConverter.ToUInt16(Assert.Single(reply, p => GameSessionTestHelpers.Op(p) == GameSession.AttendanceRs), 2));
+        var reply = await session.HandleAsync(
+            GameSessionTestHelpers.AttendanceBatch(GameSessionTestHelpers.AttendanceGroupId(board.Achievement)), Now);
+        Assert.Equal(0, BitConverter.ToInt32(Assert.Single(reply, p => GameSessionTestHelpers.Op(p) == GameSession.TakeAchievementRewardBatchRs), 2));
         Assert.Equal(3, Assert.Single(store.Achievements, a => a.Id == board.Achievement).RewardedStep);
         Assert.Contains(reply, p => GameSessionTestHelpers.Op(p) == 0x561b);
-        Assert.True(reply.Count(p => GameSessionTestHelpers.Op(p) == GameSession.AchievementCountUpdateNt) >= 3);
+        // The batch checks every open board in first (one 0x5684 per board) and then carries the claimed final step.
+        var updates = reply.Where(p => GameSessionTestHelpers.Op(p) == GameSession.AchievementCountUpdateNt).ToList();
+        Assert.NotEmpty(updates);
+        Assert.Contains(updates, p => AchievementStep(p, board.Achievement) == 3);
+    }
+
+    static int? AchievementStep(byte[] packet, int achievementId)
+    {
+        var reader = new PacketReader(packet) { Offset = 2 };
+        var count = checked((int)reader.Varint());
+        for (var i = 0; i < count; i++)
+        {
+            var id = reader.I32();
+            _ = reader.I32();       // progress count
+            _ = reader.I64();       // complete time
+            var step = reader.U8();
+            if (id == achievementId) return step;
+        }
+        return null;
     }
 
     [Fact]

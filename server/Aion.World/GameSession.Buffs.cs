@@ -96,14 +96,12 @@ public sealed partial class GameSession
     static bool ItemSkillSupported(IReadOnlyList<SkillEffectRow> effects)
     {
         if (effects.Count == 0) return false;
-        var instant = false;
         foreach (var e in effects)
         {
             switch (e.Type)
             {
                 case "HpHeal_Item" or "HpHealRatio_Item" or "MpHeal_Item" or "FpHeal_Item" or "Dispel_True" or "NoEffect":
-                    instant = true;
-                    break;
+                    return true;
                 case "Abnormal_True" when e.Value(2) > 0:
                     if (Boxes.Abnormal(e.Value(2)) is null) return false;
                     break;
@@ -113,7 +111,7 @@ public sealed partial class GameSession
                     return false;
             }
         }
-        return instant || AbnormalIds(effects).Any();
+        return AbnormalIds(effects).Any();
     }
 
     AbnormalWire Wire(Buff b) => WireBuff(b, b.CasterKey ?? playerKey, b.RangeBase);
@@ -589,6 +587,7 @@ public sealed partial class GameSession
         if (wire != speedBefore + bonus)
         {
             replies.Add(PlayerPackets.MoveSpeedUpdate(playerKey, [(MoveSpeedStat, wire)]));
+            // The new speed must not be judged against the old movement budget, or the client's next step is rejected.
             if (position is { } at) ResetMovementCheck(at, now: lastNow);
         }
         return replies;
@@ -599,9 +598,6 @@ public sealed partial class GameSession
     const int FirstPassiveUid = 1_000_000;
     /// <summary>The official passive's expire time (2100-01-01 00:00 KST, ms): it never runs out.</summary>
     const long PassiveExpireTime = 4_102_412_400_000;
-
-    /// <summary>Whether this buff row still counts for combat and stats (expired debuffs may linger until the next BuffTick).</summary>
-    bool BuffActive(Buff b, long now) => b.ExpireAt > now || b.ExpireAt >= PassiveExpireTime;
 
     /// <summary>
     /// 0x382a for the learned skills' passive abnormals not announced yet (OBSERVED at the official world entry:

@@ -60,11 +60,10 @@ public sealed partial class GameSession
 
     bool NpcTargetHasAbnormalEffect(int targetKey, string effectType, long now)
     {
-        if (SkillCondRegistry.RequiresStaggerWindow(new SkillCondNeed(SkillCondRegistry.HasAbnormalEffectType,
-                AbnormalEffect: effectType, SelectTarget: "Target")))
+        if (effectType.Equals("Stagger", StringComparison.OrdinalIgnoreCase))
             return NpcHasGroggyBreakStagger(targetKey, now);
         if (!npcBuffs.TryGetValue(targetKey, out var list)) return false;
-        return list.Any(b => b.ExpireAt > now && AbnormalSpecs.Types(b.AbnormalId).Any(t => SkillCondRegistry.EffectTypesMatch(effectType, t)));
+        return list.Any(b => b.ExpireAt > now && AbnormalSpecs.Types(b.AbnormalId).Any(t => t.Equals(effectType, StringComparison.OrdinalIgnoreCase)));
     }
 
     internal bool NpcHasGroggyBreakStagger(int targetKey, long now) =>

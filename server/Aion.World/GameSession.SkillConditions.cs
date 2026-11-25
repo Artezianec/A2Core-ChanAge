@@ -25,6 +25,7 @@ partial class GameSession
     bool SkillCondMet(SkillDefinition? definition, long now, int castTargetKey = 0, int skillId = 0)
     {
         if (definition?.SkillCond is not { } cond) return true;
+        // Client data carries cond types this server does not model yet; allow them (logged once) instead of blocking the cast.
         if (!SkillCondRegistry.IsKnownType(cond.Type))
         {
             SkillCondRegistry.NoteUnknownType(cond.Type, skillId);
@@ -71,16 +72,16 @@ partial class GameSession
 
     static bool PlayerTargetSkillCond(GameSession target, SkillCondNeed cond, long now) => cond.Type switch
     {
-        SkillCondRegistry.HasAbnormalGroupId when cond.AbnormalGroup is int group && group > 0 => target.PlayerHasAbnormalGroup(group, null),
+        SkillCondRegistry.HasAbnormalGroupId when cond.AbnormalGroup is int group and > 0 => target.PlayerHasAbnormalGroup(group, null),
         SkillCondRegistry.HasAbnormalEffectType when cond.AbnormalEffect is { Length: > 0 } effect => target.PlayerHasAbnormalEffect(effect, now, null),
         _ => false,
     };
 
-    bool HasAbnormalEffect(string effectType) =>
-        buffs.Any(b => AbnormalSpecs.Info(b.AbnormalId)?.Effects.Any(e => SkillCondRegistry.EffectTypesMatch(effectType, e.Type)) == true);
-
     internal bool UseConditionMetForTests(SkillDefinition? definition, long now, int castTargetKey = 0, int skillId = 0) =>
         UseConditionMet(definition, now, castTargetKey, skillId);
+
+    bool HasAbnormalEffect(string effectType) =>
+        buffs.Any(b => AbnormalSpecs.Info(b.AbnormalId)?.Effects.Any(e => SkillCondRegistry.EffectTypesMatch(effectType, e.Type)) == true);
 
     /// <summary>After accept: apply the buff a prerequisite skill grants (Precision from Marking Shot on the caster, toggles on self, …).</summary>
     List<byte[]> ApplySkillCondGrant(int skillId, SkillDefinition definition, long now, CastRequest request)

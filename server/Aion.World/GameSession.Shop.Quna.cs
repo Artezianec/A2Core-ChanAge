@@ -10,12 +10,12 @@ namespace Aion.World;
 // grant and when the host pushes a change (PushingQunaWallet). Without a wallet (development logins) Quna stays a plain
 // bag item as before. Ported from KiskEmu (AGPL-3.0).
 // Kinah is bag item 930100001 on 0x5611 (GoldCombined). The Quna counter (top left, Currency Info) reads neither the bag nor
-// RefreshCurrency_NT: it is the currency_id 103 (GameCashPending) entry of the HTTP balances answer, ShopQunaBalanceService.JsonBody.
+// RefreshCurrency_NT (0xE333): it is the currency_id 103 (GameCashPending) entry of the HTTP balances answer, ShopQunaBalanceService.JsonBody.
 // HTTP GET virtual_currency/v2.0/me/balances uses currency_id 109 and 103 with currency_group_id 145 (GameCash), 110 with 158 (Mileage).
-// RefreshCurrency_NT (0x3bd1) map keys in usmap are ECurrencyCategory (7 GameCash, 6 Mileage), not the HTTP currency_id field.
+// RefreshCurrency_NT (0xE333) map keys in usmap are ECurrencyCategory (7 GameCash, 6 Mileage), not the HTTP currency_id field.
 public sealed partial class GameSession
 {
-    public const ushort RefreshCurrencyNt = 0x3bd1;
+    public const ushort RefreshCurrencyNt = 0xE333;
 
     public const int QunaBmCurrencyGroupId = 145;
     public const int QunaVirtualCurrencyId = 109;

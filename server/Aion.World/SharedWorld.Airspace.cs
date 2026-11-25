@@ -243,16 +243,30 @@ public sealed class AirspaceSiege
 
     public void WriteBattleSchedule(PacketWriter w, int battleId, long now)
     {
-        var phase = PhaseAt(now, battleId, out var ready, out var battleStart, out var endStart);
+        var phase = PhaseAt(now, battleId, out var ready, out var battleStart, out _);
         var battle = AbyssTables.Embedded.AirspaceBattles.First(b => b.Id == battleId);
-        w.I32(battle.Id).I32(phase).I64(ready).I64(battleStart).I64(endStart);
+        WriteBattleInfo(w, battle, phase, ready, battleStart);
+    }
+
+    /// <summary>
+    /// 2.0.13 AirspaceBattleInfo (a2p encoder round trip of the official 0x4301): entry flags u8, battle id i32,
+    /// state u8, ready i64, battle i64, then per airspace: flags u8, id i32, state u8, owner guild
+    /// (server i16, guild i64, name, emblem i16, master name). The old writer emitted three i64 times and an i32
+    /// state, which left 68 bytes unread in every schedule.
+    /// </summary>
+    void WriteBattleInfo(PacketWriter w, AbyssTables.AirspaceBattle battle, int phase, long ready, long battleStart)
+    {
+        w.U8(0).I32(battle.Id).U8(phase).I64(ready).I64(battleStart);
         w.Varint(battle.AirspaceIds.Length);
         foreach (var airspaceId in battle.AirspaceIds)
         {
-            w.I32(airspaceId).I32(phase == PhaseBattle ? 1 : 0);
-            WriteOwnerGuild(w, owners.GetValueOrDefault(airspaceId));
+            w.U8(1).I32(airspaceId).U8(phase);
+            WriteOwnerGuildV13(w, owners.GetValueOrDefault(airspaceId));
         }
     }
+
+    void WriteOwnerGuildV13(PacketWriter w, GuildDisplay? g) =>
+        w.U16(g?.ServerId ?? 0).I64(g?.GuildId ?? 0).String(g?.Name ?? "").U16(g?.Emblem ?? 0).String(g?.MasterName ?? "");
 
     public void WriteOwnerGuild(PacketWriter w, GuildDisplay? g) =>
         w.I32(g?.ServerId ?? 0).I32((int)(g?.GuildId ?? 0)).String(g?.Name ?? "").I32(g?.Emblem ?? 0).String(g?.MasterName ?? "");
@@ -261,13 +275,7 @@ public sealed class AirspaceSiege
     {
         var battle = AbyssTables.Embedded.AirspaceBattles.First(b => b.Id == battleId);
         var w = PacketWriter.Opcode(GameSession.AirspaceBattleUpdateNt);
-        w.I32(battle.Id).I32(phase).I64(ready).I64(battleStart).I64(endStart);
-        w.Varint(battle.AirspaceIds.Length);
-        foreach (var airspaceId in battle.AirspaceIds)
-        {
-            w.I32(airspaceId).I32(phase == PhaseBattle ? 1 : 0);
-            WriteOwnerGuild(w, owners.GetValueOrDefault(airspaceId));
-        }
+        WriteBattleInfo(w, battle, phase, ready, battleStart);
         return w.ToArray();
     }
 

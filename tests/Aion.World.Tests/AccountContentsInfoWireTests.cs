@@ -26,7 +26,7 @@ public sealed class AccountContentsInfoWireTests
     }
 
     [Fact]
-    public async Task Collect_on_e34d_sets_value1_and_value2_to_today()
+    public async Task Check_in_on_e34d_sets_value1_to_today_and_leaves_value2_zero()
     {
         var store = new FakeCharacterStore();
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
@@ -36,7 +36,7 @@ public sealed class AccountContentsInfoWireTests
         Assert.All(ParseEntries(contents), e =>
         {
             Assert.Equal(todayKey, e.Value1);
-            Assert.Equal(todayKey, e.Value2);
+            Assert.Equal(0, e.Value2);   // checked in; the tab's reward is collected by the 0x5689 batch
         });
     }
 

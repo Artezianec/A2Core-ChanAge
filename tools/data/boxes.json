@@ -1,18 +1,9 @@
 {
   "source": "Item.dat v13 + RewardPackageItem + VehicleList (client export 2026-11-22, tools/box_data.py)",
   "handled_use_effects": [
-    "AddContentsTicket",
     "AscensionGrade",
-    "BattlePassExp",
-    "BattlePassUnlock",
-    "Customize",
-    "EnchantScroll",
-    "Fix_DaevanionPoint",
     "Fix_VehicleCreatureLevel",
     "GetDaevanionPoint",
-    "GetDeco",
-    "GetDutyQuest",
-    "GetGodstone",
     "GetKina",
     "GetNonBindingKina",
     "GetQuest",
@@ -20,19 +11,13 @@
     "GetSkinSet",
     "GetSocialAction",
     "GetStigmaShard",
-    "GetStigmaShardSuperior",
     "GetTitle",
     "GetVehicle",
     "GetVehicleSoul",
     "GetVehicleSoulCrystal",
     "GetWing",
-    "ImprintMagicStone",
     "RewardBox",
-    "SealStone",
     "Skill",
-    "SoulAdd",
-    "Succession",
-    "Telpo_Agit",
     "Telpo_Home"
   ],
   "uses": {
@@ -58410,40 +58395,7 @@
     },
     "G_BM_Box_Package_WP_002_b": {
       "items": [],
-      "select": [
-        [
-          535710153,
-          1
-        ],
-        [
-          535710154,
-          1
-        ],
-        [
-          535710155,
-          1
-        ],
-        [
-          535710156,
-          1
-        ],
-        [
-          535710157,
-          1
-        ],
-        [
-          535710158,
-          1
-        ],
-        [
-          535710159,
-          1
-        ],
-        [
-          535710160,
-          1
-        ]
-      ],
+      "select": [],
       "packages": [],
       "max": 100
     },
@@ -58544,40 +58496,7 @@
     },
     "G_BM_Box_Package_WP_004_b": {
       "items": [],
-      "select": [
-        [
-          535710937,
-          1
-        ],
-        [
-          535710938,
-          1
-        ],
-        [
-          535710939,
-          1
-        ],
-        [
-          535710940,
-          1
-        ],
-        [
-          535710941,
-          1
-        ],
-        [
-          535710942,
-          1
-        ],
-        [
-          535710943,
-          1
-        ],
-        [
-          535710944,
-          1
-        ]
-      ],
+      "select": [],
       "packages": [],
       "max": 100
     },

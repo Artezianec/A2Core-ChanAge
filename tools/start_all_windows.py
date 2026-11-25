@@ -88,16 +88,20 @@ def check_postgres_files() -> int:
 RELEASE_URL = 'https://github.com/Artezianec/A2Core-ChanAge/releases/tag/v1.0.1'
 DATA_ARCHIVE = 'aion-server-data.tar.gz'
 LOCAL = ROOT / 'research' / 'local'
-# Archive folder -> local folders the Windows stack reads (run_game_chain, Terrain/NavMesh.Locate, catalog tools).
-ARCHIVE_LAYOUT = {
-    'bootstrap/keys': ['bootstrap-fixtures/rsa-candidate-20261009'],
-    'bootstrap/policy': ['bootstrap-fixtures/policy-login-route-20261009-1230', 'bootstrap-fixtures/policy-lime-20261014'],
-    'ncguard': ['ncguard'],
-    'game-catalog-v2': ['game-catalog-v2'],
-    'terrain': ['terrain'],
-    'navmesh': ['navmesh'],
-    'wardrobe': ['wardrobe'],
-}
+# Archive folder(s) -> local folders the Windows stack reads (run_game_chain, Terrain/NavMesh.Locate,
+# catalog tools). Release bundles exist with two layouts: bootstrap/keys|policy (current
+# tools/pack_server_data.py) and bootstrap-fixtures/keys|policy (older packs), so each entry
+# lists the source candidates in preference order.
+ARCHIVE_LAYOUT = (
+    (('bootstrap/keys', 'bootstrap-fixtures/keys'), ('bootstrap-fixtures/rsa-candidate-20261009',)),
+    (('bootstrap/policy', 'bootstrap-fixtures/policy'),
+     ('bootstrap-fixtures/policy-login-route-20261009-1230', 'bootstrap-fixtures/policy-lime-20261014')),
+    (('ncguard',), ('ncguard',)),
+    (('game-catalog-v2',), ('game-catalog-v2',)),
+    (('terrain',), ('terrain',)),
+    (('navmesh',), ('navmesh',)),
+    (('wardrobe',), ('wardrobe',)),
+)
 
 
 def find_data_archive() -> Path | None:
@@ -123,6 +127,18 @@ def _extract(archive: Path, target: Path) -> None:
             handle.extractall(target)
 
 
+def _merge_tree(source: Path, target: Path) -> None:
+    """Copy files that are missing; never overwrite an existing file (a newer catalogue/geometry wins)."""
+    for item in source.rglob('*'):
+        relative = item.relative_to(source)
+        destination = target / relative
+        if item.is_dir():
+            destination.mkdir(parents=True, exist_ok=True)
+        elif not destination.exists():
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(item, destination)
+
+
 def install_server_data(archive: Path, local: Path = LOCAL) -> list[Path]:
     """Unpack the release data archive into research/local; return the folders written."""
     staging = local / '.server-data-extract'
@@ -131,13 +147,13 @@ def install_server_data(archive: Path, local: Path = LOCAL) -> list[Path]:
     _extract(archive, staging)
     written = []
     try:
-        for source_name, targets in ARCHIVE_LAYOUT.items():
-            source = staging / source_name
-            if not source.is_dir():
+        for source_names, target_names in ARCHIVE_LAYOUT:
+            source = next((staging / name for name in source_names if (staging / name).is_dir()), None)
+            if source is None:
                 continue
-            for target_name in targets:
+            for target_name in target_names:
                 target = local / target_name
-                shutil.copytree(source, target, dirs_exist_ok=True)
+                _merge_tree(source, target)
                 written.append(target)
     finally:
         shutil.rmtree(staging, ignore_errors=True)
@@ -146,7 +162,8 @@ def install_server_data(archive: Path, local: Path = LOCAL) -> list[Path]:
 
 def _missing_fixtures() -> list[str]:
     missing = []
-    for path in (DEFAULT_POLICY / 'app-policy.json', KEY_FIXTURES / 'app-key.json'):
+    for path in (DEFAULT_POLICY / 'app-policy.json', KEY_FIXTURES / 'app-key.json',
+                 KEY_FIXTURES / 'local-test-key.json'):
         if not path.is_file():
             missing.append(str(path))
     return missing
@@ -244,18 +261,13 @@ def native_host_env(runtime_dir: Path) -> dict[str, str]:
         'Aion__Platform__FixtureDirectory': str(KEY_FIXTURES.resolve()),
         'Aion__Platform__PolicyFile': str((DEFAULT_POLICY / 'app-policy.json').resolve()),
         'Aion__Platform__RequestLog': str((runtime_dir / 'bootstrap-requests.jsonl').resolve()),
-        'Aion__Platform__NccrMode': 'Json',
+        'Aion__ServerLog__LogDirectory': str((ROOT / 'research/local/logs').resolve()),
     })
     env.pop('Aion__ChatDevelopmentLogins', None)
     geolocation = runtime_dir / 'geolocation-response.json'
     geolocation.write_text(json.dumps(geolocation_response('59.9139,10.7522,NO')), encoding='utf-8')
     env['Aion__Platform__GeolocationFile'] = str(geolocation.resolve())
     env.update(_playtest_debug_env())
-    env.update({
-        'Aion__Database__MigrateOnStartup': 'true',
-        'Aion__Database__Tool': str((ROOT / 'tools/postgres_dev.py').resolve()),
-        'Aion__Database__PgHome': str(HOME.resolve()),
-    })
     return env
 
 
@@ -272,8 +284,7 @@ def ncguard_host_env(runtime_dir: Path, fixture: Path) -> dict[str, str]:
         'Aion__NcGuard__Capture': 'false',
         'Aion__NcGuard__RewriteHosts': 'true',
         'Aion__NcGuard__StopFile': str(stop_file.resolve()),
-        'Aion__Platform__NccrMode': 'Json',
-        'Aion__NcGuard__NccrMode': 'Json',
+        'Aion__ServerLog__LogDirectory': str((ROOT / 'research/local/logs').resolve()),
     }
 
 

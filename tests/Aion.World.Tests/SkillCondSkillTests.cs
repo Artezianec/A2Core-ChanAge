@@ -46,7 +46,7 @@ public sealed class SkillCondSkillTests
         Assert.Equal("HasAbnormalGroupId", suppress.SkillCond!.Type);
         Assert.Equal(PrecisionGroup, suppress.SkillCond.AbnormalGroup);
         Assert.Equal("Self", suppress.SkillCond.SelectTarget);
-        Assert.Equal("SkillCond.dat", suppress.SkillCondSource);
+        Assert.Equal("override", suppress.SkillCondSource);
         Assert.Equal(PrecisionGroup, mark.SkillCondGrant!.Abnormal);
         Assert.Equal("Self", mark.SkillCondGrant.SelectTarget);
         Assert.Equal(10_000, mark.SkillCondGrant.DurationMs);

@@ -61,13 +61,6 @@ def load(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def skin_window_good(bm: dict) -> bool:
-    """A fashion row the Alt+O skin window sells (BMShopGoods item name or category)."""
-    name = str(bm.get("item_name") or "")
-    cats = f"{bm.get('category_light') or ''} {bm.get('category_dark') or ''}"
-    return "Skinshop" in name or "SkinShop" in name or "SkinShop" in cats or "Skinshop" in cats
-
-
 def official_intentional_free_goods() -> set[int]:
     """goods_id values captured with a zero basic price in official_shop.json."""
     if not OFFICIAL.is_file():
@@ -388,6 +381,19 @@ def skeleton_from(official_good: dict, bm: dict, item_id: int) -> dict:
     return row
 
 
+def served_signature(row: dict) -> tuple:
+    """What the player sees: the items, their price and the shop tabs. Two rows with the same signature are one product."""
+    items = tuple(sorted((str(i.get("item_id")), str(i.get("item_quantity"))) for i in row.get("items") or []))
+    group = price = None
+    policies = row.get("goods_basic_price_policies") or []
+    if policies:
+        group = str(policies[0].get("currency_group_id") or "")
+        price = str(policies[0].get("goods_basic_price") or "")
+    tabs = tuple(sorted(part.split(":", 1)[1] for part in str(row.get("goods_data") or "").split(",")
+                        if part.startswith(("catl:", "catd:"))))
+    return (items, group, price, tabs)
+
+
 def build():
     official = load(OFFICIAL)
     config = load_catalog_config()
@@ -446,6 +452,11 @@ def build():
         seen.add(gid)
         served.append(row)
 
+    # The client BMShopGoods table lists many products twice (one row per store/platform: e.g. 100016 and
+    # 100017 are the same Rabbit pet at the same Quna price and display order). Serving both showed the
+    # player the same item twice in the shop. Keep the first row of each item/price/category.
+    served_keys = {served_signature(row) for row in served}
+
     for bm in bm_on:
         gid = int(bm["goods_id"])
         if gid in seen:
@@ -454,10 +465,7 @@ def build():
         if not item_id:
             hidden.append(("bm-no-item", gid))
             continue
-        # Founders weapon skins are on sale at GameCash 0 and are absent from the official
-        # capture, so the zero-price rule used to drop them. The Alt+O window still lists
-        # the goods id and then cannot buy it. Other zero-price rows stay hidden.
-        if int(bm.get("price") or 0) <= 0 and gid not in free_goods and not skin_window_good(bm):
+        if int(bm.get("price") or 0) <= 0 and gid not in free_goods:
             hidden.append(("bm-zero-price", gid))
             continue
         cats = {bm.get("category_light") or "", bm.get("category_dark") or ""}
@@ -471,6 +479,11 @@ def build():
             hidden.append(("bm-unmap", gid))
             continue
         apply_goods_schedule(row, gid, [item_id], schedule, config)
+        signature = served_signature(row)
+        if signature in served_keys:
+            hidden.append(("bm-duplicate", gid))
+            continue
+        served_keys.add(signature)
         seen.add(gid)
         synthesized += 1
         served.append(row)
@@ -503,6 +516,13 @@ def build():
         row = deepcopy(q)
         if apply_quota(row, plat_prices, blocked_groups):
             quotas.append(row)
+
+    # The official capture lists the same product twice as _p_ (personal) and _s_ (server) variants with identical
+    # items, price, tabs and window (e.g. 100110/100111). They look like duplicates in the shop; keep the first one.
+    folded = {}
+    for row in served:
+        folded.setdefault(served_signature(row), row)
+    served = list(folded.values())
 
     on_sale_ids = {int(g["goods_id"]) for g in bm_on}
     missing_on_sale = sorted(on_sale_ids - seen - hidden_ids)

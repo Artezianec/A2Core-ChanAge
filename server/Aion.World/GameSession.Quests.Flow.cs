@@ -17,6 +17,18 @@ public sealed partial class GameSession
         return null;
     }
 
+    /// <summary>
+    /// 0x8D0A QuestAccept_RQ (2.0.11+): u8 flag (bit0 npc key present), i32 quest id, i32 npc key
+    /// when set. The 2.0.6 form {quest id i32, npc key i32} is 10 bytes including the opcode.
+    /// </summary>
+    internal static (int QuestId, int NpcKey) ParseQuestAcceptRequest(byte[] plain)
+    {
+        if (plain.Length < 7) return (0, 0);
+        if (plain.Length == 10) return (BitConverter.ToInt32(plain, 2), BitConverter.ToInt32(plain, 6));
+        var hasNpc = (plain[2] & 1) != 0;
+        return (BitConverter.ToInt32(plain, 3), hasNpc && plain.Length >= 11 ? BitConverter.ToInt32(plain, 7) : 0);
+    }
+
     async Task<List<byte[]>> QuestStepTalkAsync(byte[] plain, long now, CancellationToken ct)
     {
         // Kind 2: a map event's talk objective {kind, map event id, npc key, objective index} (reply OBSERVED: 02 0000 id key index).

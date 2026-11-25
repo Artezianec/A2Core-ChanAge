@@ -14,6 +14,14 @@ public static class GameSessionTestHelpers
     public static ushort Op(byte[] packet) => (ushort)(packet[0] | packet[1] << 8);
 
     /// <summary>Checked in today on every open attendance tab, rewards not yet taken (for 0x5685/0x5689 tests without 0xe34d auto-claim).</summary>
+    /// <summary>AchievementGroup id of a board's achievement (the group the client names in the 0x5689 batch).</summary>
+    public static int AttendanceGroupId(int achievementId) =>
+        AchievementTables.Embedded.GroupOf(AchievementTables.Embedded.Of(achievementId)!)!.Id;
+
+    /// <summary>TakeAchievementRewardBatch_RQ: the attendance tab's F Collect Rewards (category 7, group i32, only).</summary>
+    public static byte[] AttendanceBatch(int groupId, bool only = true) =>
+        new PacketWriter().U16(GameSession.TakeAchievementRewardBatchRq).U8(7).I32(groupId).U8(only ? (byte)1 : (byte)0).ToArray();
+
     public static void SeedAttendanceCheckedInNotRewarded(FakeCharacterStore store, long nowMs, int race = 1)
     {
         var updated = DateTimeOffset.FromUnixTimeMilliseconds(nowMs);

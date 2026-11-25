@@ -65,13 +65,7 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
     private static async Task<List<ItemState>> Items(NpgsqlConnection c, NpgsqlTransaction t, Guid character, CancellationToken ct)
     {
         var items=new List<ItemState>();
-        await using var q=Query(c,t,"""
-            SELECT instance_id,build_id,template_id,quantity,location,slot,revision,rolled_stats::text,upgrades::text,wire_id
-            FROM game.item_instances
-            WHERE character_id=$1
-               OR (location='account_storage' AND account_storage_owner=(SELECT account_id FROM game.characters WHERE character_id=$1))
-            ORDER BY instance_id
-            """,character);
+        await using var q=Query(c,t,"SELECT instance_id,build_id,template_id,quantity,location,slot,revision,rolled_stats::text,upgrades::text,wire_id FROM game.item_instances WHERE character_id=$1 ORDER BY instance_id",character);
         await using var r=await q.ExecuteReaderAsync(ct);
         while(await r.ReadAsync(ct)) items.Add(new(r.GetGuid(0),r.GetString(1),r.GetInt32(2),r.GetInt64(3),r.GetString(4),r.IsDBNull(5)?null:r.GetInt32(5),r.GetInt64(6),JsonSerializer.Deserialize<JsonElement>(r.GetString(7)),JsonSerializer.Deserialize<JsonElement>(r.GetString(8)),r.GetInt64(9)));
         return items;
@@ -464,24 +458,6 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
         await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
         if(!await Own(c,t,account.AccountId,character,ct)) return null;
         var total=(int?)await Scalar(c,t,"INSERT INTO game.character_stigma_bonus(character_id,shards) VALUES($1,$2) ON CONFLICT (character_id) DO UPDATE SET shards=game.character_stigma_bonus.shards+EXCLUDED.shards,updated_at=now() RETURNING shards",ct,character,amount);
-        if(total is null) return null;
-        await t.CommitAsync(ct); return total;
-    }
-
-    public async Task<int> SkillBonusPointsAsync(VerifiedAccount account, Guid character, CancellationToken ct=default)
-    {
-        await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
-        if(!await Own(c,t,account.AccountId,character,ct)) return 0;
-        var points=(int?)await Scalar(c,t,"SELECT points FROM game.character_skill_bonus WHERE character_id=$1",ct,character) ?? 0;
-        await t.CommitAsync(ct); return points;
-    }
-
-    public async Task<int?> AddSkillBonusPointsAsync(VerifiedAccount account, Guid character, int amount, CancellationToken ct=default)
-    {
-        if(amount<=0) throw new GameplayException("invalid_skill_bonus");
-        await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
-        if(!await Own(c,t,account.AccountId,character,ct)) return null;
-        var total=(int?)await Scalar(c,t,"INSERT INTO game.character_skill_bonus(character_id,points) VALUES($1,$2) ON CONFLICT (character_id) DO UPDATE SET points=game.character_skill_bonus.points+EXCLUDED.points,updated_at=now() RETURNING points",ct,character,amount);
         if(total is null) return null;
         await t.CommitAsync(ct); return total;
     }
@@ -2084,12 +2060,7 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
             await Execute(c,t,"UPDATE game.item_instances SET location=$5,slot=$3,revision=revision+1 WHERE character_id=$1 AND location=$4 AND slot=$2 AND instance_id<>$6",
                 ct,character,slot,oldSlot,location,oldLocation,item);
         }
-        if (location == "account_storage")
-            await Execute(c,t,"UPDATE game.item_instances SET location=$3,slot=$2,revision=revision+1,account_storage_owner=(SELECT account_id FROM game.characters WHERE character_id=$4) WHERE instance_id=$1",
-                ct,item,slot,location,character);
-        else
-            await Execute(c,t,"UPDATE game.item_instances SET location=$3,slot=$2,revision=revision+1,account_storage_owner=NULL WHERE instance_id=$1",
-                ct,item,slot,location);
+        await Execute(c,t,"UPDATE game.item_instances SET location=$3,slot=$2,revision=revision+1 WHERE instance_id=$1",ct,item,slot,location);
         await t.CommitAsync(ct); return true;
     }
 
@@ -2631,34 +2602,6 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
         await t.CommitAsync(ct); return true;
     }
 
-    public async Task<IReadOnlyList<BattlePassWeeklyRecord>> BattlePassWeeklyAsync(VerifiedAccount account, Guid character, CancellationToken ct=default)
-    {
-        await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
-        if(!await Own(c,t,account.AccountId,character,ct)) return new List<BattlePassWeeklyRecord>();
-        var rows=new List<BattlePassWeeklyRecord>();
-        await using var q=Query(c,t,"SELECT group_id,week_start_ms,exp FROM game.character_battle_pass_weekly WHERE character_id=$1",character);
-        await using var r=await q.ExecuteReaderAsync(ct);
-        while(await r.ReadAsync(ct)) rows.Add(new(r.GetInt32(0),r.GetInt64(1),r.GetInt32(2)));
-        return rows;
-    }
-
-    public async Task<bool> SaveBattlePassWeeklyAsync(VerifiedAccount account, Guid character, IReadOnlyList<BattlePassWeeklyRecord> rows, CancellationToken ct=default)
-    {
-        await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
-        if(!await Own(c,t,account.AccountId,character,ct)) return false;
-        foreach(var row in rows)
-            await Execute(c,t,"INSERT INTO game.character_battle_pass_weekly(character_id,group_id,week_start_ms,exp,updated_at) VALUES($1,$2,$3,$4,now()) "
-                +"ON CONFLICT (character_id,group_id) DO UPDATE SET "
-                +"week_start_ms=CASE WHEN EXCLUDED.week_start_ms>game.character_battle_pass_weekly.week_start_ms THEN EXCLUDED.week_start_ms "
-                +"WHEN EXCLUDED.week_start_ms<game.character_battle_pass_weekly.week_start_ms THEN game.character_battle_pass_weekly.week_start_ms "
-                +"ELSE EXCLUDED.week_start_ms END, "
-                +"exp=CASE WHEN EXCLUDED.week_start_ms>game.character_battle_pass_weekly.week_start_ms THEN EXCLUDED.exp "
-                +"WHEN EXCLUDED.week_start_ms<game.character_battle_pass_weekly.week_start_ms THEN game.character_battle_pass_weekly.exp "
-                +"ELSE GREATEST(game.character_battle_pass_weekly.exp,EXCLUDED.exp) END, "
-                +"updated_at=now()",ct,character,row.GroupId,row.WeekStartMs,row.Exp);
-        await t.CommitAsync(ct); return true;
-    }
-
     public async Task<IReadOnlyList<DungeonCooltimeRecord>> DungeonCooltimesAsync(VerifiedAccount account, Guid character, CancellationToken ct=default)
     {
         await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
@@ -2748,11 +2691,11 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
         return await r.ReadAsync(ct) ? new RideRecord(r.GetInt32(0),r.GetInt16(1),r.GetInt32(2),r.GetBoolean(3)) : null;
     }
 
-    public async Task<RideRecord?> AddRideSoulsAsync(VerifiedAccount account, Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct=default, int consumeItems=1)
+    public async Task<RideRecord?> AddRideSoulsAsync(VerifiedAccount account, Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct=default)
     {
-        if(rideId<=0 || souls<1 || consumeItems<0) throw new GameplayException("invalid_ride");
+        if(rideId<=0 || souls<1) throw new GameplayException("invalid_ride");
         await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
-        if(!await Own(c,t,account.AccountId,character,ct) || (consumeItems>0 && !await Consume(c,t,character,item,revision,consumeItems,ct))) return null;
+        if(!await Own(c,t,account.AccountId,character,ct) || !await Consume(c,t,character,item,revision,1,ct)) return null;
         var ride=await Ride(c,t,"INSERT INTO game.character_rides(character_id,ride_id,soul_points,owned) VALUES($1,$2,$3,false) ON CONFLICT(character_id,ride_id) DO UPDATE SET "
             +"soul_points=game.character_rides.soul_points+$3 RETURNING ride_id,level,soul_points,owned",ct,character,rideId,souls);
         await t.CommitAsync(ct); return ride;
@@ -2799,11 +2742,11 @@ public sealed partial class PostgresGameplayStore(NpgsqlDataSource source, Progr
         await t.CommitAsync(ct); return ride;
     }
 
-    public async Task<int?> AddRideCrystalsAsync(VerifiedAccount account, Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct=default, int consumeItems=1)
+    public async Task<int?> AddRideCrystalsAsync(VerifiedAccount account, Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct=default)
     {
-        if(crystalType is <1 or >6 || count<1 || consumeItems<0) throw new GameplayException("invalid_crystal");
+        if(crystalType is <1 or >6 || count<1) throw new GameplayException("invalid_crystal");
         await using var c=await source.OpenConnectionAsync(ct); await using var t=await c.BeginTransactionAsync(ct);
-        if(!await Own(c,t,account.AccountId,character,ct) || (consumeItems>0 && !await Consume(c,t,character,item,revision,consumeItems,ct))) return null;
+        if(!await Own(c,t,account.AccountId,character,ct) || !await Consume(c,t,character,item,revision,1,ct)) return null;
         var amount=await Scalar(c,t,"INSERT INTO game.character_ride_crystals VALUES($1,$2,$3) ON CONFLICT(character_id,crystal_type) DO UPDATE SET amount=game.character_ride_crystals.amount+$3 RETURNING amount",
             ct,character,(short)crystalType,count) as int?;
         await t.CommitAsync(ct); return amount;

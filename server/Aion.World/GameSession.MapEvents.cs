@@ -102,6 +102,9 @@ public sealed partial class GameSession : IMapEventHost
             selected = flushed;
     }
     long mapEventNow;
+    /// <summary>Last standing position check (EnterVolumePC/EnterSubZone) for an active map event.</summary>
+    long mapEventPositionCheckedAt;
+    const int MapEventPositionCheckMs = 500;
     static int nextMapEventId = 0x149942;   // the official run's id; one per run on this host
 
     /// <summary>Walk-in layer volumes: edge-triggered entry on 0x3701 (throttled / cell change).</summary>
@@ -281,13 +284,7 @@ public sealed partial class GameSession : IMapEventHost
                 continue;
             }
             anyInside = true;
-            if (walkInNeedsOutsideApproach)
-            {
-                var openClear = questLog?.OpenClearMapEventNames().ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
-                var questWalkIn = openClear.Count > 0 && MapEventData.EventsOn(layer.LayerMap)
-                    .Any(e => openClear.Contains(e.Name));
-                if (!questWalkIn) continue;
-            }
+            if (walkInNeedsOutsideApproach) continue;
             if (walkInLayerInside.Contains(layer.LayerMap)) continue;
             walkInLayerInside.Add(layer.LayerMap);
             if (MapEventData.Dungeon(layer.DungeonId) is not { } room || !MeetsEntry(room, now, out _))
@@ -753,28 +750,18 @@ public sealed partial class GameSession : IMapEventHost
         return DrainMapEvents();
     }
 
-    /// <summary>HQ1101050 step 6: retail opens the warehouse when Nania reaches the door; do not wait on the player F-key.</summary>
-    void TryScriptHq004WarehouseDoor(long now)
+    /// <summary>
+    /// The player is standing still in a map-event volume: the client sends no position reports while idle, so
+    /// EnterVolumePC/EnterSubZone objectives would wait for the next move. Re-check the current position twice a
+    /// second, only while a run has such an objective open.
+    /// </summary>
+    List<byte[]> MapEventStandingPositionTick(long now)
     {
-        const string evt = "World_L_Starter_HQ004_MapEvent";
-        const string door = "E_L0_HQ004_WarehouseDoor_Enter";
-        foreach (var run in mapEventRuns)
-        {
-            if (!string.Equals(run.Name, evt, StringComparison.OrdinalIgnoreCase) || run.StepOrder != 6 || run.Finished) continue;
-            if (!run.Open.Any(x => x.Objective.Type == "UseEnvObj"
-                    && x.Objective.Value(0).Contains("WarehouseDoor", StringComparison.OrdinalIgnoreCase))) continue;
-            if (MapEventObjectForName(door) is not { } wo) continue;
-            var nania = SpawnerNpcs("N_L0_Starter_HQ004_Nania_01").FirstOrDefault(t => !t.Dead);
-            if (nania is null) continue;
-            var doorAt = wo.At;
-            var dx = nania.Position.X - doorAt.X;
-            var dy = nania.Position.Y - doorAt.Y;
-            var range = Math.Max(wo.InteractRange, 100) + 200;
-            if (dx * dx + dy * dy > range * range) continue;
-            var credited = MapEventUsedObject(door, now);
-            if (credited.Count > 0) mapEventOut.AddRange(credited);
-            return;
-        }
+        if (position is not { } at || now - mapEventPositionCheckedAt < MapEventPositionCheckMs) return [];
+        var host = CopyOwner ?? this;
+        if (!host.mapEventRuns.Any(r => r.NeedsPositionCheck)) return [];
+        mapEventPositionCheckedAt = now;
+        return MapEventPosition(at, now);
     }
 
     List<byte[]> MapEventPosition(Vector3d at, long now)
@@ -866,11 +853,7 @@ public sealed partial class GameSession : IMapEventHost
         }
         foreach (var (key, route) in ai.TakeArrivals())
             if (targets?.GetValueOrDefault(key) is { } npc)
-            {
                 foreach (var run in mapEventRuns.ToList()) run.NpcArrived(npc.Name, route, now);
-                TryScriptHq004WarehouseDoor(now);
-            }
-        TryScriptHq004WarehouseDoor(now);
         WaveTick(now);
         EnsureOpenKillSpawnersForRuns();
         foreach (var run in mapEventRuns.ToList()) run.Tick(now);
@@ -999,7 +982,7 @@ public sealed partial class GameSession : IMapEventHost
             {
                 var spawner = o.Value(0);
                 var route = o.Value(1);
-                var escorts = SpawnerNpcs(spawner).ToList();
+                var escorts = ScriptNpcs(spawner).ToList();
                 var scripted = escorts.Count(t => ai.Brains.TryGetValue(t.Key, out var b) && b.Mode == NpcAi.Mode.Scripted);
                 if (QaBot && mapEventObjectiveAuditLogged.Add($"step:{step.Id}:NpcArrive:{spawner}"))
                     Note($"EnsureNpcArrive {spawner}: matched={escorts.Count} living={escorts.Count(t => !t.Dead)} scripted={scripted} route={route} map={worldMap}");
@@ -1209,6 +1192,17 @@ public sealed partial class GameSession : IMapEventHost
     IEnumerable<Target> SpawnerNpcs(string spawner) =>
         targets?.Values.Where(t => MapEventRun.NameMatches(spawner, t.Name)) ?? [];
 
+    /// <summary>
+    /// NPCs a script directive names. A base spawner with phase variants (Nania_01, Nania_01_1, Nania_01_2)
+    /// must move/revive only the named one: prefix matching is for kill waves, not for escorts.
+    /// </summary>
+    IEnumerable<Target> ScriptNpcs(string spawner)
+    {
+        var all = targets?.Values.ToList() ?? [];
+        var exact = all.Where(t => string.Equals(t.Name, spawner, StringComparison.OrdinalIgnoreCase)).ToList();
+        return exact.Count > 0 ? exact : all.Where(t => MapEventRun.NameMatches(spawner, t.Name));
+    }
+
     void LogQaKillSpawnerKill(Target killed, bool spawnerAliveAfter, long now)
     {
         foreach (var run in mapEventRuns)
@@ -1345,7 +1339,7 @@ public sealed partial class GameSession : IMapEventHost
     {
         var wasDormant = dormantSpawners.Remove(spawner);
         startedSpawners.Add(spawner);
-        var matched = SpawnerNpcs(spawner).ToList();
+        var matched = ScriptNpcs(spawner).ToList();
         var revived = 0;
         var already = 0;
         foreach (var t in matched)
@@ -1474,12 +1468,12 @@ public sealed partial class GameSession : IMapEventHost
     void IMapEventHost.MoveNpc(string spawner, string route)
     {
         if (data.Route(worldMap, route) is not { } path) { Note($"map event route {route} is not on map {worldMap}"); return; }
-        foreach (var t in SpawnerNpcs(spawner).Where(t => !t.Dead)) mapEventOut.AddRange(ai.Walk(t, path, mapEventNow));
+        foreach (var t in ScriptNpcs(spawner).Where(t => !t.Dead)) mapEventOut.AddRange(ai.Walk(t, path, mapEventNow));
     }
 
     void IMapEventHost.FollowPc(string spawner, bool follow)
     {
-        foreach (var t in SpawnerNpcs(spawner).Where(t => !t.Dead)) mapEventOut.AddRange(ai.Follow(t, playerKey, follow, mapEventNow));
+        foreach (var t in ScriptNpcs(spawner).Where(t => !t.Dead)) mapEventOut.AddRange(ai.Follow(t, playerKey, follow, mapEventNow));
     }
 
     /// <summary>NpcRotate: face the named NPC or object, else the player.</summary>
@@ -1488,7 +1482,7 @@ public sealed partial class GameSession : IMapEventHost
         Vector3d? aim = target.Length == 0 ? position
             : SpawnerNpcs(target).FirstOrDefault(t => !t.Dead)?.Position ?? SpawnerObjects(target).Select(x => (Vector3d?)x.Object.At).FirstOrDefault();
         if (aim is not { } goal) return;
-        foreach (var t in SpawnerNpcs(spawner).Where(t => !t.Dead))
+        foreach (var t in ScriptNpcs(spawner).Where(t => !t.Dead))
             mapEventOut.AddRange(ai.Face(t, NpcAi.HeadingTo(t.Position, (goal.X, goal.Y)), mapEventNow));
     }
 
@@ -2065,12 +2059,10 @@ public sealed partial class GameSession : IMapEventHost
     /// <summary>The way out the cleared quest's finish teleport names (see <see cref="ClearExitOf"/>), set at the clear.</summary>
     (int Map, Vector3d At)? clearExit;
 
-    /// <summary>Quest-type solo maps (Dream Crossroad, Ascension Subspace, …): enter when the active step's AskNpc target spawns only there.</summary>
+    /// <summary>Quest-type solo maps (Dream Crossroad, …): enter when the active step's AskNpc target spawns only there.</summary>
     bool QuestStepNeedsDungeonMap(int dungeonMap)
     {
         if (questLog is null) return false;
-        var eventsOnDungeon = MapEventData.EventsOn(dungeonMap).Select(e => e.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (questLog.OpenClearMapEventNames().Any(eventsOnDungeon.Contains)) return true;
         // A finished quest waiting for its turn-in NPC there counts too (live 2026-10-30: AQ2602000 "The One Who Perceives"
         // complete, its finish NPC N_DreamCrossroad_Ashar_01 comes only from DreamCrossroad_MapEvent's StartSpawner, so the
         // event never started and Ashar never appeared).
@@ -2092,11 +2084,11 @@ public sealed partial class GameSession : IMapEventHost
         return false;
     }
 
-    /// <summary>Quest or Ascension solo instance: stay while a step still needs the map or delayed map-event spawns are pending.</summary>
+    /// <summary>Quest solo instance: stay while a step still needs the map or delayed map-event spawns are pending.</summary>
     bool QuestInstanceExitHoldActive(int map = 0)
     {
         map = map == 0 ? worldMap : map;
-        if (MapEventData.DungeonOfMap(map) is not { Type: var kind } || kind is not ("Quest" or "Ascension")) return false;
+        if (MapEventData.DungeonOfMap(map) is not { Type: "Quest" }) return false;
         return QuestStepNeedsDungeonMap(map) || pendingSpawns.Count > 0;
     }
 

@@ -104,8 +104,6 @@ public sealed record AirspaceWorldRecord(IReadOnlyList<AirspaceOwnerRecord> Owne
 public sealed record WorldResetCursorRecord(long DailyBoundaryMs, long WeeklyBoundaryMs);
 /// <summary>ContentsReset reward limit counter (migration 081).</summary>
 public sealed record RewardLimitRecord(int LimitType, string Period, int Count);
-/// <summary>Daeva Pass weekly EXP for a group (migration 143).</summary>
-public sealed record BattlePassWeeklyRecord(int GroupId, long WeekStartMs, int Exp);
 /// <summary>Instance lockout until Unix ms (migration 082).</summary>
 public sealed record DungeonCooltimeRecord(int DungeonId, long UntilMs);
 /// <summary>Craft recipe periodic limit (migration 083): target 1 char, 2 account, 3 world.</summary>
@@ -196,10 +194,6 @@ public interface IGameplayStore
     Task<int> StigmaBonusShardsAsync(VerifiedAccount account, Guid character, CancellationToken ct = default) => Task.FromResult(0);
     /// <summary>Adds bonus shards (amount must be &gt; 0) and returns the new total, or null when not owned.</summary>
     Task<int?> AddStigmaBonusShardsAsync(VerifiedAccount account, Guid character, int amount, CancellationToken ct = default) => Task.FromResult<int?>(null);
-    /// <summary>Bonus skill points from items (game.character_skill_bonus); 0 when none.</summary>
-    Task<int> SkillBonusPointsAsync(VerifiedAccount account, Guid character, CancellationToken ct = default) => Task.FromResult(0);
-    /// <summary>Adds bonus skill points (amount &gt; 0) and returns the new total, or null when the write fails.</summary>
-    Task<int?> AddSkillBonusPointsAsync(VerifiedAccount account, Guid character, int amount, CancellationToken ct = default) => Task.FromResult<int?>(null);
     /// <summary>
     /// Forgets the listed stigmas and, when <paramref name="kinah"/> is greater than 0, deducts that many Kinah in the same
     /// transaction. False when the character is not owned, Kinah is short, or the write fails; stigmas and Kinah stay unchanged.
@@ -339,9 +333,6 @@ public interface IGameplayStore
     Task<bool> MoveBagItemAsync(VerifiedAccount account, Guid character, Guid item, long revision, int slot, CancellationToken ct = default);
     /// <summary>Moves a bag or warehouse item to a slot of 'bag' or 'storage' (the item on that slot takes the old one).</summary>
     Task<bool> MoveItemToContainerAsync(VerifiedAccount account, Guid character, Guid item, long revision, string location, int slot, CancellationToken ct = default) => Task.FromResult(false);
-    /// <summary>Batch move between bag, personal storage, and account storage (ItemStore / ItemTakeOut). "ok", "none", "failed", or "full".</summary>
-    Task<string> TransferContainerItemsAsync(VerifiedAccount account, Guid character, string fromLocation, string toLocation,
-        IReadOnlyList<(long WireKey, long Count)> transfers, int maxDestinationSlots, CancellationToken ct = default) => Task.FromResult("none");
     /// <summary>The character's mail, newest first (deleted ones left out).</summary>
     Task<IReadOnlyList<PostRecord>> PostsAsync(VerifiedAccount account, Guid character, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<PostRecord>>([]);
     /// <summary>Trusted server call (staff): a mail to any character; returns the stored post.</summary>
@@ -413,10 +404,6 @@ public interface IGameplayStore
     Task<IReadOnlyList<RewardLimitRecord>> RewardLimitsAsync(VerifiedAccount account, Guid character, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<RewardLimitRecord>>([]);
     Task<bool> SaveRewardLimitsAsync(VerifiedAccount account, Guid character, IReadOnlyList<RewardLimitRecord> rows, CancellationToken ct = default) => Task.FromResult(false);
-    Task<IReadOnlyList<BattlePassWeeklyRecord>> BattlePassWeeklyAsync(VerifiedAccount account, Guid character, CancellationToken ct = default) =>
-        Task.FromResult<IReadOnlyList<BattlePassWeeklyRecord>>([]);
-    Task<bool> SaveBattlePassWeeklyAsync(VerifiedAccount account, Guid character, IReadOnlyList<BattlePassWeeklyRecord> rows, CancellationToken ct = default) =>
-        Task.FromResult(false);
     Task<IReadOnlyList<DungeonCooltimeRecord>> DungeonCooltimesAsync(VerifiedAccount account, Guid character, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<DungeonCooltimeRecord>>([]);
     Task<bool> SaveDungeonCooltimesAsync(VerifiedAccount account, Guid character, IReadOnlyList<DungeonCooltimeRecord> rows, CancellationToken ct = default) => Task.FromResult(false);
@@ -481,7 +468,7 @@ public interface IGameplayStore
     /// </summary>
     Task<RideRecord?> UseRideItemAsync(VerifiedAccount account, Guid character, Guid item, long revision, int rideId, CancellationToken ct = default);
     /// <summary>Uses up one soul item: the ride gains soul points (owned or not). Null when the item does not match.</summary>
-    Task<RideRecord?> AddRideSoulsAsync(VerifiedAccount account, Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct = default, int consumeItems = 1);
+    Task<RideRecord?> AddRideSoulsAsync(VerifiedAccount account, Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct = default);
     /// <summary>
     /// Acquires a ride for <paramref name="cost"/> soul points (VehicleList NeedSoul); missing points are
     /// paid with crystals of <paramref name="crystalType"/>, then All crystals. Null when it cannot.
@@ -490,7 +477,7 @@ public interface IGameplayStore
     /// <summary>Raises an owned ride's level for <paramref name="cost"/> soul points (VehicleLevel NeedSoulCount), crystals as above.</summary>
     Task<RideRecord?> LevelUpRideAsync(VerifiedAccount account, Guid character, int rideId, int cost, int crystalType, int maxLevel, CancellationToken ct = default);
     /// <summary>Uses up one crystal item: crystals of its type. The new amount, or null when the item does not match.</summary>
-    Task<int?> AddRideCrystalsAsync(VerifiedAccount account, Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct = default, int consumeItems = 1);
+    Task<int?> AddRideCrystalsAsync(VerifiedAccount account, Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct = default);
     /// <summary>
     /// Stores a creature board, paying crystals (by ESoulCrystalType) and Kina (a bag stack, revision-checked)
     /// in the same transaction; false when something is short or changed.

@@ -174,7 +174,7 @@ partial class GameSession
     {
         if (npc.Dead || npc.Immune || damage <= 0 || !PlayerMayDamageNpc(npc)) return [];
         damage = npc.Landed(damage);
-        npc.Hp = ApplyDamageToNpc(npc, damage);
+        npc.Hp = Math.Max(0, npc.Hp - damage);
         var replies = new List<byte[]>
         {
             GamePackets.SkillHit(npc.Key, playerKey, skill, effectId, damage, critical, 1),

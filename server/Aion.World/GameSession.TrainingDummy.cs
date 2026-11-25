@@ -10,4 +10,7 @@ partial class GameSession
 
     int ApplyDamageToNpc(Target target, int damage) =>
         Combat.HpAfterDamage(target, target.Hp, damage, TrainingDummyKillAllowed(target));
+
+    internal int ApplyDamageToNpcForTests(Target target, int damage) => ApplyDamageToNpc(target, damage);
+    internal bool TrainingDummyKillAllowedForTests(Target target) => TrainingDummyKillAllowed(target);
 }

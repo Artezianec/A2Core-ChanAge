@@ -11,7 +11,7 @@ public sealed class HQ1101070TowerFlowE2ETests
     const long Now = 1_760_960_000_000;
 
     static byte[] Use(int key) => new PacketWriter().U16(0x3636).U8(1).Varint(key).I64(0).I32(0).ToArray();
-    static byte[] GroundReady(int skill) => new PacketWriter().U16(GameSession.SkillGroundReadyRq).I32(skill).ToArray();
+    static byte[] GroundStart(int skill) => new PacketWriter().U16(GameSession.SkillGroundStartRq).I32(skill).ToArray();
 
     static async Task<(GameSession session, MapEventRun run, List<(WorldObject o, int i)> towers, List<(WorldObject o, int i)> boxes)> EnterLayerAsync()
     {
@@ -48,7 +48,7 @@ public sealed class HQ1101070TowerFlowE2ETests
         await session.HandleAsync(Use(WorldObjects.FirstKey + box.i), t + 100);
         await session.TickAsync(t + 100 + GameSession.CarryPickupMs);
         await MapEventScenarioHelpers.SyncPositionAsync(session, tower0.o.At, t + 1000);
-        await session.HandleAsync(GroundReady(5003), t + 1100);
+        await session.HandleAsync(GroundStart(5003), t + 1100);
         await session.TickAsync(t + 2000);
         Assert.False(session.EnvObjBombTowerRemaining(tower0.i, tower0.o, t + 2000));
         Assert.True(session.EnvObjBombTowerRemaining(tower1.i, tower1.o, t + 2000));

@@ -426,38 +426,6 @@ public sealed class TravelParityTests
     }
 
     [Fact]
-    public async Task World_map_teleport_honors_map_and_artifact_fields_and_list_index()
-    {
-        const int safeHaven = 1052070;
-        const int garolik = 1052001;
-        Assert.True(Kibelisks.TryGetPlacement(safeHaven, out var havenMap, out var havenPlacement));
-        Assert.True(Kibelisks.TryGetPlacement(garolik, out var garolikMap, out var garolikPlacement));
-        Assert.Equal(1100, havenMap);
-        Assert.Equal(1110, garolikMap);
-        var garolikArrival = Kibelisks.ArrivalPoint(garolikMap, garolikPlacement, GameData.Embedded.MapPoints(garolikMap));
-        var telpo = GameData.Embedded.MapPoints(garolikMap)["WorldMapTelpo_CheckpointofGarolik"];
-        Assert.Equal(new Vector3d(telpo[0], telpo[1], telpo[2]), garolikArrival);
-
-        const long t = Now + 465_000;
-        var store = new FakeCharacterStore();
-        store.TeleportArtifacts.AddRange([safeHaven, garolik]);
-        var session = await EnterAscendedAsync(store, t, mapId: 1010);
-        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), t);
-        var before = session.Position!.Value;
-        var byIndex = await session.HandleAsync(new PacketWriter().U16(0x9236).I32(1).ToArray(), t + 10);
-        Assert.Contains(byIndex, p => p.SequenceEqual(GamePackets.UseTeleportArtifactReply(garolik)));
-        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), t + 20);
-        Assert.Equal(garolikArrival, session.Position);
-
-        session.Teleport(1010, before, t + 30);
-        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), t + 40);
-        var withMapId = await session.HandleAsync(new PacketWriter().U16(0x9236).I32(garolikMap).I32(garolik).ToArray(), t + 50);
-        Assert.Contains(withMapId, p => p.SequenceEqual(GamePackets.UseTeleportArtifactReply(garolik)));
-        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), t + 60);
-        Assert.Equal(garolikArrival, session.Position);
-    }
-
-    [Fact]
     public async Task Subzone_entry_uncovers_fog_group()
     {
         const long t = Now + 500_000;

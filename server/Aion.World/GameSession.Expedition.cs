@@ -86,7 +86,7 @@ public sealed class ExpeditionTables
 public sealed partial class GameSession
 {
     // The content tickets moved to GameSession.ContentTickets.cs (OBSERVED 0x610b / 0x610c; our 0x3854 / 0x3855 were guesses).
-    public const ushort PartyDungeonClearNt = 0x3A69, PartyDungeonMiddleBossKillNt = MiddleBossKillNt;
+    public const ushort PartyDungeonClearNt = 0x9333, PartyDungeonMiddleBossKillNt = MiddleBossKillNt;
 
     static ExpeditionTables Expeditions => ExpeditionTables.Embedded;
 

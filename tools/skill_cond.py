@@ -109,77 +109,9 @@ def export_from_skill_cond():
     return by_skill, rel
 
 
-def _effects_by_group(effect_table):
-    by_group = {}
-    if effect_table is None:
-        return by_group
-    for row in _rows(effect_table):
-        gid = int(_value(row.get('SkillEffectGroupId', 0)) or 0)
-        if gid:
-            by_group.setdefault(gid, []).append(row)
-    return by_group
-
-
-def _needed_self_groups(cond_by_skill):
-    """Abnormal groups that unlock Self-gated conditional skills (SkillCond.dat)."""
-    groups = set()
-    for row in cond_by_skill.values():
-        if row.get('type') != 'HasAbnormalGroupId':
-            continue
-        if row.get('select_target', 'Self') != 'Self':
-            continue
-        group = int(row.get('abnormal_group') or 0)
-        if group:
-            groups.add(group)
-    return groups
-
-
-def _self_abnormal_grants(skill_table, effect_table, cond_by_skill):
-    """skill_id -> grant from toggles and caster Abnormal_True rows that feed SkillCond needs."""
-    grants = _self_abnormal_grants_toggle(skill_table)
-    grants.update(_self_abnormal_grants_caster(skill_table, effect_table, cond_by_skill))
-    return grants
-
-
-def _self_abnormal_grants_caster(skill_table, effect_table, cond_by_skill):
-    """Skills whose first caster Abnormal_True enables another skill's Self HasAbnormalGroupId gate."""
-    needed = _needed_self_groups(cond_by_skill)
-    if not needed or skill_table is None or effect_table is None:
-        return {}
-    by_group = _effects_by_group(effect_table)
-    skills = {int(_value(r['ID'])): r for r in _rows(skill_table)}
-    grants = {}
-    for sid, sk in skills.items():
-        if sid < 11_000_000 or sid >= 20_000_000:
-            continue
-        for slot in sk.get('SkillEffectTimeDataList') or []:
-            gid = int(_value(slot.get('SkillEffectGroupId', 0)) or 0)
-            if not gid:
-                continue
-            for row in by_group.get(gid, []):
-                et = _short(row.get('EffectType', 'None'))
-                if et not in ('Abnormal_True', 'Abnormal'):
-                    continue
-                tt = _short(row.get('TargetType', 'None'))
-                if tt not in ('Self', 'MainSelf', 'Caster', 'None', ''):
-                    continue
-                values = row.get('EffectValueList') or []
-                abnormal = _int(values, 2)
-                if not abnormal or abnormal not in needed:
-                    continue
-                min_ms = _int(values, 0)
-                max_ms = _int(values, 1)
-                duration = max_ms if max_ms > 0 else (min_ms if min_ms > 0 else -1)
-                grants[sid] = {
-                    'abnormal': abnormal,
-                    'duration_ms': duration,
-                    'select_target': 'Self',
-                    'source': 'SkillEffect.dat',
-                }
-                break
-            if sid in grants:
-                break
-    return grants
+def _self_abnormal_grants(skill_table, effect_table):
+    """skill_id -> grant from Skill.dat ToggleOnAbnormalId only (self toggle buffs on accept)."""
+    return _self_abnormal_grants_toggle(skill_table)
 
 
 def _self_abnormal_grants_toggle(skill_table):
@@ -214,17 +146,12 @@ def patch(doc):
     """Merge SkillCond export + table grants + overrides into class-skills.json skills."""
     needs, need_src = export_from_skill_cond()
     skill_table, effect_table = _skill_tables()
+    grants = _self_abnormal_grants(skill_table, effect_table)
     overrides = load_overrides()
     for sid, row in overrides['needs'].items():
-        if sid not in needs:
-            needs[sid] = {k: v for k, v in row.items() if k != 'evidence'}
-    grants = _self_abnormal_grants(skill_table, effect_table, needs)
+        needs[sid] = {k: v for k, v in row.items() if k != 'evidence'}
     for sid, row in overrides['grants'].items():
         grants[sid] = {k: v for k, v in row.items() if k != 'evidence'}
-    # Mastery variants (13060047, …) carry the grant row; the kit learns the family id (13060000).
-    for sid, grant in list(grants.items()):
-        root = sid // 10_000 * 10_000
-        grants.setdefault(root, grant)
 
     patched_needs, patched_grants = [], []
     for sid_str, skill in doc.get('skills', {}).items():

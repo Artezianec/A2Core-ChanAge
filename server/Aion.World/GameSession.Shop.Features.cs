@@ -93,20 +93,8 @@ public sealed partial class GameSession
             replies.AddRange(await InventoryChangesAsync(ct, IncreaseShopBuy, DecreaseShopBuy));
         else
             replies.AddRange(await MailLoadHintAsync(ct));
-        if (viaMail)
-            replies.AddRange(await GrantMailShopSkinsAsync(rewards, ct));
-        var autoUse = await AutoUseAcquiredItemsAsync(rewards.Select(r => r.Item1), now, ct);
-        replies.AddRange(autoUse);
-        if (autoUse.Any(p => Opcode(p) == SkinUpdateNt) || viaMail)
-            replies.Add(SkinInfo());
-        // Closets, consumed stackables, and wallet: auto-use can grant skins or burn grant items before the client sees the purchase close.
-        if (!viaMail)
-            replies.AddRange(await InventoryChangesAsync(ct, IncreaseShopBuy, DecreaseShopBuy));
-        if (paid.Quna > 0)
-        {
-            await RefreshAccountQunaBalanceAsync(ct);
-            replies.Add(QunaRefreshNow());
-        }
+        replies.AddRange(await AutoUseAcquiredItemsAsync(rewards.Select(r => r.Item1), now, ct));
+        if (paid.Quna > 0) replies.AddRange(QunaRefreshIfChanged());
         replies.AddRange(MileageRefreshIfChanged());
         return replies;
     }

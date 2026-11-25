@@ -111,14 +111,19 @@ public sealed class RewardBoxes
 
     public static RewardBoxes Embedded => embedded.Value;
 
-    static readonly HashSet<string> defaultHandled = [.. ItemUseEffects.Handled];
+    static readonly HashSet<string> defaultHandled =
+    [
+        "RewardBox", "GetVehicle", "GetVehicleSoul", "GetVehicleSoulCrystal", "Fix_VehicleCreatureLevel", "Skill",
+        "Telpo_Home", "GetKina", "GetNonBindingKina", "GetTitle", "GetSkin", "GetSkinSet", "GetSocialAction",
+        "GetDaevanionPoint", "GetGodstone", "GetStigmaShard", "GetQuest", "GetWing", "AscensionGrade",
+    ];
 
     /// <summary>Whether the server has an item-use handler for this Item.dat UseEffect (boxes.json handled_use_effects).</summary>
     public bool ImplementsUseEffect(string effect)
     {
         if (file.HandledUseEffects is { Length: > 0 } handled)
-            return handled.Contains(effect) ? ItemUseEffects.ReportsAsImplemented(effect) : false;
-        return ItemUseEffects.ReportsAsImplemented(effect);
+            return handled.Contains(effect);
+        return defaultHandled.Contains(effect);
     }
 
     static string Key(int id) => id.ToString(System.Globalization.CultureInfo.InvariantCulture);

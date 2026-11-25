@@ -332,6 +332,44 @@ sealed class Workflow(ServerEntry server, LauncherSettings settings)
         if (!version.IsSteam) ClientPatchSupport.DeployIfEnabled(folder, settings.AllowClientPatchPaks);
         else if (settings.AllowClientPatchPaks) status(LauncherLoc.StatusPatchNotOnSteam);
 
+        // A Steam copy must be started by Steam: -applaunch gives the client a fresh platform
+        // ticket (-lp). The cached arguments in appinfo.vdf can be stale (the client then stops at
+        // "Failed to retrieve Settings Server value [NP:0:0]"). Hosts/config redirection is applied
+        // before Steam starts the game; the Steam launch adds its own -saveddirsuffix=Steam.
+        if (version.IsSteam)
+        {
+            status(LauncherLoc.StatusPointingHosts);
+            await EnsureHostsSessionAsync(folder, status, ct);
+            status(LauncherLoc.StatusStartingGame);
+            var steamExe = Path.Combine(steam.Root, "steam.exe");
+            if (!File.Exists(steamExe)) throw new LauncherException(LauncherLoc.ErrSteamCopyMissing);
+            var startedAt = DateTime.Now;
+            // TEMPORARY diagnostics: extra arguments after -applaunch reach the game. -log opens the UE console and
+            // -abslog writes it to a file, so a stuck world load can be diagnosed from the client side.
+            var launchArgs = $"-applaunch {SteamInstall.AppId} -log -abslog=C:\\AionClient.log";
+            DnsInject.Log($"steam launch: \"{steamExe}\" {launchArgs}");
+            Process.Start(new ProcessStartInfo(steamExe, launchArgs) { UseShellExecute = true });
+            for (var attempt = 0; attempt < 240; attempt++)
+            {
+                await Task.Delay(500, ct);
+                foreach (var process in Process.GetProcessesByName("AION2"))
+                {
+                    try
+                    {
+                        if (process.StartTime < startedAt) continue;
+                        var path = process.MainModule?.FileName;
+                        if (path is not null && path.StartsWith(folder, StringComparison.OrdinalIgnoreCase))
+                        {
+                            DnsInject.Log($"steam launch started {path}");
+                            return process;
+                        }
+                    }
+                    catch (Exception) { }
+                }
+            }
+            throw new LauncherException(LauncherLoc.ErrGameDidNotStart);
+        }
+
         status(LauncherLoc.StatusStartingGame);
         var exe = Path.Combine(folder, executable.Replace('/', '\\'));
         var info = new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe)! };
@@ -361,6 +399,13 @@ sealed class Workflow(ServerEntry server, LauncherSettings settings)
 
     async Task EnsureHostsSessionAsync(string folder, Action<string> status, CancellationToken ct)
     {
+        // The NCGuard sink owns its nine-host block while it runs (it removes it on shutdown). Adding the
+        // launcher's block as well makes the sink's RestoreHosts see a changed file and abort.
+        if (HostsFile.HasNcGuardBlock(await File.ReadAllTextAsync(HostsFile.SystemPath, ct)))
+        {
+            DnsInject.Log("NCGuard sink hosts block present; the launcher leaves it alone.");
+            return;
+        }
         var helper = Elevated.Start("--hosts-session", folder, config.ServerAddress,
             config.RedirectConfigHostsEnabled ? "config-hosts" : "noconfig-hosts")
             ?? throw new LauncherException(LauncherLoc.ErrHostsCancelled);

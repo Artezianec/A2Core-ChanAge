@@ -8,9 +8,6 @@ namespace Aion.World;
 // colour string's format and the size's unit are not observed).
 public sealed partial class GameSession
 {
-    /// <summary>Whether the client F10 dev helper is enabled on this connection (host option, independent of staff role).</summary>
-    public bool ClientGmPanelAvailable() => options.ClientGmPanel;
-
     public const ushort KickNt = 0x8d2e, NoticeNt = 0x8d2f;
     const byte KickByAdmin = 6;   // EKickReason ByAdmin
 

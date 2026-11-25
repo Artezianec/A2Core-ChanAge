@@ -83,6 +83,15 @@ public sealed class MapEventCutsceneWaitTests
     }
 
     [Fact]
+    public void Position_check_runs_only_while_a_volume_objective_is_open()
+    {
+        var (run, _) = Start(new TimelineHost());
+        Assert.True(run.NeedsPositionCheck, "the test step has an open EnterVolumePC");
+        Assert.True(run.PositionAt(name => name == "Trigger_Never", _ => false, 100));
+        Assert.False(run.NeedsPositionCheck, "the volume goal is credited; no standing checks needed");
+    }
+
+    [Fact]
     public void Talk_times_come_from_the_client_NpcTalk_table()
     {
         Assert.Equal(3000, NpcTalks.DurationMs("D_Starter_HQ001_Caption_06"));

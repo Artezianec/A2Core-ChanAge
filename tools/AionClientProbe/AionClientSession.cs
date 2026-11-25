@@ -2,6 +2,7 @@ using System.Text.Json;
 using CUE4Parse.Compression;
 using CUE4Parse.Encryption.Aes;
 using CUE4Parse.FileProvider;
+using CUE4Parse.GameTypes.Aion2.Encryption.Aes;
 using CUE4Parse.MappingsProvider.Usmap;
 using CUE4Parse.UE4.Objects.Core.Misc;
 using CUE4Parse.UE4.Versions;
@@ -22,7 +23,8 @@ public sealed class AionClientSession : IDisposable
         UsmapPath = usmapPath;
     }
 
-    public static AionClientSession Open(string paksFolder, string keyJsonPath, string oodleDllPath, string usmapPath)
+    public static AionClientSession Open(string paksFolder, string keyJsonPath, string oodleDllPath, string usmapPath,
+        string? appVersion = null)
     {
         paksFolder = Path.GetFullPath(paksFolder);
         keyJsonPath = Path.GetFullPath(keyJsonPath);
@@ -32,6 +34,10 @@ public sealed class AionClientSession : IDisposable
         if (!File.Exists(keyJsonPath)) throw new FileNotFoundException("AES key JSON not found", keyJsonPath);
         if (!File.Exists(oodleDllPath)) throw new FileNotFoundException("Oodle DLL not found", oodleDllPath);
         if (!File.Exists(usmapPath)) throw new FileNotFoundException("Usmap not found", usmapPath);
+
+        // Optional hint for the versioned table key manifest; the CUE4Parse reader still validates it
+        // against the manifest records and falls back to recovering the version by search.
+        Aion2DatFileEncryption.AppVersionHint = string.IsNullOrWhiteSpace(appVersion) ? null : appVersion.Trim();
 
         OodleHelper.Initialize(oodleDllPath);
         CUE4Parse.Globals.FatalObjectSerializationErrors = true;

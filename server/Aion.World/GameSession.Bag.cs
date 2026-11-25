@@ -9,7 +9,6 @@ public readonly record struct ContainerSlotExtendView(int InventoryByItem, int I
     public int[] ToWireCounts() => [InventoryByItem, InventoryByGold, Storage, StorageByItem, CharacterStorageByGold, CharacterStorageByItem];
     public int BagSlotLimit => GameSession.BaseBagSlotCount + InventoryByGold * GameSession.BagSlotsPerRow + InventoryByItem * GameSession.BagSlotsPerRow;
     public int StorageSlotLimit => GameSession.BaseStorageSlotCount + Storage * GameSession.StorageSlotsPerLine + StorageByItem * GameSession.StorageSlotsPerLine;
-    public int AccountStorageSlotLimit => GameSession.BaseStorageSlotCount + CharacterStorageByGold * GameSession.StorageSlotsPerLine + CharacterStorageByItem * GameSession.StorageSlotsPerLine;
 
     /// <summary>ItemContainerSlotExtend RS/NT tail counts for the requested EItemContainerType.</summary>
     public (byte ByItem, byte ByGold) WireExtendPair(byte container) => container switch
@@ -41,6 +40,7 @@ public sealed partial class GameSession
     const int MaxBagGoldExtensions = 10, MaxStorageGoldExtensions = 31;
 
     public const ushort ItemMoveRq = 0x563a, ItemMoveRs = 0x563b, ItemRemoveRq = 0x563c, ItemRemoveRs = 0x563d, ItemSortRq = 0x563e, ItemSortRs = 0x563f,
+        ItemStoreRq = 0x5642, ItemStoreRs = 0x5643, ItemTakeOutRq = 0x5644, ItemTakeOutRs = 0x5645,
         // DevPacketData 0x398A ItemContainerSlotExtend: live +0x1ebe → 0x5848 (0x56 run) or +0x53c5 → 0x8d4f (0x8d run, after SealStone 0x3989→0x8d4e).
         ItemContainerSlotExtendRq = 0x5848, ItemContainerSlotExtendRs = 0x5849, ItemContainerSlotExtendNt = 0x584a,
         ItemContainerSlotExtend8dRq = 0x8d4f, ItemContainerSlotExtend8dRs = 0x8d50, ItemContainerSlotExtend8dNt = 0x8d51,
@@ -120,9 +120,28 @@ public sealed partial class GameSession
         Profile()?.DefaultBar().Any(s => s.Slot == number) == true || GamePackets.LevelQuickSlotItems.Any(i => i.Slot == number);
 
     /// <summary>
+    /// EItemContainerType (2.0.12): kInventory 1, kStorage 2 (server/account warehouse), kCharacterStorage 15
+    /// (the per-character warehouse). 3 is the old alias for the account warehouse and stays accepted.
+    /// </summary>
+    internal static string? ContainerLocation(byte container) => container switch
+    {
+        InventoryItem.Bag => "bag",
+        CharacterStorageContainer => "storage",
+        InventoryItem.Storage or InventoryItem.AccountStorage => "account_storage",
+        _ => null,
+    };
+
+    /// <summary>The wire EItemContainerType of a stored location (equipment has its own container 11).</summary>
+    internal static byte ContainerOf(string location) => location switch
+    {
+        "storage" => CharacterStorageContainer,
+        "account_storage" => InventoryItem.Storage,
+        _ => InventoryItem.Bag,
+    };
+
+    /// <summary>
     /// 0x563a ItemMove_RQ {npc key i32, EItemContainerType u8, item key i64, slot pos i32}: a bag or warehouse item to a
-    /// slot of the bag (1) or the warehouse (2, kStorage: the Storage NPCs' depot; kept per character, OURS — the
-    /// official one is account-wide). Equipped items go through ItemEquip.
+    /// slot of the bag (1), the character warehouse (15) or the account warehouse (2). Equipped items go through ItemEquip.
     /// </summary>
     async Task<List<byte[]>> MoveItemInBagAsync(byte[] plain, CancellationToken ct)
     {
@@ -130,7 +149,7 @@ public sealed partial class GameSession
         byte container = plain[6];
         var key = BitConverter.ToInt64(plain, 7);
         byte[] Reply(int result) => PacketWriter.Opcode(ItemMoveRs).U16(result).I32(npc).U8(container).I64(key).I32(slot).ToArray();
-        var target = container switch { InventoryItem.Bag => "bag", InventoryItem.Storage => "storage", InventoryItem.AccountStorage => "account_storage", _ => null };
+        var target = ContainerLocation(container);
         if (target is null || Store is not { } store || CharacterId is not { } character || !storedItems.TryGetValue(key, out var row) || row.Location is not ("bag" or "storage" or "account_storage") || slot < 0)
             return [Reply(1)];
         var moved = await Stored(async () => (target == "bag" && row.Location == "bag"
@@ -138,6 +157,45 @@ public sealed partial class GameSession
             : await store.MoveItemToContainerAsync(character, row.InstanceId, row.Revision, target, slot, ct)) ? [[]] : []);
         if (moved.Count == 0) return [Reply(1)];
         return [Reply(0), .. await InventoryChangesAsync(ct, 0, 0), .. target == "storage" && row.Location == "bag" ? Achieve("StorageStore") : []];
+    }
+
+    /// <summary>
+    /// 0x5642 ItemStore_RQ / 0x5644 ItemTakeOut_RQ {npc key i32, map item key i64 -> count i64, EItemContainerType u8}:
+    /// a warehouse tab's deposit/take-out (ItemMove_RQ 0x563a is the bag/slot drag). Answered 0x5643/0x5645 with the
+    /// echoed map so the client stops resending (it repeated the unanswered request 29 times, live 2026-11-24 19:46).
+    /// Whole stacks only: the request's count must be the row's quantity.
+    /// </summary>
+    async Task<List<byte[]>> StoreItemsAsync(byte[] plain, bool takeOut, CancellationToken ct)
+    {
+        var items = new List<(long Key, long Count)>();
+        int npc;
+        byte container;
+        try
+        {
+            var reader = new PacketReader(plain) { Offset = 2 };
+            npc = reader.I32();
+            var count = reader.Varint();
+            for (var i = 0; i < count && i < 64; i++) items.Add(((long)reader.U64(), (long)reader.U64()));
+            container = reader.U8();
+        }
+        catch (ProtocolException) { return []; }
+        byte[] Reply(int result) => GamePackets.ItemStoreReply(takeOut ? ItemTakeOutRs : ItemStoreRs, result, npc, items, container);
+        var warehouse = ContainerLocation(container);
+        if (warehouse is null or "bag" || items.Count == 0 || Store is not { } store || CharacterId is not { } character)
+            return [Reply(1)];
+        var from = takeOut ? warehouse : "bag";
+        var to = takeOut ? "bag" : warehouse;
+        var used = storedItems.Values.Where(s => s.Location == to && s.Slot is not null).Select(s => s.Slot!.Value).ToHashSet();
+        var slot = 0;
+        foreach (var (key, count) in items)
+        {
+            if (!storedItems.TryGetValue(key, out var row) || row.Location != from || count < 1 || count != row.Quantity) return [Reply(1)];
+            while (used.Contains(slot)) slot++;
+            var moved = await Stored(async () => await store.MoveItemToContainerAsync(character, row.InstanceId, row.Revision, to, slot, ct) ? [[]] : []);
+            if (moved.Count == 0) return [Reply(1)];
+            used.Add(slot);
+        }
+        return [Reply(0), .. await InventoryChangesAsync(ct, 0, 0), .. to == "storage" && from == "bag" ? Achieve("StorageStore") : []];
     }
 
     /// <summary>0x563c ItemRemove_RQ {map item key -> count (bag), map (temporary bag)}: discarded, answered with the same maps.</summary>
@@ -349,7 +407,7 @@ public sealed partial class GameSession
         var npc = BitConverter.ToInt32(plain, 2);
         var container = plain[6];
         byte[] Reply(int result) => PacketWriter.Opcode(ItemSortRs).U16(result).I32(npc).U8(container).ToArray();
-        var location = container switch { InventoryItem.Bag => "bag", InventoryItem.Storage => "storage", InventoryItem.AccountStorage => "account_storage", _ => null };
+        var location = ContainerLocation(container);
         if (location is null || Store is not { } store || CharacterId is not { } character) return [Reply(1)];
         var sorted = await Stored(async () => await store.SortContainerAsync(character, location, ct, ItemCurrencies.All) ? [[]] : []);
         return sorted.Count == 0 ? [Reply(1)] : [Reply(0), .. await InventoryChangesAsync(ct, 0, 0)];

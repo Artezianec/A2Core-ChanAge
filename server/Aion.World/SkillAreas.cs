@@ -125,6 +125,7 @@ public static class SkillAreas
     public static bool IsImprovised(int abnormalId) =>
         file.Value.AbnormalEffects?.GetValueOrDefault(abnormalId.ToString(System.Globalization.CultureInfo.InvariantCulture))?.Source == "override";
 
+    /// <summary>The shape / projectile of a class skill, or null.</summary>
     static bool HasData(Area area) =>
         area.Shape is not null || area.Projectile > 0 || area.Ground is not null
         || area.Effects is { Length: > 0 } || area.CasterDebuffRows.Any() || area.TargetDebuffRows.Any();

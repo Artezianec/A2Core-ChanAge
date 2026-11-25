@@ -26,8 +26,8 @@ public static class AbnormalSpecs
     /// (DungeonBuffAbnormals), then the ported client rows (PortedSkillAbnormals) for ids none of those know.
     /// Improvised skill-areas overrides stay ahead of the ported table.</summary>
     public static AbnormalInfo? Info(int abnormalId) =>
-        RewardBoxes.Embedded.Abnormal(abnormalId) ?? SkillAreas.Abnormal(abnormalId) ?? StigmaAbnormals.Info(abnormalId)
-        ?? DungeonBuffAbnormals.Of(abnormalId) ?? PortedSkillAbnormals.Info(abnormalId) ?? SkillEffectEngine.Abnormal(abnormalId);
+        RewardBoxes.Embedded.Abnormal(abnormalId) ?? SkillAreas.Abnormal(abnormalId) ?? DungeonBuffAbnormals.Of(abnormalId)
+        ?? PortedSkillAbnormals.Info(abnormalId) ?? SkillEffectEngine.Abnormal(abnormalId);
 
     public static IEnumerable<string> Types(int abnormalId) => Info(abnormalId)?.Effects.Select(e => e.Type) ?? [];
 
@@ -65,23 +65,24 @@ public static class AbnormalSpecs
         List<Displace> moves = [];
         foreach (var (id, type, values) in Info(abnormalId)?.Effects ?? [])
         {
-            if (type.Equals("Taunt", StringComparison.OrdinalIgnoreCase))
-            {
-                taunt = true;
-                continue;   // client rows often add Bind/BlockMove* for taunt VFX; server must not hold the mob (it still chases)
-            }
             if (HoldTypes.Contains(type)) held = true;
             if (SilenceTypes.Contains(type)) silence = true;
+            // The 2.0.12 client rows carry the movement slow as StatChange MoveSpeed (Slow has no value of its own).
+            if (type == "StatChange" && values.Count >= 2 && values[0].Equals("MoveSpeed", StringComparison.OrdinalIgnoreCase)
+                && int.TryParse(values[1], out var moveDelta) && moveDelta < 0)
+                slow = Math.Max(slow, -moveDelta);
             switch (type)
             {
                 case "Slow": slow = Math.Max(slow, Value(values, 0)); break;
                 case "Snare": slow = 10_000; break;
+                case "Taunt": taunt = true; break;
                 case "Dot_TargetMaxHP" when Value(values, 0) > 0: dots.Add(new(id, Value(values, 0), Value(values, 1), Value(values, 2))); break;
                 case "Knockback": moves.Add(new(DisplaceKind.Knockback, Value(values, 0), Math.Max(100, Value(values, 1)))); break;
+                // 2.0.12 KnockdownInstant [distance]: the client has no Knockback row; 1 is a knockdown in place.
+                case "KnockdownInstant" when Value(values, 0) >= 50: moves.Add(new(DisplaceKind.Knockback, Value(values, 0), 2_000)); break;
                 case "Aerial": moves.Add(new(DisplaceKind.Aerial, Value(values, 0), Math.Max(100, Value(values, 1)))); break;
             }
         }
-        if (taunt) held = false;
         return new(held, silence, Math.Min(10_000, slow), taunt, dots, moves);
     }
 }

@@ -27,14 +27,10 @@ Every value is marked as in CONTRIBUTING.md: **recovered** (the client's own tab
 - **Power (OURS).** A stigma's level is its skill level for damage, on the same scale as skill-point mastery
   (`Combat.SkillLevelDamageScale`). Global's specialties at 5/10/15/20 are not modelled.
 - **Cast data.** Name, cooldown, casting time, weapons, target and MP/HP/SP cost are recovered (Skill.dat facts in the
-  catalogue). Damage is OURS: a stigma aimed at a target borrows a comparable class skill's damage rows. Self stigmas
-  carry `self_buffs` rows (caster `Abnormal_True` / `Abnormal_Cc` from SkillEffect.dat, `tools/stigmas.py
-  patch-self-buffs`) and apply through the same `ClassSelfBuffs` path as class self skills (for example Dash). A few
-  self stigmas that only use Toggle, heals or summons still have no abnormal row (`params.self_buff_missing` in
-  `stigmas.json`).
+  catalogue). Damage is OURS: a stigma aimed at a target borrows a comparable class skill's damage rows; self stigmas
+  (buffs, stances) have none until their SkillEffect rows are exported, so they cast but do nothing yet.
 - **Reset (OBSERVED cost).** Resetting one stigma or all forgets them, refunds every spent shard and clears their quick
-  slots. An active self-buff from that stigma ends with the reset or when the stigma is removed from a slot (while
-  `RequireSlot` is on). Official KR launch (Nov 2025) charged **100,000 Kinah** on the confirm button and refunded all spent shards.
+  slots. Official KR launch (Nov 2025) charged **100,000 Kinah** on the confirm button and refunded all spent shards.
   `Aion:Stigmas:ResetKinah` defaults to 0 (free): six official resets in the global community recordings of 2026-11-05/06 had no cost message. The KR launch video showed 100000; set it for that. The same amount is
   charged for one skill or all; we have no official all-reset price. If the character has too little Kinah, the reset is
   refused with generic result 1 (we have no named not-enough-Kinah EResult on this path) and nothing is forgotten.

@@ -137,7 +137,7 @@
       "id": "battle_pass_weekly_exp",
       "scope": "character",
       "period": "weekly",
-      "store": "game.character_battle_pass_weekly",
+      "store": "not persisted (stub)",
       "lazy": true
     }
   ]

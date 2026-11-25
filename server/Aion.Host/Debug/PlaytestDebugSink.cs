@@ -26,10 +26,8 @@ public sealed class PlaytestDebugSink : IPlaytestDebugSink, IAsyncDisposable
         "map_event_slice_decision", "enter_vol_trigger", "bomb_probe_move", "bomb_plant_refused", "kill_spawner_slice", "kill_spawner_skip", "kill_spawner_target", "kill_spawner_credit", "hp_remaining_target",
         "bomb_plant", "bomb_channel_complete", "pickup_bomb", "map_event_join",
         "abnormal_unknown_effect", "abnormal_stack", "self_abnormal", "skill_trigger", "skill_effect_unknown", "skill_drain",
-        "move_reject",
         // Diagnostics for unknown client requests (were file-only, so live console logs never showed them).
         "unhandled_packet", "container_slot_extend",
-        "ncguard_http",
     };
 
     readonly DebugOptions options;

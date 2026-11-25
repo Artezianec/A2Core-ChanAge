@@ -6,12 +6,14 @@
       "family": true,
       "effects": [
         [
-          "CasterMove",
-          "Forward",
-          "1500"
+          "Teleport_Caster",
+          "TargetLocation_CasterToTargetDirection",
+          "100",
+          "180",
+          "100"
         ]
       ],
-      "evidence": "Leaping Slam (Gladiator): the client SkillEffect row uses CasterMoveDirection Forward toward the locked target; 1500 cm caps the leap at roughly melee reach when tables are absent (tools/skill_areas.py patch)."
+      "evidence": "Leaping Slam (Gladiator): SkillEffect group 111900071 row 1119000711 is Teleport_Caster TargetLocation_CasterToTargetDirection (100, 180, 100), so the caster lands on its own side of the target. The 2026-11-24 2.0.12 export carries the row; this is the fallback when the client tables are absent."
     },
     "11260000": {
       "name": "Defiance",
@@ -77,6 +79,45 @@
       ],
       "scope": "self",
       "evidence": "Defiance (60 s): clears the crowd control on the caster."
+    },
+    "15210000": {
+      "name": "Flame Arrow",
+      "family": true,
+      "scope": "self",
+      "effects": [
+        [
+          "MpHealRatio",
+          "300",
+          "300"
+        ]
+      ],
+      "evidence": "SkillEffect.dat *201 Damage row DrainByDamageAndCasterMaxHPOnce: EffectValueList 100,100 and 300 (client export 2026-11-22); 300 permille of max MP on hit."
+    },
+    "15030000": {
+      "name": "Burst",
+      "family": true,
+      "scope": "self",
+      "effects": [
+        [
+          "MpHealRatio",
+          "300",
+          "300"
+        ]
+      ],
+      "evidence": "SkillEffect.dat *201 Damage row DrainByDamageAndCasterMaxHPOnce (Flame Arrow chain); client export 2026-11-22."
+    },
+    "15250000": {
+      "name": "Pyroclasm",
+      "family": true,
+      "scope": "self",
+      "effects": [
+        [
+          "MpHealRatio",
+          "300",
+          "300"
+        ]
+      ],
+      "evidence": "SkillEffect.dat *201 Damage row DrainByDamageAndCasterMaxHPOnce (Burst chain finisher); client export 2026-11-22."
     },
     "16200000": {
       "name": "Defiance",
@@ -318,6 +359,16 @@
       ],
       "evidence": "Frost: the cold slows the target by 40 %."
     },
+    "153100001": {
+      "effects": [
+        [
+          "StatChange",
+          "MPUseDecrease",
+          "3000"
+        ]
+      ],
+      "evidence": "Wish of Concentration (Sorcerer, 10 s): 30 % cheaper skills."
+    },
     "161400001": {
       "effects": [
         [
@@ -344,38 +395,6 @@
         ]
       ],
       "evidence": "Chain of Torment (Cleric): torment damage, 5 % of the maximum over its 10 s."
-    },
-    "170800001": {
-      "effects": [
-        [
-          "Dot_NormalCalc",
-          "1000",
-          "TRUE",
-          "TRUE",
-          "74",
-          "74",
-          "14190",
-          "14190",
-          "1"
-        ],
-        [
-          "StatChange",
-          "PvEAmplifyDamage",
-          "-500",
-          "0",
-          "0",
-          "1"
-        ],
-        [
-          "StatChange",
-          "PvPAmplifyDamage",
-          "-250",
-          "0",
-          "0",
-          "1"
-        ]
-      ],
-      "evidence": "Debilitating Mark (Cleric, 10 s): client SkillAbnormalEffect rows; victim amplify wired in NpcVictimAmplify."
     },
     "170900001": {
       "effects": [

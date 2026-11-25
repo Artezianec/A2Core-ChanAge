@@ -51,15 +51,11 @@ public sealed class EnchantTables
         file.Items.TryGetValue(Key(itemId), out var groups) && groups[0].StartsWith("Enchant_Unique_", StringComparison.Ordinal);
 }
 
-/// <summary>Amplify (◆) from tools/data/exceed_enchant.json — per-group ExceedEnchant.dat ladders and AdditionalStat effects.</summary>
+/// <summary>Amplify (◆) from tools/data/exceed_enchant.json — ExceedEnchant.dat costs; stat curve scaled from reference ilvl 102.</summary>
 public sealed class ExceedEnchantTables
 {
     sealed record ExceedFile(
         [property: JsonPropertyName("amplify_stone_item")] int AmplifyStone,
-        [property: JsonPropertyName("items")] Dictionary<string, string[]>? Items,
-        [property: JsonPropertyName("groups")] Dictionary<string, int[][]>? Groups,
-        [property: JsonPropertyName("effects")] Dictionary<string, JsonElement[][]>? Effects,
-        [property: JsonPropertyName("group_caps")] Dictionary<string, int>? GroupCaps,
         [property: JsonPropertyName("unique_enchant_group_prefix")] string UniquePrefix,
         [property: JsonPropertyName("max_surpass_by_item_level")] int[][] MaxByLevel,
         [property: JsonPropertyName("steps")] int[][] Steps,
@@ -88,35 +84,21 @@ public sealed class ExceedEnchantTables
 
     public int AmplifyStoneItem => file.AmplifyStone;
 
-    static string ItemKey(int id) => id.ToString(System.Globalization.CultureInfo.InvariantCulture);
-
-    (string ExceedGroup, string EffectGroup)? GroupsFor(int itemId) =>
-        file.Items is not null && file.Items.TryGetValue(ItemKey(itemId), out var row) && row.Length >= 2
-            ? (row[0], row[1]) : null;
-
-    public int MaxSurpass(int itemId, int itemLevel)
+    public int MaxSurpass(int itemLevel)
     {
-        if (GroupsFor(itemId) is { } mapped && file.GroupCaps is not null && file.GroupCaps.TryGetValue(mapped.ExceedGroup, out var cap))
-            return cap;
         var max = 0;
         foreach (var row in file.MaxByLevel.OrderBy(r => r[0]))
             if (itemLevel >= row[0]) max = row[1];
         return max;
     }
 
-    int[][] StepsFor(int itemId) =>
-        GroupsFor(itemId) is { } mapped && file.Groups?.TryGetValue(mapped.ExceedGroup, out var rows) == true ? rows : file.Steps;
-
     /// <summary>The ◆ attempt from <paramref name="surpassLevel"/>; null when capped or ineligible.</summary>
     public Step? Next(int itemId, int itemLevel, int enchantLevel, int surpassLevel)
     {
-        var mapped = GroupsFor(itemId);
-        if (mapped is null && !enchants.IsUniqueEnchant(itemId)) return null;
-        if (enchants.Next(itemId, enchantLevel) is not null || surpassLevel < 0) return null;
-        var steps = StepsFor(itemId);
-        var cap = MaxSurpass(itemId, itemLevel);
-        if (cap <= 0 || surpassLevel >= cap || surpassLevel >= steps.Length) return null;
-        var r = steps[surpassLevel];
+        if (!enchants.IsUniqueEnchant(itemId) || enchants.Next(itemId, enchantLevel) is not null || surpassLevel < 0) return null;
+        var cap = MaxSurpass(itemLevel);
+        if (cap <= 0 || surpassLevel >= cap || surpassLevel >= file.Steps.Length) return null;
+        var r = file.Steps[surpassLevel];
         if (r[0] <= 0) return null;
         return new Step(r[0], r[1], r[3], r[4]);
     }
@@ -128,23 +110,15 @@ public sealed class ExceedEnchantTables
         _ => "Armor",
     };
 
-    /// <summary>Stat bonuses at ◆ <paramref name="surpassLevel"/> from AdditionalStat export or reference scaling.</summary>
-    public IReadOnlyDictionary<string, int> Effect(int itemId, string? category, int itemLevel, int surpassLevel)
+    /// <summary>Cumulative stat bonuses at ◆ <paramref name="surpassLevel"/> (linear per stage, scaled by item level).</summary>
+    public IReadOnlyDictionary<string, int> Effect(string? category, int itemLevel, int surpassLevel)
     {
         if (surpassLevel <= 0 || itemLevel <= 0) return new Dictionary<string, int>();
-        if (MaxSurpass(itemId, itemLevel) <= 0) return new Dictionary<string, int>();
-        var effectGroup = GroupsFor(itemId)?.EffectGroup;
-        if (effectGroup is not null && file.Effects?.TryGetValue(effectGroup, out var rows) is true && rows.Length > 0)
-        {
-            var row = rows[Math.Min(surpassLevel, rows.Length) - 1];
-            if (row.Length >= 2)
-                return row[1].EnumerateArray().ToDictionary(s => s[0].GetString()!, s => s[1].GetInt32());
-        }
-        var bucket = EffectBucket(category ?? effectGroup);
-        if (!file.ReferenceEffects.TryGetValue(bucket, out var reference)) return new Dictionary<string, int>();
-        var refCap = MaxSurpass(itemId, file.ReferenceLevel);
+        if (!file.ReferenceEffects.TryGetValue(EffectBucket(category), out var reference)) return new Dictionary<string, int>();
+        if (MaxSurpass(itemLevel) <= 0) return new Dictionary<string, int>();
+        var refCap = MaxSurpass(file.ReferenceLevel);
         return reference.ToDictionary(kv => kv.Key, kv =>
-            (int)Math.Round(kv.Value * itemLevel / (double)file.ReferenceLevel / Math.Max(1, refCap) * surpassLevel));
+            (int)Math.Round(kv.Value * itemLevel / (double)file.ReferenceLevel / refCap * surpassLevel));
     }
 }
 
@@ -172,7 +146,7 @@ public sealed partial class GameSession
         .Sum(i => Enchants.Effect(i.ItemId, i.Detail!.EnchantLevel).Stats.GetValueOrDefault(stat));
 
     int ExceedStat(string stat) => inventory.Values.Where(i => i.Container == InventoryItem.Equipped && i.Detail is { SurpassEnchantLevel: > 0 })
-        .Sum(i => Exceeds.Effect(i.ItemId, data.Item(i.ItemId)?.Category, data.ItemLevel(i.ItemId), i.Detail!.SurpassEnchantLevel).GetValueOrDefault(stat));
+        .Sum(i => Exceeds.Effect(data.Item(i.ItemId)?.Category, data.ItemLevel(i.ItemId), i.Detail!.SurpassEnchantLevel).GetValueOrDefault(stat));
 
     /// <summary>The roll for an attempt: 0..9999 (replaceable in checks).</summary>
     public Func<int> EnchantRoll { get; set; } = () => Random.Shared.Next(10_000);

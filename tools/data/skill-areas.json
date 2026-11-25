@@ -67070,10 +67070,16 @@
     "11290000": {
       "target_debuffs": [
         [
+          112900001,
+          50,
+          50,
+          0
+        ],
+        [
           112900072,
           1700,
           1700,
-          0
+          1
         ],
         [
           100000321,
@@ -67084,10 +67090,16 @@
       ],
       "debuffs": [
         [
+          112900001,
+          50,
+          50,
+          0
+        ],
+        [
           112900072,
           1700,
           1700,
-          0
+          1
         ],
         [
           100000321,
@@ -99627,8 +99639,7 @@
       "Stun"
     ],
     "100000321": [
-      "Knockback",
-      "Knockdown"
+      "KnockdownInstant"
     ],
     "100000322": [
       "KnockdownInstant"
@@ -99687,7 +99698,10 @@
       "Rotate"
     ],
     "112900072": [
-      "Taunt"
+      "Bind",
+      "BlockMoveControl",
+      "BlockMovePosition",
+      "BlockSkill"
     ],
     "113000371": [
       "TriggerSkillByAttackAll"
@@ -105653,17 +105667,12 @@
     "100000321": {
       "effects": [
         [
-          100000321,
-          "Knockback",
-          "500",
-          "400"
-        ],
-        [
-          100000321,
-          "Knockdown"
+          1000003211,
+          "KnockdownInstant",
+          "1"
         ]
       ],
-      "source": "override"
+      "source": "client"
     },
     "100000322": {
       "effects": [
@@ -105916,11 +105925,23 @@
     "112900072": {
       "effects": [
         [
-          112900072,
-          "Taunt"
+          1129000721,
+          "Bind"
+        ],
+        [
+          1129000722,
+          "BlockMovePosition"
+        ],
+        [
+          1129000723,
+          "BlockMoveControl"
+        ],
+        [
+          1129000724,
+          "BlockSkill"
         ]
       ],
-      "source": "override"
+      "source": "client"
     },
     "113000371": {
       "effects": [

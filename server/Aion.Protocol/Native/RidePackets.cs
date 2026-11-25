@@ -40,6 +40,12 @@ public static class RidePackets
         ItemUseNt = 0x5616, ItemUseStartedNt = 0x5617, ItemUseInterruptedNt = 0x5618,
         ItemUseCompletedNt = 0x5619, OpenBoxRq = 0x5646, OpenBoxRs = 0x5647;
 
+    /// <summary>
+    /// The _result success values the 2.0.12 client's ride ActionProtocol uses (official capture 20261124-130131:
+    /// 0x3B2D for CharGetOnRide_RS #831, 0x3B38 for CharGetOffRide_RS #1374). A zero here left the client in the
+    /// dismount transfer state, so the next CharGetOnRide was refused as "Cannot mount in current state".
+    /// </summary>
+    public const int OnSuccess = 0x3B2D, OffSuccess = 0x3B38;
     /// <summary>EGetOffRideReason.</summary>
     public const byte ByClient = 1, ByServer = 2, BySubzone = 3;
 

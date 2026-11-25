@@ -52,69 +52,14 @@ public static class Kibelisks
     /// <summary>World map and stand position for a bound TeleportArtifact id (from teleport-artifacts.json).</summary>
     public static bool TryPlacement(int artifactId, out int mapId, out Vector3d position)
     {
-        if (TryGetPlacement(artifactId, out mapId, out var placement))
+        if (byArtifact.Value.TryGetValue(artifactId, out var hit))
         {
-            position = KibeliskPosition(placement);
+            mapId = hit.MapId;
+            position = new Vector3d(hit.Placement.Position[0], hit.Placement.Position[1], hit.Placement.Position[2]);
             return true;
         }
         mapId = 0;
         position = default;
         return false;
-    }
-
-    public static bool TryGetPlacement(int artifactId, out int mapId, out KibeliskPlacement placement)
-    {
-        if (byArtifact.Value.TryGetValue(artifactId, out var hit))
-        {
-            mapId = hit.MapId;
-            placement = hit.Placement;
-            return true;
-        }
-        mapId = 0;
-        placement = null!;
-        return false;
-    }
-
-    public static Vector3d KibeliskPosition(KibeliskPlacement placement) =>
-        new(placement.Position[0], placement.Position[1], placement.Position[2]);
-
-    /// <summary>Map load destination for a bound Kibelisk (named TeleportData point, else the object stand).</summary>
-    public static Vector3d ArrivalPoint(int mapId, KibeliskPlacement placement, IReadOnlyDictionary<string, double[]> mapPoints, double nearestRange = 3000)
-    {
-        foreach (var name in ArrivalPointNames(placement))
-        {
-            if (mapPoints.TryGetValue(name, out var p) && p.Length >= 3)
-                return new Vector3d(p[0], p[1], p[2]);
-        }
-        var kibelisk = KibeliskPosition(placement);
-        var best = kibelisk;
-        var bestDistance = nearestRange;
-        foreach (var (name, p) in mapPoints)
-        {
-            if (!name.StartsWith("TeleportArtifact", StringComparison.OrdinalIgnoreCase) || p.Length < 3) continue;
-            var d = Math.Sqrt(Math.Pow(p[0] - kibelisk.X, 2) + Math.Pow(p[1] - kibelisk.Y, 2) + Math.Pow(p[2] - kibelisk.Z, 2));
-            if (d < bestDistance) { bestDistance = d; best = new Vector3d(p[0], p[1], p[2]); }
-        }
-        return best;
-    }
-
-    static IEnumerable<string> ArrivalPointNames(KibeliskPlacement placement)
-    {
-        const string envPrefix = "EnvObj_TeleportArtifact_";
-        var name = placement.Name;
-        if (name.StartsWith(envPrefix, StringComparison.Ordinal))
-        {
-            var suffix = name[envPrefix.Length..];
-            yield return "TeleportArtifact_" + suffix;
-            yield return "TeleportArtifact_" + suffix + "_1";
-            if (suffix.StartsWith("Altgard_", StringComparison.Ordinal))
-            {
-                var tail = suffix["Altgard_".Length..];
-                yield return "WorldMapTelpo_" + tail;
-                yield return "WorldMapTelpo_" + tail + "_1";
-            }
-        }
-        if (!string.IsNullOrEmpty(placement.Artifact))
-            yield return placement.Artifact;
     }
 }

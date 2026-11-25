@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "groups": {
+    "reuse-table-probe": [
+      "Aion2/Content/Data/Table/Map.dat",
+      "Aion2/Content/Data/Table/NpcData.dat",
+      "Aion2/Content/Data/Table/Quest.dat",
+      "Aion2/Content/Data/Table/String.dat",
+      "Aion2/Content/Data/Table/PCContextSkillSlot.dat",
+      "Aion2/Content/Data/Table/SkillAcquireData.dat",
+      "Aion2/Content/Data/Table/SkillList.dat",
+      "Aion2/Content/Data/Table/Skill.dat",
+      "Aion2/Content/Data/Table/SkillEffect.dat",
+      "Aion2/Content/Data/Table/PcStatLevel.dat",
+      "Aion2/Content/Data/Table/Item.dat"
+    ],
+    "starter-skills-tables": [
+      "Aion2/Content/Data/Table/Map.dat",
+      "Aion2/Content/Data/Table/NpcData.dat",
+      "Aion2/Content/Data/Table/SkillAcquireData.dat",
+      "Aion2/Content/Data/Table/SkillList.dat",
+      "Aion2/Content/Data/Table/Quest.dat",
+      "Aion2/Content/Data/Table/Skill.dat",
+      "Aion2/Content/Data/Table/SkillEffect.dat",
+      "Aion2/Content/Data/Table/PcStatLevel.dat",
+      "Aion2/Content/Data/Table/String.dat"
+    ],
+    "catalog-strings-20261013": [
+      "Aion2/Content/Data/Table/String.dat"
+    ],
+    "catalog-localization-20261013": [
+      "Aion2/Content/Data/Table/L10N/en-US/L10NString.dat"
+    ]
+  }
+}

@@ -188,8 +188,8 @@ public static class LauncherLoc
     public static string LinkSignOut => T("Sign out", "Выйти");
     public static string LabelClientVersion => T("Client version", "Версия клиента");
     public static string VersionNoteSteam(string? folder) => T(
-        $"Game files: {folder ?? "Steam copy not found (set steamClientPath in launcher.json)"}. Used as-is: not changed, no patch paks; the server supports 2.0.9.0, so a newer client may not connect.",
-        $"Файлы: {folder ?? "копия Steam не найдена (steamClientPath в launcher.json)"}. Без изменений, без патч-паков; сервер на 2.0.9.0 — более новый клиент может не подключиться.");
+        $"Game files: {folder ?? "Steam copy not found (set steamClientPath in launcher.json)"}. Used as-is: not changed, no patch paks; the server supports 2.0.12.0, so a newer client may not connect.",
+        $"Файлы: {folder ?? "копия Steam не найдена (steamClientPath в launcher.json)"}. Без изменений, без патч-паков; сервер на 2.0.12.0 — более новый клиент может не подключиться.");
     public static string VersionNotePrivate(string folder) => T($"Game files: {folder}", $"Файлы игры: {folder}");
     public static string PatchPaksCheck => T("Apply client patch paks (z_A2Core_Patch-Windows_P) before launch", "Применять патч-паки (z_A2Core_Patch-Windows_P) перед запуском");
     public static string ButtonPlay => T("Play", "Играть");

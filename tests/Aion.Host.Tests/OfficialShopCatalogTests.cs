@@ -13,9 +13,9 @@ public sealed class OfficialShopCatalogTests
     {
         using var doc = JsonDocument.Parse(OfficialShopCatalog.Goods(1, 400, Now));
         var root = doc.RootElement;
-        Assert.Equal("257", root.GetProperty("total_count").GetString());
+        Assert.Equal("248", root.GetProperty("total_count").GetString());
         var page = root.GetProperty("page");
-        Assert.Equal(257, page.GetArrayLength());
+        Assert.Equal(248, page.GetArrayLength());
         var cats = page.EnumerateArray().Select(g => g.TryGetProperty("goods_data", out var d) ? d.GetString() ?? "" : "").ToList();
         Assert.Contains(cats, c => c.StartsWith("catl:SkinShop_SkinSet,", StringComparison.Ordinal));
         Assert.Contains(cats, c => c.StartsWith("catl:SkinShop_Weapon,", StringComparison.Ordinal));
@@ -25,15 +25,6 @@ public sealed class OfficialShopCatalogTests
         Assert.Contains(cats, c => c.StartsWith("catl:Subscribe,", StringComparison.Ordinal));
         Assert.DoesNotContain(cats, c => c.Contains("Daily_RechargeQuna", StringComparison.Ordinal));
         Assert.DoesNotContain(page.EnumerateArray(), g => g.GetProperty("goods_id").GetString() == "100133");
-        foreach (var goodsId in Enumerable.Range(100088, 8))
-        {
-            var row = page.EnumerateArray().Single(g => g.GetProperty("goods_id").GetString() == goodsId.ToString());
-            var price = row.GetProperty("goods_basic_price_policies")[0];
-            Assert.Equal("145", price.GetProperty("currency_group_id").GetString());
-            Assert.Equal("0.0000", price.GetProperty("goods_basic_price").GetString());
-            Assert.Equal(0, row.GetProperty("pgs").GetArrayLength());
-            Assert.True(row.GetProperty("items")[0].GetProperty("game_item_key").GetString() is { Length: > 0 });
-        }
         Assert.DoesNotContain(page.EnumerateArray().SelectMany(g => (g.TryGetProperty("items", out var items) ? items : default).EnumerateArray()),
             it => it.TryGetProperty("game_item_key", out var k) && k.GetString() == "535300006");
         Assert.Contains(page.EnumerateArray().SelectMany(g => g.GetProperty("display_names").EnumerateArray()),
@@ -76,7 +67,7 @@ public sealed class OfficialShopCatalogTests
         var q = new Microsoft.AspNetCore.Http.QueryCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues> { ["page_index"] = "1", ["page_size"] = "400" });
         Assert.True(PlatformApiGateResponses.TryReply("GET", "/local-api-gate/goods/v2.0/goods", q, null, out var body));
         using var doc = JsonDocument.Parse(body);
-        Assert.Equal("257", doc.RootElement.GetProperty("total_count").GetString());
+        Assert.Equal("248", doc.RootElement.GetProperty("total_count").GetString());
         Assert.True(PlatformApiGateResponses.TryReply("GET", "/local-api-gate/goods/v2.0/me/goods", q, null, out var me));
         using var meDoc = JsonDocument.Parse(me);
         Assert.Equal(18, meDoc.RootElement.GetProperty("page").GetArrayLength());

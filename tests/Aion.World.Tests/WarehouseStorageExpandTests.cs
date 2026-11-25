@@ -101,4 +101,17 @@ public sealed class WarehouseStorageExpandTests
         Assert.Equal(GameSession.SlotExtendOverMax, BitConverter.ToInt32(rs, 2));
         Assert.Equal(10_000_000, store.Items.Where(i => i.TemplateId == GameSession.KinaItemId).Sum(i => i.Quantity));
     }
+
+    [Fact]
+    public async Task Depot_list_carries_the_loaded_extension_counts()
+    {
+        var store = new FakeCharacterStore();
+        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now);
+        var character = store.States[0].Summary.CharacterId;
+        store.ContainerExtends[character] = new Application.Gameplay.ContainerSlotExtendCounts(0, 5, 0, 0, 0, 0);
+
+        var replies = await session.HandleAsync(new PacketWriter().U16(0x5610).ToArray(), Now + 1);
+        var depot = replies.Last(p => GameSessionTestHelpers.Op(p) == 0x5611);
+        Assert.Equal(new byte[] { 0, 5, 0, 0, 0, 0 }, depot.Skip(depot.Length - 6).ToArray());
+    }
 }

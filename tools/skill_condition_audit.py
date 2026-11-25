@@ -234,7 +234,7 @@ def render(enums, rows, by_group, by_effect) -> str:
         '',
         '| Gap | Why |',
         '| --- | --- |',
-        '| **SkillCond.dat export** | `research/client-export/2026-11-22/SkillCond.json.gz` via `tools/skill_cond.py`; `skill-cond-overrides.json` only fills gaps. |',
+        '| **SkillCond.dat export** not in repo | Committed `class-skills.json` uses `tools/data/skill-cond-overrides.json`; run `tools/skill_cond.py` with `research/local/skillcond-*/table-000.json` for full coverage. |',
         '| **AP resource thresholds** | `ECanUseSkillCostType` AP_* values are accepted permissively until player AP exists on `Resources`. |',
         '| **ESkillEffectConditionType** on effect rows | Proc conditions (back attack, distance, gauge equal, …) are not cast grey rules; partial support lives under combat effect application. |',
         '| **Player-target SkillCond** | `HasAbnormalEffectType` on enemy players in PvP uses player buffs; stagger gauge is NPC-only today. |',

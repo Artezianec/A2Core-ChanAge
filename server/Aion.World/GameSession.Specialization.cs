@@ -81,10 +81,6 @@ public sealed partial class GameSession
     bool SpecializedCastAllowed(int skill) =>
         Specialized.ParentOf(skill) is null || SpecializedChildren().Any(c => c.Child == skill);
 
-    /// <summary>Tests: equip a specialization part without the 0x3901 wire.</summary>
-    internal void SetSkillPartForTests(int parent, int slot, int part) =>
-        (skillParts.TryGetValue(parent, out var slots) ? slots : skillParts[parent] = [])[slot] = part;
-
     /// <summary>Every child in effect: each mastery skill's and its chain steps' (for 0x5100 and the casts).</summary>
     List<(int Child, int Parent)> SpecializedChildren()
     {
@@ -96,18 +92,10 @@ public sealed partial class GameSession
             list.Add((child, parent));
             var suffix = child - parent;
             foreach (var step in ChainStepsAfter(parent))
-            {
-                var chainChild = step + suffix;
-                if (chainChild != step && IsSpecializedChainVariant(step, chainChild))
-                    list.Add((chainChild, step));
-            }
+                if (Specialized.IsChild(step, step + suffix)) list.Add((step + suffix, step));
         }
         return list;
     }
-
-    /// <summary>Chain follow-ups (Smashing Blow after Rending): suffix variants exist in Skill.dat but are not always in SpecializedSkill.dat children.</summary>
-    bool IsSpecializedChainVariant(int chainStep, int variantId) =>
-        Specialized.IsChild(chainStep, variantId) || (chainStep != variantId && data.Skill(variantId) is not null);
 
     /// <summary>0x3900 at world entry: the learned mastery skills that have parts (three slots), then the slotted stigmas (five).</summary>
     byte[] SpecializedSkillLoad()
@@ -150,8 +138,8 @@ public sealed partial class GameSession
             var old = before == 0 ? 0 : skill + (before - parent);
             var now = after == 0 ? 0 : skill + (after - parent);
             if (old == now) continue;
-            if (old != 0 && IsSpecializedChainVariant(skill, old)) replies.Add(SkillDelete(old));
-            if (now != 0 && IsSpecializedChainVariant(skill, now)) replies.Add(SkillAdd(now, at, SpecializedChange));
+            if (old != 0 && Specialized.IsChild(skill, old)) replies.Add(SkillDelete(old));
+            if (now != 0 && Specialized.IsChild(skill, now)) replies.Add(SkillAdd(now, at, SpecializedChange));
         }
         return replies;
     }
@@ -235,8 +223,6 @@ public sealed partial class GameSession
         if (!await SaveSkillPartsAsync(parent, next, ct)) return [Reply(ModifyNotFound)];
         return [.. ChildChange(parent, before, SpecializedChild(parent)), Reply(0), SpecializedUpdate(parent, changed)];
     }
-
-    internal List<(int SkillId, int Level)> WithSpecializedForTests(List<(int SkillId, int Level)> list) => WithSpecialized(list);
 
     /// <summary>The skill list with the specialisation children in effect after it, at their parent's level (OBSERVED 0x5100 #643: 11030340, 11040340).</summary>
     List<(int SkillId, int Level)> WithSpecialized(List<(int SkillId, int Level)> list)

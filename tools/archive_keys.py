@@ -9,6 +9,7 @@ import hashlib
 import os
 from pathlib import Path
 import re
+import struct
 
 try:
     from .inspect_formats import pak_metadata, utoc_metadata
@@ -191,9 +192,31 @@ def load_targets(install, count=3):
     return targets
 
 
+def plausible_index_prefix(key, target, decrypt):
+    """Cheap AES-ECB check of the index's first block before decrypting the whole index.
+
+    A pak index starts with an FString: int32 length (negative for UTF-16), then the mount
+    point. catalog_assets.Reader.string() bounds that length to |n| <= 32768, so a random
+    key that decrypts to anything outside the bound cannot be the archive key. Rejecting it
+    here costs one AES block instead of a full index decrypt and SHA-1, which matters in the
+    deep scan (hundreds of thousands of raw memory windows).
+    """
+    ciphertext = target["ciphertext"]
+    if len(ciphertext) < 16:
+        return True
+    try:
+        block = decrypt(key, ciphertext[:16])
+    except Exception:
+        return False
+    count = struct.unpack_from("<i", block, 0)[0]
+    return abs(count) <= 32768
+
+
 def validate(key, targets, decrypt, utoc_targets=None):
     matches = []
     for target in targets:
+        if not plausible_index_prefix(key, target, decrypt):
+            return []
         plain = decrypt(key, target["ciphertext"])
         # IndexSize includes storage alignment in observed encrypted Paks. Check
         # full length and up to one block's trailing alignment; record exact match.

@@ -38,38 +38,15 @@ public sealed class AttendanceDuplicateRewardClaimTests
     }
 
     [Fact]
-    public async Task Attendance_step_reward_without_check_in_stamps_today_and_grants()
+    public async Task Attendance_step_reward_without_check_in_is_refused()
     {
         var store = new FakeCharacterStore();
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
         var board = GameSession.LatestAttendanceSeasons(1, Now + 100).Single(e => e.Board.SeasonGroupId == 37).Board;
-        var itemId = AchievementTables.Embedded.Of(board.Achievement)!.StepRewards(1)[0].ItemId;
         var reward = await session.HandleAsync(
             new PacketWriter().U16(GameSession.TakeAchievementRewardRq).I32(board.Achievement).U8(1).ToArray(),
             Now + 100);
-        Assert.Equal(0, BitConverter.ToInt32(Assert.Single(reward, p => Op(p) == GameSession.TakeAchievementRewardRs), 2));
-        Assert.Contains(reward, p => Op(p) == GameSession.AchievementCountUpdateNt);
-        Assert.Contains(reward, p => Op(p) == 0x561b);
-        Assert.Contains(store.Items, i => i.TemplateId == itemId);
-        Assert.Contains(reward, p => Op(p) == GameSession.AccountContentsInfoListNt);
-    }
-
-    [Fact]
-    public async Task Attendance_batch_without_check_in_stamps_today_and_grants()
-    {
-        const int GlobalAttendanceGroup = 510_035;
-        var store = new FakeCharacterStore();
-        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
-        var board = GameSession.LatestAttendanceSeasons(1, Now + 100).Single(e => e.Board.SeasonGroupId == 37).Board;
-        var itemId = AchievementTables.Embedded.Of(board.Achievement)!.StepRewards(1)[0].ItemId;
-
-        var batch = await session.HandleAsync(
-            new PacketWriter().U16(GameSession.TakeAchievementRewardBatchRq).U8(7).I32(GlobalAttendanceGroup).U8(1).ToArray(),
-            Now + 100);
-        Assert.Equal(0, BitConverter.ToInt32(Assert.Single(batch, p => Op(p) == GameSession.TakeAchievementRewardBatchRs), 2));
-        Assert.Contains(batch, p => Op(p) == 0x561b);
-        Assert.Contains(store.Items, i => i.TemplateId == itemId);
-        Assert.Contains(batch, p => Op(p) == GameSession.AccountContentsInfoListNt);
-        Assert.Equal(1, session.AchievementCount(board.Achievement));
+        Assert.Equal(1, BitConverter.ToInt32(Assert.Single(reward, p => Op(p) == GameSession.TakeAchievementRewardRs), 2));
+        Assert.DoesNotContain(reward, p => Op(p) == GameSession.AchievementCountUpdateNt);
     }
 }

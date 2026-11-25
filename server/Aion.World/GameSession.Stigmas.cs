@@ -95,23 +95,6 @@ public sealed partial class GameSession
     public IReadOnlyList<int> EquippedStigmas =>
         quickSlots.Values.Select(s => s.SkillId).Where(stigmas.ContainsKey).Distinct().ToList();
 
-    /// <summary>Ends active buffs that came from casting one of these stigma skills (or their level variants).</summary>
-    List<byte[]> RemoveStigmaSourcedBuffs(IReadOnlyCollection<int> stigmaSkills, long now)
-    {
-        if (stigmaSkills.Count == 0 || resources is null) return [];
-        var skillIds = new HashSet<int>();
-        foreach (var stigma in stigmaSkills)
-        {
-            skillIds.Add(stigma);
-            foreach (var (_, variant) in StigmaData.VariantSteps(stigma)) skillIds.Add(variant);
-            if (stigmas.TryGetValue(stigma, out var lvl) && StigmaData.Variant(stigma, lvl) is var v and > 0) skillIds.Add(v);
-        }
-        var gone = buffs.Where(b => skillIds.Contains(b.SkillId)).ToList();
-        if (gone.Count == 0) return [];
-        var speedBefore = BuffStat("MoveSpeed");
-        return [.. RemoveBuffs(gone, ExpireEtc), .. BuffStatsChanged(speedBefore)];
-    }
-
     /// <summary>Whether a stigma may be cast: learned and on a slot (unless Aion:Stigmas:RequireSlot is off).</summary>
     internal bool StigmaCastable(int skillId)
     {
@@ -345,7 +328,7 @@ public sealed partial class GameSession
         RebuildWireClientSkillList();
         RecomputeCombatPower();
         // OBSERVED order (official resets): the variants deleted, 0x3844, the levels to 0 (0x3813 reason 5), 0x5105.
-        var replies = RemoveStigmaSourcedBuffs(forgotten, lastNow);
+        var replies = new List<byte[]>();
         foreach (var id in forgotten) replies.AddRange(StigmaVariantChange(id, levelsBefore[id], 0));
         replies.Add(Reply(0, forgotten));
         foreach (var id in forgotten) replies.Add(StigmaWireLevel(id, 0, SkillLevelModify));
@@ -437,11 +420,7 @@ public sealed partial class GameSession
             if (record is null) quickSlots.Remove(slot);
             else quickSlots[slot] = record;
         }
-        var replies = new List<byte[]>();
-        if (StigmaRules.RequireSlot && previous > 0 && (skillId == 0 || skillId != previous))
-            replies.AddRange(RemoveStigmaSourcedBuffs([previous], lastNow));
-        replies.Add(Reply(0, other?.Slot ?? -1));
-        return replies;
+        return [Reply(0, other?.Slot ?? -1)];
     }
 
     /// <summary>The reply to /stigma: shards, slots and the learned stigmas.</summary>

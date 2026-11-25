@@ -26,7 +26,6 @@ except ImportError:
     from key_constants import binary_key_candidates
 
 VALIDATED_KEY_PATH = Path(__file__).resolve().parents[1] / "research/local/archive-key-validated.json"
-# Community keys for optional client versions: tools/client_build_profiles.py key-report <version>
 
 
 class CandidateCheck:
@@ -78,7 +77,7 @@ def write_validated_key(report):
     return VALIDATED_KEY_PATH
 
 
-def run(install, pid=None, deep=False):
+def run(install, pid=None, deep=False, max_candidates=None):
     executable = install / "Aion2/Binaries/Win64/AION2.exe"
     targets = load_targets(install)
     utoc_targets = load_utoc_targets(install) if deep else []
@@ -88,7 +87,7 @@ def run(install, pid=None, deep=False):
                   "SSE128 pairs and FAES guid-prefix layouts; all loaded modules and heaps")
     with AES256() as aes:
         check = CandidateCheck(targets, aes.decrypt, utoc_targets=utoc_targets, deep=deep,
-                               max_candidates=500_000 if deep else 10_000)
+                               max_candidates=max_candidates or (500_000 if deep else 10_000))
         report = {"schema_version": 2, "collected_utc": datetime.now(timezone.utc).isoformat(),
                   "mode": "live" if pid is not None else "static", "pid": pid, "deep": deep,
                   "executable": str(executable),
@@ -148,6 +147,8 @@ def main():
     parser.add_argument("--pid", type=int, help="Omit for static installed-executable scan")
     parser.add_argument("--deep", action="store_true",
                         help="After the main-image scan, walk committed process memory (requires --pid)")
+    parser.add_argument("--max-candidates", type=int, default=None,
+                        help="Bound on distinct candidates tested (default 10000 static, 500000 deep)")
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     root, output = args.install.resolve(), args.output.resolve()
@@ -159,7 +160,7 @@ def main():
     if args.deep and args.pid is None:
         parser.error("--deep requires a live --pid scan")
     try:
-        report = run(root, args.pid, deep=args.deep)
+        report = run(root, args.pid, deep=args.deep, max_candidates=args.max_candidates)
         output.parent.mkdir(parents=True, exist_ok=True)
         with output.open("x", encoding="utf-8") as stream:
             json.dump(report, stream, indent=2)

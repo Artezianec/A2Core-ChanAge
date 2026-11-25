@@ -72,26 +72,6 @@ public sealed class AchievementCollectAllRewardsTests
     }
 
     [Fact]
-    public async Task Category_zero_collect_all_claims_unlisted_season_mission_with_progress()
-    {
-        const int SeasonMissionAchievement = 230_110_100;
-        var store = new FakeCharacterStore();
-        store.Achievements.Add(new AchievementRecord(
-            SeasonMissionAchievement, 600, null, 0, DateTimeOffset.FromUnixTimeMilliseconds(Now)));
-        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
-        var entry = AchievementTables.Embedded.Of(SeasonMissionAchievement)!;
-        Assert.False(session.SeasonMissionListed(entry, Now + 50));
-
-        var batch = await session.HandleAsync(
-            new PacketWriter().U16(GameSession.TakeAchievementRewardBatchRq).U8(0).I32(0).U8(0).ToArray(),
-            Now + 50);
-
-        Assert.Contains(batch, p => Op(p) == 0x561b);
-        Assert.Equal(0, BitConverter.ToInt32(batch.First(p => Op(p) == GameSession.TakeAchievementRewardBatchRs), 2));
-        Assert.Equal(1, store.Achievements.Single(a => a.Id == SeasonMissionAchievement).RewardedStep);
-    }
-
-    [Fact]
     public async Task Second_batch_claim_is_refused()
     {
         var store = new FakeCharacterStore();

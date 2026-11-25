@@ -58,11 +58,11 @@ public sealed partial class Aion2DatFileEncryption
             var data = Ar.ReadArray<byte>(0x10);
             FAion2DatFileArchive.DecryptData(data, DeriveHeaderKey(seed, EHeaderType.Localization));
 
-            using var headerAr = new GenericBufferReader(data);
-            PackedSize = headerAr.Read<int>();
-            EncryptionType = headerAr.Read<EEncryptionType>();
-            AlignedSize = headerAr.Read<int>();
-            RawSize = headerAr.Read<int>();
+            var fields = ReadCompressedHeader(data);
+            EncryptionType = (EEncryptionType) fields.EncryptionType;
+            PackedSize = fields.PackedSize;
+            AlignedSize = fields.AlignedSize;
+            RawSize = fields.RawSize;
         }
     }
 }

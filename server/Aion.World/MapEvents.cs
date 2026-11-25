@@ -578,6 +578,10 @@ public sealed class MapEventRun
     public IEnumerable<(int Index, MapEventObjective Objective)> Open =>
         Step is { } step ? step.Objectives.Select((o, i) => (i, o)).Where(x => x.i < Goals.Length && Goals[x.i] < x.o.Count) : [];
 
+    /// <summary>An open volume objective: the player may be standing in it without sending a movement report.</summary>
+    public bool NeedsPositionCheck =>
+        !Finished && Open.Any(x => x.Objective.Type is "EnterVolumePC" or "EnterSubZone");
+
     /// <summary>KillNpc NPC ids on the current step that still need progress (scripted immunity must not block them).</summary>
     public IEnumerable<int> OpenKillNpcIds() =>
         Open.Where(x => x.Objective.Type == "KillNpc" && x.Objective.Npcs is { Length: > 0 } npcs).SelectMany(x => x.Objective.Npcs!);

@@ -33,10 +33,10 @@ public sealed class ArenaMatch(int roomKey, int matchingId, int contentsId, int 
 public sealed record ArenaQueueEntry(WorldPlayer Player, int MatchingId, long SinceMs);
 
 // Arena (Matching.dat / MatchingContents.dat / RewardArena.dat): Single (1v1, two arenas: Fire Temple 7 / Impetusium 8, 3
-// lives, 10 minutes) and Team (5v5, one life). The 0xe2 run (index + 0xdd07): MatchingStateChange_NT 0xe2a8,
-// MatchingStart 0xe2a9/0xe2aa, MatchingStartResponse 0xe2ab/0xe2ac, MatchingCancel 0xe2ad/0xe2ae, MatchingRoomInit_NT
-// 0xe2b2, ArenaDungeonReady 0xe2b3/0xe2b4/0xe2b5, ArenaDungeonReadyEnd_NT 0xe2b6, ArenaDungeonKill_NT 0xe2be,
-// ArenaDungeonScoreUpdate_NT 0xe2bf, ArenaDungeonResult_NT 0xe2c1, ArenaRecord 0xe2c4/0xe2c5 (usmap bodies, CANDIDATE).
+// lives, 10 minutes) and Team (5v5, one life). The 2.0.12 0xE30F…0xE32C run: MatchingStateChange_NT 0xE30F,
+// MatchingStart 0xE310/0xE311, MatchingStartResponse 0xE312/0xE313, MatchingCancel 0xE314/0xE315, MatchingRoomInit_NT
+// 0xE319, ArenaDungeonReady 0xE31A/0xE31B/0xE31C, ArenaDungeonReadyEnd_NT 0xE31D, ArenaDungeonKill_NT 0xE325,
+// ArenaDungeonScoreUpdate_NT 0xE326, ArenaDungeonResult_NT 0xE328, ArenaRecord 0xE32B/0xE32C (usmap bodies, CANDIDATE).
 // Flow (OURS, from the message names): queue → enough players → PendingReady → everyone accepts → Complete + room info
 // → each session moves into the match's copy of the arena map at its team's start point → ready (or 30 s) → battle
 // (PvP damage as duels, Skill.dat PvP rows) → a death costs a life, a 5 s respawn at the team point while lives remain →
@@ -44,9 +44,9 @@ public sealed record ArenaQueueEntry(WorldPlayer Player, int MatchingId, long Si
 // (join and win: Abyss Points) → out after 10 s. Ranking points, penalties, schedules and the Strategy modes are not modelled.
 public sealed partial class GameSession
 {
-    public const ushort MatchingStateChangeNt = 0xe2a8, MatchingStartRq = 0xe2a9, MatchingStartRs = 0xe2aa, MatchingStartResponseRq = 0xe2ab, MatchingStartResponseRs = 0xe2ac,
-        MatchingCancelRq = 0xe2ad, MatchingCancelRs = 0xe2ae, MatchingRoomInitNt = 0xe2b2, ArenaDungeonReadyRq = 0xe2b3, ArenaDungeonReadyRs = 0xe2b4, ArenaDungeonReadyNt = 0xe2b5,
-        ArenaDungeonReadyEndNt = 0xe2b6, ArenaDungeonKillNt = 0xe2be, ArenaDungeonScoreUpdateNt = 0xe2bf, ArenaDungeonResultNt = 0xe2c1, ArenaRecordRq = 0xe2c4, ArenaRecordRs = 0xe2c5;
+    public const ushort MatchingStateChangeNt = 0xE30F, MatchingStartRq = 0xE310, MatchingStartRs = 0xE311, MatchingStartResponseRq = 0xE312, MatchingStartResponseRs = 0xE313,
+        MatchingCancelRq = 0xE314, MatchingCancelRs = 0xE315, MatchingRoomInitNt = 0xE319, ArenaDungeonReadyRq = 0xE31A, ArenaDungeonReadyRs = 0xE31B, ArenaDungeonReadyNt = 0xE31C,
+        ArenaDungeonReadyEndNt = 0xE31D, ArenaDungeonKillNt = 0xE325, ArenaDungeonScoreUpdateNt = 0xE326, ArenaDungeonResultNt = 0xE328, ArenaRecordRq = 0xE32B, ArenaRecordRs = 0xE32C;
     const byte MatchingStateMatching = 2, MatchingStatePendingReady = 3, MatchingStateComplete = 4;
     public const long ArenaReadyWaitMs = 30_000, ArenaRespawnMs = 5_000, ArenaExitMs = 10_000, ArenaPlayTimeMs = 600_000;
     static readonly int[] ArenaDungeons = [7, 8];   // MatchingContents 11/22 (Single) and 33/44 (Team): Fire Temple Arena, Impetusium Arena

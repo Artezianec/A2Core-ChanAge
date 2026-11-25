@@ -90,8 +90,10 @@ public sealed class AttendanceCrossTabRegressionTests
         var contents = Assert.Single(refresh, p => GameSessionTestHelpers.Op(p) == GameSession.AccountContentsInfoListNt);
         var first56b6 = Assert.Single(Parse56b6(contents), e => e.GroupId == first.SeasonGroupId);
         Assert.Equal(todayKey, first56b6.Value1);
-        Assert.Equal(todayKey, first56b6.Value2);
-        Assert.Equal(todayKey, Assert.Single(Parse56b6(contents), e => e.GroupId == last.SeasonGroupId).Value2);
+        Assert.Equal(todayKey, first56b6.Value2);   // the collected tab keeps its reward day
+        var last56b6 = Assert.Single(Parse56b6(contents), e => e.GroupId == last.SeasonGroupId);
+        Assert.Equal(todayKey, last56b6.Value1);
+        Assert.Equal(0, last56b6.Value2);            // checked in but not collected yet
     }
 
     [Fact]

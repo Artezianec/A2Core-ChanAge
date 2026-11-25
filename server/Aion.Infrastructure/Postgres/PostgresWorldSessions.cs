@@ -25,6 +25,31 @@ public sealed partial class PostgresAccountAuthentication : IWorldSessions
         await using var r=await q.ExecuteReaderAsync(ct);
         return await r.ReadAsync(ct) ? new(token,r.GetGuid(0),worldId,new DateTimeOffset(r.GetDateTime(1)),r.IsDBNull(2) ? null : r.GetInt16(2)) : null;
     }
+    public async Task<WorldSession?> OpenByGrantAsync(long wireAccountId, string grant, int worldId, CancellationToken ct = default)
+    {
+        // 2.0.12's game-port NPLogin has the login grant ("wire:guid"), not the 64-hex ticket the
+        // 2.0.6 client resent. The grant is single-use and unguessable; it still has to match the
+        // wire account, world and the account session.
+        if (!Guid.TryParseExact(grant, "D", out var parsed)) return null;
+        var token = Token();
+        await using var q = source.CreateCommand("""
+            WITH consumed AS (
+              DELETE FROM auth.client_handoffs h USING auth.sessions s,auth.accounts a
+              WHERE h.nonce_hash=$1 AND h.wire_id=$2 AND h.world_id=$3
+                AND h.expires_at>now() AND s.token_hash=h.session_hash AND s.expires_at>now()
+                AND a.account_id=s.account_id AND a.disabled_at IS NULL
+              RETURNING s.token_hash,s.expires_at,h.race
+            ), inserted AS (
+              INSERT INTO auth.world_sessions(token_hash,session_hash,world_id,expires_at)
+              SELECT $4,token_hash,$3,expires_at FROM consumed RETURNING session_hash,expires_at
+            ) SELECT s.account_id,i.expires_at,(SELECT race FROM consumed) FROM inserted i JOIN auth.sessions s ON s.token_hash=i.session_hash
+            """);
+        q.Parameters.AddWithValue(Hash(parsed.ToString()));
+        q.Parameters.AddWithValue(wireAccountId); q.Parameters.AddWithValue(worldId); q.Parameters.AddWithValue(Hash(token));
+        await using var r = await q.ExecuteReaderAsync(ct);
+        return await r.ReadAsync(ct) ? new(token, r.GetGuid(0), worldId, new DateTimeOffset(r.GetDateTime(1)), r.IsDBNull(2) ? null : r.GetInt16(2)) : null;
+    }
+
     public async Task<WorldIdentity?> ValidateAsync(string token,CancellationToken ct=default)
     {
         if(!ValidToken(token)) return null;

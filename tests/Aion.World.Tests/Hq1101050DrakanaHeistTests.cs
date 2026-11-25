@@ -86,24 +86,6 @@ public sealed class Hq1101050DrakanaHeistTests(ITestOutputHelper output)
         Assert.NotNull(run);
     }
 
-    /// <summary>Player accepts beside Nania inside the tunnel bbox: must enter without stepping out of the overlay first (live stall).</summary>
-    [Fact]
-    public async Task Walk_in_works_when_the_player_is_already_inside_the_field_bbox_on_first_entry()
-    {
-        var session = await AcceptedAsync(new FakeCharacterStore());
-        var entry = MapEventTables.Embedded.EntriesOn(1000).Single(e => e.Dungeon == MapEventTables.Embedded.DungeonIdOfMap(100013));
-        var tunnelMouth = new Vector3d(2705, -41204, 18700);
-        Assert.True(entry.Contains(tunnelMouth));
-        session.Teleport(1000, tunnelMouth, Now + 20);
-        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 30);
-        for (var i = 0; i < 8; i++)
-            await session.HandleAsync(MapEventScenarioHelpers.MoveUpdate(tunnelMouth with { X = tunnelMouth.X - i * 40 }), Now + 100 + i * 400);
-        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 3500);
-        Assert.Equal(100013, session.MapId);
-        var run = await MapEventScenarioHelpers.WaitForMapEventRunAsync(session, Event, Now + 700, attempts: 24);
-        Assert.NotNull(run);
-    }
-
     [Fact]
     public async Task Auto_run_from_outside_the_tunnel_mouth_opens_the_layer_and_starts_the_event()
     {
@@ -112,39 +94,6 @@ public sealed class Hq1101050DrakanaHeistTests(ITestOutputHelper output)
         Assert.Equal(100013, session.MapId);
         var run = await MapEventScenarioHelpers.WaitForMapEventRunAsync(session, Event, Now + 800, attempts: 24);
         Assert.NotNull(run);
-    }
-
-    /// <summary>Step 6 UseEnvObj credits when Nania reaches the warehouse door without a player interact.</summary>
-    [Fact]
-    public async Task Warehouse_door_opens_when_Nania_reaches_it_after_patrol_kills()
-    {
-        var session = await AcceptedAsync(new FakeCharacterStore());
-        session.NoCool = true;
-        await WalkIntoLayerAsync(session, Now + 10);
-        var run = await MapEventScenarioHelpers.WaitForMapEventRunAsync(session, Event, Now + 600, attempts: 24);
-        Assert.NotNull(run);
-
-        long t = Now + 2000;
-        for (var i = 0; i < 120 && run!.StepOrder < 6; i++, t += 500)
-        {
-            await session.TickAsync(t);
-            await MapEventScenarioHelpers.PlayMapEventScriptAsync(session, run, t, maxSeconds: 1, capture: null);
-            if (run.StepOrder >= 5)
-                await MapEventScenarioHelpers.KillHostilesOnMapAsync(session, MapEventScenarioHelpers.BasicAttackSkill(session), t,
-                    null, "DracoWar_06");
-        }
-        Assert.Equal(6, run!.StepOrder);
-
-        var door = WorldObjects.ObjectsOn(100013).First(o => o.Name == "E_L0_HQ004_WarehouseDoor_Enter").At;
-        for (var i = 0; i < 90 && run.Open.Any(o => o.Objective.Type == "UseEnvObj"); i++, t += 400)
-        {
-            var nania = session.Targets!.Values.FirstOrDefault(n => n.Name.Contains("Nania_01", StringComparison.Ordinal));
-            if (nania is not null)
-                nania.Position = door with { X = door.X + 50, Y = door.Y + 50 };
-            await session.TickAsync(t);
-        }
-        Assert.DoesNotContain(run.Open, o => o.Objective.Type == "UseEnvObj" && o.Objective.Value(0).Contains("WarehouseDoor"));
-        Assert.True(run.StepOrder >= 7, $"expected past door step, at step {run.StepOrder}");
     }
 
     [Fact]

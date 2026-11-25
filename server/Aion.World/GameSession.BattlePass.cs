@@ -15,7 +15,7 @@ namespace Aion.World;
 // TakeBattlePassReward 0xe322/0xe323, BattlePassInfoList_NT 0xe324, BattlePassPurchase 0xe32d/0xe32e. The earlier 0xe2 run
 // numbers (0xe2bb, 0xe2c6) are still accepted. Bodies from the usmap; result u16 as every observed RS (CANDIDATE).
 // INFERRED (OURS): _battle_pass_list lists the passes the character holds (the free ones and the unlocked paid ones);
-// _period_exp is weekly accrual for the current reset week (PassGroup.Limit when EnforceBattlePassWeeklyCap); BattlePassPurchase_RQ._item_id is the BattlePass.dat id of a
+// _period_exp is 0 (the weekly exp limit is not applied); BattlePassPurchase_RQ._item_id is the BattlePass.dat id of a
 // paid pass (or its group id: every paid pass of the group). BattlePass.dat UnlockCostType/UnlockCostCount are not
 // extracted, so the unlock is free unless Aion:Shop:PremiumMode is Disabled. An unlock is stored as an achievement
 // record keyed by the pass id (count 1), which no achievement id collides with.
@@ -28,74 +28,6 @@ public sealed partial class GameSession
     const ushort LegacyTakeBattlePassRewardRq = 0xe2bb, LegacyBattlePassPurchaseRq = 0xe2c6;
 
     const byte IncreaseBattlePassReward = 72;   // EIncreaseReason kBattlePassReward (usmap)
-
-    readonly Dictionary<int, (long Week, int Exp)> passWeekly = [];
-    bool passWeeklyLoaded, passWeeklyDirty;
-    long passWeeklyFlushAt;
-
-    void LoadBattlePassWeekly(IReadOnlyList<BattlePassWeeklyRecord> rows)
-    {
-        passWeekly.Clear();
-        foreach (var row in rows) passWeekly[row.GroupId] = (row.WeekStartMs, row.Exp);
-        passWeeklyLoaded = true;
-        passWeeklyDirty = false;
-    }
-
-    int PassWeeklyExp(int groupId, long now)
-    {
-        var week = CycleStart(2, now);
-        return passWeekly.TryGetValue(groupId, out var row) && row.Week == week ? row.Exp : 0;
-    }
-
-    void AccruePassWeeklyExp(int groupId, int gained, long now)
-    {
-        if (gained <= 0) return;
-        var week = CycleStart(2, now);
-        if (passWeekly.TryGetValue(groupId, out var row))
-        {
-            if (row.Week < week) row = (week, 0);
-            else if (row.Week > week) return;
-            passWeekly[groupId] = (week, row.Exp + gained);
-        }
-        else passWeekly[groupId] = (week, gained);
-        passWeeklyDirty = true;
-    }
-
-    void ResetPassWeeklyExpForWeek(long now)
-    {
-        var week = CycleStart(2, now);
-        foreach (var groupId in passWeekly.Keys.ToList())
-        {
-            passWeekly[groupId] = (week, 0);
-            passWeeklyDirty = true;
-        }
-    }
-
-    internal void SeedBattlePassWeeklyForTests(int groupId, long weekStartMs, int exp)
-    {
-        passWeekly[groupId] = (weekStartMs, exp);
-        passWeeklyLoaded = true;
-        passWeeklyDirty = false;
-    }
-
-    internal int BattlePassWeeklyExpForTests(int groupId, long now) => PassWeeklyExp(groupId, now);
-
-    async Task FlushBattlePassWeeklyAsync(long now, CancellationToken ct, bool force = false)
-    {
-        if (!passWeeklyDirty || (!force && now < passWeeklyFlushAt)) return;
-        if (!passWeeklyLoaded || Store is not { } store || CharacterId is not { } character) return;
-        passWeeklyFlushAt = now + ContentLimitsFlushMs;
-        passWeeklyDirty = false;
-        var rows = passWeekly.Select(kv => new BattlePassWeeklyRecord(kv.Key, kv.Value.Week, kv.Value.Exp)).ToList();
-        if ((await Stored(async () => await store.SaveBattlePassWeeklyAsync(character, rows, ct) ? [[]] : [])).Count == 0)
-            passWeeklyDirty = true;
-    }
-
-    static int FreePassExpAchievementId(AchievementTables.PassGroup group)
-    {
-        var free = group.Passes.FirstOrDefault(p => !IsPaid(p)) ?? group.Passes.FirstOrDefault();
-        return free is null || free.Length < 2 ? 0 : (int)free[1];
-    }
 
     List<AchievementTables.PassGroup> ActivePasses(long now) =>
         Achievements.PassGroups.Where(g => (g.Race == 0 || g.Race == profileRace) && g.FromMs <= now && now <= g.ToMs).ToList();
@@ -118,27 +50,16 @@ public sealed partial class GameSession
         return AddPassExp(group, mission.Points(step), now);
     }
 
-    List<byte[]> AddPassExp(AchievementTables.PassGroup group, int exp, long now, bool gmGrant = false)
+    List<byte[]> AddPassExp(AchievementTables.PassGroup group, int exp, long now)
     {
         if (exp <= 0) return [];
         var ids = group.Passes.Where(p => p.Length >= 2).Select(p => (int)p[1]).ToHashSet();
-        if (!gmGrant && options.EnforceBattlePassWeeklyCap)
-        {
-            var used = PassWeeklyExp(group.Id, now);
-            exp = Math.Min(exp, Math.Max(0, group.Limit - used));
-            if (exp <= 0) return [BattlePassInfoList(now)];
-        }
-        var freeExpId = FreePassExpAchievementId(group);
-        var before = freeExpId == 0 ? 0 : AchievementCount(freeExpId);
-        var replies = Emit(new AchievementEvent("BattlePassExp", exp, TargetIds: [.. ids]), now);
-        var gained = freeExpId == 0 ? 0 : AchievementCount(freeExpId) - before;
-        if (gained > 0) AccruePassWeeklyExp(group.Id, gained, now);
-        return [.. replies, BattlePassInfoList(now)];
+        return [.. Emit(new AchievementEvent("BattlePassExp", exp, TargetIds: [.. ids]), now), BattlePassInfoList(now)];
     }
 
     /// <summary>GM: pass exp to every active group (levels to claim without playing the missions).</summary>
     public List<byte[]> GrantBattlePassExp(int exp, long now) =>
-        [.. ActivePasses(now).SelectMany(g => AddPassExp(g, exp, now, gmGrant: true).SkipLast(1)), BattlePassInfoList(now)];
+        [.. ActivePasses(now).SelectMany(g => AddPassExp(g, exp, now).SkipLast(1)), BattlePassInfoList(now)];
 
     byte[] BattlePassInfoList(long now)
     {
@@ -149,7 +70,7 @@ public sealed partial class GameSession
             var free = group.Passes.FirstOrDefault(p => !IsPaid(p)) ?? group.Passes.FirstOrDefault();
             var total = free is null || free.Length < 2 ? 0 : AchievementCount((int)free[1]);
             var held = group.Passes.Where(PassUnlocked).ToList();
-            w.I32(group.Id).I32(total).I32(PassWeeklyExp(group.Id, now)).I64(CycleStart(2, now) + 7 * 86_400_000L).I64(0).Varint((uint)held.Count);
+            w.I32(group.Id).I32(total).I32(0).I64(CycleStart(2, now) + 7 * 86_400_000L).I64(0).Varint((uint)held.Count);
             foreach (var pass in held) w.I32((int)pass[0]);
             w.Varint((uint)group.Passes.Length);
             foreach (var pass in group.Passes)

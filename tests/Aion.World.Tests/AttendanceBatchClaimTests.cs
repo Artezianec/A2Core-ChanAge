@@ -27,15 +27,19 @@ public sealed class AttendanceBatchClaimTests
         Assert.True(rsIndex >= 0);
         Assert.Equal(0, BitConverter.ToInt32(batch[rsIndex], 2));
         var updateIndex = batch.FindIndex(p => Op(p) == GameSession.AchievementCountUpdateNt);
-        Assert.True(updateIndex > rsIndex, "0x5684 follows TakeAchievementRewardBatch_RS after the rewards summary is shown");
-        Assert.DoesNotContain(batch, p => Op(p) == GameSession.AchievementListNt);
+        Assert.True(updateIndex >= 0 && updateIndex < rsIndex, "0x5684 clears red dots before TakeAchievementRewardBatch_RS");
+        var listIndex = batch.FindIndex(p => Op(p) == GameSession.AchievementListNt);
+        Assert.True(listIndex >= 0 && listIndex < rsIndex, "the attendance list refresh precedes 568a and nothing trails it");
 
         var again = await session.HandleAsync(
             new PacketWriter().U16(GameSession.TakeAchievementRewardBatchRq).U8(7).I32(GlobalAttendanceGroup).U8(1).ToArray(),
             Now + 102);
         var rs = Assert.Single(again, p => Op(p) == GameSession.TakeAchievementRewardBatchRs);
-        Assert.Equal(1, BitConverter.ToInt32(rs, 2));
+        Assert.Equal(0, BitConverter.ToInt32(rs, 2));   // nothing left is a successful no-op, not "try again"
+
         Assert.DoesNotContain(again, p => Op(p) == GameSession.AchievementCountUpdateNt);
+        Assert.Contains(again, p => Op(p) == GameSession.AchievementListNt);   // no-op still redraws the tabs
+        Assert.Contains(again, p => Op(p) == GameSession.AccountContentsInfoListNt); // refresh check/reward day too
         Assert.Equal(1, session.AchievementCount(board.Achievement));
     }
 
@@ -53,9 +57,5 @@ public sealed class AttendanceBatchClaimTests
         var rsIndex = reward.FindIndex(p => Op(p) == GameSession.TakeAchievementRewardRs);
         Assert.True(updateIndex >= 0 && rsIndex > updateIndex);
         Assert.Equal(0, BitConverter.ToInt32(reward[rsIndex], 2));
-        var rs = reward[rsIndex];
-        Assert.Equal(1, rs[11]);
-        Assert.True(BitConverter.ToInt32(rs, 12) > 0);
-        Assert.True(BitConverter.ToInt32(rs, 16) > 0);
     }
 }

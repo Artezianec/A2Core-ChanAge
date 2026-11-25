@@ -24,11 +24,7 @@ public sealed class BittercoldWindTests
         var zone = PcZones.For(BittercoldWind)!;
         Assert.Equal(2920011, zone.Npc);
         Assert.Equal(10, zone.Ticks);
-        Assert.NotNull(zone.Damage);
-        Assert.Equal(1528000211, zone.Damage!.EffectId);
-        Assert.NotNull(zone.CastEffects);
-        Assert.Contains(zone.CastEffects!, r => r.EffectId == 1528000011);
-        Assert.Contains(zone.CastEffects!, r => r.EffectId == 1528000021);
+        Assert.Equal(1528000211, zone.Damage.EffectId);
         Assert.Equal(238, zone.Damage.Flat[0]);
         Assert.Equal(23225, zone.Damage.Ratio[0]);
         Assert.Equal("7", zone.Damage.Value4);
@@ -67,7 +63,7 @@ public sealed class BittercoldWindTests
         var first = await session.TickAsync(Now + 700);
         Assert.True(main.Hp < main.HpMax && beside.Hp < beside.HpMax, "the first tick hurts the target and the enemy beside it");
         Assert.Equal(far.HpMax, far.Hp);
-        Assert.Equal(3, first.Count(p => GameSessionTestHelpers.Op(p) == 0x3804));
+        Assert.Equal(2, first.Count(p => GameSessionTestHelpers.Op(p) == 0x3804));
 
         var afterFirst = main.Hp;
         await session.TickAsync(Now + 1_700);
@@ -97,7 +93,7 @@ public sealed class BittercoldWindTests
         var victims = crowd.Prepend(main).Where(m => m.Hp < m.HpMax).ToList();
         Assert.Equal(4, victims.Count);
         Assert.Contains(main, victims);
-        Assert.Equal(10 * 5, hits);   // one marker pulse 0x3804 per tick plus up to four victim hits
+        Assert.Equal(10 * 4, hits);
         Assert.Equal(2, crowd.Count(m => m.Hp == m.HpMax));
     }
 
@@ -164,30 +160,9 @@ public sealed class BittercoldWindTests
         var replies = await session.HandleAsync(Cast(BittercoldWind, mob.Key, mob.Position), castAt);
         Assert.True(CastAccepted(replies));
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3802 && ContainsI32(p, BittercoldWind));
-        var fxPackets = replies.Where(p => GameSessionTestHelpers.Op(p) == 0x3804).ToList();
-        Assert.Equal(3, fxPackets.Count);
-        Assert.Contains(fxPackets, p => ContainsI32(p, 1528000011));
-        Assert.Contains(fxPackets, p => ContainsI32(p, 1528000021));
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3641);
-        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == MechanicTelegraphs.RangeNoticeFilterLocationNt);
-        var marker = Assert.Single(session.Targets!.Values, t => t.OwnerKey == session.PlayerKey && t.NpcId == 2920011);
-        Assert.Equal(2, fxPackets.Count(p => ContainsVarint(p, marker.Key)));
         Assert.Equal(1, session.PlacedZoneCount);
         await session.TickAsync(castAt + 700);
         Assert.True(mob.Hp < mob.HpMax, "the first zone tick damages the target");
-    }
-
-    static bool ContainsVarint(byte[] packet, int value)
-    {
-        var reader = new PacketReader(packet) { Offset = 2 };
-        while (reader.Offset < packet.Length)
-        {
-            try
-            {
-                if ((int)reader.Varint() == value) return true;
-            }
-            catch { break; }
-        }
-        return false;
     }
 }

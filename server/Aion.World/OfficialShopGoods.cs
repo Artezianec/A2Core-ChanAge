@@ -141,31 +141,7 @@ public sealed class OfficialShopGoods
         if (currency is not { } id) return null;
         var first = parts[0];
         var lim = quotaLimit ?? new PurchaseLimit(0, 0, 0);
-        var needLevel = MinCharacterLevel(g);
-        return new Entry(new ShopTables.GoodsRow(first.ItemId, first.Count, policy.Price, needLevel, id, lim.Limit, lim.LimitTarget, lim.LimitPeriod), parts);
-    }
-
-    /// <summary>Minimum character level from served <c>game_data</c> (character_level entries the client uses for purchase gating).</summary>
-    static int MinCharacterLevel(JsonElement g)
-    {
-        if (!g.TryGetProperty("game_data", out var raw) || raw.ValueKind != JsonValueKind.String) return 0;
-        try
-        {
-            using var doc = JsonDocument.Parse(raw.GetString() ?? "");
-            foreach (var entry in doc.RootElement.EnumerateArray())
-            {
-                if (!entry.TryGetProperty("key", out var key) || key.GetString() != "character_level") continue;
-                if (entry.TryGetProperty("value", out var value))
-                {
-                    if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var numeric)) return Math.Max(0, numeric);
-                    if (value.ValueKind == JsonValueKind.String
-                        && int.TryParse(value.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
-                        return Math.Max(0, parsed);
-                }
-            }
-        }
-        catch (JsonException) { }
-        return 0;
+        return new Entry(new ShopTables.GoodsRow(first.ItemId, first.Count, policy.Price, 0, id, lim.Limit, lim.LimitTarget, lim.LimitPeriod), parts);
     }
 
     static List<(int ItemId, int Count)> ReadParts(JsonElement g)

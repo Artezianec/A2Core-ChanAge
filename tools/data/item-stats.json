@@ -44,8 +44,7 @@
     "318": "WeaponAccuracy",
     "31": "WeaponDamage",
     "317": "WeaponFixingDamage",
-    "33": "WeaponMinDamage",
-    "425": "DamageRatio"
+    "33": "WeaponMinDamage"
   },
   "attribute_stats": [
     "STR",
@@ -73,7 +72,6 @@
     "CoolTimeDecrease",
     "MoveSpeed",
     "AmplifyAllDamage",
-    "DamageRatio",
     "AmplifyCriticalDamage",
     "AmplifyMagicDamage",
     "DecreaseDamage",
@@ -102,7 +100,6 @@
     "AdditionalHitRate",
     "AdditionalHitResistRate",
     "AmplifyAllDamage",
-    "DamageRatio",
     "AmplifyCriticalDamage",
     "BossNpcAddDamage",
     "BossNpcDefense",

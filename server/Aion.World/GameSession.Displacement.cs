@@ -21,9 +21,6 @@ partial class GameSession
     PendingMoveStop? pendingSelfMoveStop;
     Vector3d displacedTo;
 
-    /// <summary>Knockback/pull lock on self position reports until the displacement ends or is cleared (death, map load).</summary>
-    internal void ClearDisplacementLock() => (displacedUntil, pendingSelfMoveStop, displacedTo) = (0, null, default);
-
     static int MoveTimeMs(double distance, double speed) => (int)Math.Clamp(distance * 1000 / speed, MinMoveMs, MaxMoveMs);
 
     /// <summary>The point <paramref name="distance"/> cm beyond <paramref name="of"/> on the line from <paramref name="from"/>.</summary>
@@ -97,7 +94,6 @@ partial class GameSession
         if (pendingSelfMoveStop is { } own && now >= own.DueMs)
         {
             pendingSelfMoveStop = null;
-            displacedUntil = 0;
             if (!dead)
             {
                 var at = displacedTo;

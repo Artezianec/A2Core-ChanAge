@@ -18,7 +18,7 @@ partial class GameSession
         {
             foreach (var abnormal in LearnedPassiveAbnormals(skill))
             {
-                if (AbnormalSpecs.Info(abnormal) is null && !SkillEffectEngine.HasTriggers(abnormal)) continue;
+                if (AbnormalSpecs.Info(abnormal) is null) continue;
                 wanted.Add(abnormal);
             }
         }
@@ -94,7 +94,4 @@ partial class GameSession
     internal int BuffStatForTests(string stat) => BuffStat(stat);
 
     internal List<byte[]> CleanseDebuffsForTests(long now) => Cleanse(AbnormalSpecs.Debuff, int.MaxValue, now);
-
-    /// <summary>Tests: mark a debuff expired without running BuffTick (stale combat flags must not block movement).</summary>
-    internal void ForceExpireBuffForTests(int abnormalId) { foreach (var b in buffs.Where(b => b.AbnormalId == abnormalId)) b.ExpireAt = 0; }
 }

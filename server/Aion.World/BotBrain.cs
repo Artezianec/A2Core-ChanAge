@@ -62,6 +62,8 @@ public static class BotRequests
 
     /// <summary>Carried bomb at a Communication Tower (live client F uses 0x384a SkillGroundReady, not InteractEnvObj).</summary>
     public static byte[] BombGroundReady(int skill) => new PacketWriter().U16(GameSession.SkillGroundReadyRq).I32(skill).ToArray();
+    /// <summary>0x384d SkillGroundStart: the actual plant (Ready only enters the aim).</summary>
+    public static byte[] BombGroundStart(int skill) => new PacketWriter().U16(GameSession.SkillGroundStartRq).I32(skill).ToArray();
 
     /// <summary>0x4004 the client's request to leave an instance copy (answered 0x4005).</summary>
     public static byte[] LeaveInstance() => [0x04, 0x40];

@@ -37,26 +37,6 @@ try:
 except ImportError:
     from tools.quests import EVENT_INVALID_UNAVAILABLE_REASON, FESTIVAL_DETECTIVE_CODES, event_no_longer_valid
 
-try:
-    from abyss_middle_data import (
-        DEFERRED_QUEST_CODES,
-        MAP21_MAPDATA_HINT,
-        client_export_templates,
-        middle_abyss_npc_ids,
-        npc_ids_for_deferred_quests,
-    )
-except ImportError:
-    from tools.abyss_middle_data import (
-        DEFERRED_QUEST_CODES,
-        MAP21_MAPDATA_HINT,
-        client_export_templates,
-        middle_abyss_npc_ids,
-        npc_ids_for_deferred_quests,
-    )
-
-# Emulator: spawn festival detective NPCs even when QuestString marks the event retired (dev parity).
-EMULATOR_ENABLE_RETIRED_FESTIVAL = True
-
 # Deferred quest codes (tools/audit_quests.py, Oct 2026).
 DEFERRED_CODES = None  # filled from audit or hard-coded list
 
@@ -81,13 +61,13 @@ def deferred_quest_codes() -> list[str]:
     global DEFERRED_CODES
     if DEFERRED_CODES is not None:
         return DEFERRED_CODES
-    codes = list(DEFERRED_QUEST_CODES)
+    codes = []
     audit = ROOT / 'docs/quests/AUDIT.md'
     if audit.exists():
         for line in audit.read_text(encoding='utf-8').splitlines():
             if '| data_issue |' in line and line.startswith('|'):
                 m = re.match(r'\| (\w+) \|', line)
-                if m and m.group(1) not in codes:
+                if m:
                     codes.append(m.group(1))
     DEFERRED_CODES = codes
     return codes
@@ -118,9 +98,22 @@ def load_json(path: Path) -> dict:
 
 
 def missing_npc_ids(quests: dict, templates: set[int]) -> set[int]:
-    """Npc ids for the 66 deferred quests (templates/spawns may still need refresh if already present)."""
-    _ = templates
-    return npc_ids_for_deferred_quests(quests) | set(middle_abyss_npc_ids(quests))
+    needed: set[int] = set()
+    codes = set(deferred_quest_codes())
+    for code, q in quests['quests'].items():
+        if code not in codes:
+            continue
+        for step in q.get('steps') or []:
+            for o in step.get('objectives') or []:
+                if o.get('type') in ('KillNpc', 'CollectFakeItem', 'AskNpc', 'CloseNpc'):
+                    for nid in o.get('npcs') or []:
+                        if isinstance(nid, int):
+                            needed.add(nid)
+                    if isinstance(o.get('npc'), int):
+                        needed.add(o['npc'])
+                if o.get('npc') and isinstance(o['npc'], int):
+                    needed.add(o['npc'])
+    return {n for n in needed if n not in templates}
 
 
 def abyss_middle_ids(missing: set[int]) -> list[int]:
@@ -161,10 +154,9 @@ def build_supplement() -> dict:
     templates = world['templates']
     template_ids = {int(k) for k in templates}
     missing = missing_npc_ids(quests, template_ids)
-    # Prefer client NpcData for every deferred id; fall back to donor clones only when export lacks a row.
-    client_tmpl, client_skills, client_missing = client_export_templates(missing)
-    out_templates: dict[str, dict] = dict(client_tmpl)
-    for nid in sorted(client_missing):
+
+    out_templates: dict[str, dict] = {}
+    for nid in sorted(missing):
         out_templates[str(nid)] = donor_for(nid, templates)
 
     maps_out: dict[str, list] = {}
@@ -180,10 +172,9 @@ def build_supplement() -> dict:
         x, y, z = kuru[2], kuru[3], kuru[4]
         maps_out.setdefault('1010', []).append(spawn_row('M_L1_TF_Kuru_03_001_QuestSup', 2100159, x + 200, y, z))
 
-    # Festival detective NPCs: field spawns are absent from MapData on 1010/1110; emulator places CANDIDATE anchors.
+    # Festival detective NPCs: only synthetic field spawns when the event is still valid in dat.
     # Client MapData SpawnInfoList on 1010/1110 has no N_*_FQ_Event_ShugoBM_01_02 / CLB01 rows; instance-only _INS on 840043/800025/850015.
-    festival_active = not festival_detective_retired(quests)
-    if EMULATOR_ENABLE_RETIRED_FESTIVAL or festival_active:
+    if not festival_detective_retired(quests):
         placements = spawn_name_index(world)
         anchor = find_spawn(world['maps'], '1010', 2989382)
         if anchor:
@@ -225,32 +216,23 @@ def build_supplement() -> dict:
             spawn_row('M_D2_AH_DestDaeva_02_QuestSup', 2406116, dark_anchor[2], dark_anchor[3] + 100, dark_anchor[4]))
 
     # Middle Abyss (map 21 + mirror on 20 for players on live Reshanta A)
-    abyss_ids = middle_abyss_npc_ids(quests)
+    abyss_ids = abyss_middle_ids(missing)
     base_x, base_y, base_z = 36842.2, 16638.1, 36019.0
     for index, nid in enumerate(abyss_ids):
         name = _abyss_spawn_name(nid, quests)
-        # Spawn names match QuestStep MapData labels; positions CANDIDATE until map 21 MapData import.
         row = spawn_row(name, nid, base_x + (index % 8) * 400, base_y + (index // 8) * 400, base_z)
         maps_out.setdefault('21', []).append(row)
-        maps_out.setdefault('20', []).append(spawn_row(f'{name}_M20', nid, row[2], row[3], row[4]))
+        maps_out.setdefault('20', []).append(spawn_row(name + '_M20', nid, row[2], row[3], row[4]))
 
-    donor_fallback = sorted(client_missing)
     return {
         'source': {
-            'note': (
-                'NpcData from research/client-export/2026-11-22 when present; '
-                'spawn positions CANDIDATE until MapData map 21 import.'
-            ),
-            'map21_mapdata': MAP21_MAPDATA_HINT,
-            'donor_fallback_ids': donor_fallback,
-            'festival_spawns': 'emulator_forced' if EMULATOR_ENABLE_RETIRED_FESTIVAL and not festival_active else 'live_event',
+            'note': 'Synthetic templates cloned from nearest exported NpcData rows; spawns OURS until map 21 MapData export.',
+            'donors': 'tools/quest_supplement.py DONOR_BY_NPC + ABYSS_MIDDLE_DONOR',
             'community': 'Middle Abyss duty scrolls match Aion2.gg / in-game Middle Abyss kill quests (Reshanta N7 mobs).',
         },
         'templates': out_templates,
         'maps': maps_out,
         'triggers': triggers_out,
-        'npc_skills': client_skills,
-        'supplement_npc_ids': sorted(missing),
     }
 
 
@@ -262,8 +244,8 @@ def _abyss_spawn_name(npc_id: int, quests: dict) -> str:
                 names = o.get('npc_names') or []
                 for i, n in enumerate(npcs):
                     if n == npc_id and i < len(names) and names[i]:
-                        return names[i]
-    return f'M_AbyssMid_{npc_id}_Supplement'
+                        return names[i] + '_QuestSup'
+    return f'M_AbyssMid_{npc_id}_QuestSup'
 
 
 def _trigger(name: str, x: float, y: float, z: float, radius: float = 1000.0) -> dict:
@@ -280,44 +262,15 @@ def _trigger(name: str, x: float, y: float, z: float, radius: float = 1000.0) ->
     }
 
 
-def _strip_prior_supplement_spawns(world: dict, supplement: dict) -> None:
-    """Remove older QuestSup / supplement rows so re-apply is idempotent."""
-    ids = set(supplement.get('supplement_npc_ids') or [])
-    for map_id, rows in list(world.get('maps', {}).items()):
-        kept = []
-        for row in rows:
-            if not isinstance(row, list) or len(row) < 2:
-                kept.append(row)
-                continue
-            name, npc_id = row[0], row[1]
-            drop = (
-                name.endswith('_QuestSup')
-                or name.endswith('_Supplement')
-                or (npc_id in ids and ('_M20' in name or map_id in ('20', '21')))
-                or (name.endswith('_QuestSup') is False and npc_id in ids and map_id in ('1010', '1110', '1111')
-                    and ('QuestSup' in name or 'Event_ShugoBM' in name or 'Event_CLB01' in name or 'QuestSup' in name))
-            )
-            if drop:
-                continue
-            kept.append(row)
-        world['maps'][map_id] = kept
-
-
 def apply_supplement(supplement: dict | None = None) -> None:
     supplement = supplement or load_json(SUPPLEMENT)
     world = load_json(WORLD_NPCS)
-    _strip_prior_supplement_spawns(world, supplement)
     world['templates'].update(supplement.get('templates', {}))
     for map_id, rows in supplement.get('maps', {}).items():
-        existing_names = {r[0] for r in world['maps'].get(map_id, []) if isinstance(r, list) and r}
-        for row in rows:
-            if row[0] not in existing_names:
-                world['maps'].setdefault(map_id, []).append(row)
+        world['maps'].setdefault(map_id, []).extend(rows)
 
     skills = supplement.get('npc_skills') or {}
     world.setdefault('npc_skills', {}).update(skills)
-    world_src = world.setdefault('source', {})
-    world_src['quest_world_supplement'] = supplement.get('source', {})
 
     write_data_json(WORLD_NPCS, world)
 

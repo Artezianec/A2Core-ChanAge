@@ -15,10 +15,6 @@ Data source: Quest/QuestStep/QuestReward/QuestClassReward/QuestString/ContentsUn
 | --- | --- | --- |
 | HQ1101018 step 5 never completes | `EnterVolumePC` `value` (radius cm) ignored | `AreaQuestsAsync` passes `TriggerArea.Contains(at, value)` |
 | Watchstones not dying / kills not counted | `Immune` abnormal zeroed damage | Quest `OpenKillNpcIds` bypass immunity |
-| Early watchstone / chest / scout damage | KillNpc/UseEnvObj world spawns always active | `PendingKillNpcIds`, `ProtectedTalkNpcIds`, respawn on step |
-| Chest interact UI stale after step change | `canInteract` only on 0x3634 spawn | `SyncQuestEnvInteractFlags` → 0x363c in `ApplyQuestWorldGating` |
-| Party kill credit only on killer | `QuestKillsAsync` local log only | `ApplyPartyQuestKillCreditAsync` within `PartyExpRange` |
-| Accept/give-up leave wrong NPC immunity | Gating only on quest progress | `ApplyQuestWorldGating` on 0x8d0a / 0x8d0c |
 | CollectItem stuck | `QuestLog.Holding` never called | `SyncQuestCollectItemsAsync` on inventory sync |
 | Mob vanishes on large maps | NPC streaming despawn | Keep streaming for open kill objectives until dead |
 | HQ1101011 supply box | Verify env **1200530** on map 1000 | Data OK; UseEnvObj uses EnvObj id |

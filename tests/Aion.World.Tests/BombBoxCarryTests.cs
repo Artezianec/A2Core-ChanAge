@@ -20,6 +20,7 @@ public sealed class BombBoxCarryTests
         .Select(p => (int?)BitConverter.ToUInt16(p, 2)).LastOrDefault();
 
     static byte[] GroundReady(int skill) => new PacketWriter().U16(GameSession.SkillGroundReadyRq).I32(skill).ToArray();
+    static byte[] GroundStart(int skill) => new PacketWriter().U16(GameSession.SkillGroundStartRq).I32(skill).ToArray();
 
     static (int Result, int Skill)? GroundResult(IEnumerable<byte[]> packets, ushort opcode) => packets
         .Where(p => p.Length == 8 && BitConverter.ToUInt16(p, 0) == opcode)
@@ -38,6 +39,8 @@ public sealed class BombBoxCarryTests
         Assert.NotEmpty(boxes);
         Assert.All(boxes, b => Assert.Equal(new CarryBox(1196, true, 10_000), b.Carry));
         Assert.All(WorldObjects.ObjectsOn(100002).Where(o => o.Env == 1400824), t => Assert.True(t.Destructible));
+        Assert.All(WorldObjects.ObjectsOn(100002).Where(o => o.Env == 1400824), t =>
+            Assert.True(GameSession.BombPlantReach(t) >= 3000, $"skill 5003 reaches 30 m (tower {t.Name})"));
         Assert.Equal(1196, RewardBoxes.Embedded.Abnormal(160020)!.Group);
     }
 
@@ -104,11 +107,11 @@ public sealed class BombBoxCarryTests
             List<byte[]> used;
             if (n == 2)
             {
-                used = await session.HandleAsync(GroundReady(5003), t + 1_100);
-                Assert.Equal((1, 5003), GroundResult(used, GameSession.SkillGroundReadyRs));   // no ground-aim state for the client
+                used = await session.HandleAsync(GroundStart(5003), t + 1_100);
+                Assert.Equal((0, 5003), GroundResult(used, GameSession.SkillGroundStartRs));
                 Assert.Contains(used, p => p.Length > 1 && p[0] == 0x2c && p[1] == 0x38);   // AbnormalRemove of the bomb
-                // Only the reply (u16 result, i32 skill) and the plant's packets: no ground-skill NT, 0x382c for uid of the 0x382a add.
-                Assert.DoesNotContain(used, p => p.Length > 1 && p[0] == 0x51 && p[1] == 0x38);
+                // The reply, the throw's SkillStart, the GroundStop_NT that leaves aim, and 0x382c for uid of the 0x382a add.
+                Assert.Contains(used, p => p.Length > 1 && p[0] == 0x51 && p[1] == 0x38);
                 var added = took.Single(p => p.Length > 1 && p[0] == 0x2a && p[1] == 0x38);
                 var addReader = new PacketReader(added) { Offset = 2 };
                 addReader.Varint();
@@ -123,7 +126,7 @@ public sealed class BombBoxCarryTests
                 Assert.Equal(uid, (int)removeReader.Varint());
             }
             else if (n == 1)
-                used = await session.HandleAsync(GroundReady(5003), t + 1_100);
+                used = await session.HandleAsync(GroundStart(5003), t + 1_100);
             else
                 used = await session.HandleAsync(Use(towerKey), t + 1_100);
             Assert.True(Despawned(used, towerKey), $"tower {n} destroyed");
@@ -222,7 +225,7 @@ public sealed class BombBoxCarryTests
         var far = tower.o.At with { X = tower.o.At.X + GameSession.BombPlantReach(tower.o) + 2500, Y = tower.o.At.Y + 2500 };
         await MapEventScenarioHelpers.SyncPositionAsync(session, far, t + 5000);
         var goalsBefore = run!.Goals.ToArray();
-        await session.HandleAsync(GroundReady(5003), t + 5200);
+        await session.HandleAsync(GroundStart(5003), t + 5200);
         await session.TickAsync(t + 6000);
         Assert.Equal(goalsBefore, run.Goals);
     }
@@ -249,11 +252,11 @@ public sealed class BombBoxCarryTests
         await session.HandleAsync(Use(WorldObjects.FirstKey + box.i), t + 100);
         await session.TickAsync(t + 100 + GameSession.CarryPickupMs);
         var plantReach = GameSession.BombPlantReach(tower.o);
-        var far = tower.o.At with { X = tower.o.At.X + plantReach + 2000, Y = tower.o.At.Y + 2000 };
+        var far = tower.o.At with { X = tower.o.At.X + plantReach + 8000, Y = tower.o.At.Y + 8000 };
         await MapEventScenarioHelpers.SyncPositionAsync(session, tower.o.At, t + 3000);
         var goalsBefore = run!.Goals.ToArray();
-        await session.HandleAsync(new PacketWriter().U16(0x3701).U8(2).Vec3(far).U16(0).F32(0).U8(1).U64(1).ToArray(), t + 4000);
-        await session.HandleAsync(GroundReady(5003), t + 4010);
+        await MapEventScenarioHelpers.SyncPositionAsync(session, far, t + 4000);
+        await session.HandleAsync(GroundStart(5003), t + 4010);
         await session.TickAsync(t + 4500);
         Assert.Equal(goalsBefore, run.Goals);
     }
@@ -321,8 +324,8 @@ public sealed class BombBoxCarryTests
         var far = tower.o.At with { X = tower.o.At.X + GameSession.BombPlantReach(tower.o) + 2000 };
         await MapEventScenarioHelpers.SyncPositionAsync(session, far, t + 5000);
         var towerKey = WorldObjects.FirstKey + tower.i;
-        var used = await session.HandleAsync(GroundReady(5003), t + 5100);
-        Assert.Equal((1, 5003), GroundResult(used, GameSession.SkillGroundReadyRs));
+        var used = await session.HandleAsync(GroundStart(5003), t + 5100);
+        Assert.Equal((1, 5003), GroundResult(used, GameSession.SkillGroundStartRs));
         Assert.False(Despawned(used, towerKey));
         Assert.Equal(1196, session.CarriedGroup);
     }

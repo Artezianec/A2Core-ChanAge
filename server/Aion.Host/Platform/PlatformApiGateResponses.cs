@@ -49,6 +49,12 @@ public static class PlatformApiGateResponses
             log?.LogDebug("Platform gate empty reply {Method} {Path}", method, path);
             return true;
         }
+        if (method == "GET" && path == "/local-api-gate/warehouse/v2.0/me/items")
+        {
+            body = WarehouseItems(query);
+            log?.LogDebug("Platform gate empty warehouse page={Page} size={PageSize}", query["page_index"], query["page_size"]);
+            return true;
+        }
         if (method == "GET" && path.StartsWith(ProfileImagesPrefix, StringComparison.Ordinal))
         {
             body = EmptyGameProfileImages();
@@ -84,6 +90,29 @@ public static class PlatformApiGateResponses
             return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// GET warehouse/v2.0/me/items: the platform warehouse UI's paged account-storage list. The local test
+    /// account has no platform-delivered items; return an empty 200 page and echo the request's paging/context
+    /// fields instead of a 503 (observed in the 2026-11-24 launcher session).
+    /// </summary>
+    public static byte[] WarehouseItems(IQueryCollection query)
+    {
+        static string QueryValue(IQueryCollection q, string key, string fallback) =>
+            q[key].FirstOrDefault() is { Length: > 0 } value ? value : fallback;
+
+        var page = new JsonObject
+        {
+            ["total_count"] = "0",
+            ["page_index"] = QueryValue(query, "page_index", "1"),
+            ["page_size"] = QueryValue(query, "page_size", "80"),
+            ["items"] = new JsonArray(),
+            ["warehouse_items"] = new JsonArray(),
+        };
+        foreach (var key in new[] { "game_server_id", "char_key", "inventory_type", "is_delivery_confirmation" })
+            if (query[key].FirstOrDefault() is { Length: > 0 } value) page[key] = value;
+        return JsonSerializer.SerializeToUtf8Bytes(page, PlatformResponses.Plain);
     }
 
     /// <summary>

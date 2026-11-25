@@ -86,6 +86,12 @@ def observe_deep(check, data, base_va, region_kind, module_name=None):
         check.offer(key, source)
         if check.verified and check.stop_on_verify:
             return True
+    # A mounted archive key lives in a heap object (MEM_PRIVATE). Raw 32-byte windows in module
+    # images and file-backed mappings are code and game data: they pass the entropy prefilter in
+    # the hundreds of thousands and each costs an index decrypt, which exhausts the bounded search
+    # before the heap is reached. Structured candidates above still run for every region.
+    if region_kind != "private":
+        return False
     limit = len(data) - 31
     if limit <= 0:
         return False

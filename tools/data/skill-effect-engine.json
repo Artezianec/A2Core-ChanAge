@@ -5431,6 +5431,7 @@
           "Normal",
           "Critical"
         ],
+        "boss_only": true,
         "skill": 15220037
       }
     ],

@@ -48,12 +48,16 @@ tools/AionClientProbe/obj/
 
 # The server data bundle is a release download (too large for the repository): place it in data/.
 /data/
-# Raw extractions and the client archive key stay local (bring your own).
-/research/local/*
-!/research/local/tooling/
-/research/local/tooling/*
-!/research/local/tooling/opcodes.json
-!/research/local/tooling/mappings/
+
+# Local workspace directories (IDE state, start scripts, build output): never commit.
+/.openidea/
+/.start-all/
+/build/
+/out/
+
+# Raw extractions, captures and notes stay local (bring your own); only the NCGuard write-up is shared.
+/research/*
+!/research/e259-ncguard.md
 
 # Local Windows deploy launcher (machine-specific; never commit).
 /deploy/windows/start.ps1
@@ -63,3 +67,8 @@ tools/.cache/gamers4life/
 server/Aion.Host/wwwroot/favicon.png
 server/Aion.Host/wwwroot/apple-touch-icon.png
 /aion-server-data.tar.gz
+
+# Local task notes (kept on disk, never tracked or committed)
+/docs/CURRENT_TASK.md
+/docs/TODO_TASK.md
+/TODO_TASK.md

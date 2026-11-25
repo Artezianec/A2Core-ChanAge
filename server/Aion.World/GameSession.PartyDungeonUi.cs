@@ -9,20 +9,20 @@ namespace Aion.World;
 // the same instance copy (SharedWorld instance key = room key) and forms a party; each member spends an expedition ticket.
 public sealed partial class GameSession
 {
-    public const ushort PartyDungeonEnterRq = 0x3A61, PartyDungeonEnterRs = 0x3A62, BookmarkedContentListNt = 0x3A66, PartyDungeonChallengeNt = 0x3A67,
-        DungeonRoomListRq = 0x3AC1, DungeonRoomListRs = 0x3AC2, DungeonRoomInfoNt = 0x3AC3,
-        DungeonRoomCreateRq = 0x3AC4, DungeonRoomCreateRs = 0x3AC5, DungeonRoomJoinRq = 0x3AC6, DungeonRoomJoinRs = 0x3AC7,
-        DungeonRoomApplyNt = 0x3AC8, DungeonRoomApplyResponseRq = 0x3AC9, DungeonRoomApplyResponseRs = 0x3ACA, DungeonRoomApplyResponseNt = 0x3ACB,
-        DungeonRoomAddMemberNt = 0x3ACC, DungeonRoomInviteRq = 0x3ACD, DungeonRoomInviteRs = 0x3ACE, DungeonRoomInviteNt = 0x3ACF,
-        DungeonRoomInviteResponseRq = 0x3AD0, DungeonRoomInviteResponseRs = 0x3AD1, DungeonRoomLeaveRq = 0x3ADD, DungeonRoomLeaveRs = 0x3ADE,
-        DungeonRoomLeaveNt = 0x3ADC, DungeonRoomKickMemberRq = 0x3AE9, DungeonRoomKickMemberRs = 0x3AEA, DungeonRoomKickoutNt = 0x3AEB,
-        DungeonRoomInstantJoinRq = 0x3AD3, DungeonRoomInstantJoinRs = 0x3AD4,
-        DungeonRoomReadyRq = 0x3AD5, DungeonRoomReadyRs = 0x3AD6, DungeonRoomReadyNt = 0x3AD7,
-        DungeonRoomStartRq = 0x3AD8, DungeonRoomStartRs = 0x3AD9, DungeonRoomDisbandNt = 0x3ADB, DungeonRoomNewLeaderNt = 0x3ADA,
-        DungeonRoomDisconnectMemberNt = 0x3ADF,
-        DungeonRoomEditSettingRq = 0x3AE1, DungeonRoomEditSettingRs = 0x3AE2, DungeonRoomSettingUpdatedNt = 0x3AE3,
-        DungeonRoomRetryRq = 0x3AEF, DungeonRoomRetryRs = 0x3AF0, DungeonRoomAskRetryNt = 0x3AF1,
-        DungeonRoomRetryResponseRq = 0x3AF2, DungeonRoomRetryResponseRs = 0x3AF3, DungeonRoomRetryResponseNt = 0x3AF4, DungeonRoomRetryFailNt = 0x3AF5;
+    public const ushort PartyDungeonEnterRq = 0x9323, PartyDungeonEnterRs = 0x9324, BookmarkedContentListNt = 0x9330, PartyDungeonChallengeNt = 0x9331,
+        DungeonRoomListRq = 0x9700, DungeonRoomListRs = 0x9701, DungeonRoomInfoNt = 0x9702,
+        DungeonRoomCreateRq = 0x9703, DungeonRoomCreateRs = 0x9704, DungeonRoomJoinRq = 0x9705, DungeonRoomJoinRs = 0x9706,
+        DungeonRoomApplyNt = 0x9707, DungeonRoomApplyResponseRq = 0x9708, DungeonRoomApplyResponseRs = 0x9709, DungeonRoomApplyResponseNt = 0x970A,
+        DungeonRoomAddMemberNt = 0x970B, DungeonRoomInviteRq = 0x970C, DungeonRoomInviteRs = 0x970D, DungeonRoomInviteNt = 0x970E,
+        DungeonRoomInviteResponseRq = 0x970F, DungeonRoomInviteResponseRs = 0x9710, DungeonRoomLeaveRq = 0x971C, DungeonRoomLeaveRs = 0x971D,
+        DungeonRoomLeaveNt = 0x971B, DungeonRoomKickMemberRq = 0x9728, DungeonRoomKickMemberRs = 0x9729, DungeonRoomKickoutNt = 0x972A,
+        DungeonRoomInstantJoinRq = 0x9712, DungeonRoomInstantJoinRs = 0x9713,
+        DungeonRoomReadyRq = 0x9714, DungeonRoomReadyRs = 0x9715, DungeonRoomReadyNt = 0x9716,
+        DungeonRoomStartRq = 0x9717, DungeonRoomStartRs = 0x9718, DungeonRoomDisbandNt = 0x971A, DungeonRoomNewLeaderNt = 0x9719,
+        DungeonRoomDisconnectMemberNt = 0x971E,
+        DungeonRoomEditSettingRq = 0x9720, DungeonRoomEditSettingRs = 0x9721, DungeonRoomSettingUpdatedNt = 0x9722,
+        DungeonRoomRetryRq = 0x972E, DungeonRoomRetryRs = 0x972F, DungeonRoomAskRetryNt = 0x9730,
+        DungeonRoomRetryResponseRq = 0x9731, DungeonRoomRetryResponseRs = 0x9732, DungeonRoomRetryResponseNt = 0x9733, DungeonRoomRetryFailNt = 0x9734;
 
     const int RoomFailed = 1;
     const byte RoomInfoCreate = 0, RoomInfoJoin = 1, RoomInfoLeave = 2, RoomInfoKick = 3, RoomInfoDisband = 4;
@@ -108,9 +108,12 @@ public sealed partial class GameSession
         if (plain.Length < 7) return null;
         try
         {
-            var reader = new PacketReader(plain) { Offset = DungeonIdOffset(plain) };
+            var idOffset = DungeonIdOffset(plain);
+            var reader = new PacketReader(plain) { Offset = idOffset };
             var dungeonId = reader.I32();
-            var level = reader.Remaining > 0 ? reader.U8() : (byte)0;
+            // 2.0.12: u8 has_level before the id; legacy bodies always carry the level byte.
+            var hasLevel = idOffset != 3 || plain[2] != 0;
+            var level = hasLevel && reader.Remaining > 0 ? reader.U8() : (byte)0;
             var race = reader.Remaining > 0 ? reader.U8() : (byte)0;
             var desc = reader.Remaining > 0 ? ReadFString(reader) : "";
             var pub = reader.Remaining > 0 && reader.Bool();

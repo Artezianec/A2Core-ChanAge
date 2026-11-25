@@ -83,21 +83,21 @@ public sealed class AbyssTables
 
 // The Abyss (Reshanta: Dungeon.dat type Abyss, maps 20/22/23 — shared zones). PvP between races, Abyss Points (currency item),
 // ranking points/grades, a banked entry-time pool (weekly grant + cap from abyss.json), and active SeasonMission achievements
-// (Group_Season_G1_*_Abyss on the Oct 7 Global pin). AbyssPointUpdate_NT 0x3C06, RankingPointUpdate_NT 0x3B78 (type 1 Abyss,
+// (Group_Season_G1_*_Abyss on the Oct 7 Global pin). AbyssPointUpdate_NT 0xFFAB, RankingPointUpdate_NT 0xE273 (type 1 Abyss,
 // CANDIDATE), WorldMapAbyssRankerInfo 0x3A17/0x3A18 (empty list). AirspaceBattle (fortress siege) 0x372C–0x373B: weekly wait/apply/battle/end
 // schedule, legion apply (persisted), presence + PvP siege scoring, CharAirspacePoint_NT, owner ProgressResult NT, siege AP (online + pending offline).
 public sealed partial class GameSession
 {
     public const int AbyssPointItemId = 930100003;
     public const int AbyssEntryStoneItemId = 930100019;
-    public const ushort AbyssPointUpdateNt = 0x3C06, RankingPointUpdateNt = 0x3B78, WorldMapAbyssRankerInfoRq = 0x3A17, WorldMapAbyssRankerInfoRs = 0x3A18,
+    public const ushort AbyssPointUpdateNt = 0xFFAB, RankingPointUpdateNt = 0xE273, WorldMapAbyssRankerInfoRq = 0x910B, WorldMapAbyssRankerInfoRs = 0x910C,
         PrevSeasonMissionInfoNt = 0x5682,
-        AirspaceBattleRq = 0x372C, AirspaceBattleNt = 0x372D, AirspaceBattleUpdateNt = 0x372E, AirspaceBattleProgressResultNt = 0x372F,
-        AirspaceBattleApplyRq = 0x3731, AirspaceBattleApplyRs = 0x3732, AirspaceBattleApplyNt = 0x3733,
-        AirspaceBattleApplyCancelRq = 0x3734, AirspaceBattleApplyCancelRs = 0x3735, AirspaceBattleApplyCancelNt = 0x3736,
-        AirspaceBattleApplyGuildListNt = 0x3737, CharAirspacePointNt = 0x3738, AirspaceBattleRankingRq = 0x3739, AirspaceBattleRankingRs = 0x373A,
+        AirspaceBattleRq = 0x4300, AirspaceBattleNt = 0x4301, AirspaceBattleUpdateNt = 0x4302, AirspaceBattleProgressResultNt = 0x4303,
+        AirspaceBattleApplyRq = 0x4305, AirspaceBattleApplyRs = 0x4306, AirspaceBattleApplyNt = 0x4307,
+        AirspaceBattleApplyCancelRq = 0x4308, AirspaceBattleApplyCancelRs = 0x4309, AirspaceBattleApplyCancelNt = 0x430A,
+        AirspaceBattleApplyGuildListNt = 0x430B, CharAirspacePointNt = 0x430C, AirspaceBattleRankingRq = 0x430D, AirspaceBattleRankingRs = 0x430E,
         RiftOptionUpdateRq = 0x3652, RiftOptionUpdateRs = 0x3653, RiftOptionCharUpdateNt = 0x3654,
-        AbyssRiftProgressInfoRq = 0x385B, AbyssRiftProgressInfoRs = 0x385C, AbyssRiftPhaseInfoNt = 0x385E, AbyssRiftPhaseStartNt = 0x385F;
+        AbyssRiftProgressInfoRq = 0x6302, AbyssRiftProgressInfoRs = 0x6303, AbyssRiftPhaseInfoNt = 0x6305, AbyssRiftPhaseStartNt = 0x6306;
     const int RankingTypeAbyss = 1;
 
     static AbyssTables Abyss => AbyssTables.Embedded;
@@ -499,12 +499,13 @@ public sealed partial class GameSession
             if (siege is not null) siege.WriteBattleSchedule(w, battle.Id, now);
             else
             {
-                w.I32(battle.Id).I32(battle.State).I64(0).I64(0).I64(0);
+                // Same 2.0.13 shape as SharedWorld.Airspace.WriteBattleInfo (a2p encoder round trip of #465).
+                w.U8(0).I32(battle.Id).U8(battle.State).I64(0).I64(0);
                 w.Varint(battle.AirspaceIds.Length);
                 foreach (var airspaceId in battle.AirspaceIds)
                 {
-                    w.I32(airspaceId).I32(0);
-                    w.I32(0).I32(0).String("").I32(0).String("");
+                    w.U8(1).I32(airspaceId).U8(battle.State);
+                    w.U16(0).I64(0).String("").U16(0).String("");
                 }
             }
         }

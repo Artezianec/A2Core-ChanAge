@@ -15,7 +15,7 @@ public sealed partial class GameSession
     public const ushort DaevanionBoardInfoNt = 0xe226, DaevanionOpenNodeRq = 0xe227, DaevanionOpenNodeRs = 0xe228,
         DaevanionOpenNodeNt = 0xe229, DaevanionCloseNodeRq = 0xe22a, DaevanionCloseNodeRs = 0xe22b,
         DaevanionResetBoardRq = 0xe22c, DaevanionResetBoardRs = 0xe22d, DaevanionPointUpdateNt = 0xe22e,
-        UpdateItemDaevanionPointNt = 0xe22f, DaevanionOpenAllNodeRq = 0xe2ee, DaevanionOpenAllNodeRs = 0xe2ef,
+        UpdateItemDaevanionPointNt = 0xe22f, DaevanionOpenAllNodeRq = 0xE500, DaevanionOpenAllNodeRs = 0xE501,
         DaevanionOpenRouteNodeRq = 0xe2f0, DaevanionOpenRouteNodeRs = 0xe2f1;
     /// <summary>Live client (2026-10-31): node learn moved +0x2db from 0xe227; body is OpenRouteNode wire (board i32, node path).</summary>
     public const ushort DaevanionOpenNodeRqLive = 0xe502, DaevanionOpenNodeRsLive = 0xe503;
@@ -490,7 +490,6 @@ public sealed partial class GameSession
         var total = g.Amount * useCount;
         var consumed = await Stored(async () => await store.ConsumeItemAsync(character, row.InstanceId, row.Revision, useCount, ct) ? [[]] : []);
         if (consumed.Count == 0) return null;
-        usedCountApplied = true;
         daevanionBonus[g.PointType] = daevanionBonus.GetValueOrDefault(g.PointType) + total;
         if (!await PersistDaevanionAsync(ct)) return null;
         return

@@ -1,36 +1,61 @@
 {
-  "note": "Improvised SkillCond rows when SkillCond.dat is not exported or a row is absent from the bundle. Export wins when present.",
+  "note": "Improvised SkillCond rows when SkillCond.dat is not exported (tools/skill_cond.py). Tables win when present.",
   "evidence": {
-    "14090000": "Marking Shot grants Precision for 10s on cast (client SkillEffect Precision is target-facing; CANDIDATE cast grant).",
-    "100000002": "DATA_MISSING: Rush Strike Self group 100000002 — no SkillEffect grant in export (CANDIDATE shared shock buff).",
-    "113000381": "DATA_MISSING: Aerial Snare Target group 113000381 — producer not in class kit export.",
-    "152200381": "DATA_MISSING: Frost Burst Target group 152200381 — Frost Mark chain; partial SkillEffect engine only.",
-    "157100071": "DATA_MISSING: Blaze Target group 157100071 — Sorcerer mark prerequisite not exported to skill-areas."
+    "14070000": "Suppressing Arrow tooltip: while Precision is active; Marking Shot grants Precision (client skill text, 10s).",
+    "14090000": "Marking Shot grants Precision for 10s (SkillEffect Abnormal_True group not in committed skill-areas.json).",
+    "16330000": "Dimensional Control: Self HasAbnormalGroupId 163300000 from Water spirit 16107000 (capture 000220).",
+    "16340000": "Rapid Scattershot: target afflicted with Stagger (SkillCond.dat HasAbnormalEffectType, CondSelectTarget Target)."
   },
   "needs": {
-    "11360000": {
+    "14070000": {
       "type": "HasAbnormalGroupId",
-      "select_target": "Self",
-      "abnormal_group": 100000002,
-      "evidence": "DATA_MISSING"
+      "abnormal_group": 140900001,
+      "select_target": "Self"
     },
-    "11300000": {
+    "16330000": {
       "type": "HasAbnormalGroupId",
-      "select_target": "Target",
-      "abnormal_group": 113000381,
-      "evidence": "DATA_MISSING"
+      "abnormal_group": 163300000,
+      "select_target": "Self"
     },
-    "15220000": {
-      "type": "HasAbnormalGroupId",
-      "select_target": "Target",
-      "abnormal_group": 152200381,
-      "evidence": "DATA_MISSING"
+    "16340000": {
+      "type": "HasAbnormalEffectType",
+      "abnormal_effect": "Stagger",
+      "select_target": "Target"
     },
-    "15050000": {
-      "type": "HasAbnormalGroupId",
-      "select_target": "Target",
-      "abnormal_group": 157100071,
-      "evidence": "DATA_MISSING"
+    "15010000": {
+      "type": "HasAbnormalEffectType",
+      "abnormal_effect": "Stagger",
+      "select_target": "Target"
+    },
+    "14330000": {
+      "type": "HasAbnormalEffectType",
+      "abnormal_effect": "Stagger",
+      "select_target": "Target"
+    },
+    "17370000": {
+      "type": "HasAbnormalEffectType",
+      "abnormal_effect": "Stagger",
+      "select_target": "Target"
+    },
+    "18300000": {
+      "type": "HasAbnormalEffectType",
+      "abnormal_effect": "Stagger",
+      "select_target": "Target"
+    },
+    "12340000": {
+      "type": "HasAbnormalEffectType",
+      "abnormal_effect": "Stagger",
+      "select_target": "Target"
+    },
+    "11280000": {
+      "type": "HasAbnormalEffectType",
+      "abnormal_effect": "Stagger",
+      "select_target": "Target"
+    },
+    "13340000": {
+      "type": "HasAbnormalEffectType",
+      "abnormal_effect": "Stagger",
+      "select_target": "Target"
     }
   },
   "grants": {

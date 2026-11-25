@@ -25,6 +25,7 @@ in VARINT_FIELDS and handled by the engine.
 """
 from __future__ import annotations
 
+import json
 import struct
 from pathlib import Path
 
@@ -34,7 +35,17 @@ except ImportError:
     from usmap_dump import UsmapParser
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_USMAP = ROOT / "research/local/tooling/mappings/AION2-5.3.2.0-2.0.6.0.usmap"
+DEFAULT_USMAP = ROOT / "research/local/tooling/mappings/AION2-Global-2.0.13.0.usmap"
+DEFAULT_OPCODE_MAP = ROOT / "tools/client_opcodes.json"
+
+
+def _resolve_usmap(path=None):
+    if path:
+        return Path(path)
+    if DEFAULT_USMAP.is_file():
+        return DEFAULT_USMAP
+    candidates = sorted((ROOT / "research/local/tooling/mappings").glob("AION2-Global-*.usmap"))
+    return candidates[-1] if candidates else DEFAULT_USMAP
 
 # Full field paths whose IntProperty is ULEB128 on the wire instead of i32 LE.
 VARINT_FIELDS = {
@@ -94,8 +105,8 @@ def _field_descriptor(prop_type):
 
 
 class PacketSchema:
-    def __init__(self, usmap_path=None, width_overrides=None):
-        self.parser = UsmapParser(str(usmap_path or DEFAULT_USMAP))
+    def __init__(self, usmap_path=None, width_overrides=None, opcode_map=None):
+        self.parser = UsmapParser(str(_resolve_usmap(usmap_path)))
         ordered = [n for n in self.parser.structs if n.startswith("DevPacketData_")]
         self.game_structs = [n for n in ordered
                              if n.startswith("DevPacketData_GameServer_")]
@@ -105,6 +116,18 @@ class PacketSchema:
                                if n.startswith("DevPacketData_Common_")]
         self.width_overrides = dict(width_overrides or {})
         self._fields_cache = {}
+        # The 2.0.12 dispatch table is authoritative for opcodes. The usmap's
+        # registration order is still useful for field layouts but no longer
+        # matches the wire numbering (see docs/TODO_TASK.md, C12-001).
+        if opcode_map is None and DEFAULT_OPCODE_MAP.is_file():
+            try:
+                opcode_map = json.loads(DEFAULT_OPCODE_MAP.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                opcode_map = None
+        self._opcode_by_struct = {}
+        for family in ("game", "login"):
+            for name, opcode in ((opcode_map or {}).get(family) or {}).items():
+                self._opcode_by_struct[name] = (family, int(opcode))
 
     # ---- field flattening -------------------------------------------------
     def fields(self, name):
@@ -147,6 +170,8 @@ class PacketSchema:
 
     def opcode_for_struct(self, name):
         """Return (family, opcode) for a packet struct, or None."""
+        if self._opcode_by_struct:
+            return self._opcode_by_struct.get(name)
         if name in self.game_structs:
             return "game", _game_opcode(self.game_structs.index(name))
         if name in self.login_structs:
@@ -155,6 +180,11 @@ class PacketSchema:
 
     def struct_for_opcode(self, family, opcode):
         """Return the struct name for an opcode in a port family, or None."""
+        if self._opcode_by_struct:
+            for name, (fam, op) in self._opcode_by_struct.items():
+                if fam == family and op == opcode:
+                    return name
+            return None
         if family == "game":
             pos = _game_pos(opcode)
             if pos is not None and 0 <= pos < len(self.game_structs):
@@ -166,10 +196,14 @@ class PacketSchema:
         return None
 
     def game_opcode_map(self):
+        if self._opcode_by_struct:
+            return {op: name for name, (fam, op) in self._opcode_by_struct.items() if fam == "game"}
         return {_game_opcode(pos): name
                 for pos, name in enumerate(self.game_structs)}
 
     def login_opcode_map(self):
+        if self._opcode_by_struct:
+            return {op: name for name, (fam, op) in self._opcode_by_struct.items() if fam == "login"}
         return {LOGIN_BASE + pos: name
                 for pos, name in enumerate(self.login_structs)}
 

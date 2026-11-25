@@ -350,13 +350,28 @@ public sealed class PlatformResponses
 /// this host). A client started without a launch code in its bootstrap URL redeems the newest launch
 /// of its own address. Codes in the URL are preferred: players behind one address can collide here.
 /// </summary>
-public sealed class LaunchPairing(TimeProvider clock)
+public sealed class LaunchPairing
 {
     static readonly TimeSpan Remembered = TimeSpan.FromMinutes(15);
     readonly object gate = new();
-    readonly Dictionary<IPAddress, (string Authorization, DateTimeOffset Expires)> pending = [];
-    /// <summary>The launch an address last took, so a repeated authn_token gets the same ticket.</summary>
-    readonly Dictionary<IPAddress, (string Authorization, DateTimeOffset Until)> taken = [];
+    readonly TimeProvider clock;
+    readonly string path;
+
+    sealed record Entry(string Authorization, DateTimeOffset Expires);
+    sealed class State
+    {
+        public Dictionary<string, Entry> Pending { get; set; } = [];
+        public Dictionary<string, Entry> Taken { get; set; } = [];
+    }
+
+    // The account host receives /api/client-launches and the native host answers authn_token; they are
+    // separate processes (start-all), so the pairing lives in a small JSON file shared through the host
+    // directory instead of a per-process dictionary.
+    public LaunchPairing(TimeProvider clock)
+    {
+        this.clock = clock;
+        path = Path.Combine(AppContext.BaseDirectory, "platform-pairing.json");
+    }
 
     public static IPAddress Normalize(IPAddress address) => address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address;
 
@@ -365,32 +380,55 @@ public sealed class LaunchPairing(TimeProvider clock)
         if (from is null) return;
         lock (gate)
         {
-            Prune();
-            pending[Normalize(from)] = (authorization, expires);
+            var state = Load();
+            Prune(state);
+            state.Pending[Normalize(from).ToString()] = new Entry(authorization, expires);
+            Save(state);
         }
     }
 
     public string? Resolve(IPAddress? from)
     {
         if (from is null) return null;
-        var address = Normalize(from);
+        var address = Normalize(from).ToString();
         lock (gate)
         {
-            Prune();
-            if (pending.Remove(address, out var launch))
+            var state = Load();
+            Prune(state);
+            string? result;
+            if (state.Pending.Remove(address, out var launch))
             {
-                taken[address] = (launch.Authorization, clock.GetUtcNow() + Remembered);
-                return launch.Authorization;
+                state.Taken[address] = new Entry(launch.Authorization, clock.GetUtcNow() + Remembered);
+                result = launch.Authorization;
             }
-            return taken.TryGetValue(address, out var last) ? last.Authorization : null;
+            else result = state.Taken.TryGetValue(address, out var last) ? last.Authorization : null;
+            Save(state);
+            return result;
         }
     }
 
-    void Prune()
+    void Prune(State state)
     {
         var now = clock.GetUtcNow();
-        foreach (var key in pending.Where(p => p.Value.Expires <= now).Select(p => p.Key).ToList()) pending.Remove(key);
-        foreach (var key in taken.Where(p => p.Value.Until <= now).Select(p => p.Key).ToList()) taken.Remove(key);
+        foreach (var key in state.Pending.Where(p => p.Value.Expires <= now).Select(p => p.Key).ToList()) state.Pending.Remove(key);
+        foreach (var key in state.Taken.Where(p => p.Value.Expires <= now).Select(p => p.Key).ToList()) state.Taken.Remove(key);
+    }
+
+    State Load()
+    {
+        try { return JsonSerializer.Deserialize<State>(File.ReadAllText(path)) ?? new State(); }
+        catch (Exception) { return new State(); }
+    }
+
+    void Save(State state)
+    {
+        try
+        {
+            var temporary = path + ".tmp";
+            File.WriteAllText(temporary, JsonSerializer.Serialize(state));
+            File.Move(temporary, path, overwrite: true);
+        }
+        catch (Exception) { }
     }
 }
 
@@ -534,12 +572,6 @@ public static partial class PlatformBootstrapEndpoints
                 && (method == "GET" || method == "POST" || method == "HEAD"))
             {
                 var (status, contentType, body) = NccrReply(resolvedNccrMode, path);
-                var nccrSni = context.Features.Get<ITlsHandshakeFeature>()?.HostName;
-                platformLog.LogInformation("NCGuard NCCR {Sni} {Method} {Path} -> {Status} mode={Mode} bytes={Bytes}",
-                    nccrSni ?? "(none)", method, path, status, resolvedNccrMode, body.Length);
-                if (status != 200)
-                    platformLog.LogWarning("NCGuard NCCR {Sni} {Method} {Path} returned {Status} (mode={Mode}); client may stall NCGuard init",
-                        nccrSni ?? "(none)", method, path, status, resolvedNccrMode);
                 AppendBootstrapLog(method, path, code, status, request.QueryString.Value, null, resolvedNccrMode.ToString());
                 context.Response.StatusCode = status;
                 context.Response.ContentType = contentType;
@@ -578,7 +610,9 @@ public static partial class PlatformBootstrapEndpoints
             else if (method == "POST" && path == "/local-api-gate/sessions/v1.0/authn_token")
             {
                 // The launch code, else the launcher's file (development), else this address's pending launch.
-                var launch = code ?? responses.LaunchAuthorization ?? (responses.Authn is null ? pairing?.Resolve(context.Connection.RemoteIpAddress) : null);
+                // A launcher launch must win over the recorded fixture token: the fixture token is a
+                // placeholder and is not in auth.game_tickets, so the login port rejects it.
+                var launch = code ?? responses.LaunchAuthorization ?? pairing?.Resolve(context.Connection.RemoteIpAddress);
                 if (launch is not null)
                     reply = await Redeem(launch) is { } token ? (200, token) : (401, """{"error":"Launch authorization rejected"}"""u8.ToArray());
                 else if (responses.Authn is { } authn) reply = (200, authn);

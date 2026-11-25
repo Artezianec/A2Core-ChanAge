@@ -5,20 +5,18 @@ namespace Aion.World;
 public sealed partial class GameSession
 {
     /// <summary>Stun/hold/sleep rows on the player: movement and casts are rejected.</summary>
-    public bool HeldByAbnormal => HeldByAbnormalAt(lastNow);
-
-    bool HeldByAbnormalAt(long now) => buffs.Any(b => BuffActive(b, now) && b.Combat?.Held == true);
+    public bool HeldByAbnormal => buffs.Any(b => b.Combat?.Held == true);
 
     /// <summary>Test/diagnostic: highest damage reflect permille among active buffs.</summary>
     internal int ActiveReflectPermille => BestReflect().Permille;
 
     /// <summary>Silence rows: active skills cannot be cast (dodge CANDIDATE still allowed).</summary>
-    bool SilencedAt(long now) => buffs.Any(b => BuffActive(b, now) && b.Combat?.Silence == true);
+    bool Silenced => buffs.Any(b => b.Combat?.Silence == true);
 
-    bool CombatCastBlocked(int skill, long now) => (HeldByAbnormalAt(now) || (SilencedAt(now) && !IsDodgeId(skill))) && !SkillEffects.BreaksControl(skill);
+    bool CombatCastBlocked(int skill) => (HeldByAbnormal || (Silenced && !IsDodgeId(skill))) && !SkillEffects.BreaksControl(skill);
 
     /// <summary>A hold or a snare: position reports are refused (CheckMovement) and the client is put back.</summary>
-    bool MovementBlockedAt(long now) => buffs.Any(b => BuffActive(b, now) && b.Combat is { Held: true } or { Rooted: true });
+    bool MovementBlocked => buffs.Any(b => b.Combat is { Held: true } or { Rooted: true });
 
     /// <summary>Apply a debuff abnormal to the player; returns false when immunity blocks it (0x382d).</summary>
     internal List<byte[]> TryApplyPlayerDebuff(int abnormalId, int durationMs, long now, Vector3d? from = null, int casterKey = 0)
@@ -98,7 +96,7 @@ public sealed partial class GameSession
         if (!TryGetCombatTarget(attackerKey, out var npc) || npc.Dead || npc.Immune)
             return replies;
         damage = npc.Landed(damage);
-        npc.Hp = ApplyDamageToNpc(npc, damage);
+        npc.Hp = Math.Max(0, npc.Hp - damage);
         replies.Add(GamePackets.SkillHit(npc.Key, playerKey, reflectSkill, 0, damage, false, 1));
         replies.Add(GamePackets.NpcHp(npc.Key, npc.Hp));
         if (npc.Dead) replies.AddRange(PlayerKilledNpc(npc, reflectSkill, playerKey, now));
@@ -126,15 +124,13 @@ public sealed partial class GameSession
         // Class skills: SkillEffect.dat Abnormal_True / Abnormal_Cc rows exported with the skill's area (tools/skill_areas.py);
         // a trap's hits are its detonation, which carries its own (the skill's rows include the trap marker abnormal).
         var rows = PcTraps.For(skill) is { } trap ? trap.DebuffRows : CastArea(skill)?.TargetDebuffRows ?? [];
-        var appliedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (abnormal, minMs, maxMs, held) in rows)
         {
-            var ctx = BuildEffectConditionContext(target, null, skill, target.Key, mainTarget: true, now, appliedTypes);
+            var ctx = BuildEffectConditionContext(target, null, skill, target.Key, mainTarget: true, now);
             if (!SkillEffectConditions.DebuffAllowed(skill, abnormal, ctx)) continue;
             var duration = Math.Max(1, rng.Next(Math.Min(minMs, maxMs), Math.Max(minMs, maxMs) + 1));
             ApplyNpcDebuff(target, abnormal, duration, now, replies, held, skill);
             applied.Add(abnormal);
-            foreach (var t in AbnormalSpecs.Types(abnormal)) appliedTypes.Add(t);
         }
         // Client target rows our skill-areas export does not already apply (Jointstrike, Chain of Torment, ...).
         // A self skill with no damage (Light of Regeneration) is a caster buff, not an NPC debuff.
@@ -228,7 +224,7 @@ public sealed partial class GameSession
                 foreach (var dot in AbnormalSpecs.Npc(abnormalId).Dots)
                     running.Dots.Add(BuildNpcDot(target, dot, durationMs, now));
             if (running.Dots.Count == 0)
-                foreach (var scaled in AbnormalDotRows.ScaledDots(abnormalId))
+                foreach (var scaled in PortedSkillAbnormals.ScaledDots(abnormalId))
                     running.Dots.Add(ScaledNpcDot(scaled, now));
             replies.Add(PlayerPackets.AbnormalChange(target.Key, new AbnormalWire(running.Uid, abnormalId, durationMs, running.ExpireAt,
                 CasterKey: wireCaster, Level: 1, SkillId: wireSkill, RangeBase: target.Position)));
@@ -259,7 +255,7 @@ public sealed partial class GameSession
             foreach (var dot in model.Dots)
                 buff.Dots.Add(BuildNpcDot(target, dot, durationMs, now));
         if (buff.Dots.Count == 0)
-            foreach (var scaled in AbnormalDotRows.ScaledDots(abnormalId))
+            foreach (var scaled in PortedSkillAbnormals.ScaledDots(abnormalId))
                 buff.Dots.Add(ScaledNpcDot(scaled, now));
         (npcBuffs.TryGetValue(target.Key, out var list) ? list : npcBuffs[target.Key] = []).Add(buff);
         RefreshNpcFlags(target);
@@ -270,7 +266,7 @@ public sealed partial class GameSession
         foreach (var dot in buff.Dots)
             if (!dot.Scaled)
                 replies.Add(RidePackets.AbnormalEffect(target.Key, playerKey, buff.Uid, dot.EffectId, dot.Remaining, null, skillId));
-        if (model?.Taunt == true && targets is not null && !target.Held) replies.AddRange(ai.Taunt(targets, target, now, playerKey));
+        if (model?.Taunt == true && targets is not null) replies.AddRange(ai.Taunt(targets, target, now, playerKey));
         if (model is not null)
             foreach (var move in model.Moves.Where(m => m.Kind == AbnormalSpecs.DisplaceKind.Knockback))
                 replies.AddRange(KnockbackNpc(target, move.Amount, abnormalId, now));

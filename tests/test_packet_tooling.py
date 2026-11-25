@@ -22,31 +22,30 @@ class PacketSchemaOpcodeMapTests(unittest.TestCase):
         anchors = {
             0x3600: "DevPacketData_GameServer_MapFrame_NT",
             0x3603: "DevPacketData_GameServer_Ping_RS",
-            0x3611: "DevPacketData_GameServer_Handshake_RS",
+            0xCB02: "DevPacketData_GameServer_Handshake_RS",
+            0x5E58: "DevPacketData_GameServer_Handshake_RQ",
             0x3615: "DevPacketData_GameServer_Login_RS",
             0x3619: "DevPacketData_GameServer_CharCheckName_RQ",
             0x361a: "DevPacketData_GameServer_CharCheckName_RS",
             0x361b: "DevPacketData_GameServer_CharCreate_RQ",
             0x361c: "DevPacketData_GameServer_CharCreate_RS",
-            0x361f: "DevPacketData_GameServer_SelectCharacter_RQ",
-            0x3620: "DevPacketData_GameServer_SelectCharacter_RS",
+            0x3C4F: "DevPacketData_GameServer_SelectCharacter_RQ",
+            0xA8F9: "DevPacketData_GameServer_SelectCharacter_RS",
             0x3621: "DevPacketData_GameServer_PrepareEnterMap_NT",
-            0x3623: "DevPacketData_GameServer_LoadComplete_RS",
+            0x4EF8: "DevPacketData_GameServer_LoadComplete_RS",
             0x3633: "DevPacketData_GameServer_MyCharAppear_NT",
             0x3649: "DevPacketData_GameServer_CharAllStats_RS",
         }
         for opcode, name in anchors.items():
             self.assertEqual(self.schema.struct_for_opcode("game", opcode), name)
 
-    def test_game_hole(self):
-        # pos < 4 maps 0x3600..0x3603; pos >= 4 maps 0x3610.. (a 12-opcode
-        # hole at 0x3604..0x360F).
-        self.assertEqual(self.schema.struct_for_opcode("game", 0x3600),
-                         "DevPacketData_GameServer_MapFrame_NT")
-        self.assertEqual(self.schema.struct_for_opcode("game", 0x3610),
-                         self.schema.game_structs[4])
-        for opcode in range(0x3604, 0x3610):
+    def test_legacy_opcodes_are_not_in_the_dispatch_map(self):
+        # 2.0.12 moved these; the dispatch map must not fall back to the old
+        # usmap registration order (docs/TODO_TASK.md, C12-001).
+        for opcode in (0x3610, 0x361F, 0x3620, 0x3622, 0x3623):
             self.assertIsNone(self.schema.struct_for_opcode("game", opcode))
+        self.assertEqual(self.schema.struct_for_opcode("game", 0x5E58),
+                         "DevPacketData_GameServer_Handshake_RQ")
 
     def test_login_anchors(self):
         self.assertEqual(self.schema.struct_for_opcode("login", 0x3909),

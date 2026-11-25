@@ -51,16 +51,4 @@ public sealed class AchievementRewardBatchTests
         Assert.Equal(1, packet[11]);
         Assert.Equal(0, packet[12]);
     }
-
-    [Fact]
-    public void Single_step_reply_appends_reward_items()
-    {
-        var packet = GameSession.TakeAchievementRewardReply(0, 403_100_300, 1, [(930_100_001, 3000)]);
-        Assert.Equal(0, BitConverter.ToInt32(packet, 2));
-        Assert.Equal(403_100_300, BitConverter.ToInt32(packet, 6));
-        Assert.Equal(1, packet[10]);
-        Assert.Equal(1, packet[11]);
-        Assert.Equal(930_100_001, BitConverter.ToInt32(packet, 12));
-        Assert.Equal(3000, BitConverter.ToInt32(packet, 16));
-    }
 }

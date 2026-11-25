@@ -86,33 +86,6 @@ def _damage_row(effect: dict) -> dict | None:
     return payload
 
 
-def _cast_visual_effects(skill_row: dict, effects: dict[int, list[dict]]) -> list[dict]:
-    """NoEffect / Spawn SkillEffect rows in SkillEffectTimeDataList order (client cast / preview VFX)."""
-    out: list[dict] = []
-    for timed in skill_row.get("SkillEffectTimeDataList") or []:
-        gid = _value(timed.get("SkillEffectGroupId", 0))
-        if not isinstance(gid, int) or not gid:
-            continue
-        filt = _value(timed.get("SkillEffectFilterId", 0)) or 0
-        filt_s = str(filt)
-        for eff in effects.get(gid, []):
-            kind = _enum(eff.get("EffectType"))
-            if kind not in ("NoEffect", "Spawn"):
-                continue
-            eid = _value(eff.get("ID"))
-            if not isinstance(eid, int):
-                break
-            if kind == "Spawn":
-                target = "marker"
-            elif filt_s.endswith("3") and filt_s not in ("0", ""):
-                target = "marker"  # area filter row (Bittercold 152800003 wind vortex)
-            else:
-                target = "self"
-            out.append({"effect_id": eid, "target": target})
-            break
-    return out
-
-
 def _filter_shape(filter_id: int, directory: Path | None = None) -> tuple[int | None, int | None]:
     for row in _rows("SkillEffectFilter", directory):
         if _value(row.get("ID")) != filter_id:
@@ -121,16 +94,6 @@ def _filter_shape(filter_id: int, directory: Path | None = None) -> tuple[int | 
         radius = int(vals[4]) if len(vals) > 4 else None
         return radius, row.get("TargetCountMax")
     return None, None
-
-
-def _passive_abnormal(effect: dict) -> int | None:
-    if _enum(effect.get("EffectType")) != "Abnormal_Passive":
-        return None
-    values = effect.get("EffectValueList") or []
-    if not values:
-        return None
-    raw = values[0]
-    return int(raw) if str(raw).lstrip("-").isdigit() else None
 
 
 def _marker_pulse_tick_ms(skill_table: dict[int, dict], marker_skills: list[int]) -> int | None:
@@ -194,28 +157,21 @@ def build(directory: Path | None = None, only: set[str] | None = None) -> dict:
         vals = spawn.get("EffectValueList") or []
         lifetime = _spawn_lifetime_ms(vals)
         damage = None
-        ally_abnormals: list[int] = []
         pulse_candidates: list[int] = []
-        # Bittercold Wind / Divine Aura: marker pulse skills in the XXXXX001.. family (Damage and/or Abnormal_Passive).
+        # Bittercold Wind: marker pulse skills 1528000x1/2/3 (Damage group 152800021 on 15280002).
         base = skill_id // 10_000 * 10_000
         for offset in range(1, 100):
             cand = base + offset
             if cand not in skills:
                 break
             g = _value((skills[cand].get("SkillEffectTimeDataList") or [{}])[0].get("SkillEffectGroupId", 0))
-            pulse_hit = False
             for eff in effects.get(g, []):
                 if _enum(eff.get("EffectType")) == "Damage":
                     pulse_candidates.append(cand)
-                    pulse_hit = True
                     if damage is None:
                         damage = _damage_row(eff)
-                elif passive := _passive_abnormal(eff):
-                    pulse_candidates.append(cand)
-                    pulse_hit = True
-                    if passive not in ally_abnormals:
-                        ally_abnormals.append(passive)
-            if pulse_hit and offset > 5:
+                    break
+            if damage and offset > 3:
                 break
         if damage is None:
             # Same pattern as the first timed row's group (Spawn only): look for a sibling Damage group *21.
@@ -227,7 +183,7 @@ def build(directory: Path | None = None, only: set[str] | None = None) -> dict:
                             break
                 if damage:
                     break
-        if damage is None and not ally_abnormals:
+        if damage is None:
             continue
         tick_ms = _marker_pulse_tick_ms(skills, pulse_candidates) or 1000
         if tick_ms < 250:
@@ -248,39 +204,21 @@ def build(directory: Path | None = None, only: set[str] | None = None) -> dict:
                     radius, max_targets = _filter_shape(fid, directory)
                     if max_targets:
                         break
-        spawn_radius = int(vals[0]) if vals and str(vals[0]).isdigit() else None
         zone = {
             "name": class_skills.get(skill_id_s, {}).get("name") or template.get("name", skill_id_s),
             "npc": int(vals[9]) if len(vals) > 9 else npc_id,
             "lifetime_ms": lifetime or 6000,
             "tick_ms": tick_ms,
-            "radius": radius or spawn_radius or 400,
-            "max": max_targets or (99 if ally_abnormals else 4),
+            "radius": radius or 400,
+            "max": max_targets or 4,
+            "damage": damage,
             "notes": {
                 "source": f"client export {directory.name}",
                 "spawn_lifetime_ms": f"Spawn EffectValueList[7] = {vals[7] if len(vals) > 7 else '?'}",
+                "damage": f"SkillEffect group {damage['effect_id'] // 10} Damage row {damage['effect_id']}",
                 "tick_ms": "marker pulse NeedCoolTime when >= 250 ms else 1000 ms (OURS until summon AI)",
             },
         }
-        cast_effects = _cast_visual_effects(skill_row, effects)
-        if damage is not None:
-            if skill_id == 15_280_000:
-                # Marker pulse damage uses LvUp group 025; wire effect id stays 028 (1528000211), not Pyroclasm 1525000011.
-                damage = {**damage, "level_group": "Sorcerer_Skill025_LvUp"}
-            zone["damage"] = damage
-            zone["notes"]["damage"] = f"SkillEffect group {damage['effect_id'] // 10} Damage row {damage['effect_id']}"
-        if cast_effects:
-            zone["cast_effects"] = cast_effects
-            zone["notes"]["cast_effects"] = "SkillEffectTimeDataList NoEffect / Spawn rows (client cast VFX)"
-        if ally_abnormals:
-            zone["ally_abnormals"] = ally_abnormals
-            zone["abnormal_duration_ms"] = max(tick_ms + 200, 1_000)
-            zone["notes"]["ally_abnormals"] = "marker pulse Abnormal_Passive groups"
-            zone["notes"]["abnormal_duration_ms"] = "OURS until marker AI (buff renew between pulses)"
-            if max_targets is None:
-                zone["notes"]["max"] = "OURS (client Self pulse filter TargetCountMax 1 is not the aura ally cap)"
-            if spawn_radius and radius is None:
-                zone["notes"]["radius"] = f"Spawn EffectValueList[0] = {vals[0]}"
         zones[skill_id_s] = zone
 
     return {

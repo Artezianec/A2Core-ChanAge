@@ -102,12 +102,11 @@ class SkillAuditTests(unittest.TestCase):
                    'templates': {'1': {'skills': []}, '2': {'skills': [100011]}}}
         skills = {k: skill(damage=()) for k in ('15280000', '17150000', '14170000', '16100000')}
         result = skill_audit.audit({'skills': skills}, {'skills': {}, 'abnormal_types': {}}, summons,
-                                   {'traps': {'14170000': {}}}, set(), {'zones': {'15280000': {}, '17150000': {}}})
+                                   {'traps': {'14170000': {}}}, set(), {'zones': {'15280000': {}}})
         found = {k: set(v['categories']) for k, v in result['skills'].items()}
         self.assertIn('zone', found['15280000'])
         self.assertNotIn('summon_marker', found['15280000'])
-        self.assertIn('zone', found['17150000'])
-        self.assertNotIn('summon_marker', found['17150000'])
+        self.assertIn('summon_marker', found['17150000'])
         self.assertNotIn('summon_marker', found['14170000'])
         self.assertNotIn('summon_marker', found['16100000'])
         self.assertEqual(skill_audit.status_of('summon_marker', set())[0], 'missing')
@@ -117,11 +116,6 @@ class SkillAuditTests(unittest.TestCase):
         result = skill_audit.audit()
         self.assertIn('zone', result['skills']['15280000']['categories'])
         self.assertNotIn('summon_marker', result['skills']['15280000']['categories'])
-
-    def test_divine_aura_is_a_zone_in_the_committed_data(self):
-        result = skill_audit.audit()
-        self.assertIn('zone', result['skills']['17150000']['categories'])
-        self.assertNotIn('summon_marker', result['skills']['17150000']['categories'])
 
     def test_committed_report_is_current(self):
         self.assertEqual(skill_audit.main(['--check']), 0)

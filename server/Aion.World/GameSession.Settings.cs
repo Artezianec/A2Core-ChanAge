@@ -63,8 +63,6 @@ public sealed partial class GameSession
         LoadDailyRecords(Read<Dictionary<string, int[]>>("daily_dungeon_records"));
         restoreCounts = Read<Dictionary<int, RestoreCount>>("item_restores") ?? [];
         bookmarks = Read<List<BookmarkEntry>>("bookmarks") ?? [];
-        LoadSkinVisibility(Read<int[]>("skin_hidden"));
-        LoadSkinDecoInstances(Read<List<SkinDecoInstance>>("skin_deco"));
         LoadArcana(Read<long[]>("arcana_create"), Read<Dictionary<string, int>>("arcana_exp"));
     }
 
@@ -347,14 +345,14 @@ public sealed partial class GameSession
     // ---------- Warp leave ----------
 
     /// <summary>
-    /// CharWarpLeave_NT 0x373c to those around before a teleport: key, pos, dir f32, move state, substate, EWarpReason
-    /// (1 TeleportCasterEffect, 5 Cutscene), skill i32, effect i32, duration i32 (usmap order; no official sample).
+    /// CharWarpLeave_NT 0x373c to those around before a teleport (2.0.12 wire): key, flags, pos, dir f32,
+    /// move state, substate, EWarpReason (1 TeleportCasterEffect, 5 Cutscene), optional skill/effect, duration
+    /// varint. See PlayerPackets.WarpLeave for the field order.
     /// </summary>
     void BroadcastWarpLeave(byte effect, bool cutscene)
     {
         if (worldPlayer?.Map is null || position is not { } here) return;
-        var leave = PacketWriter.Opcode(0x373c).Varint(playerKey).Vec3(here).F32(worldPlayer.Heading).U8(0).U8(0).U8(cutscene ? 5 : 1)
-            .I32(0).I32(effect).I32(0).ToArray();
+        var leave = PlayerPackets.WarpLeave(playerKey, here, worldPlayer.Heading, 0, 0, cutscene ? (byte)5 : (byte)1, effectId: effect);
         worldPlayer.Map.Broadcast(worldPlayer, [leave]);
     }
 }

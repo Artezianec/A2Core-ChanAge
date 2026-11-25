@@ -32,7 +32,7 @@ public sealed partial class GameSession
         var cap = (int)Math.Max(1, resources.HpMax * FallDamageMaxHpFraction);
         var damage = (int)Math.Min(cap, (drop - FallDamageMinDropCm) * FallDamageHpPerCm);
         if (damage <= 0) return [];
-        var replies = NpcHitsPlayer(damage, nowMs, killerKey: 0);
+        var replies = NpcHitsPlayer(damage, nowMs, killerKey: 0, enterCombat: false);
         if (dead) replies.AddRange(Achieve("DieFromFalling", now: nowMs));
         return replies;
     }

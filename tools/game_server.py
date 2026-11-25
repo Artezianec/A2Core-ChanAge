@@ -413,10 +413,11 @@ def build_character_created(name, gender=1, pc_creation_id=1, key=1,
                             zone_id=3016, now_ms=None, dbid=0, level=1):
     """0x361c CharCreate_RS reply body: result + LobbyCharDesc.
 
-    Schema is DevPacketData_GameServer_CharCreate_RS (_result IntProperty,
-    _character DevPacketData_Common_LobbyCharDesc). The character record is
-    generated from our own state plus the request's appearance bytes; never
-    replayed from captures.
+    Schema is DevPacketData_GameServer_CharCreate_RS (_result IntProperty). The
+    2.0.12 reader takes the result as 16 bits even though the struct member is
+    int32, so the wire prefix is two bytes (GameServer_CharCreate_RS.ts). The
+    character record is generated from our own state plus the request's
+    appearance bytes; never replayed from captures.
     """
     if now_ms is None:
         now_ms = int(time.time() * 1000)
@@ -428,7 +429,7 @@ def build_character_created(name, gender=1, pc_creation_id=1, key=1,
         logout_time=now_ms, position=position, zone_id=zone_id,
         reg_time=now_ms, customizing_data=customizing_data,
         voice_type=voice_type, slot_no=slot_no, combat_power=0, dbid=dbid)
-    return b"\x1c\x36" + (0).to_bytes(4, "little", signed=True) + character
+    return b"\x1c\x36" + (0).to_bytes(2, "little", signed=False) + character
 
 
 def build_prepare_enter_map(enter_map_ticket=1, map_id=1000, game_time=None,

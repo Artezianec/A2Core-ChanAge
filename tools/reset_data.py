@@ -73,7 +73,7 @@ def build():
         {'id': 'craft_limits', 'scope': 'character/account/world', 'period': 'daily|weekly', 'store': 'game.character_craft_limits', 'lazy': True},
         {'id': 'boss_challenge', 'scope': 'character', 'period': 'season', 'store': 'game.character_boss_challenges', 'lazy': False},
         {'id': 'period_collections', 'scope': 'character', 'period': 'daily|weekly|season', 'store': 'in-memory + collections.json windows', 'lazy': True},
-        {'id': 'battle_pass_weekly_exp', 'scope': 'character', 'period': 'weekly', 'store': 'game.character_battle_pass_weekly', 'lazy': True},
+        {'id': 'battle_pass_weekly_exp', 'scope': 'character', 'period': 'weekly', 'store': 'not persisted (stub)', 'lazy': True},
     ]
 
     return {

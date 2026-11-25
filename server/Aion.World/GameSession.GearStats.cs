@@ -82,13 +82,6 @@ public sealed partial class GameSession
         EquipStat(stat) + BuffStat(stat) + TitleStat(stat) + EnchantStat(stat) + ExceedStat(stat) + BoardStat(stat)
         + SetStat(stat) + RideStat(stat) + WingStat(stat) + DaevanionWireStat(daevanionWire);
 
-    /// <summary>MaxHPRatio / MaxMPRatio permille (1/10000) from gear, buffs, titles, and other flat sources.</summary>
-    int PoolRatioBp(string ratioStat) => AggregatedStat(ratioStat, 0);
-
-    /// <summary>Applies a max-pool ratio bonus (StatChange MaxHPRatio / MaxMPRatio) to a flat HP or MP max.</summary>
-    static int ApplyPoolRatio(int flatMax, int ratioBp) =>
-        flatMax + (int)((long)flatMax * Math.Max(0, ratioBp) / 10_000);
-
     /// <summary>Wire values for combat stats not handled by the legacy DefaultStats switch.</summary>
     IReadOnlyDictionary<int, int> ExtraSheetStats()
     {
@@ -101,10 +94,6 @@ public sealed partial class GameSession
             var value = AggregatedStat(name, wire);
             if (value != 0) extras[wire] = value;
         }
-        // Wish of Concentration and similar buffs raise DamageRatio (425); the character panel's attack amp line uses AmplifyAllDamage (28).
-        if (ItemStats.WireOf("DamageRatio") is { } ratioWire && extras.GetValueOrDefault(ratioWire) is var ratioBp and not 0
-            && ItemStats.WireOf("AmplifyAllDamage") is { } ampWire)
-            extras[ampWire] = extras.GetValueOrDefault(ampWire) + ratioBp;
         return extras;
     }
 
@@ -180,7 +169,7 @@ public sealed partial class GameSession
         WeaponCombatLine("Critical", 128),
         PlayerCombatAccuracy());
 
-    int PlayerAmplifyAllBp() => CombatStat("AmplifyAllDamage", 28) + BuffStat("DamageRatio");
+    int PlayerAmplifyAllBp() => CombatStat("AmplifyAllDamage", 28);
 
     int PlayerDefensePierceBp() => CombatStat("DefensePierce", 284);
 
@@ -195,22 +184,12 @@ public sealed partial class GameSession
 
     int PlayerCritDamageBp() => CombatStat("AmplifyCriticalDamage", 29);
 
-    IReadOnlyList<Hit> PlayerSkillHits(int skillId, int targetDefense, bool pvp = false, int victimLevel = 0, int npcTargetKey = 0, long now = 0) =>
+    IReadOnlyList<Hit> PlayerSkillHits(int skillId, int targetDefense, bool pvp = false, int victimLevel = 0) =>
         Combat.SkillHits(data, skillId, className, level, equippedWeapon, targetDefense, rng, pvp,
-            extraFixing: ExtraFixing, weaponOverride: PlayerWeaponStats(), amplifyAllBp: PlayerAmplifyAllBp() + NpcVictimAmplifyBp(npcTargetKey, pvp, now),
+            extraFixing: ExtraFixing, weaponOverride: PlayerWeaponStats(), amplifyAllBp: PlayerAmplifyAllBp(),
             defensePierceBp: PlayerDefensePierceBp(), attackAmplifyBp: PlayerAttackAmplifyBp(),
             extraCritical: PlayerExtraCritical(), extraAccuracy: PlayerExtraAccuracy(),
             skillLevel: CastSkillLevel(skillId), victimLevel: victimLevel, critDamageBp: PlayerCritDamageBp());
-
-    internal int NpcVictimAmplifyBp(int targetKey, bool pvp, long now)
-    {
-        if (targetKey < 1 || !npcBuffs.TryGetValue(targetKey, out var list)) return 0;
-        var sum = 0;
-        foreach (var b in list)
-            if (b.ExpireAt > now)
-                sum += NpcVictimAmplify.DebuffPermille(b.AbnormalId, pvp);
-        return sum;
-    }
 
     IReadOnlyList<Hit> PlayerRowHits(IEnumerable<DamageRow> rows, int targetDefense, bool pvp = false, int victimLevel = 0, int skillLevel = 1) =>
         Combat.RowHits(data, rows, className, level, equippedWeapon, targetDefense, rng, pvp,
@@ -228,8 +207,6 @@ public sealed partial class GameSession
     internal WeaponStats WeaponStatsForTests() => PlayerWeaponStats();
 
     internal (IReadOnlyList<(int Type, int Value)> Stats, int HpMax) StatSheetForTests() => StatSheet();
-
-    internal int StatWireValueForTests(int wire) => StatWireValue(wire);
 
     internal int SetStatForTests(string stat) => SetStat(stat);
 

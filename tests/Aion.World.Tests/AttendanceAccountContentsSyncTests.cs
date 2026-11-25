@@ -49,13 +49,19 @@ public sealed class AttendanceAccountContentsSyncTests
         var store = new FakeCharacterStore();
         var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
         var board = GameSession.LatestAttendanceSeasons(1, Now + 100).Single(e => e.Board.SeasonGroupId == 37).Board;
+
+        // Each day: check in (0xe34d), then the tab's collect-all takes that day's step.
         await session.HandleAsync([0x4d, 0xe3], Now + 100);
+        await session.HandleAsync(GameSessionTestHelpers.AttendanceBatch(0), Now + 101);
         await session.HandleAsync([0x4d, 0xe3], Now + 86_400_100);
+        await session.HandleAsync(GameSessionTestHelpers.AttendanceBatch(0), Now + 86_400_101);
+
         var refresh = await session.HandleAsync([0x4d, 0xe3], Now + 86_400_103);
         var todayKey = ContentResetSchedule.GameDayKey(Now + 86_400_103);
         var entry = Assert.Single(ParseEntries(Assert.Single(refresh, p => GameSessionTestHelpers.Op(p) == GameSession.AccountContentsInfoListNt)),
             e => e.GroupId == board.SeasonGroupId);
         Assert.Equal(todayKey, entry.Value1);
         Assert.Equal(todayKey, entry.Value2);
+        Assert.Equal(2, session.AchievementCount(board.Achievement));
     }
 }

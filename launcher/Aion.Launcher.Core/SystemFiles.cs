@@ -90,6 +90,10 @@ public static class HostsFile
     public static bool HasBlock(string text) =>
         text.Contains(Begin, StringComparison.Ordinal) || text.Contains(LegacyBegin, StringComparison.Ordinal);
 
+    /// <summary>True when the NCGuard sink wrote its own nine-host block (it owns removal on shutdown).</summary>
+    public static bool HasNcGuardBlock(string text) =>
+        text.Contains("# aion-ncguard-", StringComparison.Ordinal);
+
     public static string Without(string text)
     {
         var lines = text.Replace("\r\n", "\n").Split('\n').ToList();

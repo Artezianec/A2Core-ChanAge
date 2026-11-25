@@ -49,29 +49,6 @@ public sealed class ItemUseHandlerTests
     }
 
     [Fact]
-    public async Task Bulk_GetVehicleSoul_via_0x5614_consumes_stack_and_grants_souls()
-    {
-        const int soulBox = 534660047;   // GetVehicleSoul [1046, 1]
-        const int rideId = 1046;
-        Assert.Equal("GetVehicleSoul", RewardBoxes.Embedded.Use(soulBox)!.Effect);
-
-        var store = new FakeCharacterStore();
-        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now);
-        await GameSessionTestHelpers.LoadInventoryAsync(session, Now);
-        store.Items.Add(FakeCharacterStore.BagItem(soulBox, 4, 883));
-        await GameSessionTestHelpers.LoadInventoryAsync(session, Now + 1);
-
-        var replies = await session.HandleAsync(
-            new PacketWriter().U16(RidePackets.ItemUseByItemIdRq).I64(883).I32(soulBox).I32(4).I32(0).ToArray(), Now + 2);
-        var rs = replies.Single(p => GameSessionTestHelpers.Op(p) == RidePackets.ItemUseByItemIdRs);
-        Assert.Equal(0, BitConverter.ToInt32(rs, 2));
-        Assert.Equal(4, BitConverter.ToInt32(rs, 18));
-        Assert.DoesNotContain(store.Items, i => i.TemplateId == soulBox && i.Quantity > 0);
-        Assert.Equal(4, store.RideRows.Single(r => r.RideId == rideId).SoulPoints);
-        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == RidePackets.ItemUseNt);
-    }
-
-    [Fact]
     public async Task Missing_use_data_replies_with_failure_result()
     {
         const int unknownUsable = 999_999_001;

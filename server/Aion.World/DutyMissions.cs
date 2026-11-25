@@ -57,7 +57,6 @@ public sealed class DutyTables
     public long ResetKstMs => file.ResetKstMs;
     public IReadOnlyList<Mission> Missions => file.Missions;
     public IReadOnlyDictionary<string, Group> Groups => file.Groups;
-    public IReadOnlyDictionary<string, string> ScrollItems => file.ScrollItems;
     public TypeRule? Rule(string? type) => type is null ? null : file.Types.GetValueOrDefault(type);
     public Redraw? RedrawOf(string? type) => type is null ? null : file.Redraw.GetValueOrDefault(type);
     /// <summary>The first group drawing a quest (a scroll quest given before its group was stored).</summary>

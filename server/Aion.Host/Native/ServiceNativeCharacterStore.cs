@@ -740,13 +740,6 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
         return await game.MoveItemToContainerAsync(identity.Account, character, item, revision, location, slot, ct);
     }
 
-    public async Task<string> TransferContainerItemsAsync(Guid character, string fromLocation, string toLocation,
-        IReadOnlyList<(long WireKey, long Count)> transfers, int maxDestinationSlots, CancellationToken ct)
-    {
-        await ValidateAsync(ct);
-        return await game.TransferContainerItemsAsync(identity.Account, character, fromLocation, toLocation, transfers, maxDestinationSlots, ct);
-    }
-
     public async Task<IReadOnlyList<PostRecord>> PostsAsync(Guid character, CancellationToken ct)
     {
         await ValidateAsync(ct);
@@ -967,18 +960,6 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
         return await game.SaveRewardLimitsAsync(identity.Account, character, rows, ct);
     }
 
-    public async Task<IReadOnlyList<BattlePassWeeklyRecord>> BattlePassWeeklyAsync(Guid character, CancellationToken ct)
-    {
-        await ValidateAsync(ct);
-        return await game.BattlePassWeeklyAsync(identity.Account, character, ct);
-    }
-
-    public async Task<bool> SaveBattlePassWeeklyAsync(Guid character, IReadOnlyList<BattlePassWeeklyRecord> rows, CancellationToken ct)
-    {
-        await ValidateAsync(ct);
-        return await game.SaveBattlePassWeeklyAsync(identity.Account, character, rows, ct);
-    }
-
     public async Task<IReadOnlyList<DungeonCooltimeRecord>> DungeonCooltimesAsync(Guid character, CancellationToken ct)
     {
         await ValidateAsync(ct);
@@ -1113,10 +1094,10 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
         return await game.UseRideItemAsync(identity.Account, character, item, revision, rideId, ct);
     }
 
-    public async Task<RideRecord?> AddRideSoulsAsync(Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct, int consumeItems = 1)
+    public async Task<RideRecord?> AddRideSoulsAsync(Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct)
     {
         await ValidateAsync(ct);
-        return await game.AddRideSoulsAsync(identity.Account, character, item, revision, rideId, souls, ct, consumeItems);
+        return await game.AddRideSoulsAsync(identity.Account, character, item, revision, rideId, souls, ct);
     }
 
     public async Task<RideRecord?> AcquireRideWithSoulsAsync(Guid character, int rideId, int cost, int crystalType, CancellationToken ct)
@@ -1131,10 +1112,10 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
         return await game.LevelUpRideAsync(identity.Account, character, rideId, cost, crystalType, maxLevel, ct);
     }
 
-    public async Task<int?> AddRideCrystalsAsync(Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct, int consumeItems = 1)
+    public async Task<int?> AddRideCrystalsAsync(Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct)
     {
         await ValidateAsync(ct);
-        return await game.AddRideCrystalsAsync(identity.Account, character, item, revision, crystalType, count, ct, consumeItems);
+        return await game.AddRideCrystalsAsync(identity.Account, character, item, revision, crystalType, count, ct);
     }
 
     public async Task<bool> SaveCreatureBoardAsync(Guid character, CreatureBoardRecord board, IReadOnlyDictionary<int, int> crystalCost,
@@ -1275,18 +1256,6 @@ public sealed class ServiceNativeCharacterStore(string token, WorldIdentity iden
     {
         await ValidateAsync(ct);
         return await game.AddStigmaBonusShardsAsync(identity.Account, character, amount, ct);
-    }
-
-    public async Task<int> SkillBonusPointsAsync(Guid character, CancellationToken ct)
-    {
-        await ValidateAsync(ct);
-        return await game.SkillBonusPointsAsync(identity.Account, character, ct);
-    }
-
-    public async Task<int?> AddSkillBonusPointsAsync(Guid character, int amount, CancellationToken ct)
-    {
-        await ValidateAsync(ct);
-        return await game.AddSkillBonusPointsAsync(identity.Account, character, amount, ct);
     }
 
     public async Task<bool> SpendKinahAndForgetStigmasAsync(Guid character, long kinah, IReadOnlyList<int> skillIds, CancellationToken ct)

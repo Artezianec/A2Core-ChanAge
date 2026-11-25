@@ -429,11 +429,10 @@ public sealed partial class GameSession
     /// teleport scroll, so one Telpo_Home item (530560001 / 560560002) in the bag is used up; without one the move is free
     /// (INFERRED: the cost table is not exported). Then 0x9237 and the move, across maps through the normal map load.
     /// </summary>
-    async Task<List<byte[]>> UseTeleportArtifactAsync(byte[] plain, long now, CancellationToken ct)
+    async Task<List<byte[]>> UseTeleportArtifactAsync(int artifactId, long now, CancellationToken ct)
     {
-        var artifactId = ResolveUseTeleportArtifactId(plain);
         List<byte[]> Reply(int result) => [GamePackets.UseTeleportArtifactReply(artifactId, result)];
-        if (!Kibelisks.TryGetPlacement(artifactId, out var mapId, out var placement)) return Reply(ArtifactNotFound);
+        if (!Kibelisks.TryPlacement(artifactId, out var mapId, out var at)) return Reply(ArtifactNotFound);
         if (!engraved.Contains(artifactId)) return Reply(ArtifactNotEngraved);
         if (resources is null || dead || reloading) return Reply(ArtifactCanNotMove);
         var replies = Reply(0);
@@ -443,39 +442,26 @@ public sealed partial class GameSession
             if (used.Count == 0) return Reply(ArtifactCanNotMove);
             replies.AddRange(await InventoryChangesAsync(ct, 0, DecreaseItemUse));
         }
-        var arrival = Kibelisks.ArrivalPoint(mapId, placement, data.MapPoints(mapId), ArtifactArrivalRange);
-        Note($"UseTeleportArtifact {artifactId}: map {mapId} at {arrival.X:F0},{arrival.Y:F0},{arrival.Z:F0}");
-        replies.AddRange(Teleport(mapId, arrival, now));
+        Note($"UseTeleportArtifact {artifactId}: map {mapId}");
+        replies.AddRange(Teleport(mapId, ArtifactArrival(mapId, at), now));
         return replies;
     }
-
-    /// <summary>
-    /// UseTeleportArtifact_RQ body: the usmap names one i32 id; live 2.0.9 also sends map id then artifact id (10 bytes).
-    /// If the wire value is a list index into 0x9232, map it to that engraved artifact id.
-    /// </summary>
-    static int ResolveUseTeleportArtifactId(byte[] plain, IReadOnlyList<int> engraved)
-    {
-        static bool IsArtifactId(int value) => Kibelisks.TryGetPlacement(value, out _, out _);
-        static int PickIndexOrId(int value, IReadOnlyList<int> engraved)
-        {
-            if (engraved.Contains(value) || IsArtifactId(value)) return value;
-            if (value >= 0 && value < engraved.Count) return engraved[value];
-            return value;
-        }
-        if (plain.Length >= 10)
-        {
-            var first = BitConverter.ToInt32(plain, 2);
-            var second = BitConverter.ToInt32(plain, 6);
-            if (engraved.Contains(second) || IsArtifactId(second)) return second;
-            if (engraved.Contains(first) || IsArtifactId(first)) return first;
-            return PickIndexOrId(second, engraved);
-        }
-        return PickIndexOrId(BitConverter.ToInt32(plain, 2), engraved);
-    }
-
-    int ResolveUseTeleportArtifactId(byte[] plain) => ResolveUseTeleportArtifactId(plain, engraved);
 
     ItemState? TeleportScroll() =>
         storedItems.Values.Where(s => s.Location == "bag" && s.Quantity > 0 && Boxes.Use(s.TemplateId)?.Effect == "Telpo_Home")
             .OrderBy(s => s.TemplateId).FirstOrDefault();
+
+    /// <summary>The map's TeleportArtifact_* point nearest the Kibelisk (MapData TeleportDataMap), else the Kibelisk itself.</summary>
+    Vector3d ArtifactArrival(int mapId, Vector3d kibelisk)
+    {
+        var best = kibelisk;
+        var bestDistance = ArtifactArrivalRange;
+        foreach (var (name, p) in data.MapPoints(mapId))
+        {
+            if (!name.StartsWith("TeleportArtifact", StringComparison.OrdinalIgnoreCase) || p.Length < 3) continue;
+            var d = Math.Sqrt(Math.Pow(p[0] - kibelisk.X, 2) + Math.Pow(p[1] - kibelisk.Y, 2) + Math.Pow(p[2] - kibelisk.Z, 2));
+            if (d < bestDistance) { bestDistance = d; best = new Vector3d(p[0], p[1], p[2]); }
+        }
+        return best;
+    }
 }

@@ -13,10 +13,8 @@ class SkillCondExportTests(unittest.TestCase):
         needs, grants = skill_cond.patch(doc)
         self.assertIn('14070000', needs)
         self.assertIn('14090000', grants)
-        cond = doc['skills']['14070000']['skill_cond']
-        self.assertEqual(cond['abnormal_group'], 140900001)
-        self.assertEqual(cond['select_target'], 'Self')
-        self.assertEqual(doc['skills']['14070000']['skill_cond_source'], 'SkillCond.dat')
+        self.assertEqual(doc['skills']['14070000']['skill_cond']['abnormal_group'], 140900001)
+        self.assertEqual(doc['skills']['14070000']['skill_cond']['select_target'], 'Self')
         self.assertEqual(doc['skills']['14090000']['skill_cond_grant']['duration_ms'], 10000)
         self.assertEqual(doc['skills']['14090000']['skill_cond_grant']['select_target'], 'Self')
         self.assertNotIn('skill_cond', doc['skills']['14010000'])

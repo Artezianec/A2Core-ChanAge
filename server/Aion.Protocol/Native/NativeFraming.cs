@@ -69,6 +69,27 @@ public static class NativeFraming
         var inner = Frame(body);
         return new PacketWriter(inner.Length + 16).U16(0xffff).U32((uint)inner.Length).Raw(Lz4Block.Encode(inner)).ToArray();
     }
+
+    /// <summary>
+    /// 0xffff bundle of several frames: the official 2.0.13 world-entry state arrives as one LZ4 bundle whose inner
+    /// stream holds many framed packets (capture 2026-11-25 13:46:47, 9.444 s).
+    /// </summary>
+    public static byte[] Bundle(IReadOnlyList<byte[]> bodies)
+    {
+        if (bodies.Count == 0) throw new ArgumentException("Bundle needs at least one body", nameof(bodies));
+        var size = 0;
+        foreach (var body in bodies) size += body.Length + 8;
+        var inner = new byte[size];
+        var at = 0;
+        foreach (var body in bodies)
+        {
+            var framed = Frame(body);
+            framed.CopyTo(inner, at);
+            at += framed.Length;
+        }
+        if (at != size) Array.Resize(ref inner, at);
+        return new PacketWriter(inner.Length + 16).U16(0xffff).U32((uint)inner.Length).Raw(Lz4Block.Encode(inner)).ToArray();
+    }
 }
 
 /// <summary>Growable receive buffer that yields complete frames and keeps the partial tail.</summary>
@@ -78,6 +99,9 @@ public sealed class FrameBuffer
     int length;
 
     public int Length => length;
+
+    /// <summary>The buffered bytes (a partial frame's head), for diagnostics.</summary>
+    public ReadOnlySpan<byte> Snapshot() => data.AsSpan(0, length);
 
     public void Append(ReadOnlySpan<byte> chunk)
     {
@@ -106,9 +130,18 @@ public sealed class FrameBuffer
 public sealed class ClientFrameBacklog(Rc4 cipher, int capacity = 1024)
 {
     readonly Queue<byte[]> frames = new();
+    bool? encrypted;
 
     public int Capacity { get; } = capacity;
     public int Count => frames.Count;
+
+    /// <summary>
+    /// 2.0.12's game port sends the opcode in clear and the payload unencrypted (the 2.0.6 client
+    /// encrypted the whole body). The first frame decides for the connection: a known clear opcode
+    /// (0xD456 world login, 0x3602 ping) turns the RC4 off; anything else keeps the legacy cipher.
+    /// </summary>
+    static bool ClearWorldOpcode(ReadOnlySpan<byte> body) =>
+        body.Length >= 2 && (body[0] | body[1] << 8) is 0xD456 or 0x4BAF or 0x3602;
 
     /// <summary>Deciphers and queues the frames; returns how many were dropped because the backlog was full.</summary>
     public int Add(IEnumerable<byte[]> bodies)
@@ -116,7 +149,8 @@ public sealed class ClientFrameBacklog(Rc4 cipher, int capacity = 1024)
         var dropped = 0;
         foreach (var body in bodies)
         {
-            var plain = cipher.Crypt(body);
+            encrypted ??= !ClearWorldOpcode(body);
+            var plain = encrypted.Value ? cipher.Crypt(body) : body;
             if (frames.Count >= Capacity) dropped++;
             else frames.Enqueue(plain);
         }

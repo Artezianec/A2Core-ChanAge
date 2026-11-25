@@ -22,8 +22,7 @@ public sealed partial class GameSession
     {
         if (Social is not { } social || worldPlayer is null) return replies;
         var eligible = PartyLootEligible(party);
-        // No other members in loot range: killer's share is a normal ground drop (party rules need someone to roll/loot).
-        if (eligible.Count == 0) return DropLootSolo(target, now, rolled, replies);
+        if (eligible.Count == 0 && party.Members.Count < 2) return DropLootSolo(target, now, rolled, replies);
 
         foreach (var (item, count) in rolled)
         {
@@ -129,13 +128,7 @@ public sealed partial class GameSession
         var inForce = Social?.ForceOf(worldPlayer!) is not null;
         if (party.Distribution == PartyOptions.DistributionManual || winner is null)
         {
-            if (winner is null && party.Distribution != PartyOptions.DistributionManual && worldPlayer is not null)
-            {
-                // Random/sequence/leader found no on-map recipient: killer owns the bag like solo loot.
-                ownerType = DropOwnerPlayer;
-                owner = selected?.WireId ?? playerKey;
-            }
-            else if (inForce && Social!.ForceOf(worldPlayer!) is { } force)
+            if (inForce && Social!.ForceOf(worldPlayer!) is { } force)
             {
                 ownerType = DropOwnerForce;
                 owner = force.Key;
@@ -202,8 +195,9 @@ public sealed partial class GameSession
     async Task<List<byte[]>?> PartyLootRequestAsync(byte[] plain, long now, CancellationToken ct)
     {
         var header = Opcode(plain);
-        // Live dev+0x157 skill charging reuses 0x381d/0x381f with different bodies (step+skill i32… / empty stop).
-        // Party roll withdraw is opcode + i64 dice uid (10 bytes); charging end is 12 bytes.
+        // 2.0.12 dice requests are 0x5722/0x5724 and always carry one i64 uid (10 bytes including the opcode).
+        // The old 0x381D/0x381F values belong to SkillChargingEnd/Stop now, so the main switch handles them;
+        // the length check remains a body sanity guard.
         if (header == DistributionOpcodes.RollDiceRq && plain.Length != 10) return null;
         if (header == DistributionOpcodes.RollDiceWithdrawRq && plain.Length != 10) return null;
         return header switch
@@ -293,13 +287,9 @@ public sealed partial class GameSession
                     && await store.GrantLootAsync(character, [(roll.ItemId, roll.Count)], default) ? [[]] : []);
             if (granted.Count == 0) return (false, []);
             var inv = await winner.Session.InventoryChangesAsync(default, IncreaseDropItemGet, 0);
-            var autoUse = await winner.Session.AutoUseAcquiredItemsAsync([roll.ItemId], now, default);
             if (social.Parties.TryGetValue(roll.PartyKey, out var lootParty))
                 NotifyGroupLoot(winner, roll.ItemId, lootParty);
-            var merged = new List<byte[]>(inv.Count + autoUse.Count);
-            merged.AddRange(inv);
-            merged.AddRange(autoUse);
-            return (true, merged);
+            return (true, inv);
         });
         return packets;
     }
@@ -397,13 +387,9 @@ public sealed partial class GameSession
                     && await store.GrantLootAsync(character, [(bid.ItemId, bid.Count)], default) ? [[]] : []);
             if (granted.Count == 0) return (false, []);
             var inv = await winner.Session.InventoryChangesAsync(default, IncreaseDropItemGet, 0);
-            var autoUse = await winner.Session.AutoUseAcquiredItemsAsync([bid.ItemId], now, default);
             if (social.Parties.TryGetValue(bid.PartyKey, out var lootParty))
                 NotifyGroupLoot(winner, bid.ItemId, lootParty);
-            var merged = new List<byte[]>(inv.Count + autoUse.Count);
-            merged.AddRange(inv);
-            merged.AddRange(autoUse);
-            return (true, merged);
+            return (true, inv);
         });
         return packets;
     }

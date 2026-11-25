@@ -70,7 +70,7 @@ foreach (var bad in new[] { config with { ServerAddress = "example.com" }, confi
 }
 
 // ---------- Client versions ----------
-Check(ClientVersions.Selected(config).Id == ClientVersion.DefaultId && !ClientVersions.Selected(config).IsSteam, "default client version is 2.0.9.0");
+Check(ClientVersions.Selected(config).Id == ClientVersion.DefaultId && !ClientVersions.Selected(config).IsSteam, "default client version is 2.0.12.0");
 Check(ClientVersions.Selected(config with { SelectedClientVersion = "steam-latest" }).IsSteam, "steam version selectable");
         Check(ClientVersions.Selected(config, "2.0.6.0").Id == ClientVersion.DefaultId, "legacy 2.0.6.0 alias resolves");
 Check(ClientVersions.Selected(config with { SelectedClientVersion = "nope" }).Id == ClientVersion.DefaultId, "unknown selection falls back");

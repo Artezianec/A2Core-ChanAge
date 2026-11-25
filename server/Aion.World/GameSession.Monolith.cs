@@ -219,11 +219,12 @@ public sealed partial class GameSession
 
     async Task<List<byte[]>> MonolithResonateRequestAsync(byte[] plain, CancellationToken ct)
     {
-        if (plain.Length < 14 || resources is null)
+        if (plain.Length < 11 || resources is null)
             return [GamePackets.MonolithResonateReply(1, 0, 0, 0, 0, 0, [])];
         var monolithId = BitConverter.ToInt32(plain, 2);
         var itemCount = BitConverter.ToInt32(plain, 6);
-        var envObjKey = BitConverter.ToInt32(plain, 10);
+        var envReader = new PacketReader(plain) { Offset = 10 };
+        var envObjKey = checked((int)envReader.Varint());   // 2.0.12: varint after the two i32s
         if (!TryResolveMonolith(envObjKey, out _, out var monolith) || MonolithId(monolith) != monolithId)
             return [GamePackets.MonolithResonateReply(1, monolithId, 0, itemCount, MonolithResonateCount(monolithId), MonolithResonateCount(monolithId), [])];
         var result = await MonolithResonateCoreAsync(monolith, itemCount, ct);

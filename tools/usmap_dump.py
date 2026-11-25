@@ -216,6 +216,25 @@ def dump_struct(p, name, indent=0, seen=None):
         print(pad + "  [%d] %s: %s" % (pr["index"], pr["name"], fmt_type(pr["type"])))
 
 
+# def main():
+#     path = sys.argv[1]
+#     p = UsmapParser(path)
+#     print("names: %d, enums: %d, structs: %d" % (len(p.names), len(p.enums), len(p.structs)))
+
+#     targets = sys.argv[2:]
+#     if not targets:
+#         return
+
+#     for t in targets:
+#         print("=" * 70)
+#         if t in p.structs:
+#             dump_struct(p, t)
+#         else:
+#             print("NOT FOUND: " + t)
+#             for k in p.structs:
+#                 if t.lower() in k.lower():
+#                     print("  similar: " + k)
+
 def main():
     path = sys.argv[1]
     p = UsmapParser(path)
@@ -223,6 +242,16 @@ def main():
 
     targets = sys.argv[2:]
     if not targets:
+        return
+
+    if targets == ["--all"]:
+        for name in p.structs:
+            dump_struct(p, name)
+        print()
+        for ename, values in p.enums.items():
+            print("enum " + str(ename))
+            for v, nm in values.items():
+                print("  %d = %s" % (v, nm))
         return
 
     for t in targets:

@@ -8,8 +8,6 @@ namespace Aion.World.Tests;
 public sealed class DutyMissionTests
 {
     static readonly long Now = 1_793_600_000_000;
-    const int DutyScrollItem = 532330036;
-    const long ScrollWire = 88001;
     static ushort Op(byte[] b) => (ushort)(b[0] | b[1] << 8);
 
     [Fact]
@@ -110,77 +108,5 @@ public sealed class DutyMissionTests
         var drawn = session.Duty.Board.Select(e => e.QuestId).ToList();
         var again = await GameSessionTestHelpers.EnterWorldAsync(store, Now + 1000, level: 45);
         Assert.Equal(drawn, again.Duty.Board.Select(e => e.QuestId));
-    }
-
-    [Fact]
-    public async Task Using_a_duty_scroll_item_accepts_a_scroll_quest_and_consumes_the_item()
-    {
-        var store = new FakeCharacterStore { Progress = (45, 0) };
-        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 45);
-        store.Items.Add(FakeCharacterStore.BagItem(DutyScrollItem, 1, wire: ScrollWire));
-        await GameSessionTestHelpers.LoadInventoryAsync(session, Now + 1);
-
-        var replies = await session.HandleAsync(new PacketWriter().U16(RidePackets.ItemUseRq).I64(ScrollWire).ToArray(), Now + 2);
-        var rs = Assert.Single(replies, p => Op(p) == RidePackets.ItemUseRs);
-        Assert.Equal(0, BitConverter.ToUInt16(rs, 2));
-        Assert.Contains(replies, p => Op(p) == 0x8d11);
-        var added = session.Quests!.All.Single(q => q.Status == QuestLog.Incomplete && session.Quests.Book.Find(q.Code)?.Type == "DutyScroll");
-        Assert.True(session.Duty.Quests.ContainsKey(added.Code));
-        Assert.Null(store.Items.FirstOrDefault(i => i.WireId == ScrollWire));
-    }
-
-    [Fact]
-    public async Task ItemUseByItemId_on_a_duty_scroll_accepts_a_quest()
-    {
-        var store = new FakeCharacterStore { Progress = (45, 0) };
-        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 45);
-        store.Items.Add(FakeCharacterStore.BagItem(DutyScrollItem, 1, wire: ScrollWire));
-        await GameSessionTestHelpers.LoadInventoryAsync(session, Now + 1);
-
-        var replies = await session.HandleAsync(
-            new PacketWriter().U16(RidePackets.ItemUseByItemIdRq).I64(ScrollWire).I32(DutyScrollItem).I32(1).I32(0).ToArray(), Now + 2);
-        Assert.Equal(0, BitConverter.ToInt32(Assert.Single(replies, p => Op(p) == RidePackets.ItemUseByItemIdRs), 2));
-        Assert.Contains(replies, p => Op(p) == 0x8d11);
-    }
-
-    [Fact]
-    public async Task Twenty_active_duty_quests_block_another_scroll_use()
-    {
-        var book = QuestBook.Embedded;
-        var codes = book.Quests.Where(q => q.Value.Type == "DutyScroll" && q.Value.Level <= 45 && q.Value.Race == "Light")
-            .Select(q => q.Key).Take(20).ToList();
-        Assert.Equal(20, codes.Count);
-        var store = new FakeCharacterStore { Progress = (45, 0) };
-        foreach (var code in codes)
-        {
-            var quest = book.Find(code)!;
-            store.Quests.Add(QuestLog.New(code, quest) with { Uid = store.Quests.Count + 2000L });
-        }
-        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 45);
-        store.Items.Add(FakeCharacterStore.BagItem(DutyScrollItem, 1, wire: ScrollWire));
-        await GameSessionTestHelpers.LoadInventoryAsync(session, Now + 1);
-
-        var replies = await session.HandleAsync(new PacketWriter().U16(RidePackets.ItemUseRq).I64(ScrollWire).ToArray(), Now + 2);
-        var rs = Assert.Single(replies, p => Op(p) == RidePackets.ItemUseRs);
-        Assert.Equal(DutyResults.DutyQuest_Fail_AcceptLimit, BitConverter.ToUInt16(rs, 2));
-        Assert.Equal(1, store.Items.Single(i => i.WireId == ScrollWire).Quantity);
-    }
-
-    [Fact]
-    public void Every_duty_scroll_item_maps_to_a_group_with_eligible_quests_at_cap()
-    {
-        var duty = DutyTables.Embedded;
-        var book = QuestBook.Embedded;
-        var boxes = RewardBoxes.Embedded;
-        Assert.Equal(86, duty.ScrollItems.Count);
-        foreach (var (itemKey, groupName) in duty.ScrollItems)
-        {
-            var itemId = int.Parse(itemKey);
-            Assert.True(duty.Groups.ContainsKey(groupName), $"item {itemId} group {groupName}");
-            Assert.True(boxes.ImplementsUseEffect("GetDutyQuest"));
-            Assert.Equal("GetDutyQuest", boxes.Use(itemId)!.Effect);
-            var pool = duty.Groups[groupName].Quests.Count(c => book.Find(c) is { } q && q.Steps.Length > 0);
-            Assert.True(pool > 0, $"group {groupName} has no quests with steps");
-        }
     }
 }

@@ -377,11 +377,8 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     public SortedSet<int> Titles { get; } = [];
     public Dictionary<int, int> TitleEquips { get; } = [];
 
-    public Dictionary<int, int> Skins { get; } = [];
-    public Dictionary<int, int> SkinEquips { get; } = [];
-
     public Task<CharacterExtras> ExtrasAsync(Guid character, CancellationToken ct) =>
-        Task.FromResult(new CharacterExtras(Titles.ToList(), new Dictionary<int, int>(TitleEquips), new Dictionary<int, int>(Skins), new Dictionary<int, int>(SkinEquips), []));
+        Task.FromResult(CharacterExtras.None with { Titles = Titles.ToList(), TitleEquips = new Dictionary<int, int>(TitleEquips) });
 
     public Task<bool> GrantTitleAsync(Guid character, int titleId, CancellationToken ct) => Task.FromResult(Titles.Add(titleId));
 
@@ -393,8 +390,19 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         return Task.FromResult(true);
     }
 
-    public Task<bool> SoulBindItemAsync(Guid character, Guid item, byte count, CancellationToken ct, IReadOnlyList<(int Type, int Value)>? stats = null) =>
-        Task.FromResult(false);
+    public Task<bool> SoulBindItemAsync(Guid character, Guid item, byte count, CancellationToken ct, IReadOnlyList<(int Type, int Value)>? stats = null)
+    {
+        var index = Items.FindIndex(i => i.InstanceId == item);
+        if (index < 0) return Task.FromResult(false);
+        var row = Items[index];
+        var dict = row.Upgrades.ValueKind == JsonValueKind.Object
+            ? JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(row.Upgrades.GetRawText()) ?? []
+            : [];
+        dict["soul_bind"] = JsonSerializer.SerializeToElement(count);
+        if (stats is not null) dict["soul_stats"] = JsonSerializer.SerializeToElement(stats.Select(s => new[] { s.Type, s.Value }));
+        Items[index] = row with { Upgrades = JsonSerializer.SerializeToElement(dict), Revision = row.Revision + 1 };
+        return Task.FromResult(true);
+    }
 
     readonly InMemorySocialGraph socialGraph = new();
     CharacterState? StateByName(string name) =>
@@ -623,17 +631,6 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     public Task<bool> GrantSkinsAsync(Guid character, IReadOnlyList<int> skins, CancellationToken ct)
     {
         if (skins.Count == 0) return Task.FromResult(false);
-        foreach (var skin in skins) Skins[skin] = Skins.GetValueOrDefault(skin) + 1;
-        return Task.FromResult(true);
-    }
-
-    public Task<bool> SetSkinEquipsAsync(Guid character, IReadOnlyDictionary<int, int> equips, CancellationToken ct)
-    {
-        if (equips.Count == 0 || equips.Any(e => e.Key is < 1 or > 27 || e.Value < 0)) return Task.FromResult(false);
-        if (equips.Any(e => e.Value != 0 && !Skins.ContainsKey(e.Value))) return Task.FromResult(false);
-        foreach (var (slot, skin) in equips)
-            if (skin == 0) SkinEquips.Remove(slot);
-            else SkinEquips[slot] = skin;
         return Task.FromResult(true);
     }
 
@@ -930,15 +927,30 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         return Task.FromResult(true);
     }
 
-    public Task<int?> AddRideCrystalsAsync(Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct, int consumeItems = 1)
+    public Task<int?> AddRideCrystalsAsync(Guid character, Guid item, long revision, int crystalType, int count, CancellationToken ct)
     {
-        if (consumeItems > 0 && !Consume(item, revision, consumeItems)) return Task.FromResult<int?>(null);
+        if (!Consume(item, revision, 1)) return Task.FromResult<int?>(null);
         return Task.FromResult<int?>(Crystals[crystalType] = Crystals.GetValueOrDefault(crystalType) + count);
     }
 
-    public Task<RideRecord?> AddRideSoulsAsync(Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct, int consumeItems = 1)
+    public Task<RideRecord?> UseRideItemAsync(Guid character, Guid item, long revision, int rideId, CancellationToken ct)
     {
-        if (rideId <= 0 || souls < 1 || (consumeItems > 0 && !Consume(item, revision, consumeItems))) return Task.FromResult<RideRecord?>(null);
+        if (rideId <= 0 || !Consume(item, revision, 1)) return Task.FromResult<RideRecord?>(null);
+        var index = RideRows.FindIndex(r => r.RideId == rideId);
+        if (index >= 0 && RideRows[index].Owned)
+        {
+            var soul = RideRows[index] with { SoulPoints = RideRows[index].SoulPoints + 1 };
+            RideRows[index] = soul;
+            return Task.FromResult<RideRecord?>(soul);
+        }
+        var acquired = new RideRecord(rideId, index >= 0 ? RideRows[index].Level : 1, index >= 0 ? RideRows[index].SoulPoints : 0, true);
+        if (index >= 0) RideRows[index] = acquired; else RideRows.Add(acquired);
+        return Task.FromResult<RideRecord?>(acquired);
+    }
+
+    public Task<RideRecord?> AddRideSoulsAsync(Guid character, Guid item, long revision, int rideId, int souls, CancellationToken ct)
+    {
+        if (rideId <= 0 || souls < 1 || !Consume(item, revision, 1)) return Task.FromResult<RideRecord?>(null);
         var index = RideRows.FindIndex(r => r.RideId == rideId);
         if (index < 0)
         {
@@ -1068,29 +1080,6 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         RewardLimitSaves++;
         RewardLimits.Clear();
         RewardLimits.AddRange(rows);
-        return Task.FromResult(true);
-    }
-    public List<BattlePassWeeklyRecord> BattlePassWeekly { get; } = [];
-    public Task<IReadOnlyList<BattlePassWeeklyRecord>> BattlePassWeeklyAsync(Guid character, CancellationToken ct) =>
-        Task.FromResult<IReadOnlyList<BattlePassWeeklyRecord>>(BattlePassWeekly.ToList());
-    public int BattlePassWeeklySaves { get; private set; }
-    public bool BattlePassWeeklySaveFails { get; set; }
-    public Task<bool> SaveBattlePassWeeklyAsync(Guid character, IReadOnlyList<BattlePassWeeklyRecord> rows, CancellationToken ct)
-    {
-        BattlePassWeeklySaves++;
-        if (BattlePassWeeklySaveFails) return Task.FromResult(false);
-        foreach (var row in rows)
-        {
-            var index = BattlePassWeekly.FindIndex(r => r.GroupId == row.GroupId);
-            if (index < 0) BattlePassWeekly.Add(row);
-            else
-            {
-                var prev = BattlePassWeekly[index];
-                if (row.WeekStartMs > prev.WeekStartMs) BattlePassWeekly[index] = row;
-                else if (row.WeekStartMs == prev.WeekStartMs)
-                    BattlePassWeekly[index] = row with { Exp = Math.Max(prev.Exp, row.Exp) };
-            }
-        }
         return Task.FromResult(true);
     }
     public List<DungeonCooltimeRecord> DungeonCooltimes { get; } = [];
@@ -1330,35 +1319,6 @@ public sealed class FakeCharacterStore : INativeCharacterStore
                 Items[i] = Items[i] with { Location = oldLocation, Slot = oldSlot, Revision = Items[i].Revision + 1 };
         Items[index] = Items[index] with { Location = location, Slot = slot, Revision = revision + 1 };
         return Task.FromResult(true);
-    }
-
-    public Task<string> TransferContainerItemsAsync(Guid character, string fromLocation, string toLocation,
-        IReadOnlyList<(long WireKey, long Count)> transfers, int maxDestinationSlots, CancellationToken ct)
-    {
-        if (fromLocation == toLocation || transfers.Count == 0) return Task.FromResult("failed");
-        var used = Items.Where(i => i.Location == toLocation && i.Slot is not null).Select(i => i.Slot!.Value).ToHashSet();
-        foreach (var (wireKey, count) in transfers)
-        {
-            if (count < 1) return Task.FromResult("failed");
-            var index = Items.FindIndex(i => i.WireId == wireKey && i.Location == fromLocation && i.Quantity >= count);
-            if (index < 0) return Task.FromResult("failed");
-            var row = Items[index];
-            if (count < row.Quantity)
-            {
-                Items[index] = row with { Quantity = row.Quantity - count, Revision = row.Revision + 1 };
-                var split = row with { InstanceId = Guid.NewGuid(), Quantity = count, Revision = 1, WireId = Items.Max(x => x.WireId) + 1 };
-                Items.Add(split);
-                row = split;
-                index = Items.Count - 1;
-            }
-            int? slot = null;
-            for (var s = 0; s < maxDestinationSlots; s++)
-                if (!used.Contains(s)) { slot = s; break; }
-            if (slot is null) return Task.FromResult("failed");
-            used.Add(slot.Value);
-            Items[index] = row with { Location = toLocation, Slot = slot.Value, Revision = row.Revision + 1 };
-        }
-        return Task.FromResult("ok");
     }
 
     public Task<IReadOnlyList<PostRecord>> PostsAsync(Guid character, CancellationToken ct)
@@ -1677,18 +1637,6 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         if (amount <= 0) return Task.FromResult<int?>(null);
         StigmaBonusShards += amount;
         return Task.FromResult<int?>(StigmaBonusShards);
-    }
-
-    /// <summary>Bonus skill points (game.character_skill_bonus).</summary>
-    public int SkillBonusPoints { get; set; }
-
-    public Task<int> SkillBonusPointsAsync(Guid character, CancellationToken ct) => Task.FromResult(SkillBonusPoints);
-
-    public Task<int?> AddSkillBonusPointsAsync(Guid character, int amount, CancellationToken ct)
-    {
-        if (amount <= 0) return Task.FromResult<int?>(null);
-        SkillBonusPoints += amount;
-        return Task.FromResult<int?>(SkillBonusPoints);
     }
 
     public Task<bool> SpendKinahAndForgetStigmasAsync(Guid character, long kinah, IReadOnlyList<int> skillIds, CancellationToken ct)

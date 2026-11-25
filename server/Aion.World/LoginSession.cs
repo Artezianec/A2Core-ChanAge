@@ -88,9 +88,9 @@ public sealed class LoginSession(LoginSessionOptions options, Func<ClientIdentit
                 if (Authentication is not null) return SessionStep.Closed(Authentication = "replay_rejected");
                 ClientIdentity identity;
                 try { identity = ClientIdentity.Parse(plain, game: false); }
-                catch (ProtocolException) { return SessionStep.Closed(Authentication = "rejected"); }
+                catch (ProtocolException error) { return SessionStep.Closed(Authentication = "rejected: " + error.Message); }
                 var grant = await authenticate(identity, ct);
-                if (grant is null) return SessionStep.Closed(Authentication = "rejected");
+                if (grant is null) return SessionStep.Closed(Authentication = "rejected: no_grant");
                 (accountId, guid) = (grant.WireAccountId, grant.Grant);
                 // Each stored character is listed on its world's row of its race (else the first listed row of its race);
                 // characters of worlds not listed now (stopped) are left out.

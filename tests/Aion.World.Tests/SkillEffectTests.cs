@@ -9,7 +9,9 @@ public sealed class SkillEffectTests
 {
     static readonly long Now = 1_700_000_100_000;
     const int HealingLight = 17100000, Defiance = 11260000, DimensionalControl = 16330000;
-    const int Stun = 100000311, Slow = 100000201, Silence = 162100001, Bleed = 100000701, Knockback = 100000321, Taunt = 112900072;
+    // 2.0.12 abnormal ids from tools/data/skill-areas.json (abnormal_effects): the client's real rows,
+    // not the improvised 2.0.6-era ones (Slow was 100000201, Bleed 100000701, Knockback 100000321).
+    const int Stun = 100000311, Slow = 12000172, Silence = 100000801, Dot = 12000473, Knockback = 12000331, Taunt = 100000901;
 
     static byte[] Cast(int skillId, int targetKey, Vector3d at) =>
         new PacketWriter().U16(0x3800).U16(16).I32(skillId).U8(2).Varint(targetKey).F32(0).Vec3(at).U8(9).ToArray();
@@ -31,9 +33,9 @@ public sealed class SkillEffectTests
         var dummy = session.Targets![Combat.TrainingDummyKey].Position;
         await session.HandleAsync(MapEventScenarioHelpers.MoveUpdate(dummy with { X = dummy.X + 700 }), Now + 5_000);
         var at = session.Position!.Value;
-        var mob = map[880_301] = new Target
+        var mob = map[88_301] = new Target
         {
-            Key = 880_301, Name = "Mob", NpcId = 2400032, Hp = 100_000, HpMax = 100_000, Relationship = 6,
+            Key = 88_301, Name = "Mob", NpcId = 2400032, Hp = 100_000, HpMax = 100_000, Relationship = 6,
             Position = at with { X = at.X + 600 }, Direction = 0, Radius = 100, RunSpeed = 600, WalkSpeed = 200,
         };
         return (session, mob);
@@ -48,11 +50,11 @@ public sealed class SkillEffectTests
     [Fact]
     public void Heal_rows_come_with_a_scope_and_are_marked_improvised()
     {
-        Assert.Equal([["HpHealRatio", "2500", "2500"]], SkillEffects.Rows(HealingLight));
+        Assert.Equal([["HpHeal", "192", "211", "10000", "0", "0", "1", "None", "None"]], SkillEffects.Rows(HealingLight));
         Assert.True(SkillEffects.IsFriendly(HealingLight));
-        Assert.Equal("target", SkillEffects.Scope(HealingLight));
-        Assert.Equal("party", SkillEffects.Scope(17120000));
-        Assert.Equal(1500, SkillEffects.ScopeRange(17120000));
+        Assert.Equal("self", SkillEffects.Scope(HealingLight));
+        Assert.Equal("self", SkillEffects.Scope(17120000));
+        Assert.Equal((int)GameSession.AreaRange, SkillEffects.ScopeRange(17120000));
         Assert.Equal("effects_source", SkillAreas.For(HealingLight) is { Effects: not null } ? "effects_source" : "");
         Assert.False(SkillEffects.IsFriendly(13070000));
         Assert.True(SkillEffects.BreaksControl(Defiance));
@@ -63,13 +65,13 @@ public sealed class SkillEffectTests
     public void Abnormal_specs_read_what_a_monster_does_under_each_abnormal()
     {
         Assert.True(AbnormalSpecs.Npc(Stun).Held);
-        Assert.Equal(3000, AbnormalSpecs.Npc(Slow).SlowPermille);
+        Assert.Equal(4000, AbnormalSpecs.Npc(Slow).SlowPermille);
         Assert.True(AbnormalSpecs.Npc(Silence).Silence);
         Assert.True(AbnormalSpecs.Npc(Taunt).Taunt);
-        Assert.Equal(new AbnormalSpecs.DotSpec(100000701, 1000, 300, 0), AbnormalSpecs.Npc(Bleed).Dots.Single());
+        Assert.Equal(new AbnormalSpecs.DotSpec(120004731, 1000, 600, 500), AbnormalSpecs.Npc(Dot).Dots.Single());
         Assert.Equal(500, AbnormalSpecs.Npc(Knockback).Moves.Single(m => m.Kind == AbnormalSpecs.DisplaceKind.Knockback).Amount);
-        Assert.True(AbnormalSpecs.CrowdControl(Stun) && AbnormalSpecs.CrowdControl(Slow) && !AbnormalSpecs.CrowdControl(Bleed));
-        Assert.True(AbnormalSpecs.Debuff(Bleed) && !AbnormalSpecs.Debuff(170900001));
+        Assert.True(AbnormalSpecs.CrowdControl(Stun) && AbnormalSpecs.CrowdControl(100000111) && !AbnormalSpecs.CrowdControl(Dot));
+        Assert.True(AbnormalSpecs.Debuff(Dot) && !AbnormalSpecs.Debuff(170900001));
     }
 
     [Fact]
@@ -100,7 +102,8 @@ public sealed class SkillEffectTests
         var landed = await session.TickAsync(Now + 6_000 + 2_000);
 
         Assert.Equal(0, session.PendingSkillEffectCount);
-        Assert.Equal(before + max / 4, session.Resource.Hp);
+        var heal = SkillEffects.Rows(HealingLight)[0];
+        Assert.InRange(session.Resource.Hp - before, SkillEffects.Value(heal, 0), SkillEffects.Value(heal, 1));
         Assert.True(HasOp(landed, 0x8d00));
     }
 
@@ -138,7 +141,7 @@ public sealed class SkillEffectTests
         var max = session.Resource!.HpMax;
         session.SetHpForChecks(max / 4);
         var before = session.Resource.Hp;
-        var added = session.ReceiveBuffs([(170900001, 8000, 8000, false)], 17090000, Now);
+        var added = session.ReceiveBuffs([(170900001, 8000, 8000, false)], 0, Now);
         Assert.True(HasOp(added, 0x382a));
         Assert.True(HasOp(added, 0x3805), "the first 0x3805 names the remaining total");
         var ticks = await session.TickAsync(Now + 3_500);
@@ -153,7 +156,7 @@ public sealed class SkillEffectTests
     {
         var (session, _) = await Setup("Cleric");
         session.TryApplyPlayerDebuff(Stun, 5_000, Now);
-        session.ReceiveBuffs([(170900001, 8000, 8000, false)], 17090000, Now);
+        session.ReceiveBuffs([(170900001, 8000, 8000, false)], 0, Now);
         Assert.True(session.HeldByAbnormal);
         var removed = session.Cleanse(AbnormalSpecs.CrowdControl, int.MaxValue, Now);
         Assert.True(HasOp(removed, 0x382c));
@@ -163,22 +166,25 @@ public sealed class SkillEffectTests
     }
 
     [Fact]
-    public async Task Defiance_is_cast_while_stunned_and_clears_the_stun()
+    public async Task Defiance_is_cast_while_feared_and_clears_the_fear()
     {
         var (session, _) = await Setup("Gladiator");
-        session.TryApplyPlayerDebuff(Stun, 20_000, Now + 6_000);
+        // 2.0.12 SkillCond.dat gates Defiance on a DeletableFear on the caster.
+        session.TryApplyPlayerDebuff(162100001, 20_000, Now + 6_000);
         Assert.True(session.HeldByAbnormal);
         var replies = await session.HandleAsync(Cast(Defiance, session.PlayerKey, session.Position!.Value), Now + 6_100);
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3801 && GameSession.CastResultCode(p) == 0);
         await session.TickAsync(Now + 6_100 + 2_000);
         Assert.False(session.HeldByAbnormal);
         Assert.Contains(100200001, session.ActiveBuffs);
+        Assert.DoesNotContain(162100001, session.ActiveBuffs);
     }
 
     [Fact]
     public async Task Defiance_makes_the_caster_immune_to_the_next_stun()
     {
         var (session, _) = await Setup("Gladiator");
+        session.TryApplyPlayerDebuff(162100001, 20_000, Now + 6_000);
         await session.HandleAsync(Cast(Defiance, session.PlayerKey, session.Position!.Value), Now + 6_000);
         await session.TickAsync(Now + 8_000);
         var blocked = session.TryApplyPlayerDebuff(Stun, 5_000, Now + 8_100);
@@ -190,12 +196,12 @@ public sealed class SkillEffectTests
     public async Task Purge_removes_a_monsters_beneficial_abnormals_only()
     {
         var (session, mob) = await Setup("Elementalist");
-        session.ApplyNpcDebuffForTests(mob, Bleed, 10_000, Now);
+        session.ApplyNpcDebuffForTests(mob, Dot, 10_000, Now);
         session.ApplyNpcDebuffForTests(mob, 170900001, 10_000, Now);
         var replies = session.ApplyHostileRowForTests(["Dispel", "5"], 16000000, mob, Now);
         Assert.Single(replies, p => GameSessionTestHelpers.Op(p) == 0x382c);
         await session.TickAsync(Now + 1_500);
-        Assert.True(mob.Hp < mob.HpMax, "the bleed (a debuff) stays on the monster");
+        Assert.True(mob.Hp < mob.HpMax, "the dot (a debuff) stays on the monster");
     }
 
     // ---------- Crowd control on players ----------
@@ -281,18 +287,13 @@ public sealed class SkillEffectTests
     {
         var (session, mob) = await Setup("Elementalist");
         var caster = session.Position!.Value;
-        Assert.Equal([["Pull", "200"]], SkillEffects.Rows(DimensionalControl));
         var before = Distance(caster, mob.Position);
-        session.GrantDimensionalControlEnablerForTest(Now + 6_000);
-        var replies = await session.HandleAsync(Cast(DimensionalControl, mob.Key, mob.Position), Now + 6_000);
-        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3801 && GameSession.CastResultCode(p) == 0);
-
-        var pulled = await session.TickAsync(Now + 6_000 + 2_000);
-
-        Assert.True(HasOp(pulled, 0x3814), "Abnormal_Move_Start_NT");
+        // 2.0.12 has no Pull row in the class-skill export; the handler keeps the legacy row for scripts and old data.
+        var replies = session.ApplyHostileRowForTests(["Pull", "200"], 0, mob, Now + 6_000);
+        Assert.True(HasOp(replies, 0x3814), "Abnormal_Move_Start_NT");
         Assert.True(Distance(caster, mob.Position) < before - 200, "the monster stands close to the caster now");
-        Assert.True(mob.DisplacedUntil > Now + 8_000, "it does not act while it is dragged");
-        var stopped = await session.TickAsync(Now + 6_000 + 5_000);
+        Assert.True(mob.DisplacedUntil > Now + 6_000, "it does not act while it is dragged");
+        var stopped = await session.TickAsync(Now + 6_000 + 1_000);
         Assert.True(HasOp(stopped, 0x3815) && HasOp(stopped, 0x371a), "stop NT and position");
         Assert.Equal(0, session.PendingMoveStopCount);
     }
@@ -315,7 +316,7 @@ public sealed class SkillEffectTests
     {
         var (session, mob) = await Setup("Gladiator");
         session.ApplyNpcDebuffForTests(mob, Slow, 3_000, Now + 6_000);
-        Assert.Equal(3000, mob.SlowPermille);
+        Assert.Equal(4000, mob.SlowPermille);
         Assert.False(mob.Held);
         session.ApplyNpcDebuffForTests(mob, Silence, 3_000, Now + 6_000);
         Assert.True(mob.Silenced);
@@ -328,10 +329,10 @@ public sealed class SkillEffectTests
     public async Task Damage_over_time_abnormal_ticks_a_monsters_hp_down()
     {
         var (session, mob) = await Setup("Assassin");
-        var applied = session.ApplyNpcDebuffForTests(mob, Bleed, 3_000, Now + 6_000);
+        var applied = session.ApplyNpcDebuffForTests(mob, Dot, 3_000, Now + 6_000);
         Assert.True(HasOp(applied, 0x3805), "the first 0x3805 names the total");
         var ticks = await session.TickAsync(Now + 6_000 + 3_500);
-        Assert.Equal(97_000, mob.Hp);
+        Assert.Equal(99_502, mob.Hp);
         Assert.True(HasOp(ticks, 0x3805) && HasOp(ticks, 0x8d00));
     }
 
@@ -339,8 +340,8 @@ public sealed class SkillEffectTests
     public async Task Damage_over_time_that_finishes_a_monster_kills_it()
     {
         var (session, mob) = await Setup("Assassin");
-        mob.Hp = 500;
-        session.ApplyNpcDebuffForTests(mob, Bleed, 3_000, Now + 6_000);
+        mob.Hp = 400;
+        session.ApplyNpcDebuffForTests(mob, Dot, 3_000, Now + 6_000);
         var ticks = await session.TickAsync(Now + 6_000 + 3_500);
         Assert.True(mob.Dead);
         Assert.True(HasOp(ticks, 0x8d04), "the kill");
@@ -461,7 +462,7 @@ public sealed class SkillEffectTests
         const long t = 1_760_400_100_000;
         var (a, b) = await DuelAsync();
         var spot = b.Position!.Value;
-        a.PvpSkillDebuffs(b.WorldPlayer!, 11290000, t);
+        a.PvpSkillDebuffs(b.WorldPlayer!, 1800560, t);
         Assert.True(b.HeldByAbnormal || b.ActiveBuffs.Contains(Knockback), "the abnormals of the skill land on the victim");
         var outbox = new List<byte[]>();
         while (b.WorldPlayer!.Outbox.TryDequeue(out var packet)) outbox.Add(packet);

@@ -5,7 +5,7 @@ namespace Aion.World;
 
 public sealed partial class GameSession
 {
-    public const ushort RewardLimitResetNt = 0x3C05, RewardLimitUpdateNt = 0x3C04, DungeonCoolTimesNt = 0x3A60;
+    public const ushort RewardLimitResetNt = 0xFFAA, RewardLimitUpdateNt = 0xFFA9, DungeonCoolTimesNt = 0x9322;
     long characterDailyResetMs;
     long characterWeeklyResetMs;
     long characterMonthlyResetMs;
@@ -70,15 +70,9 @@ public sealed partial class GameSession
         }
         if (weekly > characterWeeklyResetMs)
         {
-            var firstWeek = characterWeeklyResetMs == 0;
             characterWeeklyResetMs = weekly;
             replies.AddRange(ResetWeeklyAchievementStates(now));
-            if (!firstWeek)
-            {
-                ResetPassWeeklyExpForWeek(now);
-                if (notifyClient) replies.AddRange([RewardLimitResetPacket([2]), BattlePassInfoList(now)]);
-            }
-            else if (notifyClient) replies.Add(RewardLimitResetPacket([2]));
+            if (notifyClient) replies.Add(RewardLimitResetPacket([2]));
         }
         var monthly = ContentResetSchedule.PeriodStartMs(3, now);
         if (monthly > characterMonthlyResetMs)
@@ -151,8 +145,10 @@ public sealed partial class GameSession
 
     static byte[] RewardLimitResetPacket(IReadOnlyList<int> types)
     {
+        // RewardLimitReset_NT carries the reset types as one byte each (a2p decoded `aa ff 01 01` + 3 bytes left when
+        // they were i32), so the entry burst stays byte-exact.
         var w = PacketWriter.Opcode(RewardLimitResetNt).Varint((uint)types.Count);
-        foreach (var t in types) w.I32(t);
+        foreach (var t in types) w.U8(t);
         return w.ToArray();
     }
 

@@ -8,7 +8,6 @@ using Aion.Host.Native;
 using Aion.Host.Platform;
 using Aion.Host.NcGuard;
 using Aion.Host;
-using Aion.Host.Database;
 using Aion.Host.Debug;
 using Aion.Host.Logging;
 using Aion.World;
@@ -189,15 +188,12 @@ var askNpcFallback = worldOptions.ResolveMapEventAskNpcProximityFallback(debugOp
 var headlessClients = builder.Configuration.GetSection(AionConfiguration.HeadlessClients).Get<HeadlessClientOptions>() ?? new HeadlessClientOptions();
 builder.Services.AddSingleton(headlessClients);
 builder.Services.AddSingleton<HeadlessClientAuth>();
-var nativeSection = builder.Configuration.GetSection(AionConfiguration.Native);
-var native = (nativeSection.Get<NativeOptions>() ?? new NativeOptions()) with
+var native = (builder.Configuration.GetSection(AionConfiguration.Native).Get<NativeOptions>() ?? new NativeOptions()) with
 {
     Network = network,
     MapEventAskNpcProximityFallback = askNpcFallback,
     // Multi-world is opt-in (docs/MULTI_WORLD.md): Aion:Worlds:Enabled on the login host; a world-role process always.
     MultiWorld = worldProcess is not null || builder.Configuration.GetValue<bool>("Aion:Worlds:Enabled"),
-    ClientGmPanel = NativeOptions.ResolveClientGmPanel(nativeSection.GetValue<bool?>("ClientGmPanel")),
-    EnforceBattlePassWeeklyCap = builder.Configuration.GetValue("Aion:BattlePass:EnforceWeeklyCap", false),
 };
 if (worldProcess is not null)
 {
@@ -236,6 +232,8 @@ if (native.LoginPort is not null || native.GamePort is not null)
     builder.Services.AddSingleton<Aion.Host.Authentication.ScheduledRestart>();
     // Multiplayer: one shared world (maps, NPCs, players) for every game connection on this host.
     builder.Services.AddSingleton(provider => new Aion.World.SharedWorld(provider.GetRequiredService<Aion.World.GameData>()));
+    // Live test knobs (.start-all/runtime/dash-variant.txt): only the real host reads them, never the tests.
+    Aion.World.LiveTuning.Enabled = true;
     // Playerbots (docs/PLAYERBOTS.md): off unless Aion:Bots:Enabled, and only with a game port.
     var botOptions = (builder.Configuration.GetSection("Aion:Bots").Get<Aion.World.BotOptions>() ?? new Aion.World.BotOptions()).Validated();
     if (botOptions.Enabled && native.GamePort is not null)
@@ -445,11 +443,9 @@ if (ncGuard.Port is not null && platform.ConfigApiHost is null)
     platform = platform with { ConfigApiHost = "api.g.nc.com" };
 var platformResponses = platform.Port is not { } bootstrapPort ? null : PlatformResponses.Load(platform, network, bootstrapPort, native.LoginPort, chatPort);
 // Launchers that sign in on this host and start clients without a launch code in the bootstrap URL.
-if (platform.Port is not null && accountsReady) builder.Services.AddSingleton<LaunchPairing>();
+if (accountsReady) builder.Services.AddSingleton<LaunchPairing>();
 if (platform.Port is { } crlBootstrapPort && ncGuard.CrlDistributionUrl is null)
     ncGuard = ncGuard with { CrlDistributionUrl = $"http://{network.PublicAddress}:{crlBootstrapPort}/pki/ca-root.crl" };
-if (ncGuard.Port is not null && ncGuard.NccrMode is null && platform.NccrMode is not null)
-    ncGuard = ncGuard with { NccrMode = platform.NccrMode };
 if (ncGuard.Port is not null)
 {
     builder.Services.AddSingleton(ncGuard);
@@ -495,8 +491,6 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 builder.Services.AddSingleton<WardrobeAccess>();
 var app = builder.Build();
-if (worldProcess is null)
-    PostgresMigrationRunner.ApplyIfEnabled(app.Configuration, app.Logger);
 app.Logger.LogInformation("Bosses: {Bosses}; field bosses: {FieldBosses}; combat: {CombatTelegraphs}",
     Aion.World.GameSession.BossRules, Aion.World.FieldBosses.Options, Aion.World.GameSession.CombatTelegraphRules);
 app.Logger.LogInformation("Boss encounters: {Count} authored (tools/data/boss-mechanics), {Errors} rejected.",

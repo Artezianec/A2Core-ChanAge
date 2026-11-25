@@ -14,7 +14,7 @@ public sealed class DropKeyTests
     const int RecordBytes = 4 + 24 + 8 + 4 + 4 + 1 + 8 + 8 + 1 + 1;
     static readonly GameData Data = GameSessionTestHelpers.LiveGameData;
 
-    static async Task<List<(int Target, int Source, long Uid)>> KillForDropsAsync(SharedWorld world, int seed, long now)
+    static async Task<List<(int Target, int Source, long Uid, long Expires)>> KillForDropsAsync(SharedWorld world, int seed, long now)
     {
         var store = new FakeCharacterStore();
         var session = new GameSession(Data,
@@ -31,7 +31,7 @@ public sealed class DropKeyTests
         await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), now);
 
         var basic = MapEventScenarioHelpers.BasicAttackSkill(session);
-        var drops = new List<(int, int, long)>();
+        var drops = new List<(int, int, long, long)>();
         var castAt = now + 1000;
         var target = session.Targets!.Values.First(t => t.NpcId == spawn.NpcId);
         target.Hp = 1;
@@ -45,8 +45,11 @@ public sealed class DropKeyTests
                 {
                     var source = (int)reader.U32();
                     reader.Offset += 24;
-                    drops.Add((target.Key, source, reader.I64()));
-                    reader.Offset += RecordBytes - 4 - 24 - 8;
+                    var uid = reader.I64();
+                    reader.Offset += 4 + 4 + 1 + 8;   // item, count, owner type, owner
+                    var expires = reader.I64();
+                    drops.Add((target.Key, source, uid, expires));
+                    reader.Offset += RecordBytes - 4 - 24 - 8 - 4 - 4 - 1 - 8 - 8;
                 }
             }
         return drops;
@@ -63,6 +66,8 @@ public sealed class DropKeyTests
         var all = first.Concat(second).ToList();
         Assert.All(all, d => Assert.Equal(d.Target, d.Source));
         Assert.Equal(all.Count, all.Select(d => d.Uid).Distinct().Count());
+        // Official ownership expiry: 120 s (capture 20261124-130131 #3188: exp - packet time 120047 ms).
+        Assert.All(all, d => Assert.InRange(d.Expires - Now, 110_000, 122_000));
     }
 
     [Fact]

@@ -63,23 +63,23 @@ public static class SocialOpcodes
         PartyDisbandRq = PartyBase + 1066, PartyDisbandRs = PartyBase + 1067, PartyDisbandNt = PartyBase + 1068,
         PartySetTargetByBossNt = PartyBase + 1069, PartyDisconnectMemberNt = PartyBase + 1070, PartyReconnectMemberNt = PartyBase + 1071,
         PartyMemberItemLootingNt = PartyBase + 1072, PartyMemberItemLootingFailNt = PartyBase + 1073,
-        ForceMemberItemLootingNt = 0x3aae, ForceMemberItemLootingFailNt = 0x3aaf,
-        ForceCreateRq = 0x3a8a, ForceCreateRs = 0x3a8b, ForceJoinRq = 0x3abd, ForceJoinRs = 0x3abe,
+        ForceMemberItemLootingNt = 0x9624, ForceMemberItemLootingFailNt = 0x9625,
+        ForceCreateRq = 0x9600, ForceCreateRs = 0x9601, ForceJoinRq = 0x9633, ForceJoinRs = 0x9634,
         PartyRecommendRq = PartyBase + 1077, PartyRecommendRs = PartyBase + 1078,
         PartyInviteCancelRq = PartyBase + 1079, PartyInviteCancelRs = PartyBase + 1080, PartyInviteCancelNt = PartyBase + 1081;
 
     /// <summary>PartyLeave_NT (catalogue 1105) in the late run: 0x9327; alternative 0x9244.</summary>
-    public const ushort PartyLeaveNt = LateBase + 1105;
+    public const ushort PartyLeaveNt = LateBase + 1097;   // 0x931F (the 2.0.12 PartyLeave_NT; was 0x9327 on the old table)
 
     // Party recent members, catalogue 1482/1483 (0xe3 run).
     public const ushort PartyRecentMemberRq = E3Base + 1482, PartyRecentMemberRs = E3Base + 1483;
 
     // Duel, catalogue 1126..1140, late run (CANDIDATE 0x933c..0x934a; alternative 0x9259..0x9267).
-    public const ushort DuelCallOutRq = LateBase + 1126, DuelCallOutRs = LateBase + 1127, DuelCallOutNt = LateBase + 1128,
-        DuelCallOutAcceptRq = LateBase + 1129, DuelCallOutAcceptRs = LateBase + 1130, DuelCallOutAcceptNt = LateBase + 1131,
-        DuelCallOutRejectRq = LateBase + 1132, DuelCallOutRejectRs = LateBase + 1133, DuelCallOutRejectNt = LateBase + 1134,
-        DuelStateUpdateNt = LateBase + 1135, DuelCompleteNt = LateBase + 1136, DuelResultNt = LateBase + 1137,
-        DuelRingOutNt = LateBase + 1138, DuelRingInNt = LateBase + 1139, DuelCancelNt = LateBase + 1140;
+    public const ushort DuelCallOutRq = 0x9400, DuelCallOutRs = 0x9401, DuelCallOutNt = 0x9402,
+        DuelCallOutAcceptRq = 0x9403, DuelCallOutAcceptRs = 0x9404, DuelCallOutAcceptNt = 0x9405,
+        DuelCallOutRejectRq = 0x9406, DuelCallOutRejectRs = 0x9407, DuelCallOutRejectNt = 0x9408,
+        DuelStateUpdateNt = 0x9409, DuelCompleteNt = 0x940A, DuelResultNt = 0x940B,
+        DuelRingOutNt = 0x940C, DuelRingInNt = 0x940D, DuelCancelNt = 0x940E;
 
     /// <summary>The same catalogue entry under the alternative late base (0x92 run continued): 0x933c -> 0x9259.</summary>
     public static ushort Alternative(ushort lateOpcode) => (ushort)(lateOpcode - (LateBase - LateAlternativeBase));
@@ -445,11 +445,11 @@ public static class SocialPackets
     public static byte[] PartyMemberItemLooting(string nickname, int serverId, int dropItemId) =>
         Op(SocialOpcodes.PartyMemberItemLootingNt).String(nickname).I32(serverId).I32(dropItemId).ToArray();
 
-    /// <summary>ForceMemberItemLooting_NT (0x3AAE): alliance member received distributed loot.</summary>
+    /// <summary>ForceMemberItemLooting_NT (0x9624): alliance member received distributed loot.</summary>
     public static byte[] ForceMemberItemLooting(string nickname, int serverId, int dropItemId) =>
         Op(SocialOpcodes.ForceMemberItemLootingNt).String(nickname).I32(serverId).I32(dropItemId).ToArray();
 
-    /// <summary>ForceCreate_RS (0x3A8B): result, force key.</summary>
+    /// <summary>ForceCreate_RS (0x9601): result, force key.</summary>
     public static byte[] ForceCreateReply(int result, long forceKey) =>
         Op(SocialOpcodes.ForceCreateRs).U16(result).I64(forceKey).ToArray();
 

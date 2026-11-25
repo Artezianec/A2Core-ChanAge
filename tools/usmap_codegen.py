@@ -10,6 +10,7 @@ Output path and usmap input are fixed to keep the tooling deterministic;
 pass --check to verify the file on disk is up to date (CI-friendly).
 """
 import argparse
+import json
 from pathlib import Path
 
 try:
@@ -55,9 +56,14 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true",
                         help="Fail if the generated file is out of date")
+    parser.add_argument("--usmap", help="Client .usmap (default: the 2.0.12 mapping, else the newest)")
+    parser.add_argument("--opcodes", help="Dispatch opcode JSON (default: tools/client_opcodes.json)")
     args = parser.parse_args(argv)
 
-    schema = PacketSchema()
+    opcode_map = None
+    if args.opcodes:
+        opcode_map = json.loads(Path(args.opcodes).read_text(encoding="utf-8"))
+    schema = PacketSchema(args.usmap, opcode_map=opcode_map)
     ordered = schema.all_packet_structs()
     lines = [HEADER, "", "from __future__ import annotations", ""]
     lines.append("try:")

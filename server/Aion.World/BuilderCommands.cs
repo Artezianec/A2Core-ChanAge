@@ -21,7 +21,7 @@ public sealed record BuilderOutcome(int Result, string Message, List<byte[]> Pac
 public sealed class BuilderCommands(WorldPresence presence, GmPolicy policy, Action<string, string, string> audit, GameData? data = null)
 {
     public static readonly IReadOnlyList<string> Supported =
-        ["SetInvisible", "SetInvincible", "SetInvincibleHP", "NoCool", "DashVariant", "Speed", "Hp", "Mp", "Sp", "FixHpPercent",
+        ["SetInvisible", "SetInvincible", "SetInvincibleHP", "NoCool", "DashVariant", "CombatState", "Speed", "Hp", "Mp", "Sp", "FixHpPercent",
          "Teleport", "TeleportTo", "MoveMap", "LayerTest", "Dev", "AcquireItem", "SetLevel", "ClassChange", "SetAscension", "ContentsUnlock", "ContentsUnlockAll", "AcquireWingAll",
          "QuestAdd", "QuestComplete", "QuestCompleteStep", "QuestSetStep", "QuestReward", "QuestDelete", "RevealMap", "AcquireTitle", "AcquireSkin", "SetMastery", "Mail", "Gift", "EnterDungeon",
          "GrantShopCurrency", "Membership", "BattlePassExp"];
@@ -44,7 +44,8 @@ public sealed class BuilderCommands(WorldPresence presence, GmPolicy policy, Act
         ["SetInvincible"] = "SetInvincible [true|false] or HP:true MP:true SP:true",
         ["SetInvincibleHP"] = "SetInvincibleHP [true|false]",
         ["NoCool"] = "NoCool [true|false]",
-        ["DashVariant"] = "DashVariant <0-10> (the sprint dash's reply shape, for live tests)",
+        ["DashVariant"] = "DashVariant <0-11> (the sprint dash's reply shape, for live tests)",
+        ["CombatState"] = "CombatState [true|false] (send 0x8d21 for the player, for live stance tests)",
         ["Speed"] = "Speed <multiplier> (e.g. 3 for triple run speed, 1 to reset; 0x364b MoveSpeed + server anti-cheat)",
         ["Hp"] = "Hp [value]", ["Mp"] = "Mp [value]", ["Sp"] = "Sp [value]",
         ["FixHpPercent"] = "FixHpPercent [percent]",
@@ -69,40 +70,7 @@ public sealed class BuilderCommands(WorldPresence presence, GmPolicy policy, Act
         ["GrantShopCurrency"] = "GrantShopCurrency kina|quna|<currency item id> [count] (dev BM shop wallet)",
         ["Membership"] = "Membership on|off (the account's Special Quai Membership until the host restarts)",
         ["BattlePassExp"] = "BattlePassExp <exp> (Daeva Pass exp to every active pass)",
-        ["AcquireTitle"] = "AcquireTitle <title id>",
-        ["AcquireSkin"] = "AcquireSkin <skin id>",
-        ["SetMastery"] = "SetMastery <craft|gather> <category 1-5 | 0> <level>",
     };
-
-    /// <summary>Builder commands by menu group (keys are <c>//gm menu &lt;group&gt;</c> filters).</summary>
-    public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> MenuGroups = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["combat"] = ["SetInvisible", "SetInvincible", "SetInvincibleHP", "NoCool", "DashVariant", "Speed", "Hp", "Mp", "Sp", "FixHpPercent"],
-        ["movement"] = ["Teleport", "TeleportTo", "MoveMap", "LayerTest", "EnterDungeon"],
-        ["character"] = ["SetLevel", "ClassChange", "SetAscension", "AcquireItem", "AcquireWingAll", "AcquireTitle", "AcquireSkin", "SetMastery"],
-        ["quests"] = ["QuestAdd", "QuestComplete", "QuestCompleteStep", "QuestSetStep", "QuestReward", "QuestDelete"],
-        ["content"] = ["ContentsUnlock", "ContentsUnlockAll", "RevealMap", "GrantShopCurrency", "Membership", "BattlePassExp"],
-        ["social"] = ["Mail", "Gift"],
-        ["dev"] = ["Dev"],
-    };
-
-    /// <summary>Staff builder menu for chat (<c>//gm menu</c> or <c>//gm menu &lt;group&gt;</c>).</summary>
-    public static string StaffMenuText(string? group = null, string? staffRole = null)
-    {
-        var role = string.IsNullOrWhiteSpace(staffRole) ? "staff" : staffRole;
-        if (string.IsNullOrWhiteSpace(group))
-        {
-            var names = string.Join(", ", MenuGroups.Keys.OrderBy(k => k, StringComparer.OrdinalIgnoreCase));
-            return $"Staff builder menu ({role}). Groups: {names}. //gm menu <group> lists commands with usage. Run: //<command> …";
-        }
-        if (!MenuGroups.TryGetValue(group, out var commands))
-        {
-            var names = string.Join(", ", MenuGroups.Keys.OrderBy(k => k, StringComparer.OrdinalIgnoreCase));
-            return $"Unknown group \"{group}\". Groups: {names}.";
-        }
-        var lines = commands.Select(c => "//" + c + (Usage.TryGetValue(c, out var usage) ? " — " + usage : ""));
-        return $"[{group}] " + string.Join(" | ", lines);
-    }
 
     static string UnknownMap(int mapId) => $"Map {mapId} is not one the client knows (not in Map.dat); loading it would log you out.";
 
@@ -170,6 +138,8 @@ public sealed class BuilderCommands(WorldPresence presence, GmPolicy policy, Act
                                     && variant >= 0 && variant <= GameSession.DashVariantMax:
                 actor.DashVariant = variant;
                 return BuilderOutcome.Ok($"Dash variant {variant}.");
+            case "CombatState" when args is [var value] && Flag(value) is { } on:
+                return BuilderOutcome.Ok($"Combat state {OnOff(on)}.", actor.SetBuilderCombatState(on, now));
             case "Speed" when args is [var value] && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var mult) && mult is >= 0 and <= 10:
             {
                 var packets = actor.SetBuilderSpeedMultiplier(mult < 1 ? 1 : mult, now);
