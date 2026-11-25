@@ -169,6 +169,7 @@ public sealed class BittercoldWindTests
         Assert.Contains(fxPackets, p => ContainsI32(p, 1528000011));
         Assert.Contains(fxPackets, p => ContainsI32(p, 1528000021));
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3641);
+        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == MechanicTelegraphs.RangeNoticeFilterLocationNt);
         var marker = Assert.Single(session.Targets!.Values, t => t.OwnerKey == session.PlayerKey && t.NpcId == 2920011);
         Assert.Equal(2, fxPackets.Count(p => ContainsVarint(p, marker.Key)));
         Assert.Equal(1, session.PlacedZoneCount);

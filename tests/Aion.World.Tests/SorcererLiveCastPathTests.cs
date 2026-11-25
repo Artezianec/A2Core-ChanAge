@@ -18,6 +18,13 @@ public sealed class SorcererLiveCastPathTests
     static byte[] Cast(int skillId, int targetKey, Vector3d at) =>
         new PacketWriter().U16(0x3800).U16(16).I32(skillId).U8(2).Varint(targetKey).F32(0).Vec3(at).U8(9).ToArray();
 
+    static bool ContainsI32(byte[] packet, int value)
+    {
+        for (var i = 0; i + 4 <= packet.Length; i++)
+            if (BitConverter.ToInt32(packet, i) == value) return true;
+        return false;
+    }
+
     static bool HitDamagePositive(byte[] packet)
     {
         if (GameSessionTestHelpers.Op(packet) != 0x3804) return false;
@@ -64,8 +71,13 @@ public sealed class SorcererLiveCastPathTests
         var session = await SorcererAsync(new Random(41));
         var mob = session.Targets![Combat.TrainingDummyKey];
         var castAt = Now + 5_000;
-        var replies = await session.HandleAsync(Cast(Hellfire, mob.Key, session.Position!.Value), castAt);
+        var replies = await session.HandleAsync(Cast(Hellfire, mob.Key, mob.Position), castAt);
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3801 && GameSession.CastResultCode(p) == 0);
+        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == MechanicTelegraphs.RangeNoticeFilterLocationNt);
+        var wired = SkillSideData.Family(Hellfire) * 100;
+        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3804 && ContainsI32(p, wired + 11));
+        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3804 && ContainsI32(p, wired + 21));
+        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3804 && ContainsI32(p, wired + 31));
         Assert.True(session.PendingCombatHitCountForTests > 0);
         var projectile = session.NextProjectileForTests();
         Assert.NotNull(projectile);

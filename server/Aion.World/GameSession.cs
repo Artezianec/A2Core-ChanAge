@@ -753,8 +753,10 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case 0x3617: return [PacketWriter.Opcode(0x3618).U16(0).ToArray()];
             case 0x3648: { var (sheet, hpMax) = StatSheet(); return [GamePackets.CharAllStats(sheet, hpMax)]; }
             case 0x3659:
-                // Comm key request (only when Login_RS gave none), then the chat unlock update.
-                return [GamePackets.CommServerKeyReply(), .. UnlockUpdateOnce()];
+                // Comm key request (only when Login_RS gave none). Chat unlock (0xe258) belongs on the
+                // post-load legion entry query (0x8a1c), not here: an early 0x3659 in lobby/world burned
+                // unlockUpdateSent so first world entry never raised System_ContentsUnlocked (relog/teleport worked).
+                return [GamePackets.CommServerKeyReply()];
             case 0xe34f when Store is null && !lobbyLoginSent:
                 // Login_RS resent from the lobby: its handler needs [A+0x428], absent when the
                 // instant game-login reply arrives, so the chat server key (Lime+0x80) stayed
@@ -1935,6 +1937,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         if (shortLoad || keepInstanceEnvState) ReconcileMapEventBombRuns(now);
         replies.AddRange(ApplyQuestWorldGating(now));
         CharacterName = name;
+        options.SyncWorldPresence?.Invoke();
         EnterSharedWorld(mapId, at);
         subzoneAllowsRide = SubzoneAllowsRideNow();
         arrivalCheckDue = true;
@@ -2257,6 +2260,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         // then the 0x3803 arrows.
         var replies = new List<byte[]> { CastStartPacket(skill, (byte)actionUid, request, cooldown) };
         replies.AddRange(PlayerGroundTelegraph(skill, (byte)actionUid, request, definition!));
+        replies.AddRange(HellfireCastVisuals(skill, request, (byte)actionUid));
         replies.AddRange(ApplySkillCondGrant(skill, definition!, now, request));
         replies.AddRange(ChainCasterAbnormalReplies(skill, now));
         replies.AddRange(ClassSelfBuffs(skill, definition!, (byte)actionUid, now));

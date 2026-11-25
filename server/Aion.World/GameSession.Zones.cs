@@ -35,6 +35,7 @@ partial class GameSession
         seenNpcs.Add(key);
         replies.Add(GamePackets.NpcAppear(t.Appearance() with { Reason = NpcAppearance.NpcSpawnReason }));
         replies.AddRange(ZoneCastEffects(skillId, zone, request, actionUid, key));
+        replies.AddRange(ZoneRangeNotice(skillId, zone, request, actionUid, key, t));
         zones.Add(new PlacedZone(key, group, skillId, zone, request, actionUid, zone.Ticks, now + NpcAi.HitDelayMs));
         return replies;
     }
@@ -66,6 +67,22 @@ partial class GameSession
             replies.AddRange(Dismiss(current.Group, now));
         }
         return replies;
+    }
+
+    /// <summary>
+    /// Persistent ground decal at the marker (SkillEffectFilter row 3 with bRangeNoticeAttached; Bittercold 152800003).
+    /// </summary>
+    List<byte[]> ZoneRangeNotice(int skillId, PcZones.Zone zone, CastRequest request, byte actionUid, int markerKey, Target marker)
+    {
+        if (!combatTelegraphRules.GroundMarkers) return [];
+        var area = CastArea(skillId);
+        if (area is null || !MechanicTelegraphs.WantsMarker(area)) return [];
+        return
+        [
+            MechanicTelegraphs.RangeNotice(
+                playerKey, skillId, actionUid, effectSeq: 3, marker.Position, marker.Direction,
+                zone.LifetimeMs, processUid: 0),
+        ];
     }
 
     /// <summary>Timed NoEffect / Spawn rows of the cast skill (client preview VFX; Bittercold Wind 1528000011 / 1528000021).</summary>

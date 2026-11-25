@@ -94,6 +94,7 @@ public sealed class SorcererSpecializedChildCastTests
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3801 && GameSession.CastResultCode(p) == 0);
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3802 && ContainsI32(p, BittercoldChild));
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3641);
+        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == MechanicTelegraphs.RangeNoticeFilterLocationNt);
         Assert.Equal(1, session.PlacedZoneCount);
         var wiredSpawn = SkillSideData.WireEffectId(1528000021, BittercoldChild);
         var fxPackets = replies.Where(p => GameSessionTestHelpers.Op(p) == 0x3804).ToList();

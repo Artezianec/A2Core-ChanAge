@@ -14,12 +14,20 @@ partial class GameSession
 
     List<byte[]> PlayerGroundTelegraph(int skill, byte actionUid, CastRequest request, SkillDefinition definition)
     {
+        // Zone casts (Bittercold Wind) attach the AoE marker when the summon appears, not at accept time.
+        if (PcZones.For(skill) is not null) return [];
         var area = CastArea(skill);
         if (area is null || !MechanicTelegraphs.WantsMarker(area)) return [];
         var here = position ?? request.Location;
         var aim = request.Location == Vector3d.Zero ? here : request.Location;
+        if (area.OnTarget && request.TargetKey is > 0 and var tk && tk != playerKey
+            && targets?.TryGetValue(tk, out var locked) == true)
+            aim = locked.Position;
         var duration = MechanicTelegraphs.PlayerLandMs(definition);
-        if (targets is null || !targets.TryGetValue(playerKey, out var self)) return [];
-        return MechanicTelegraphs.ForNpcArea(combatTelegraphRules, self, skill, actionUid, area, aim, request.Yaw, duration, 0, null);
+        if (area.Projectile > 0)
+            duration = Math.Max(duration, definition.EndMs is { } endMs ? Combat.SkillEndMs(endMs, AttackSpeed) : duration);
+        if (!combatTelegraphRules.GroundMarkers) return [];
+        var centre = MechanicTelegraphs.EffectCentre(area, here, aim);
+        return [MechanicTelegraphs.RangeNotice(playerKey, skill, actionUid, effectSeq: 1, centre, request.Yaw, duration)];
     }
 }
