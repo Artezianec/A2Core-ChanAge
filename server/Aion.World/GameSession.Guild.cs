@@ -139,7 +139,7 @@ public sealed partial class GameSession
                 case GuildCreateRq:
                 {
                     var (name, rule, password, emblem, intro) = (r.String(), r.U8(), r.String(), r.I32(), r.String());
-                    byte[] Reply(int result) => PacketWriter.Opcode(GuildCreateRs).U16(result).I64(guild?.Id ?? 0).String(name).U8(guild?.Level ?? 0).I64(0)
+                    byte[] Reply(int result) => PacketWriter.Opcode(GuildCreateRs).I32(result).I64(guild?.Id ?? 0).String(name).U8(guild?.Level ?? 0).I64(0)
                         .U8(rule).String(password).I32(emblem).String(intro).Varint(GuildAuthority.Length)
                         .Also(w => { foreach (var (grade, bits) in GuildAuthority) w.U8(grade).I32(bits); }).ToArray();
                     if (CostStacks(KinaItemId, GuildCreateKina) is not { } costs) return [Reply(2)];
