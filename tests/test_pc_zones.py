@@ -19,10 +19,13 @@ class PcZonesTests(unittest.TestCase):
         self.assertEqual(1528000211, dmg["effect_id"])
         self.assertEqual("Sorcerer_Skill025_LvUp", dmg["level_group"])
         cast = zone["cast_effects"]
+        self.assertEqual(3, len(cast))
         self.assertEqual(1528000011, cast[0]["effect_id"])
         self.assertEqual("self", cast[0]["target"])
         self.assertEqual(1528000021, cast[1]["effect_id"])
-        self.assertEqual("target", cast[1]["target"])
+        self.assertEqual("marker", cast[1]["target"])
+        self.assertEqual(1528000011, cast[2]["effect_id"])
+        self.assertEqual("marker", cast[2]["target"])
 
     def test_divine_aura_uses_client_export_pulse_rows(self):
         zone = json.loads(ZONES.read_text(encoding="utf-8"))["zones"]["17150000"]

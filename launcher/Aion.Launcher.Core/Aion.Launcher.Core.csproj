@@ -13,4 +13,7 @@
   <ItemGroup>
     <PackageReference Include="SteamKit2" Version="3.4.0" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../server/Aion.Core/Aion.Core.csproj" />
+  </ItemGroup>
 </Project>

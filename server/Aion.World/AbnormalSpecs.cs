@@ -65,18 +65,23 @@ public static class AbnormalSpecs
         List<Displace> moves = [];
         foreach (var (id, type, values) in Info(abnormalId)?.Effects ?? [])
         {
+            if (type.Equals("Taunt", StringComparison.OrdinalIgnoreCase))
+            {
+                taunt = true;
+                continue;   // client rows often add Bind/BlockMove* for taunt VFX; server must not hold the mob (it still chases)
+            }
             if (HoldTypes.Contains(type)) held = true;
             if (SilenceTypes.Contains(type)) silence = true;
             switch (type)
             {
                 case "Slow": slow = Math.Max(slow, Value(values, 0)); break;
                 case "Snare": slow = 10_000; break;
-                case "Taunt": taunt = true; break;
                 case "Dot_TargetMaxHP" when Value(values, 0) > 0: dots.Add(new(id, Value(values, 0), Value(values, 1), Value(values, 2))); break;
                 case "Knockback": moves.Add(new(DisplaceKind.Knockback, Value(values, 0), Math.Max(100, Value(values, 1)))); break;
                 case "Aerial": moves.Add(new(DisplaceKind.Aerial, Value(values, 0), Math.Max(100, Value(values, 1)))); break;
             }
         }
+        if (taunt) held = false;
         return new(held, silence, Math.Min(10_000, slow), taunt, dots, moves);
     }
 }

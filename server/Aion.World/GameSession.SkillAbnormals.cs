@@ -51,11 +51,13 @@ partial class GameSession
             }
             else if (targets is not null && targets.TryGetValue(pending.TargetKey, out var target) && !target.Dead)
             {
+                var appliedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var (abnormal, minMs, maxMs, held) in area?.TargetDebuffRows ?? [])
                 {
-                    var ctx = BuildEffectConditionContext(target, null, pending.SkillId, target.Key, mainTarget: true, now);
+                    var ctx = BuildEffectConditionContext(target, null, pending.SkillId, target.Key, mainTarget: true, now, appliedTypes);
                     if (!SkillEffectConditions.DebuffAllowed(pending.SkillId, abnormal, ctx)) continue;
                     ApplyNpcDebuff(target, abnormal, Math.Max(1, rng.Next(Math.Min(minMs, maxMs), Math.Max(minMs, maxMs) + 1)), now, replies, held, pending.SkillId);
+                    foreach (var t in AbnormalSpecs.Types(abnormal)) appliedTypes.Add(t);
                 }
                 replies.AddRange(ai.Engage(targets, target, now, playerKey, 1));
             }

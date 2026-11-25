@@ -126,13 +126,15 @@ public sealed partial class GameSession
         // Class skills: SkillEffect.dat Abnormal_True / Abnormal_Cc rows exported with the skill's area (tools/skill_areas.py);
         // a trap's hits are its detonation, which carries its own (the skill's rows include the trap marker abnormal).
         var rows = PcTraps.For(skill) is { } trap ? trap.DebuffRows : CastArea(skill)?.TargetDebuffRows ?? [];
+        var appliedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (abnormal, minMs, maxMs, held) in rows)
         {
-            var ctx = BuildEffectConditionContext(target, null, skill, target.Key, mainTarget: true, now);
+            var ctx = BuildEffectConditionContext(target, null, skill, target.Key, mainTarget: true, now, appliedTypes);
             if (!SkillEffectConditions.DebuffAllowed(skill, abnormal, ctx)) continue;
             var duration = Math.Max(1, rng.Next(Math.Min(minMs, maxMs), Math.Max(minMs, maxMs) + 1));
             ApplyNpcDebuff(target, abnormal, duration, now, replies, held, skill);
             applied.Add(abnormal);
+            foreach (var t in AbnormalSpecs.Types(abnormal)) appliedTypes.Add(t);
         }
         // Client target rows our skill-areas export does not already apply (Jointstrike, Chain of Torment, ...).
         // A self skill with no damage (Light of Regeneration) is a caster buff, not an NPC debuff.
@@ -268,7 +270,7 @@ public sealed partial class GameSession
         foreach (var dot in buff.Dots)
             if (!dot.Scaled)
                 replies.Add(RidePackets.AbnormalEffect(target.Key, playerKey, buff.Uid, dot.EffectId, dot.Remaining, null, skillId));
-        if (model?.Taunt == true && targets is not null) replies.AddRange(ai.Taunt(targets, target, now, playerKey));
+        if (model?.Taunt == true && targets is not null && !target.Held) replies.AddRange(ai.Taunt(targets, target, now, playerKey));
         if (model is not null)
             foreach (var move in model.Moves.Where(m => m.Kind == AbnormalSpecs.DisplaceKind.Knockback))
                 replies.AddRange(KnockbackNpc(target, move.Amount, abnormalId, now));

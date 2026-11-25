@@ -47,6 +47,7 @@ public sealed class LauncherEndpointsTests : IAsyncDisposable
         var versions = root.GetProperty("clientVersions").EnumerateArray().ToList();
         Assert.Equal(["private", "steam"], versions.Select(v => v.GetProperty("kind").GetString()));
         Assert.Equal(endpoints.Fingerprint, versions[0].GetProperty("build").GetString());
+        Assert.Equal("steam-latest", versions[1].GetProperty("id").GetString());
 
         using var build = JsonDocument.Parse(await client.GetStringAsync("/api/launcher/builds/" + endpoints.Fingerprint.ToUpperInvariant()));
         Assert.Equal(endpoints.Fingerprint, LauncherEndpoints.ComputeFingerprint(build.RootElement.GetProperty("files")));

@@ -1,0 +1,36 @@
+{
+  "defaultVersionId": "2.0.9.0",
+  "profiles": {
+    "2.0.9.0": {
+      "displayVersion": "2.0.9.0",
+      "steamBuildId": "26262663",
+      "engineVersion": "UE 5.3",
+      "pinnedDefault": true,
+      "aesPakKeyHex": null,
+      "dumperOffsets": {
+        "FNamePool": null,
+        "GUObjectArray": null
+      },
+      "protocolProfileId": "26262663",
+      "protocolVerified": true,
+      "notes": "Pinned private build (supported-build.json). Pak AES key: use research/local/archive-key-validated.json locally."
+    },
+    "2.0.13": {
+      "displayVersion": "2.0.13",
+      "steamBuildId": null,
+      "steamBuildIdNote": "TODO: unknown \u2014 fill when Steam manifest / appmanifest is confirmed",
+      "releasedOn": "2026-11-25",
+      "engineVersion": "UE 5.3",
+      "pinnedDefault": false,
+      "aesPakKeyHex": null,
+      "dumperOffsets": {
+        "FNamePool": "0x14f22d540",
+        "GUObjectArray": "0x14ed729a0"
+      },
+      "protocolProfileId": "26262663",
+      "protocolProfileNote": "UNVERIFIED: reuses pinned 2.0.9.0 / build 26262663 opcode and wire offsets until 2.0.13 captures exist",
+      "protocolVerified": false,
+      "notes": "Pak AES key is not published in this tree; the launcher offers 2.0.13 only when aesPakKeyHex is set."
+    }
+  }
+}

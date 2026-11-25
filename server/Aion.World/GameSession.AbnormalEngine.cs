@@ -18,7 +18,7 @@ partial class GameSession
         {
             foreach (var abnormal in LearnedPassiveAbnormals(skill))
             {
-                if (AbnormalSpecs.Info(abnormal) is null) continue;
+                if (AbnormalSpecs.Info(abnormal) is null && !SkillEffectEngine.HasTriggers(abnormal)) continue;
                 wanted.Add(abnormal);
             }
         }

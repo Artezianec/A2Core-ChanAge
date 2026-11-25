@@ -359,12 +359,14 @@ partial class GameSession
     internal void PvpSkillDebuffs(WorldPlayer victim, int skill, long now)
     {
         var packets = new List<byte[]>();
+        var appliedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (abnormal, minMs, maxMs, _) in CastArea(skill)?.TargetDebuffRows ?? [])
         {
-            var ctx = BuildEffectConditionContext(null, victim, skill, victim.Key, mainTarget: true, now);
+            var ctx = BuildEffectConditionContext(null, victim, skill, victim.Key, mainTarget: true, now, appliedTypes);
             if (!SkillEffectConditions.DebuffAllowed(skill, abnormal, ctx)) continue;
             var duration = Math.Max(1, rng.Next(Math.Min(minMs, maxMs), Math.Max(minMs, maxMs) + 1));
             packets.AddRange(victim.Session.TryApplyPlayerDebuff(abnormal, duration, now, position, playerKey));
+            foreach (var t in AbnormalSpecs.Types(abnormal)) appliedTypes.Add(t);
         }
         if (packets.Count > 0) victim.Send(packets);
     }

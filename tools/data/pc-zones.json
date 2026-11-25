@@ -35,7 +35,11 @@
         },
         {
           "effect_id": 1528000021,
-          "target": "target"
+          "target": "marker"
+        },
+        {
+          "effect_id": 1528000011,
+          "target": "marker"
         }
       ]
     },
@@ -76,7 +80,7 @@
         },
         {
           "effect_id": 1715000021,
-          "target": "target"
+          "target": "marker"
         }
       ],
       "ally_abnormals": [

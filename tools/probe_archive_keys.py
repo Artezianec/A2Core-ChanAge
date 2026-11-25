@@ -26,6 +26,7 @@ except ImportError:
     from key_constants import binary_key_candidates
 
 VALIDATED_KEY_PATH = Path(__file__).resolve().parents[1] / "research/local/archive-key-validated.json"
+# Community keys for optional client versions: tools/client_build_profiles.py key-report <version>
 
 
 class CandidateCheck:

@@ -95,10 +95,21 @@ public sealed class SorcererSpecializedChildCastTests
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3802 && ContainsI32(p, BittercoldChild));
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3641);
         Assert.Equal(1, session.PlacedZoneCount);
-        var fx = SkillSideData.WireEffectId(1528000011, BittercoldChild);
-        Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3804 && ContainsI32(p, fx));
+        var wiredSpawn = SkillSideData.WireEffectId(1528000021, BittercoldChild);
+        var fxPackets = replies.Where(p => GameSessionTestHelpers.Op(p) == 0x3804).ToList();
+        Assert.Equal(3, fxPackets.Count);
+        Assert.Contains(fxPackets, p => ContainsI32(p, wiredSpawn));
+        var marker = Assert.Single(session.Targets!.Values, t => t.OwnerKey == session.PlayerKey && t.NpcId == 2920011);
+        Assert.Equal(2, fxPackets.Count(p => PacketTargetsKey(p, marker.Key)));
         await session.TickAsync(castAt + 700);
         Assert.True(mob.Hp < mob.HpMax);
+    }
+
+    static bool PacketTargetsKey(byte[] packet, int key)
+    {
+        var reader = new PacketReader(packet) { Offset = 2 };
+        try { return (int)reader.Varint() == key; }
+        catch { return false; }
     }
 
     [Fact]

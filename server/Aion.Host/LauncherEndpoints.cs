@@ -2,6 +2,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Aion.Core;
 
 namespace Aion.Host;
 
@@ -50,10 +51,27 @@ public sealed class LauncherEndpoints(byte[] buildJson, string fingerprint)
         app.MapGet(ConfigPath, (IConfiguration configuration) =>
         {
             var section = configuration.GetSection("Aion:Launcher");
-            var version = section["ClientVersion"]?.Trim() is { Length: > 0 } named ? named[..Math.Min(named.Length, 40)] : "2.0.9.0";
+            var version = section["ClientVersion"]?.Trim() is { Length: > 0 } named
+                ? named[..Math.Min(named.Length, 40)]
+                : ClientBuildProfiles.DefaultVersionId;
             var versions = new List<object> { new { id = version, name = version, kind = "private", build = fingerprint } };
             if (section.GetValue<bool?>("AllowSteam") ?? true)
+            {
+                if (section.GetValue<bool?>("OfferClient2013") ?? true)
+                {
+                    var experimental = ClientBuildProfiles.TryGet(ClientBuildProfiles.ExperimentalVersionId);
+                    if (experimental is not null && !string.IsNullOrWhiteSpace(experimental.AesPakKeyHex))
+                    {
+                        versions.Add(new
+                        {
+                            id = ClientBuildProfiles.ExperimentalVersionId,
+                            name = $"{experimental.DisplayVersion} (experimental, unverified)",
+                            kind = "steam",
+                        });
+                    }
+                }
                 versions.Add(new { id = "steam-latest", name = "Official latest (Steam)", kind = "steam" });
+            }
             return Results.Ok(new
             {
                 name = siteName(), serverAddress = publicAddress, bootstrapPort, savedDirSuffix = SavedDirSuffix(configuration),

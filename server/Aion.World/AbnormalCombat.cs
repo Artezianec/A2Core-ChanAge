@@ -118,10 +118,13 @@ static class AbnormalCombat
     {
         var held = false;
         var immune = false;
+        var taunt = AbnormalSpecs.Types(abnormalId).Any(t => t.Equals("Taunt", StringComparison.OrdinalIgnoreCase));
         foreach (var (_, type, _) in AbnormalSpecs.Info(abnormalId)?.Effects ?? [])
             switch (type)
             {
-                case "Stun" or "Hold" or "Stone" or "Sleep" or "Aerial" or "Fear" or "Knockdown" or "KnockdownInstant" or "Frozen" or "Root" or "BlockMovePosition" or "Paralysis" or "Bind":
+                case "Taunt": break;
+                case "Stun" or "Hold" or "Stone" or "Sleep" or "Aerial" or "Fear" or "Knockdown" or "KnockdownInstant" or "Frozen" or "Root" or "BlockMovePosition" or "Paralysis" or "Bind"
+                    when !taunt:
                     held = true; break;
                 case "ImmuneSkillEffectGroup" or "ImmuneDecreaseHP" or "BlockTargeting" or "Invincible":
                     immune = true; break;

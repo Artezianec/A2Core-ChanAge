@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using Aion.Core;
 
 namespace Aion.Launcher;
 
@@ -18,14 +19,21 @@ public sealed record ClientVersion(
     [property: JsonPropertyName("build"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Build = null)
 {
     public const string PrivateKind = "private", SteamKind = "steam";
-    public const string DefaultId = "2.0.9.0", SteamLatestId = "steam-latest";
+    public const string DefaultId = ClientBuildProfiles.DefaultVersionId, SteamLatestId = "steam-latest";
+    public const string ExperimentalSteamId = ClientBuildProfiles.ExperimentalVersionId;
     public bool IsSteam => Kind.Equals(SteamKind, StringComparison.OrdinalIgnoreCase);
 
-    public static IReadOnlyList<ClientVersion> Defaults { get; } =
-    [
-        new(DefaultId, "2.0.9.0", PrivateKind),
-        new(SteamLatestId, "Official latest (Steam)", SteamKind),
-    ];
+    public static IReadOnlyList<ClientVersion> Defaults { get; } = BuildDefaults();
+
+    static ClientVersion[] BuildDefaults()
+    {
+        var list = new List<ClientVersion> { new(DefaultId, "2.0.9.0", PrivateKind) };
+        var experimental = ClientBuildProfiles.TryGet(ExperimentalSteamId);
+        if (experimental is not null && !string.IsNullOrWhiteSpace(experimental.AesPakKeyHex))
+            list.Add(new(ExperimentalSteamId, "2.0.13 (experimental, unverified)", SteamKind));
+        list.Add(new(SteamLatestId, "Official latest (Steam)", SteamKind));
+        return [.. list];
+    }
 }
 
 public static class ClientVersions

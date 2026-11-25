@@ -21,7 +21,8 @@ partial class GameSession
         if (SkillCondRegistry.RequiresStaggerWindow(new SkillCondNeed(SkillCondRegistry.HasAbnormalEffectType,
                 AbnormalEffect: effectType, SelectTarget: "Target")))
             return PlayerHasGroggyBreakStagger(now);
-        return buffs.Any(b => (!casterKey.HasValue || b.Uid != 0)
+        return buffs.Any(b => BuffActive(b, now)
+            && (!casterKey.HasValue || b.Uid != 0)
             && AbnormalSpecs.Types(b.AbnormalId).Any(t => SkillCondRegistry.EffectTypesMatch(effectType, t)));
     }
 
@@ -57,7 +58,8 @@ partial class GameSession
     internal bool HasAbnormalEffectType(string? effectType) =>
         !string.IsNullOrEmpty(effectType) && HasAbnormalEffect(effectType);
 
-    internal SkillEffectConditions.Context BuildEffectConditionContext(Target? npc, WorldPlayer? player, int skillId, int mainTargetKey, bool mainTarget, long now)
+    internal SkillEffectConditions.Context BuildEffectConditionContext(Target? npc, WorldPlayer? player, int skillId, int mainTargetKey, bool mainTarget, long now,
+        IReadOnlySet<string>? appliedTargetEffectTypes = null)
     {
         var dist = 0.0;
         if (Position is { } from)
@@ -65,7 +67,7 @@ partial class GameSession
             if (npc is not null) dist = Math.Sqrt(from.DistanceSquared(npc.Position));
             else if (player is not null) dist = Math.Sqrt(from.DistanceSquared(player.Position));
         }
-        return new(this, npc, player, skillId, mainTargetKey, now, rng, mainTarget, dist);
+        return new(this, npc, player, skillId, mainTargetKey, now, rng, mainTarget, dist, appliedTargetEffectTypes);
     }
 
     internal List<byte[]> BreakPlayerStagger(long now, int casterKey)

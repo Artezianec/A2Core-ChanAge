@@ -36,7 +36,8 @@ public static class SkillEffectConditions
         long Now,
         Random Rng,
         bool MainTarget,
-        double DistanceCm);
+        double DistanceCm,
+        IReadOnlySet<string>? AppliedTargetEffectTypes = null);
 
     public static IReadOnlyList<Condition> DebuffConditions(int skillId, int abnormalId)
     {
@@ -205,6 +206,7 @@ public static class SkillEffectConditions
     static bool HasEffect(Context ctx, string? effect, bool byCaster)
     {
         if (string.IsNullOrEmpty(effect)) return false;
+        if (!byCaster && ctx.AppliedTargetEffectTypes?.Contains(effect) == true) return true;
         if (ctx.Npc is not null)
             return ctx.Caster.NpcHasAbnormalEffect(ctx.Npc.Key, effect, ctx.Now, byCaster ? ctx.Caster.PlayerKey : null);
         if (ctx.PlayerVictim is not null)

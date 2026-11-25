@@ -89,20 +89,26 @@ def _damage_row(effect: dict) -> dict | None:
 def _cast_visual_effects(skill_row: dict, effects: dict[int, list[dict]]) -> list[dict]:
     """NoEffect / Spawn SkillEffect rows in SkillEffectTimeDataList order (client cast / preview VFX)."""
     out: list[dict] = []
-    seen: set[int] = set()
     for timed in skill_row.get("SkillEffectTimeDataList") or []:
         gid = _value(timed.get("SkillEffectGroupId", 0))
         if not isinstance(gid, int) or not gid:
             continue
+        filt = _value(timed.get("SkillEffectFilterId", 0)) or 0
+        filt_s = str(filt)
         for eff in effects.get(gid, []):
             kind = _enum(eff.get("EffectType"))
             if kind not in ("NoEffect", "Spawn"):
                 continue
             eid = _value(eff.get("ID"))
-            if not isinstance(eid, int) or eid in seen:
+            if not isinstance(eid, int):
                 break
-            out.append({"effect_id": eid, "target": "target" if kind == "Spawn" else "self"})
-            seen.add(eid)
+            if kind == "Spawn":
+                target = "marker"
+            elif filt_s.endswith("3") and filt_s not in ("0", ""):
+                target = "marker"  # area filter row (Bittercold 152800003 wind vortex)
+            else:
+                target = "self"
+            out.append({"effect_id": eid, "target": target})
             break
     return out
 

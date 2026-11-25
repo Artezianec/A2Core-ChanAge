@@ -121,6 +121,9 @@ other keys are kept).
 
 - `2.0.9.0` (default): the launcher's private copy, checked against `supported-build.json`, with the
   firewall rules and the optional Client Editor patch paks, exactly as before.
+- `2.0.13 (experimental, unverified)` (`2.0.13`): listed only when a pak AES key is present in the client
+  profile table (not published in this tree). Same read-only Steam-folder rules as `steam-latest`
+  (see `docs/client-2.0.13.md`). Off the default selection.
 - `Official latest (Steam)` (`steam-latest`): the player's own Steam install, started in place and
   **read-only**: no file in the Steam folder is written, so no patch paks (they would land in its Paks
   folder), no size/hash check (it is newer than the reference) and no firewall rules (they are per exe
