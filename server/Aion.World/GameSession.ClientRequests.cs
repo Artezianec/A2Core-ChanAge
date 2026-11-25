@@ -38,9 +38,8 @@ public sealed partial class GameSession
             // LoadMessageCardBlockList_RQ (no body): no blocked message-card senders (usmap: result, MessageCardBlock list). CANDIDATE.
             case MessageCardBlockListRq when plain.Length == 2:
                 return [PacketWriter.Opcode(MessageCardBlockListRs).U16(0).Varint(0).ToArray()];
-            // SkinDecoInstanceList_RQ (no body): the reply carries only a result (usmap). CANDIDATE.
             case SkinDecoInstanceListRq when plain.Length == 2:
-                return [PacketWriter.Opcode(SkinDecoInstanceListRs).U16(0).ToArray()];
+                return SkinDecoInstanceListReplies();
             case WorldMapAbyssRankerInfoRq when plain.Length == 2:
                 return WorldMapAbyssRankerInfo(plain);
             // WorldMapContentsInfo_RQ {i32 map id}: Field Boss / Exploration tab. See GameSession.FieldBosses.

@@ -50,7 +50,7 @@ public sealed class SkinExtractionTables
 // Essence extraction (SkinExtraction). Live opcodes are catalogue 0x399B/0x399C + 0x53C5 (same 0x8d run as SkinEquip 0x8d5e):
 // SkinExtraction_RQ 0x8d60 {target item uids i64[]}, SkinExtraction_RS 0x8d61 {result i32, uids[], per-item bool results[]}.
 // EResult (usmap): 0 ok; 15437 Fail; 15438 AlreadyExist; 15439 InvalidData; 15440 InternalError; 15441 NotEnoughExtractionCount.
-// Neighbours not modelled yet (log once each): SkinGacha 0x8d62/0x8d63, SkinDecorate 0x8d64/0x8d65.
+// Neighbours not modelled yet (log once each): SkinGacha 0x8d62/0x8d63. SkinDecorate 0x8d64/0x8d65: GameSession.SkinDecorate.cs.
 public sealed partial class GameSession
 {
     public const ushort SkinExtractionRq = 0x8d60, SkinExtractionRs = 0x8d61;
@@ -113,8 +113,6 @@ public sealed partial class GameSession
         var rs = (ushort)(rq + 1);
         if (rq == 0x8d62)
             return [PacketWriter.Opcode(rs).I32(SkinExtractionInvalidData).I64(0).I32(0).Varint(0).ToArray()];
-        if (rq == 0x8d64)
-            return [PacketWriter.Opcode(rs).I32(SkinExtractionInvalidData).Varint(0).Varint(0).Varint(0).ToArray()];
         return [PacketWriter.Opcode(rs).I32(SkinExtractionInvalidData).ToArray()];
     }
 

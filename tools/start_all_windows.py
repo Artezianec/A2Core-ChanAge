@@ -244,6 +244,7 @@ def native_host_env(runtime_dir: Path) -> dict[str, str]:
         'Aion__Platform__FixtureDirectory': str(KEY_FIXTURES.resolve()),
         'Aion__Platform__PolicyFile': str((DEFAULT_POLICY / 'app-policy.json').resolve()),
         'Aion__Platform__RequestLog': str((runtime_dir / 'bootstrap-requests.jsonl').resolve()),
+        'Aion__Platform__NccrMode': 'Json',
     })
     env.pop('Aion__ChatDevelopmentLogins', None)
     geolocation = runtime_dir / 'geolocation-response.json'
@@ -271,6 +272,8 @@ def ncguard_host_env(runtime_dir: Path, fixture: Path) -> dict[str, str]:
         'Aion__NcGuard__Capture': 'false',
         'Aion__NcGuard__RewriteHosts': 'true',
         'Aion__NcGuard__StopFile': str(stop_file.resolve()),
+        'Aion__Platform__NccrMode': 'Json',
+        'Aion__NcGuard__NccrMode': 'Json',
     }
 
 

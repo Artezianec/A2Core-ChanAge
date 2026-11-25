@@ -45,7 +45,7 @@ public sealed partial class GameSession
     {
         if (Store is not { } store || CharacterId is not { } character)
         {
-            if (op is GuildOpcodes.SendJoinRequestsRq && plain.Length == 2)
+            if (op is GuildOpcodes.SendJoinRequestsRq && plain.Length >= 2)
             {
                 var replies = new List<byte[]> { PacketWriter.Opcode(GuildOpcodes.SendJoinRequestsRs).U16(0).Varint(0).ToArray() };
                 if (!legionEntryQueryDone) { legionEntryQueryDone = true; replies.AddRange(UnlockUpdateOnce()); }
@@ -55,7 +55,7 @@ public sealed partial class GameSession
         }
         switch (op)
         {
-            case GuildOpcodes.SendJoinRequestsRq when plain.Length == 2:
+            case GuildOpcodes.SendJoinRequestsRq when plain.Length >= 2:
             {
                 IReadOnlyList<GuildJoinRequestSent> sent = [];
                 await Stored(async () => { sent = await store.GuildJoinRequestsSentAsync(character, ct); return []; });

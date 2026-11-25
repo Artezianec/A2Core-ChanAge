@@ -17,7 +17,10 @@ public sealed class GmMenuAndPresenceTests
         var builder = new BuilderCommands(presence, StaffPolicy, (_, _, _) => { }, GameData.Embedded);
         var store = new FakeCharacterStore();
         var session = new GameSession(GameSessionTestHelpers.LiveGameData,
-            new GameSessionOptions { WorldId = store.WorldId, StaffRole = StaffPolicy.StaffRole, Builder = builder },
+            new GameSessionOptions
+            {
+                WorldId = store.WorldId, StaffRole = StaffPolicy.StaffRole, Builder = builder,
+            },
             new Random(3)) { Store = store };
         await session.HandleAsync(GameSessionTestHelpers.Login(), Now);
         await session.HandleAsync(GameSessionTestHelpers.LightCreate(), Now);
@@ -59,6 +62,16 @@ public sealed class GmMenuAndPresenceTests
         var name = session.CharacterName!;
         Assert.Equal("Enter the world first.", await gm.HandleAsync(Chatter, name, "//gm menu", default));
         presence.Enter(name, session, session.Store!.AccountId);
+        Assert.Contains("Groups:", await gm.HandleAsync(Chatter, name, "//gm menu", default));
+    }
+
+    [Fact]
+    public async Task Gm_menu_works_when_world_presence_syncs_after_load_complete()
+    {
+        var (session, presence, gm) = await StaffInWorldAsync();
+        var name = session.CharacterName!;
+        presence.Enter(name, session, session.Store!.AccountId);
+        Assert.Single(presence.All);
         Assert.Contains("Groups:", await gm.HandleAsync(Chatter, name, "//gm menu", default));
     }
 

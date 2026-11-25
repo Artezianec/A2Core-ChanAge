@@ -36,11 +36,10 @@ public sealed class AchievementGrowthCompleteBatchClaimTests
         Assert.Equal(2, store.Achievements.Single(a => a.Id == GrowthCompleteAchievement).RewardedStep);
 
         var body = batch[rsIndex].AsSpan(2).ToArray();
-        var prefix = Convert.FromHexString(
-            "00000000" + "01" + "00000000" + "00" + "00" + "01" +
-            "66A3E111" + "00" + "01" + "0C6DF211" + "02");
-        Assert.Equal(prefix, body[..prefix.Length]);
-        Assert.True(body.Length > prefix.Length);
-        Assert.True(BitConverter.ToInt32(body, body.Length - 8) > 0);
+        Assert.Equal(
+            Convert.FromHexString(
+                "00000000" + "01" + "00000000" + "00" + "00" + "01" +
+                "66A3E111" + "00" + "01" + "0C6DF211" + "02"),
+            body);
     }
 }

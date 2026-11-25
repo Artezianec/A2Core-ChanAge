@@ -26,6 +26,8 @@ public sealed record GameSessionOptions
     public Func<Guid, CancellationToken, Task<string?>>? StaffRole { get; init; }
     /// <summary>Builder (GM) commands from the console (0x362e); null leaves them disabled.</summary>
     public BuilderCommands? Builder { get; init; }
+    /// <summary>Chat-style // commands on the game wire (0x362e BuilderCmd_RQ lines starting with //); same handler as Lime chat.</summary>
+    public GmCommands? GmChat { get; init; }
     /// <summary>Extracted ground grids by map (NPCs walk on the landscape); null: slope heights.</summary>
     public TerrainStore? Terrain { get; init; }
     /// <summary>Extracted navigation meshes by map (NPC paths and floors); null: straight lines.</summary>
@@ -67,6 +69,11 @@ public sealed record GameSessionOptions
     /// builder commands still work for flagged staff.
     /// </summary>
     public bool ClientGmPanel { get; init; } = true;
+    /// <summary>
+    /// Called after a character name is bound at world load. The native host also syncs presence after each handled
+    /// packet so Lime <c>loginWithToken</c> sees the character once the client opens chat (after 0xe258).
+    /// </summary>
+    public Action? SyncWorldPresence { get; init; }
 }
 
 /// <summary>
@@ -388,12 +395,14 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case CharRenameRq when plain.Length >= 4: return await RenameCharacterAsync(plain, ct);
             case CharSlotSwapRq when plain.Length >= 4: return await SwapLobbySlotsAsync(plain, now, ct);
             case CharCustomizingListRq when plain.Length == 2: return await CharCustomizingListAsync(ct);
+            case CharCustomizingStatusCheckRq when plain.Length >= 2:
+                return [PacketWriter.Opcode(CharCustomizingStatusCheckRs).U16(0).ToArray()];
             case BookmarkRq when plain.Length >= 8 && resources is not null: return await BookmarkAsync(plain, now, ct);
         }
         if (InWorld && Opcode(plain) is LatestSeasonRankingRq or MySeasonRankingRq or TakePrevSeasonRankingRewardRq
             && await RankingRequestAsync(plain, now, ct) is { } rankingReplies) return rankingReplies;   // GameSession.Ranking.cs
         if (InWorld && ClientRequest(plain, now) is { } clientReplies) return clientReplies;
-        if (InWorld && Opcode(plain) is var skinBlockOp && skinBlockOp >= 0x8d62 && skinBlockOp <= 0x8d67 && (skinBlockOp - 0x8d60) % 2 == 0)
+        if (InWorld && Opcode(plain) is 0x8d62 or 0x8d66)
             return SkinBlockRefusal(plain);
         if (InWorld && await GuildRequestAsync(plain, ct) is { } guildReplies) return guildReplies;
         if (InWorld && FieldEventRequest(plain, now) is { } fieldEventReplies) return fieldEventReplies;   // GameSession.FieldEvents.cs
@@ -544,6 +553,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case SkinEquipRq when plain.Length >= 3: return await SkinEquipAsync(plain, ct);
             case EquipSlotVisibilityRq when plain.Length >= 5: return await SkinVisibilityAsync(plain, ct);
             case SkinExtractionRq when plain.Length >= 3: return await SkinExtractionAsync(plain, ct);
+            case SkinDecorateRq when plain.Length >= 3: return await SkinDecorateAsync(plain, now, ct);
             case GatherStopRq when plain.Length >= 3: return GatherStop(plain);
             case CraftStartRq when plain.Length >= 7: return await CraftAsync(plain, ct);
             case ConversionStartRq: return await ConversionStartAsync(plain, ct);
@@ -728,7 +738,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case 0x9230 when plain.Length >= 11:
                 return await ClientObjectiveAsync(plain[2], BitConverter.ToInt32(plain, 3), BitConverter.ToInt32(plain, 7), now, ct);
             // UseTeleportArtifact_RQ {i32 artifact} (usmap; live 2026-10-30 `36929B091000` from the world map's teleport confirm).
-            case 0x9236 when plain.Length >= 6: return await UseTeleportArtifactAsync(BitConverter.ToInt32(plain, 2), now, ct);
+            case 0x9236 when plain.Length >= 6: return await UseTeleportArtifactAsync(plain, now, ct);
             // CutsceneComplete_RQ {cutscene name, group request key i64}: a cutscene the client was told to play ended (OBSERVED
             // live 2026-10-19 for the lake cave's exit cutscene). It finishes CompleteCutscene objectives and releases a move
             // that waited for its cutscene (a PCTeleport's value 3).
@@ -816,6 +826,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         sprinting = false;
         Resting = false;
         unlockUpdateSent = false;  // the next world entry re-locks chat in 0xe257 and needs 0xe258 again
+        legionEntryQueryDone = false;
         reloading = false;
     }
 
@@ -2578,6 +2589,17 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         var result = 0;
         foreach (var line in commands)
         {
+            var trimmed = line.TrimStart();
+            if (trimmed.StartsWith("//", StringComparison.Ordinal) && options.GmChat is { } gm && CharacterName is { } speaker)
+            {
+                var identity = new Aion.Application.Chat.ChatIdentity(
+                    (selected?.WireId ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    (Store?.WorldId ?? options.WorldId).ToString(System.Globalization.CultureInfo.InvariantCulture), "en-US",
+                    Store?.AccountId, new Aion.Application.Chat.ChatCharacter(
+                        CharacterId ?? Guid.Empty, speaker, Aion.Core.Characters.CharacterNames.Display(speaker, StaffRole)));
+                messages.Add(await gm.HandleAsync(identity, speaker, trimmed, ct));
+                continue;
+            }
             var outcome = await builder.RunAsync(this, line, now, ct);
             replies.AddRange(outcome.Packets);
             messages.Add(outcome.Message);

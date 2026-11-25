@@ -17,11 +17,22 @@ public static class NcGuardBuiltinResponses
     [
         // Observed official: POST / with binary telemetry → 200 text/html, empty body (research/e259-ncguard.md).
         new("bladnoch.ncsoft.com", "POST", "/", null, "text/html", []),
+        // Last-resort only when fixture has no rule: live paths are typically /win/<guid>/def.ec (fixture-sized bodies).
+        new("lagavulin.ncsoft.com", "GET", "/def.ec", null, "binary/octet-stream", LagavulinDefEcStub()),
+        // Legacy JSON host (fixture prefix /legacy/).
+        new("atp-json.ncsoft.com", "GET", null, "/legacy/", "text/plain", "legacy"u8.ToArray()),
         // authz/authn/token: dynamic JWT replies via <see cref="GpaOAuthTokens"/> in <see cref="NcGuardSink"/>.
         // CANDIDATE: periodic GPA telemetry (~7 min without this → 404 and the client self-disconnects). Shape is
         // inferred from other NC GPA JSON (errorCode 0); refine when an official sdk.gpa capture is in-repo.
         new("sdk.gpa.ncsoft.com", "POST", null, "/api/device/", "application/json", DeviceApiSuccessBody()),
     ];
+
+    public static bool IsTrackedHost(string host) =>
+        host.Equals("sdk.gpa.ncsoft.com", StringComparison.OrdinalIgnoreCase)
+        || host.Equals("bladnoch.ncsoft.com", StringComparison.OrdinalIgnoreCase)
+        || host.Equals("lagavulin.ncsoft.com", StringComparison.OrdinalIgnoreCase)
+        || host.Equals("atp-json.ncsoft.com", StringComparison.OrdinalIgnoreCase)
+        || host.Equals("nccr-api.global.nc.com", StringComparison.OrdinalIgnoreCase);
 
     public static bool TryReply(string host, string method, string path, out byte[] body, out string contentType)
     {
@@ -45,4 +56,12 @@ public static class NcGuardBuiltinResponses
         errorCode = 0,
         message = "success",
     }, Json));
+
+    /// <summary>Non-empty placeholder for GET /def.ec until an official lagavulin capture is checked in.</summary>
+    static byte[] LagavulinDefEcStub()
+    {
+        var body = new byte[256];
+        for (var i = 0; i < body.Length; i++) body[i] = (byte)i;
+        return body;
+    }
 }

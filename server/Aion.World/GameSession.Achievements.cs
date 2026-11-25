@@ -614,10 +614,24 @@ public sealed partial class GameSession
     internal static bool CategoryMatches(byte category, string groupCategory) =>
         category == 0 || CategoryOrdinal(groupCategory) == category;
 
+    /// <summary>Whether this achievement has at least one reward step ready (independent of achievement-window listing).</summary>
+    internal bool HasClaimableRewardStep(AchievementTables.Entry entry)
+    {
+        if (PaidPassLocked(entry.Id)) return false;
+        if (!achievements.TryGetValue(entry.Id, out var state)) return false;
+        for (var step = state.RewardedStep + 1; step <= entry.Steps.Length; step++)
+        {
+            if (state.Count >= entry.StepCount(step)) return true;
+        }
+        return false;
+    }
+
     /// <summary>
     /// Whether an achievement may be claimed inside a batch. Collect-all in a concrete group (non-zero group id from the client)
     /// must not go through <see cref="Listed"/> — attendance tabs send one batch RQ per AchievementGroup id (0x07EF..), and only the
-    /// latest open board is listed in the achievement window at once.
+    /// latest open board is listed in the achievement window at once. Summary/category collect-all uses persisted progress and must not
+    /// require <see cref="Listed"/> (Journal/season rows stay claimable after their tab closes; the client still shows them in the
+    /// rewards panel and red dots until the RS take_result is applied).
     /// </summary>
     internal bool BatchEntryEligible(AchievementTables.Entry entry, int scopedGroupId, byte category, long now)
     {
@@ -625,7 +639,7 @@ public sealed partial class GameSession
         if (Achievements.GroupOf(entry) is not { } group || (group.Race != 0 && group.Race != profileRace)) return false;
         if (scopedGroupId != 0) return group.Id == scopedGroupId;
         if (!CategoryMatches(category, group.Category)) return false;
-        return Listed(entry, now);
+        return HasClaimableRewardStep(entry);
     }
 
     IReadOnlyList<int> BatchClaimGroupIds(int groupId, byte category) =>
@@ -711,7 +725,7 @@ public sealed partial class GameSession
         var batch = new List<byte[]>();
         batch.AddRange(checkIn);
         if (inventoryChanges.Count > 0) batch.AddRange(inventoryChanges);
-        batch.Add(RewardBatchReply(category, groupId, only, takeResults, batchResult, moreReward, grantedRewards));
+        batch.Add(RewardBatchReply(category, groupId, only, takeResults, batchResult, moreReward));
         if (claimedAchievementIds.Count > 0) batch.Add(AchievementUpdate(claimedAchievementIds));
         if (grantedItems)
         {
@@ -785,13 +799,14 @@ public sealed partial class GameSession
 
     /// <summary>
     /// TakeAchievementRewardBatch_RS (usmap): {result, category u8, group i32, only bool, more bool,
-    /// [Common_AchievementRewardBatchTakeResult {group i32, [group step u8], map achievement i32 -> step u8}]},
-    /// then Common_RewardItem[] granted stacks for the client summary (SyncMonolithAccountAchievements_RS / OpenRewardBox_RS tail).
+    /// [Common_AchievementRewardBatchTakeResult {group i32, [group step u8], map achievement i32 -> step u8}]}.
+    /// The client summary sheet and red-dot clear read _take_result only; extra Common_RewardItem bytes after take_result break that
+    /// layout on the live client (the popup can show while granted_step and inventory never apply). Single/group RS still append items.
     /// The map value is a ByteProperty: an i32 there shifts every later group and the client reads garbage counts.
     /// </summary>
     public static byte[] RewardBatchReply(byte category, int groupId, bool only,
         IReadOnlyList<(int Group, IReadOnlyList<byte> GroupSteps, IReadOnlyDictionary<int, int> Steps)> results, int result = 0,
-        bool moreRewardAvailable = false, IReadOnlyList<(int ItemId, long Count)>? grantedItems = null)
+        bool moreRewardAvailable = false)
     {
         var w = PacketWriter.Opcode(TakeAchievementRewardBatchRs).I32(result).U8(category).I32(groupId).U8(only ? (byte)1 : (byte)0)
             .U8(moreRewardAvailable ? (byte)1 : (byte)0).Varint((uint)results.Count);
@@ -802,7 +817,6 @@ public sealed partial class GameSession
             w.Varint((uint)steps.Count);
             foreach (var (id, step) in steps.OrderBy(p => p.Key)) w.I32(id).U8((byte)step);
         }
-        WriteCommonRewardItems(w, result == 0 ? grantedItems : []);
         return w.ToArray();
     }
 
@@ -912,15 +926,8 @@ public sealed partial class GameSession
         return checkIn;
     }
 
-    /// <summary>Whether a batch claim may touch attendance tab achievements and needs a check-in first.</summary>
-    bool BatchIncludesAttendance(int groupId, byte category) =>
-        CategoryOrdinal("Attendance") == category || BatchClaimGroupIds(groupId, category).Any(gid => Achievements.GroupById(gid) is { Category: "Attendance" });
-
-    /// <summary>0xe34d Attendance_RQ (empty body): today's check-in on every open board (one UTC day each), then each active tab's unclaimed step reward through the current count. Attendance_RS is opcode + _result u16 (0 success, 1 partial / bag); the client expects 0x561b when items grant, achievement updates, and AccountContentsInfoList_NT 0x56b6 on every reply.</summary>
-    async Task<List<byte[]>> AttendanceAsync(long now, CancellationToken ct)
+    async Task<(List<byte[]> Replies, List<(int Id, int Step)> Claimed, int Failed, bool GrantedItems)> ClaimOpenAttendanceStepRewards(long now, CancellationToken ct)
     {
-        var checkIn = CheckInOpenAttendanceBoards(now);
-
         var rewardReplies = new List<byte[]>();
         var claimedSteps = new List<(int Id, int Step)>();
         var grantedItems = false;
@@ -940,8 +947,33 @@ public sealed partial class GameSession
                 rewardReplies.AddRange(taken);
             }
         }
+        return (rewardReplies, claimedSteps, failedClaims, grantedItems);
+    }
 
-        if (claimedSteps.Count > 0) await FlushAchievementsAsync(now, ct, force: true);
+    /// <summary>Whether a batch claim may touch attendance tab achievements and needs a check-in first.</summary>
+    bool BatchIncludesAttendance(int groupId, byte category) =>
+        CategoryOrdinal("Attendance") == category || BatchClaimGroupIds(groupId, category).Any(gid => Achievements.GroupById(gid) is { Category: "Attendance" });
+
+    /// <summary>0xe34d Attendance_RQ (empty body): grant any step rewards already earned at the stored count, today's check-in on every open board, then rewards through the new count. Attendance_RS is opcode + _result u16 (0 success, 1 partial / bag); the client expects 0x561b when items grant, achievement updates, and AccountContentsInfoList_NT 0x56b6 on every reply.</summary>
+    async Task<List<byte[]>> AttendanceAsync(long now, CancellationToken ct)
+    {
+        var (preReward, preClaimed, preFailed, preGranted) = await ClaimOpenAttendanceStepRewards(now, ct);
+        if (preClaimed.Count > 0) await FlushAchievementsAsync(now, ct, force: true);
+
+        var checkIn = CheckInOpenAttendanceBoards(now);
+        if (checkIn.Count > 0) await FlushAchievementsAsync(now, ct, force: true);
+
+        var (postReward, postClaimed, postFailed, postGranted) = await ClaimOpenAttendanceStepRewards(now, ct);
+        var rewardReplies = new List<byte[]>();
+        rewardReplies.AddRange(preReward);
+        rewardReplies.AddRange(postReward);
+        var claimedSteps = new List<(int Id, int Step)>();
+        claimedSteps.AddRange(preClaimed);
+        claimedSteps.AddRange(postClaimed);
+        var grantedItems = preGranted || postGranted;
+        var failedClaims = preFailed + postFailed;
+
+        if (postClaimed.Count > 0) await FlushAchievementsAsync(now, ct, force: true);
 
         var result = (ushort)(failedClaims > 0 ? 1 : 0);
         var batch = new List<byte[]> { PacketWriter.Opcode(AttendanceRs).U16(result).ToArray() };
@@ -998,7 +1030,7 @@ public sealed partial class GameSession
         achievementFlushAt = now + 2000;
         var dirty = achievementDirty.ToList();
         var records = dirty.Select(id => achievements.TryGetValue(id, out var s)
-                ? new AchievementRecord(id, s.Count, s.CompletedMs == 0 ? null : DateTimeOffset.FromUnixTimeMilliseconds(s.CompletedMs), s.RewardedStep, DateTimeOffset.FromUnixTimeMilliseconds(s.UpdatedMs == 0 ? now : s.UpdatedMs))
+                ? new AchievementRecord(id, s.Count, s.CompletedMs == 0 ? null : DateTimeOffset.FromUnixTimeMilliseconds(s.CompletedMs), s.RewardedStep, DateTimeOffset.FromUnixTimeMilliseconds(s.UpdatedMs))
                 : null).OfType<AchievementRecord>().ToList();
         achievementDirty.ExceptWith(dirty);
         if ((await Stored(async () => await store.SaveAchievementsAsync(character, records, ct) ? [[]] : [])).Count == 0)

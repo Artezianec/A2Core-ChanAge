@@ -87,4 +87,12 @@ public sealed class ShopPlatformTests
         Assert.Equal([(503700002, 1)], parts);
         Assert.Contains(OfficialShopGoods.Embedded.Parts(100047), p => p.ItemId == 536310006);
     }
+
+    [Fact]
+    public void Official_shop_goods_use_character_level_from_game_data()
+    {
+        var row = OfficialShopGoods.Embedded.ToShopGoods(100106);
+        Assert.NotNull(row);
+        Assert.Equal(2, row!.Level);
+    }
 }

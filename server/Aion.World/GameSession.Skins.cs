@@ -172,6 +172,68 @@ public sealed partial class GameSession
         }).ToList();
     }
 
+    static IReadOnlyList<int> SkinRewardIds(ItemUse use) =>
+        use.Effect switch
+        {
+            "GetSkinSet" => Skins.Set(use.Values[0]),
+            "GetSkin" => Skins.Of(use.Values[0]) is var id and > 0 ? [id] : [],
+            _ => [],
+        };
+
+    /// <summary>Weapon-skin reward boxes: class pick row when the client sends select 0 (quick use).</summary>
+    byte WeaponSkinBoxSelectIndex(byte requested, string group)
+    {
+        if (group is not "G_BM_Box_Package_WP_002_b" and not "G_BM_Box_Package_WP_004_b" || requested != 0)
+            return requested;
+        return WeaponSkinBoxSelectForHeldWeapon();
+    }
+
+    /// <summary>ESkin-equip order in G_BM_Box_Package_WP_002/004 select tables (GS..ST).</summary>
+    static byte WeaponSkinBoxSelectForHeldWeapon(GameData data, int equippedWeapon) => data.WeaponType(equippedWeapon) switch
+    {
+        "Greatsword" => 0,
+        "Sword" or "Longsword" => 1,
+        "Dagger" or "Shortsword" => 2,
+        "Bow" => 3,
+        "Magicbook" or "Spellbook" => 4,
+        "Orb" => 5,
+        "Mace" => 6,
+        "Staff" => 7,
+        _ => 0,
+    };
+
+    byte WeaponSkinBoxSelectForHeldWeapon() => WeaponSkinBoxSelectForHeldWeapon(data, equippedWeapon ?? 0);
+
+    /// <summary>
+    /// Box rewards are rolled and shown in OpenRewardBox_RS even when catalog.grant_item skips a template; apply closet
+    /// skins from the rolled GetSkin rows when auto-use did not persist them.
+    /// </summary>
+    async Task<List<byte[]>> EnsureBoxSkinGrantsAsync(IReadOnlyList<(int TemplateId, long Count)> rewards, List<byte[]> autoUse, long now, CancellationToken ct)
+    {
+        if (autoUse.Any(p => Opcode(p) == SkinUpdateNt)) return [];
+        var ids = rewards.SelectMany(r => Boxes.Use(r.Item1) is { } use ? SkinRewardIds(use) : []).Distinct().ToList();
+        if (ids.Count == 0) return [];
+        var replies = await AcquireSkinsAsync(ids, ct);
+        if (replies.Count == 0) return [];
+        await ConsumeLeftoverSkinRewardItemsAsync(rewards.Select(r => r.Item1), now, ct);
+        return replies;
+    }
+
+    async Task ConsumeLeftoverSkinRewardItemsAsync(IEnumerable<int> templateIds, long now, CancellationToken ct)
+    {
+        if (Store is not { } store || CharacterId is not { } character) return;
+        foreach (var tid in templateIds)
+        {
+            if (Boxes.Use(tid) is not { Effect: "GetSkin" or "GetSkinSet" }) continue;
+            foreach (var key in storedItems.Where(s => s.Value.TemplateId == tid && s.Value.Location == "bag").Select(s => s.Key).ToList())
+            {
+                var row = storedItems[key];
+                await Stored(async () => await store.ConsumeItemAsync(character, row.InstanceId, row.Revision, 1, ct) ? [[]] : []);
+            }
+        }
+        await InventoryChangesAsync(ct, 0, DecreaseItemUse);
+    }
+
     /// <summary>Skins added to the collection (an item, a command): stored, SkinUpdate_NT 0x8d5c. Empty when none is known.</summary>
     public async Task<List<byte[]>> AcquireSkinsAsync(IReadOnlyList<int> ids, CancellationToken ct)
     {

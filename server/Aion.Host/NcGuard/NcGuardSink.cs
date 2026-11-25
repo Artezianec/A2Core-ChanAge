@@ -7,7 +7,9 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Server.Kestrel.Core.Features;
 using Microsoft.Extensions.Logging;
+using Aion.Host.Platform;
 using Aion.World;
 
 namespace Aion.Host.NcGuard;
@@ -29,6 +31,8 @@ public sealed record NcGuardOptions
     /// <summary>HTTP URL where this server publishes its CA CRL; set, the minted leaves carry a CRL
     /// distribution point so strict verifiers (schannel/WinHTTP) can check revocation and accept the chain.</summary>
     public string? CrlDistributionUrl { get; init; }
+    /// <summary>How <c>nccr-api.global.nc.com</c> /cr/ is answered on this TLS listener when platform bootstrap is not wired (elevated NCGuard host). Same as <see cref="PlatformOptions.NccrMode"/>.</summary>
+    public string? NccrMode { get; init; }
 }
 
 /// <summary>Fixture server: no upstream traffic and no trust-store installation (clients accept its own certificates).</summary>
@@ -50,6 +54,7 @@ public sealed class NcGuardSink : BackgroundService
     private string? hostsPath;
     private int records;
     private readonly DateTimeOffset startedAt = DateTimeOffset.UtcNow;
+    private readonly NccrMode nccrMode;
     public string RunDirectory { get; }
 
     public NcGuardSink(NcGuardOptions options, IHostApplicationLifetime lifetime, ILogger<NcGuardSink> logger)
@@ -62,6 +67,7 @@ public sealed class NcGuardSink : BackgroundService
              // these directly (verified TLS), so the sink mints a certificate and accepts the SNI.
              "mobileappconfig.g.nc.com", "mobileappconfig-ncus.g.nc.com", "api.g.nc.com"] } : options;
         this.lifetime = lifetime;
+        nccrMode = PlatformBootstrapEndpoints.ParseNccrMode(options.NccrMode);
         if (options.Port is not (>= 1 and <= 65535) || options.BodyCap is < 0 or > 16777216 ||
             options.DurationSeconds is < 1 or > 86400)
             throw new InvalidDataException("Invalid NCGuard port, capture cap or duration.");
@@ -173,14 +179,18 @@ public sealed class NcGuardSink : BackgroundService
             try
             {
                 await next(context);
+                var tlsSni = context.Items.TryGetValue("ncguard.tls.sni", out var sniItem) ? sniItem as string : sni;
+                var tlsCert = context.Items.TryGetValue("ncguard.tls.cert", out var certItem) ? certItem as string : null;
+                var alpnProto = context.Features.Get<ITlsApplicationProtocolFeature>()?.ApplicationProtocol;
+                var alpn = alpnProto is { Length: > 0 } p ? System.Text.Encoding.UTF8.GetString(p.Span) : "(none)";
                 if (context.Items.TryGetValue("ncguard.http", out var seen) && seen is true)
                     logger.LogInformation("NCGuard TLS handshake succeeded SNI={Sni} Remote={Remote}", sni ?? "(none)", remote);
                 else
                 {
                     logger.LogWarning(
-                        "NCGuard TLS closed without a completed HTTP exchange SNI={Sni} Remote={Remote} ElapsedMs={ElapsedMs} Protocol={Protocol}",
-                        sni ?? "(none)", remote, (long)(DateTimeOffset.UtcNow - started).TotalMilliseconds,
-                        context.Features.Get<IHttpRequestFeature>()?.Protocol ?? "(none)");
+                        "NCGuard TLS closed without a completed HTTP exchange SNI={Sni} Cert={Cert} Remote={Remote} ElapsedMs={ElapsedMs} Protocol={Protocol} ALPN={Alpn}",
+                        tlsSni ?? "(none)", tlsCert ?? "(unknown)", remote, (long)(DateTimeOffset.UtcNow - started).TotalMilliseconds,
+                        context.Features.Get<IHttpRequestFeature>()?.Protocol ?? "(none)", alpn);
                 }
             }
             catch (Exception error)
@@ -195,16 +205,26 @@ public sealed class NcGuardSink : BackgroundService
                 throw;
             }
         });
-        listener.UseHttps(https => https.ServerCertificateSelector = (_, name) =>
+        listener.UseHttps(https =>
         {
-            if (name is not null && certificates.TryGetValue(name, out var cert))
+            https.ServerCertificateSelector = (context, name) =>
             {
-                logger.LogInformation("NCGuard TLS SNI requested {Sni} cert={Cert}", name, name);
-                return cert;
-            }
-            logger.LogInformation("NCGuard TLS SNI requested {Sni} cert={Cert}", name ?? "(none)", "localhost-fallback");
-            return certificates["localhost"];
+                var certName = name is not null && certificates.TryGetValue(name, out var cert) ? name : "localhost-fallback";
+                if (context?.Items is { } items)
+                {
+                    items["ncguard.tls.sni"] = name;
+                    items["ncguard.tls.cert"] = certName;
+                }
+                if (name is not null && certificates.TryGetValue(name, out cert))
+                {
+                    logger.LogInformation("NCGuard TLS SNI requested {Sni} cert={Cert}", name, name);
+                    return cert;
+                }
+                logger.LogInformation("NCGuard TLS SNI requested {Sni} cert={Cert}", name ?? "(none)", certName);
+                return certificates["localhost"];
+            };
         });
+        NcGuardTlsTapMiddleware.Use(listener, logger);
     });
 
     public override async Task StartAsync(CancellationToken cancellationToken)
@@ -266,10 +286,22 @@ public sealed class NcGuardSink : BackgroundService
         string? contentTypeOverride = null;
         var pathOnly = PathOnly(target);
         context.Items["ncguard.http"] = true;
+        // Fixture rules always beat OAuth builtins and <see cref="NcGuardBuiltinResponses"/> (builtins are last-resort fallbacks only).
         if (rule is not null)
         {
             response = rule.Body;
             status = rule.Status;
+        }
+        else if (string.Equals(host, "nccr-api.global.nc.com", StringComparison.OrdinalIgnoreCase)
+            && pathOnly.StartsWith("/cr/", StringComparison.Ordinal)
+            && context.Request.Method is "GET" or "POST" or "HEAD")
+        {
+            var nccr = PlatformBootstrapEndpoints.NccrReply(nccrMode, pathOnly);
+            status = nccr.Status;
+            contentTypeOverride = nccr.ContentType;
+            response = nccr.Body;
+            if (status != 200)
+                logger.LogWarning("NCGuard NCCR {Method} {Path} -> {Status} mode={Mode}", context.Request.Method, pathOnly, status, nccrMode);
         }
         else if (GpaOAuthTokens.IsOAuthTokenPath(host, context.Request.Method, pathOnly))
         {
@@ -286,8 +318,8 @@ public sealed class NcGuardSink : BackgroundService
         {
             response = "loopback-mitm: not answered\n"u8.ToArray();
             status = 404;
-            if (string.Equals(host, "sdk.gpa.ncsoft.com", StringComparison.OrdinalIgnoreCase))
-                logger.LogWarning("Unhandled GPA SDK request {Method} {Path}", context.Request.Method, PathOnly(target));
+            if (NcGuardBuiltinResponses.IsTrackedHost(host))
+                logger.LogWarning("Unhandled NCGuard request host={Host} {Method} {Path}", host, context.Request.Method, PathOnly(target));
         }
         if (!options.Capture)
             Interlocked.Increment(ref records);
@@ -320,6 +352,9 @@ public sealed class NcGuardSink : BackgroundService
         if (string.Equals(host, "sdk.gpa.ncsoft.com", StringComparison.OrdinalIgnoreCase))
             logger.LogInformation("NCGuard GPA {Method} {Path} grant={Grant} proto={Protocol} req={RequestBytes}B -> {Status} {ResponseBytes}B",
                 method, path, grantType ?? "(none)", protocol, requestBytes, status, responseBytes);
+        else if (NcGuardBuiltinResponses.IsTrackedHost(host))
+            logger.LogInformation("NCGuard {Host} {Method} {Path} proto={Protocol} req={RequestBytes}B -> {Status} {ResponseBytes}B",
+                host, method, path, protocol, requestBytes, status, responseBytes);
         else
             logger.LogDebug("NCGuard HTTP {Host} {Method} {Path} proto={Protocol} -> {Status} {ResponseBytes}B",
                 host, method, path, protocol, status, responseBytes);

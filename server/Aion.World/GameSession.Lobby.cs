@@ -16,7 +16,9 @@ public sealed partial class GameSession
 {
     public const ushort CharDeleteRq = 0x3627, CharDeleteRs = 0x3628, CharDeleteCancelRq = 0x3629, CharDeleteCancelRs = 0x362a,
         CharDeletedNt = 0x362b, CharRenameRq = 0x362c, CharRenameRs = 0x362d, CharSlotSwapRq = SocialOpcodes.E3Base + 1480, CharSlotSwapRs = SocialOpcodes.E3Base + 1481,
-        CharCustomizingListRq = 0x37DF, CharCustomizingListRs = 0x37E0, BroadcastCharCustomizingUpdateNt = 0x37ED;
+        CharCustomizingListRq = 0x37DF, CharCustomizingListRs = 0x37E0, BroadcastCharCustomizingUpdateNt = 0x37ED,
+        /// <summary>Live wire = usmap 0x37E1 + 0x1EBE (same family as Black Cloud 0x5691-0x5699).</summary>
+        CharCustomizingStatusCheckRq = 0x569F, CharCustomizingStatusCheckRs = 0x56A0;
     /// <summary>GlobalSetting lobby_pc_slot_default_open_count (tools/data/lobby_slots.json).</summary>
     public const int DefaultLobbySlots = 4;
     /// <summary>GlobalSetting lobby_pc_slot_max_extended_count.</summary>

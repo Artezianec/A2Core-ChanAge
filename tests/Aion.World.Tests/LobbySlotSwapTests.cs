@@ -121,6 +121,17 @@ public sealed class LobbySlotSwapTests
     }
 
     [Fact]
+    public async Task CharCustomizingStatusCheck_in_world_returns_success()
+    {
+        var store = new FakeCharacterStore();
+        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now);
+        var replies = await session.HandleAsync(PacketWriter.Opcode(GameSession.CharCustomizingStatusCheckRq).ToArray(), Now + 1);
+        Assert.Single(replies);
+        Assert.Equal(GameSession.CharCustomizingStatusCheckRs, GameSessionTestHelpers.Op(replies[0]));
+        Assert.Equal(0, BitConverter.ToUInt16(replies[0], 2));
+    }
+
+    [Fact]
     public async Task CharCustomizingList_in_lobby_returns_slot_appearance_rows()
     {
         var store = new FakeCharacterStore();

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using Aion.Application.Authentication;
+using Aion.Application.Chat;
 using Aion.Host.Diagnostics;
 using Aion.Application.Characters;
 using Aion.Application.Gameplay;
@@ -338,12 +339,24 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         // Map event notes (unsupported directives, objectives finished by timeout) go to the host log.
         GameSession.MapEventLog ??= text => Logger.LogInformation("Map event: {Text}", text);
         var gameData = services.GetRequiredService<GameData>();
-        var session = new GameSession(gameData, new GameSessionOptions
+        string? present = null;
+        GameSession session = null!;
+        void SyncWorldPresence()
+        {
+            var name = session.CharacterName;
+            if (name == present) return;
+            if (present is not null) presence.Leave(present, session);
+            present = name;
+            if (present is not null) presence.Enter(present, session, session.Store?.AccountId);
+        }
+        session = new GameSession(gameData, new GameSessionOptions
         {
             CharacterLevel = Options.CharacterLevel, IntroCharacter = intro, WorldId = Options.WorldId,
             WireServerId = Options.MultiWorld ? Options.WorldId : null, LevelCap = gameData.MaxLevel,
             StaffRole = services.GetService<GmPolicy>()?.StaffRole,
-            Builder = services.GetService<BuilderCommands>(), Terrain = services.GetService<TerrainStore>(), Nav = services.GetService<NavMeshStore>(),
+            Builder = services.GetService<BuilderCommands>(),
+            GmChat = services.GetService<IChatCommandHandler>() as GmCommands,
+            Terrain = services.GetService<TerrainStore>(), Nav = services.GetService<NavMeshStore>(),
             World = services.GetService<SharedWorld>(), DevelopmentMap = Options.Development ? Options.DevelopmentStartMap : null,
             TrainingDummy = Options.Development && Options.TrainingDummy,
             EnforceContentTickets = Options.EnforceContentTickets,
@@ -354,6 +367,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
             MapEventAskNpcProximityFallback = Options.MapEventAskNpcProximityFallback,
             Rates = services.GetService<ServerRates>() ?? ServerRates.Official,
             ClientGmPanel = Options.ClientGmPanel,
+            SyncWorldPresence = SyncWorldPresence,
         }, new Random());
         session.ConnectionLog = text => Logger.LogInformation("Native game {Message}", text);
         // With a shared world, sessions take turns (WorldTurn): world work alone, map work in parallel per map;
@@ -390,15 +404,6 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         Task<int>? pending = null;
         Task? wake = null;
         var lastData = DateTimeOffset.UtcNow;
-        string? present = null;
-        void SyncWorldPresence()
-        {
-            var name = session.CharacterName;
-            if (name == present) return;
-            if (present is not null) presence.Leave(present, session);
-            present = name;
-            if (present is not null) presence.Enter(present, session, session.Store?.AccountId);
-        }
         var unanswered = new HashSet<int>();
         var diagnostics = services.GetService<HostDiagnostics>();
         var trace = Options.TraceDirectory is { Length: > 0 } traceDir ? new ClientTrace(traceDir) : null;
@@ -537,6 +542,13 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
                     if (header == 0x362E)
                         Logger.LogInformation("Native game BuilderCmd_RQ ({Length} bytes): {Body}", plain.Length,
                             Convert.ToHexString(plain.AsSpan(0, Math.Min(plain.Length, 1024))));
+                    if (header == 0xe259)
+                    {
+                        var meta = NcGuardPacketDiagnostics.Summarize(plain, (ushort)header);
+                        Logger.LogInformation("Native NCGuardData_RQ {Length}B envelope={Envelope} outer_valid={Valid} payload_bytes={Payload}",
+                            plain.Length, meta.GetValueOrDefault("envelope_shape"), meta.GetValueOrDefault("outer_length_valid"),
+                            meta.GetValueOrDefault("payload_bytes"));
+                    }
                     else if (replies.Count == 0 && header >= 0 && !GameSession.SilentRequests.Contains(header) && GameSession.PositionReport(plain) is null)
                     {
                         var first = unanswered.Add(header);

@@ -534,6 +534,12 @@ public static partial class PlatformBootstrapEndpoints
                 && (method == "GET" || method == "POST" || method == "HEAD"))
             {
                 var (status, contentType, body) = NccrReply(resolvedNccrMode, path);
+                var nccrSni = context.Features.Get<ITlsHandshakeFeature>()?.HostName;
+                platformLog.LogInformation("NCGuard NCCR {Sni} {Method} {Path} -> {Status} mode={Mode} bytes={Bytes}",
+                    nccrSni ?? "(none)", method, path, status, resolvedNccrMode, body.Length);
+                if (status != 200)
+                    platformLog.LogWarning("NCGuard NCCR {Sni} {Method} {Path} returned {Status} (mode={Mode}); client may stall NCGuard init",
+                        nccrSni ?? "(none)", method, path, status, resolvedNccrMode);
                 AppendBootstrapLog(method, path, code, status, request.QueryString.Value, null, resolvedNccrMode.ToString());
                 context.Response.StatusCode = status;
                 context.Response.ContentType = contentType;

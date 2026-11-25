@@ -2077,7 +2077,13 @@ Check(GameSession.SilentRequests.Contains(0xe259) && (await bob.HandleAsync(new 
       "0xe259 is silent: the anti-cheat request gets no reply");
 // The requests the host had logged unanswered (journal 2026-10-17): answered empty, or placed on the silent list.
 Check((await bob.HandleAsync([0x12, 0xe2], Now)).Single().SequenceEqual(new byte[] { 0x13, 0xe2, 0, 0, 0 }), "message-card block list: none (0xe213)");
-Check((await bob.HandleAsync([0x68, 0x8d], Now)).Single().SequenceEqual(new byte[] { 0x69, 0x8d, 0, 0 }), "skin deco instances: result only (0x8d69)");
+{
+    var decoList = await bob.HandleAsync([0x68, 0x8d], Now);
+    Check(decoList.Count == 2
+        && decoList[0].SequenceEqual(new byte[] { 0x69, 0x8d, 0, 0 })
+        && decoList[1][0] == 0x6a && decoList[1][1] == 0x8d && decoList[1][2] == 0,
+        "skin deco instances: 0x8d69 then 0x8d6a list");
+}
 {
     var artifactRs = (await bob.HandleAsync([0x06, 0xe3], Now)).Single();
     Check(artifactRs[0] == 0x07 && artifactRs[1] == 0xe3 && artifactRs[2] == 0 && artifactRs[3] == 0

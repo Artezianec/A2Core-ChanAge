@@ -70,7 +70,9 @@ def environment(args, credentials):
         # (sessions/v1.0/login_sessions;token); the bootstrap answers it with the login session object, which the client
         # rejected on 2026-10-18 (200, then "failed to login"), so the reply shape is still unknown.
         'Aion__Platform__CustomData__SecondaryAuthCheckType': 'None',
+        'Aion__Platform__NccrMode': 'Json',
         'Aion__NcGuard__Port': getattr(args, 'ncguard_port', None) or PORTS['ncguard'],
+        'Aion__NcGuard__NccrMode': 'Json',
         'Aion__NcGuard__FixtureFile': data / 'ncguard/fixture.json',
         'Aion__NcGuard__DataDirectory': args.state / 'ncguard',
         # Players' anti-cheat requests are answered, never recorded.

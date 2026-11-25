@@ -448,6 +448,8 @@ var platformResponses = platform.Port is not { } bootstrapPort ? null : Platform
 if (platform.Port is not null && accountsReady) builder.Services.AddSingleton<LaunchPairing>();
 if (platform.Port is { } crlBootstrapPort && ncGuard.CrlDistributionUrl is null)
     ncGuard = ncGuard with { CrlDistributionUrl = $"http://{network.PublicAddress}:{crlBootstrapPort}/pki/ca-root.crl" };
+if (ncGuard.Port is not null && ncGuard.NccrMode is null && platform.NccrMode is not null)
+    ncGuard = ncGuard with { NccrMode = platform.NccrMode };
 if (ncGuard.Port is not null)
 {
     builder.Services.AddSingleton(ncGuard);

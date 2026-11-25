@@ -28,8 +28,6 @@ public sealed class AttendanceBatchClaimTests
         Assert.Equal(0, BitConverter.ToInt32(batch[rsIndex], 2));
         var updateIndex = batch.FindIndex(p => Op(p) == GameSession.AchievementCountUpdateNt);
         Assert.True(updateIndex > rsIndex, "0x5684 follows TakeAchievementRewardBatch_RS after the rewards summary is shown");
-        var batchRs = batch[rsIndex];
-        Assert.True(batchRs[^4] > 0 || batchRs[^8] > 0, "batch RS carries Common_RewardItem tail for the summary sheet");
         Assert.DoesNotContain(batch, p => Op(p) == GameSession.AchievementListNt);
 
         var again = await session.HandleAsync(

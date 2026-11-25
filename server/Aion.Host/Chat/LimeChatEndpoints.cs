@@ -41,9 +41,14 @@ public static class LimeChatEndpoints
             if (identity is null)
             {
                 // Never the token. Account logins need a valid game ticket and a character in the world.
-                log.LogInformation("Chat login rejected (server key {ServerKey}, character id {CharacterId})",
-                    Digits(request.ServerKey), Digits(request.CharacterId));
-                return Results.Json(LimeWire.Error(401, "Chat login rejected."));
+                var tokenShape = request.AuthnToken is { Length: 64 } t && t.All(char.IsAsciiHexDigit) ? "game_ticket" : "invalid_token";
+                log.LogInformation(
+                    "Chat login rejected ({Reason}; server key {ServerKey}, character id {CharacterId}, token {TokenShape})",
+                    tokenShape == "game_ticket" ? "game ticket invalid or character not in world yet" : "authnToken is not a 64-char game ticket",
+                    Digits(request.ServerKey), Digits(request.CharacterId), tokenShape);
+                return Results.Json(LimeWire.Error(401, tokenShape == "game_ticket"
+                    ? "Chat login rejected: invalid game ticket or character not in the world yet."
+                    : "Chat login rejected: authnToken must be the 64-character game ticket."));
             }
             log.LogInformation("Chat login {Name} ({Kind})", identity.Character?.Name ?? identity.CharacterId,
                 identity.Authenticated ? "account" : "development");
@@ -62,9 +67,13 @@ public static class LimeChatEndpoints
             }
             catch (ChatRejectedException rejected)
             {
-                context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Aion.Chat")
-                    .LogInformation("Chat {Route} rejected: {Reason}", route, rejected.Message);
-                return Results.Json(LimeWire.Error(400, rejected.Message));
+                var log = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Aion.Chat");
+                var sessionKnown = string.IsNullOrEmpty(token) ? "no_mtalk_token"
+                    : relay.Find(token) is null ? "chat session not authenticated" : "authenticated";
+                log.LogInformation("Chat {Route} rejected ({SessionState}): {Reason}", route, sessionKnown, rejected.Message);
+                return Results.Json(LimeWire.Error(400, sessionKnown == "chat session not authenticated"
+                    ? "Chat session is not authenticated. Log in with POST /gameLogin/loginWithToken first."
+                    : rejected.Message));
             }
         });
 

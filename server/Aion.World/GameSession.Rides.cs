@@ -173,6 +173,7 @@ public sealed partial class GameSession
         var boxCooldown = Boxes.Cooldown(row.TemplateId);
         if (boxCooldown.Group != "None" && now < itemCooldowns.GetValueOrDefault(boxCooldown.Group)) return Fail();
         count = (int)Math.Min(Math.Clamp(count, 1, Math.Max(1, Boxes.MaxOpen(group))), row.Quantity);
+        select = WeaponSkinBoxSelectIndex(select, group);
         if (count < 1 || Boxes.Roll(group, select, count, rng) is not { } rolled) return Fail();
         var rewards = options.Rates.WithKinah(rolled);
         var done = await Stored(async () => await store.ConsumeAndGrantAsync(character, row.InstanceId, row.Revision, count, rewards, ct) ? [[]] : []);
@@ -184,7 +185,12 @@ public sealed partial class GameSession
         }
         var replies = new List<byte[]> { RidePackets.OpenBoxReply(0, uid, itemId, select, count, rewards) };
         replies.AddRange(await InventoryChangesAsync(ct, IncreaseOpenRewardBox, DecreaseOpenRewardBox));
-        replies.AddRange(await AutoUseAcquiredItemsAsync(rewards.Select(r => r.Item1), now, ct));
+        var autoUse = await AutoUseAcquiredItemsAsync(rewards.Select(r => r.Item1), now, ct);
+        replies.AddRange(autoUse);
+        var backup = await EnsureBoxSkinGrantsAsync(rewards, autoUse, now, ct);
+        replies.AddRange(backup);
+        if (autoUse.Any(p => Opcode(p) == SkinUpdateNt) || backup.Count > 0)
+            replies.Add(SkinInfo());
         return replies;
     }
 
