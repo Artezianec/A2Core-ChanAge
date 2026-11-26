@@ -231,16 +231,13 @@ public static class GamePackets
             .Except(LaterUnlockedContents).Distinct().Order().ToArray();
 
     /// <summary>
-    /// Full 0xe257 merge at world entry: level and quest gates, ride/Daevanion extras, and Chat/Customizing once their
-    /// quests are done (still withheld from 0xe257 until then so 0xe258 can raise System_ContentsUnlocked on first login).
+    /// Full 0xe257 merge at world entry: level and quest gates, ride/Daevanion extras. Chat and Customizing are never listed
+    /// here even when quest-gated types say they are unlocked — only 0xe258 may add them so the client raises
+    /// System_ContentsUnlocked and opens the Lime chat login on first world entry (research/chat-and-gm.md).
     /// </summary>
-    public static byte[] WorldEntryContentsUnlocks(int level, IEnumerable<byte> questUnlockTypes, IEnumerable<byte> extraTypes)
-    {
-        var quest = questUnlockTypes as IReadOnlySet<byte> ?? questUnlockTypes.ToHashSet();
-        var withheld = LaterUnlockedContents.Where(t => !quest.Contains(t));
-        return UnlockedContents(level).Concat(questUnlockTypes).Concat(extraTypes)
-            .Except(withheld).Distinct().Order().ToArray();
-    }
+    public static byte[] WorldEntryContentsUnlocks(int level, IEnumerable<byte> questUnlockTypes, IEnumerable<byte> extraTypes) =>
+        UnlockedContents(level).Concat(questUnlockTypes).Concat(extraTypes)
+            .Except(LaterUnlockedContents).Distinct().Order().ToArray();
 
     /// <summary>
     /// PCLevelQuickSlot.dat level-1 rows (identical for all 8 classes, AscensionGrade_1): consumable bar slot -> item.
@@ -389,6 +386,13 @@ public static class GamePackets
         return w.Bytes(customizingData ?? []).I64(serverStartTime ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()).ToArray();
     }
 
+    /// <summary>0xA8F9 SelectCharacter_RS (2.0.12 wire layout).</summary>
+    public static byte[] SelectCharacterWorld(int key, long dbId, int charKey, byte[]? customizingData = null,
+        byte[]? optionData = null, long serverStartTime = 0, ushort opcode = 0xA8F9) =>
+        PacketWriter.Opcode(opcode).Bytes(customizingData ?? []).Bytes(optionData ?? [])
+            .Varint(key).U16(0).I64(serverStartTime)
+            .Varint(0).I64(dbId).I32(0).Varint(charKey).ToArray();
+
     /// <summary>0x36EF SkillCustomizingUpdate_RS: result u16.</summary>
     public static byte[] SkillCustomizingUpdate(int result = 0) => PacketWriter.Opcode(0x36EF).U16(result).ToArray();
 
@@ -425,6 +429,10 @@ public static class GamePackets
     /// <summary>0x3623 LoadComplete_RS: result u16, ticket i32, spawn Vec3, frame i32, char key u16.</summary>
     public static byte[] LoadComplete(int ticket, Vector3d position, int frame = 2, int charKey = 1) =>
         PacketWriter.Opcode(0x3623).U16(0).I32(ticket).Vec3(position).I32(frame).U16(charKey).ToArray();
+
+    /// <summary>0x4EF8 LoadComplete_RS (2.0.12).</summary>
+    public static byte[] LoadCompleteWorld(int ticket, int charKey, Vector3d position, int frame = 2, ushort opcode = 0x4EF8) =>
+        PacketWriter.Opcode(opcode).U32((uint)ticket).Varint(charKey).Vec3(position).I32(frame).U16(0).ToArray();
 
     static void WriteSpawnDetailTail(PacketWriter w, int ascension = 1, MyCharacterAppear? a = null)
     {

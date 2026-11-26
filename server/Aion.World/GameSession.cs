@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Data.Common;
 using System.Security.Cryptography;
 using Aion.Application.Gameplay;
+using Aion.Core;
 using Aion.Core.Characters;
 using Aion.Protocol.Native;
 
@@ -369,6 +370,10 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         switch (header)
         {
             case 0x3613: return await GameLoginAsync(plain, now, ct);
+            case 0xD456 or 0x4BAF or 0x8CFD:
+                return await GameLoginAsync(plain, now, ct);
+            case 0x3C4F when Uses2012WorldEntry(): return await SelectWorldAsync(plain, now, ct);
+            case 0xB24E when Uses2012WorldEntry(): return await LoadCompleteWorldAsync(plain, now, ct);
             case 0x3619:
             {
                 var name = NameRequest(plain);
@@ -1440,7 +1445,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             if (profile is null) return GamePackets.CreateInvalidPcData;
             if (OtherRace(lobby, profile.Race)) return GamePackets.CreateInvalidServerRace;
             await EnsureExtendedCharacterSlotsAsync(ct);
-            if (refused.SlotNo >= LobbySlotCapacity || lobby.Any(s => s.LobbySlot == refused.SlotNo)) return GamePackets.CreateInvalidSlot;
+            if (ResolveCreateLobbySlot(refused.SlotNo, LobbySlotCapacity, lobby) is null) return GamePackets.CreateInvalidSlot;
             return GamePackets.CreateErrorInternal;
         }
         catch (Exception error) when (error is ArgumentException or InvalidOperationException or GameplayException or System.Data.Common.DbException)
@@ -1461,12 +1466,12 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 var profile = data.Profile(request.CreationId, request.Gender, accountRace) ?? throw new ArgumentException("Unknown creation profile");
                 if (OtherRace(lobby, profile.Race)) throw new ArgumentException("The other race on this server");
                 await EnsureExtendedCharacterSlotsAsync(ct);
-                if (request.SlotNo >= LobbySlotCapacity) throw new ArgumentException($"Lobby slot locked (slot {request.SlotNo}, capacity {LobbySlotCapacity})");
-                if (lobby.Any(s => s.LobbySlot == request.SlotNo)) throw new ArgumentException($"Lobby slot {request.SlotNo} is already taken");
+                var lobbySlot = ResolveCreateLobbySlot(request.SlotNo, LobbySlotCapacity, lobby)
+                    ?? throw new ArgumentException($"Lobby full (slot {request.SlotNo}, capacity {LobbySlotCapacity})");
                 var requestId = StoredCharacters.Uuid5(store.AccountId, "native-create-v1:" + Convert.ToHexStringLower(SHA256.HashData(plain)));
                 var creationId = data.NormalizeCreationId(request.CreationId, accountRace);
                 var state = await store.CreateAsync(new CreatePlayer(requestId, $"dev-v1-{creationId}:{request.Gender}", request.Name,
-                    request.CustomizingData, VoiceType: request.VoiceType, LobbySlot: request.SlotNo), ct);
+                    request.CustomizingData, VoiceType: request.VoiceType, LobbySlot: lobbySlot), ct);
                 var stored = StoredProfile(state);
                 LogCharacterCreate(request, accepted: true, accountRace, race: stored.Race, resultCode: 0);
                 // Database success precedes the success reply.
@@ -2272,8 +2277,8 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         replies.InsertRange(0, dismount);   // a cast takes the player off its ride before the skill starts
         replies.InsertRange(0, cutRunning);   // the skill still running ends before this 0x3802
         if (targets?.ContainsKey(request.TargetKey) == true) lastAttack = (request.TargetKey, now);   // what playerbots assist (GameSession.Bots.cs)
-        replies.AddRange(ScheduleCombatHits(skill, request, now, (byte)actionUid));
         replies.AddRange(CasterMoveReplies(skill, request, definition!, now));
+        replies.AddRange(ScheduleCombatHits(skill, request, now, (byte)actionUid));
         replies.AddRange(AbnormalOnlyCastReplies(skill, request, definition!, now));
         replies.AddRange(SkillEffectReplies(skill, request, definition!, now));
         replies.AddRange(DimensionalControlCastReplies(skill, now));
@@ -3483,9 +3488,78 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         }
     }
 
+    static bool Uses2012WorldEntry() =>
+        ClientProtocolRuntime.Current.Uses2012WorldEntryOpcodes || ClientProtocolRuntime.Current.Kind == ClientProtocolKind.Auto;
+
+    async Task<List<byte[]>> SelectWorldAsync(byte[] plain, long now, CancellationToken ct)
+    {
+        var reader = new PacketReader(plain) { Offset = 2 };
+        int x, y, z, mapId;
+        uint key;
+        try
+        {
+            x = reader.I32(); y = reader.I32(); z = reader.I32();
+            mapId = reader.I32(); key = reader.Varint();
+        }
+        catch (ProtocolException) { return []; }
+        var legacy = new PacketWriter().U16(0x361f).Varint(key).I32(mapId).Vec3(new Vector3d(x, y, z)).ToArray();
+        var replies = await SelectAsync(legacy, now, ct);
+        if (selected is { } state)
+        {
+            var world = GamePackets.SelectCharacterWorld((int)key, state.WireId, playerKey, state.Appearance);
+            for (var i = 0; i < replies.Count; i++)
+                if (replies[i].Length >= 2 && (replies[i][0] | replies[i][1] << 8) == 0x3620)
+                    replies[i] = world;
+        }
+        return replies;
+    }
+
+    async Task<List<byte[]>> LoadCompleteWorldAsync(byte[] plain, long now, CancellationToken ct)
+    {
+        var reader = new PacketReader(plain) { Offset = 2 };
+        int ticket;
+        Vector3d clientPosition;
+        try
+        {
+            _ = reader.Varint();
+            _ = reader.Bool();
+            _ = ReadVarintString(reader);
+            _ = reader.F32();
+            ticket = reader.I32();
+            clientPosition = reader.Vec3();
+            _ = reader.Varint();
+        }
+        catch (ProtocolException) { return []; }
+        var legacy = new PacketWriter().U16(0x3622).I32(ticket).Zeros(12).ToArray();
+        var replies = await LoadCompleteAsync(legacy, now, ct);
+        var at = position ?? clientPosition;
+        var world = GamePackets.LoadCompleteWorld(ticket, playerKey, at);
+        for (var i = 0; i < replies.Count; i++)
+            if (replies[i].Length >= 2 && (replies[i][0] | replies[i][1] << 8) == 0x3623)
+                replies[i] = world;
+        return replies;
+    }
+
+    static string ReadVarintString(PacketReader reader)
+    {
+        var length = checked((int)reader.Varint());
+        return System.Text.Encoding.UTF8.GetString(reader.Take(length));
+    }
+
     /// <summary>"account:guid" from a 0x3613 body (u8 length + string after the opcode); placeholders when absent.</summary>
     public static (string AccountSid, string Guid) LoginIdentity(byte[] body)
     {
+        var opcode = body.Length >= 2 ? body[0] | body[1] << 8 : 0;
+        if (opcode is 0xD456 or 0x4BAF or 0x8CFD)
+        {
+            try
+            {
+                var identity = ClientIdentity.ParseWorld(body);
+                var parts = identity.AccountSession.Split(':', 2);
+                if (parts.Length == 2) return (parts[0], parts[1]);
+            }
+            catch (ProtocolException) { }
+        }
         var payload = body.AsSpan(Math.Min(3, body.Length));
         var end = payload.IndexOf((byte)0);
         if (end > 0)

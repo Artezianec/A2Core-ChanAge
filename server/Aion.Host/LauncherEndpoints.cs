@@ -51,10 +51,24 @@ public sealed class LauncherEndpoints(byte[] buildJson, string fingerprint)
         app.MapGet(ConfigPath, (IConfiguration configuration) =>
         {
             var section = configuration.GetSection("Aion:Launcher");
+            var protocol = ClientProtocolRuntime.Current;
             var version = section["ClientVersion"]?.Trim() is { Length: > 0 } named
                 ? named[..Math.Min(named.Length, 40)]
-                : ClientBuildProfiles.DefaultVersionId;
-            var versions = new List<object> { new { id = version, name = version, kind = "private", build = fingerprint } };
+                : protocol.VersionId;
+            var versions = new List<object>();
+            if (protocol.VersionId == ClientBuildProfiles.DefaultVersionId)
+                versions.Add(new { id = version, name = version, kind = "private", build = fingerprint });
+            else
+            {
+                var profile = ClientBuildProfiles.Get(protocol.VersionId);
+                versions.Add(new
+                {
+                    id = profile.DisplayVersion,
+                    name = $"{profile.DisplayVersion} (server profile)",
+                    kind = string.IsNullOrEmpty(profile.SteamBuildId) ? "steam" : "private",
+                    build = profile.SteamBuildId ?? fingerprint,
+                });
+            }
             if (section.GetValue<bool?>("AllowSteam") ?? true)
             {
                 if (section.GetValue<bool?>("OfferClient2013") ?? true)

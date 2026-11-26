@@ -15,6 +15,20 @@
       "protocolVerified": true,
       "notes": "Pinned private build (supported-build.json). Pak AES key: use research/local/archive-key-validated.json locally."
     },
+    "2.0.12.0": {
+      "displayVersion": "2.0.12.0",
+      "steamBuildId": "26728906",
+      "engineVersion": "UE 5.3",
+      "pinnedDefault": false,
+      "aesPakKeyHex": null,
+      "dumperOffsets": {
+        "FNamePool": null,
+        "GUObjectArray": null
+      },
+      "protocolProfileId": "26728906",
+      "protocolVerified": true,
+      "notes": "Steam build 26728906 \u2014 login/world-entry wire (handshake 0x5E58, world login 0xD456). Pak AES: local research only."
+    },
     "2.0.13": {
       "displayVersion": "2.0.13",
       "steamBuildId": null,

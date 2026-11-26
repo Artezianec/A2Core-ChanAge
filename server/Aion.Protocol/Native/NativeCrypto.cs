@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Numerics;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace Aion.Protocol.Native;
 
@@ -99,12 +100,50 @@ public sealed record RsaPublicKey(BigInteger Modulus, BigInteger Exponent)
 public static class NativeHandshake
 {
     public const ushort LoginGreeting = 0x3900, GameGreeting = 0x3610;
+    public const ushort WorldGreeting = 0x5E58, WorldGreetingV13 = 0x16FE,
+        WorldReplyOpcode = 0xCB02, WorldReplyOpcodeV13 = 0x83A9;
+
+    public static bool IsWorldGreeting(ReadOnlySpan<byte> body) =>
+        body.Length >= 2 && (body[0] | body[1] << 8) is WorldGreeting or WorldGreetingV13;
 
     public static RsaPublicKey ReadGreeting(byte[] body, ushort expectedTag)
     {
         var reader = new PacketReader(body);
         if (reader.U16() != expectedTag) throw new ProtocolException($"First frame is not a 0x{expectedTag:x4} greeting");
         var der = reader.Take(checked((int)reader.Varint())).ToArray();
+        return ParsePublicKey(der);
+    }
+
+    public static RsaPublicKey ReadWorldGreeting(byte[] body) => ReadWorldGreeting(body, out _);
+
+    /// <summary>2.0.12 game greeting (0x5E58); 0x16FE selects the 2.0.13 layout for the reply.</summary>
+    public static RsaPublicKey ReadWorldGreeting(byte[] body, out bool v13)
+    {
+        var reader = new PacketReader(body);
+        var tag = reader.U16();
+        if (tag == WorldGreetingV13)
+        {
+            _ = reader.U8();
+            var derMagic = reader.Bytes();
+            _ = reader.U8(); _ = reader.U8(); _ = reader.U8(); _ = reader.U8();
+            _ = ReadVarintString(reader);
+            _ = reader.I32();
+            v13 = true;
+            return ParsePublicKey(derMagic);
+        }
+        if (tag != WorldGreeting) throw new ProtocolException($"First frame is not a 0x{WorldGreeting:x4} or 0x{WorldGreetingV13:x4} greeting");
+        _ = ReadVarintString(reader);
+        _ = reader.I32();
+        _ = reader.U8();
+        _ = reader.U8();
+        var der = reader.Bytes();
+        _ = reader.U8(); _ = reader.U8(); _ = reader.U8();
+        v13 = false;
+        return ParsePublicKey(der);
+    }
+
+    static RsaPublicKey ParsePublicKey(byte[] der)
+    {
         var (tag, sequence, _) = DerTlv(der, 0);
         if (tag != 0x30) throw new ProtocolException("Not a DER sequence");
         var values = new List<BigInteger>();
@@ -117,6 +156,12 @@ public static class NativeHandshake
         if (values.Count != 2) throw new ProtocolException("Expected modulus and exponent");
         if (values[0].GetBitLength() is < 1024 or > 8192 || values[1] < 3) throw new ProtocolException("Unsupported RSA public key");
         return new RsaPublicKey(values[0], values[1]);
+    }
+
+    static string ReadVarintString(PacketReader reader)
+    {
+        var length = checked((int)reader.Varint());
+        return Encoding.UTF8.GetString(reader.Take(length));
     }
 
     static (int Tag, byte[] Value, int Next) DerTlv(byte[] data, int offset)
@@ -145,4 +190,12 @@ public static class NativeHandshake
     /// <summary>Framed 0x3611: result 0, parameter 60000, one extra u16, varint cipher, 12 zero bytes.</summary>
     public static byte[] GameReply(RsaPublicKey key, ReadOnlySpan<byte> sessionKey, Func<int, byte[]>? seeds = null) =>
         NativeFraming.Frame(PacketWriter.Opcode(0x3611).U16(0).U16(60000).U16(0).Bytes(key.Encrypt(sessionKey, seeds)).Zeros(12).ToArray());
+
+    /// <summary>Framed 0xCB02 (2.0.12) or 0x83A9 (2.0.13) game handshake reply with a 32-byte RC4 key.</summary>
+    public static byte[] WorldReply(RsaPublicKey key, ReadOnlySpan<byte> sessionKey, bool v13 = false, Func<int, byte[]>? seeds = null) =>
+        v13
+            ? NativeFraming.Frame(PacketWriter.Opcode(WorldReplyOpcodeV13).I32(0).Bytes(key.Encrypt(sessionKey, seeds))
+                .I32(0).U16(0).I32(60000).I32(0).ToArray())
+            : NativeFraming.Frame(PacketWriter.Opcode(WorldReplyOpcode).I32(60000).U16(0).I32(0).I32(-17).I32(0)
+                .Bytes(key.Encrypt(sessionKey, seeds)).ToArray());
 }

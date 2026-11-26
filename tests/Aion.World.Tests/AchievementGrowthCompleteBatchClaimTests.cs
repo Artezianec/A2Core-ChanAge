@@ -29,17 +29,17 @@ public sealed class AchievementGrowthCompleteBatchClaimTests
         var updateIndex = batch.FindIndex(p => Op(p) == GameSession.AchievementCountUpdateNt);
         var invIndex = batch.FindIndex(p => Op(p) == 0x561b);
         Assert.True(rsIndex >= 0);
-        Assert.True(invIndex >= 0 && invIndex < rsIndex, "0x561b precedes TakeAchievementRewardBatch_RS (capture 001158)");
+        Assert.True(invIndex >= 0 && invIndex > rsIndex, "0x561b follows TakeAchievementRewardBatch_RS so the rewards sheet can list granted stacks");
         Assert.True(updateIndex > rsIndex, "0x5684 follows TakeAchievementRewardBatch_RS so the rewards list UI can read _take_result first");
         Assert.DoesNotContain(batch, p => Op(p) == GameSession.AchievementListNt);
         Assert.Equal(0, BitConverter.ToInt32(batch[rsIndex], 2));
         Assert.Equal(2, store.Achievements.Single(a => a.Id == GrowthCompleteAchievement).RewardedStep);
 
         var body = batch[rsIndex].AsSpan(2).ToArray();
-        Assert.Equal(
-            Convert.FromHexString(
-                "00000000" + "01" + "00000000" + "00" + "00" + "01" +
-                "66A3E111" + "00" + "01" + "0C6DF211" + "02"),
-            body);
+        var prefix = Convert.FromHexString(
+            "00000000" + "01" + "00000000" + "00" + "00" + "01" +
+            "66A3E111" + "00" + "01" + "0C6DF211" + "02");
+        Assert.Equal(prefix, body[..prefix.Length]);
+        Assert.True(body.Length > prefix.Length, "batch RS ends with consolidated Common_RewardItem stacks");
     }
 }

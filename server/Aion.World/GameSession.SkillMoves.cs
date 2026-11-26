@@ -16,7 +16,11 @@ partial class GameSession
     List<byte[]> CasterMoveReplies(int skill, CastRequest request, SkillDefinition definition, long now)
     {
         var replies = new List<byte[]>();
-        if (SkillMoves.CasterMoveFor(skill) is { } move) replies.AddRange(ApplyCasterMove(skill, move, request, now));
+        if (SkillMoves.CasterMoveFor(skill) is { } move)
+        {
+            replies.AddRange(ApplyCasterMove(skill, move, request, now));
+            if (SkillMoves.IsForwardMove(move)) return replies;
+        }
         if (SkillMoves.CasterTeleportFor(skill) is not { Length: > 0 } row || TeleportAnchor(request.TargetKey) is not { } anchor) return replies;
         if (SkillMoves.IsBeforeHit(row[0])) { replies.AddRange(TeleportBehind(anchor, now)); return replies; }
         var due = now + (definition.Damage.Length > 0 ? SkillTiming.HitLandMs(definition, 0) : definition.CastingMs);

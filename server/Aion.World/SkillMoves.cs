@@ -58,4 +58,12 @@ public static class SkillMoves
 
     /// <summary>The yaw in degrees (the cast request's convention) that looks from <paramref name="from"/> at <paramref name="to"/>.</summary>
     public static double Facing(Vector3d from, Vector3d to) => Math.Atan2(to.Y - from.Y, to.X - from.X) * 180 / Math.PI;
+
+    /// <summary>A CasterMoveDirection row that lunges the caster toward its target (Leaping Slam and similar).</summary>
+    public static bool IsForwardMove(string[] row) =>
+        row.Length > 1 && row[1].Equals("Forward", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>When a forward-attack leap should connect: the skill act end from Skill.dat, else the default hit delay.</summary>
+    public static int ForwardLeapImpactMs(SkillDefinition skill, int attackSpeed = 10_000) =>
+        skill.EndMs is { } end and > 0 ? Combat.SkillEndMs(end, attackSpeed) : NpcAi.HitDelayMs;
 }

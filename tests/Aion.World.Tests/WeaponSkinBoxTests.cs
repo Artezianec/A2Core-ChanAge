@@ -9,6 +9,9 @@ public sealed class WeaponSkinBoxTests
 {
     const long Now = 1_760_100_000_000;
     const int Wp002Box = 503700069;
+    const int MysticLightBoundBox = 503898725;
+    const int MysticLightBoundOrbReward = 535710998;
+    const int MysticLightBoundOrbSkin = 20012106;
     const int SecretTeatimeBox = 503700094;
     const int SecretTeatimeBowReward = 535710940;
     const int SecretTeatimeBowSkin = 20010104;
@@ -60,6 +63,47 @@ public sealed class WeaponSkinBoxTests
         var entry = await relog.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now + 20);
         var info = entry.Single(p => Op(p) == GameSession.SkinInfoNt);
         Assert.Contains(ReadSkinCounts(info), p => p.SkinId == SecretTeatimeGsSkin && p.Count == 1);
+    }
+
+    [Fact]
+    public async Task Opening_bound_mystic_light_box_with_default_select_unlocks_orb_skin()
+    {
+        var store = new FakeCharacterStore();
+        var session = await EnterWorldAsync(store, Now, level: 55);
+        var stack = FakeCharacterStore.BagItem(MysticLightBoundBox, 1, 9744);
+        store.Items.Add(stack);
+        await session.InventoryChangesAsync(default);
+
+        var opened = await session.HandleAsync(
+            new PacketWriter().U16(RidePackets.OpenBoxRq).I64(stack.WireId).U8(255).I32(1).ToArray(), Now + 1);
+        Assert.Equal(RidePackets.OpenBoxRs, Op(opened[0]));
+        Assert.Equal(RidePackets.OpenRewardBoxSuccessWire, BitConverter.ToUInt16(opened[0], 2));
+        var rewards = ReadOpenBoxRewards(opened[0]);
+        Assert.Single(rewards);
+        Assert.Equal(MysticLightBoundOrbReward, rewards[0].ItemId);
+        Assert.DoesNotContain(store.Items, i => i.TemplateId == MysticLightBoundBox && i.Quantity > 0);
+        Assert.Contains(opened, p => Op(p) == GameSession.SkinUpdateNt);
+        Assert.Contains(opened, p => Op(p) == GameSession.SkinInfoNt);
+        Assert.Equal(1, session.OwnedSkins.GetValueOrDefault(MysticLightBoundOrbSkin));
+    }
+
+    [Fact]
+    public async Task Opening_mystic_light_box_with_select_0xff_grants_class_skin_without_default_row()
+    {
+        var store = new FakeCharacterStore();
+        var session = await EnterWorldAsync(store, Now, level: 55);
+        var stack = FakeCharacterStore.BagItem(Wp002Box, 1, 9910);
+        store.Items.Add(stack);
+        await session.InventoryChangesAsync(default);
+
+        var opened = await session.HandleAsync(
+            new PacketWriter().U16(RidePackets.OpenBoxRq).I64(stack.WireId).U8(0xFF).I32(1).ToArray(), Now + 1);
+        Assert.Equal(RidePackets.OpenBoxRs, Op(opened[0]));
+        Assert.Equal(RidePackets.OpenRewardBoxSuccessWire, BitConverter.ToUInt16(opened[0], 2));
+        var rewards = ReadOpenBoxRewards(opened[0]);
+        Assert.Single(rewards);
+        Assert.Equal(535710993, rewards[0].ItemId);
+        Assert.Equal(1, session.OwnedSkins.GetValueOrDefault(20012101));
     }
 
     [Fact]

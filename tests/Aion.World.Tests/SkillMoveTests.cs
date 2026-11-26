@@ -92,6 +92,7 @@ public sealed class SkillMoveTests
     public void Leaping_slam_carries_forward_caster_move_from_data()
     {
         Assert.Equal(["CasterMove", "Forward", "1500"], SkillMoves.CasterMoveFor(LeapingSlam)!);
+        Assert.Null(SkillMoves.CasterTeleportFor(LeapingSlam));
         var start = new Vector3d(0, 0, 0);
         var target = new Vector3d(2000, 0, 0);
         var land = SkillMoves.TowardTargetPoint(start, target, 100, 1500);
@@ -99,15 +100,39 @@ public sealed class SkillMoveTests
     }
 
     [Fact]
+    public void Leaping_slam_damage_waits_until_leap_impact()
+    {
+        var skill = GameData.Embedded.Skill(LeapingSlam)!;
+        var impact = SkillMoves.ForwardLeapImpactMs(skill);
+        Assert.Equal(impact, SkillTiming.FirstHitLandMs(LeapingSlam, skill, 10_000));
+        Assert.True(impact > SkillTiming.HitLandMs(skill, 0));
+    }
+
+    [Fact]
     public async Task Leaping_slam_accept_sends_forward_attack_move_and_advances_toward_target()
     {
-        var (session, mob) = await Setup(direction: 0, creation: 1);
-        var start = session.WorldPlayer!.Position;
-        var replies = await session.HandleAsync(Cast(LeapingSlam, mob.Key, mob.Position), Now + 6_000);
+        var store = new FakeCharacterStore { Progress = (55, 0) };
+        var session = await GameSessionTestHelpers.EnterSharedWorldAsync(store, Now, level: 55);
+        session.LearnForTests(LeapingSlam);
+        session.SetResource('M', session.Resource!.MpMax);
+        var mob = session.Targets![Combat.TrainingDummyKey];
+        var anchor = mob.Position;
+        await session.HandleAsync(MapEventScenarioHelpers.MoveUpdate(anchor), Now + 1_000);
+        await session.HandleAsync(MapEventScenarioHelpers.MoveUpdate(anchor with { X = anchor.X + 400 }), Now + 2_000);
+        var start = session.Position!.Value;
+        var atTarget = start with { X = start.X + 600 };
+        mob.Position = atTarget;
+        var castAt = Now + 6_000;
+        var replies = await session.HandleAsync(Cast(LeapingSlam, mob.Key, atTarget), castAt);
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3801 && GameSession.CastResultCode(p) == 0);
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x372e && p.AsSpan().IndexOf(BitConverter.GetBytes(LeapingSlam)) >= 0);
+        Assert.DoesNotContain(replies, p => GameSessionTestHelpers.Op(p) == 0x3804);
         var landed = session.Position ?? session.WorldPlayer!.Position;
         Assert.True(landed.X >= start.X + 400, "caster moved toward the target on accept");
+        Assert.Equal(2, session.PendingCombatHitCountForTests);
+        var skill = GameData.Embedded.Skill(LeapingSlam)!;
+        Assert.True(session.PendingCombatHitDueMsForTests() >= castAt + SkillMoves.ForwardLeapImpactMs(skill, session.AttackSpeedForTests));
+        Assert.Equal(0, session.PendingCasterMoveCount);
     }
 
     [Fact]

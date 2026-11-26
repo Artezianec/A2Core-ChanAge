@@ -17,6 +17,9 @@ partial class GameSession
             new Hit(damage, false, 0), 1, dueMs, CombatHitKind.Npc, false, false));
 
     internal int PendingCombatHitCountForTests => pendingCombatHits.Count;
+
+    internal long PendingCombatHitDueMsForTests() =>
+        pendingCombatHits.Count == 0 ? 0 : pendingCombatHits.Min(h => h.DueMs);
     internal int PendingProjectileCountForTests => pendingProjectiles.Count;
     internal (int ProjectileId, long DueMs)? NextProjectileForTests() =>
         pendingProjectiles.Count == 0 ? null : (pendingProjectiles[0].ProjectileId, pendingProjectiles[0].DueMs);
@@ -48,8 +51,11 @@ partial class GameSession
                 var hits = PlayerSkillHits(skill, defense, pvp: true, npcTargetKey: request.TargetKey, now: now);
                 if (SealStone()) hits = SealStoneBoost(hits);
                 for (var i = 0; i < hits.Count; i++)
+                {
+                    var land = i == 0 ? SkillTiming.FirstHitLandMs(skill, definition, AttackSpeed) : SkillTiming.HitLandMs(definition, i);
                     pendingCombatHits.Add(new(skill, request, actionUid, request.TargetKey, hits[i], i + 1,
-                        now + SkillTiming.HitLandMs(definition, i), kind.Value, false, false, i));
+                        now + land, kind.Value, false, false, i));
+                }
             }
         }
 
@@ -107,8 +113,11 @@ partial class GameSession
                         questKill, mapEventKill, i));
                 }
                 else
+                {
+                    var land = i == 0 ? SkillTiming.FirstHitLandMs(skill, definition, AttackSpeed) : SkillTiming.HitLandMs(definition, i);
                     pendingCombatHits.Add(new(skill, request, actionUid, target.Key, hits[i], i + 1,
-                        now + SkillTiming.HitLandMs(definition, i) + flight, CombatHitKind.Npc, questKill, mapEventKill, i));
+                        now + land + flight, CombatHitKind.Npc, questKill, mapEventKill, i));
+                }
             }
         }
         pendingCombatHits.Sort((a, b) => a.DueMs.CompareTo(b.DueMs));

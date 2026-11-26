@@ -22,6 +22,8 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
+var clientProtocol = ClientProtocolBootstrap.Load(builder.Configuration);
+Console.WriteLine($"[ClientProtocol] {clientProtocol.Kind} version={clientProtocol.VersionId} profile={clientProtocol.ProtocolProfileId}");
 // Counters for the staff diagnostics API (docs/DIAGNOSTICS.md); also counts logged errors per category.
 var diagnostics = new Aion.Host.Diagnostics.HostDiagnostics();
 builder.Services.AddSingleton(diagnostics);
@@ -198,6 +200,7 @@ var native = (nativeSection.Get<NativeOptions>() ?? new NativeOptions()) with
     MultiWorld = worldProcess is not null || builder.Configuration.GetValue<bool>("Aion:Worlds:Enabled"),
     ClientGmPanel = NativeOptions.ResolveClientGmPanel(nativeSection.GetValue<bool?>("ClientGmPanel")),
     EnforceBattlePassWeeklyCap = builder.Configuration.GetValue("Aion:BattlePass:EnforceWeeklyCap", false),
+    ClientProtocol = clientProtocol,
 };
 if (worldProcess is not null)
 {

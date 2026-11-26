@@ -543,8 +543,28 @@ public sealed partial class GameSession
         var taken = await TakeStepAsync(id, step, now, ct);
         if (taken is null) return [.. checkIn, TakeAchievementRewardReply(1, id, step)];
         await FlushAchievementsAsync(now, ct, force: true);
-        if (Achievements.Boards.Any(b => b.Achievement == id)) taken.Add(AccountContentsInfoList(now));
-        return [.. checkIn, .. taken, TakeAchievementRewardReply(0, id, step, granted)];
+        var replies = new List<byte[]>();
+        replies.AddRange(checkIn);
+        var leading = new List<byte[]>();
+        var inventory = new List<byte[]>();
+        var trailing = new List<byte[]>();
+        var pastInventory = false;
+        foreach (var p in taken)
+        {
+            if (p.Length >= 2 && p[0] == (0x561b & 0xff) && p[1] == (0x561b >> 8))
+            {
+                inventory.Add(p);
+                pastInventory = true;
+                continue;
+            }
+            (pastInventory ? trailing : leading).Add(p);
+        }
+        replies.AddRange(leading);
+        replies.Add(TakeAchievementRewardReply(0, id, step, granted));
+        replies.AddRange(inventory);
+        replies.AddRange(trailing);
+        if (Achievements.Boards.Any(b => b.Achievement == id)) replies.Add(AccountContentsInfoList(now));
+        return replies;
     }
 
     /// <summary>Takes one step's reward; null when not claimable. Returns the state update and optional inventory change.</summary>
@@ -720,12 +740,13 @@ public sealed partial class GameSession
         var claimedAchievementIds = results.SelectMany(r => r.Steps.Keys).Distinct().ToList();
         var moreReward = takeResults.Count > 0 && BatchHasMoreClaimableRewards(groups, groupId, category, only, now);
         if (takeResults.Count > 0) await FlushAchievementsAsync(now, ct, force: true);
-        // Official claim-all (capture 001158): 0x561b, TakeAchievementRewardBatch_RS (_take_result feeds the rewards list UI), then 0x5684.
-        // Sending 0x5684 before the batch RS makes the client show an empty "Rewards Collected" sheet even when items were granted.
+        var consolidatedRewards = ConsolidateRewardItems(grantedRewards);
+        // TakeAchievementRewardBatch_RS with _take_result, then Common_RewardItem[] (client build; not in usmap), then 0x561b, then 0x5684.
+        // Inventory before the batch RS prevents the rewards-collected sheet from listing granted stacks (live 0x5689 captures).
         var batch = new List<byte[]>();
         batch.AddRange(checkIn);
+        batch.Add(RewardBatchReply(category, groupId, only, takeResults, batchResult, moreReward, consolidatedRewards));
         if (inventoryChanges.Count > 0) batch.AddRange(inventoryChanges);
-        batch.Add(RewardBatchReply(category, groupId, only, takeResults, batchResult, moreReward));
         if (claimedAchievementIds.Count > 0) batch.Add(AchievementUpdate(claimedAchievementIds));
         if (grantedItems)
         {
@@ -779,13 +800,19 @@ public sealed partial class GameSession
         foreach (var (itemId, count) in items) w.I32(itemId).I32((int)Math.Min(count, int.MaxValue));
     }
 
+    static void AppendCommonRewardItems(PacketWriter w, IReadOnlyList<(int ItemId, long Count)>? grantedItems)
+    {
+        if (grantedItems is not { Count: > 0 }) return;
+        WriteCommonRewardItems(w, grantedItems);
+    }
+
     /// <summary>
     /// TakeAchievementReward_RS: usmap header {result, id, step}, then Common_RewardItem[] for the "what you got" popup.
     /// </summary>
     public static byte[] TakeAchievementRewardReply(int result, int id, byte step, IReadOnlyList<(int ItemId, long Count)>? grantedItems = null)
     {
         var w = PacketWriter.Opcode(TakeAchievementRewardRs).I32(result).I32(id).U8(step);
-        WriteCommonRewardItems(w, result == 0 ? grantedItems : []);
+        if (result == 0) AppendCommonRewardItems(w, grantedItems);
         return w.ToArray();
     }
 
@@ -793,20 +820,18 @@ public sealed partial class GameSession
     public static byte[] TakeAchievementGroupRewardReply(int result, int groupId, byte step, IReadOnlyList<(int ItemId, long Count)>? grantedItems = null)
     {
         var w = PacketWriter.Opcode(TakeAchievementGroupRewardRs).I32(result).I32(groupId).U8(step);
-        WriteCommonRewardItems(w, result == 0 ? grantedItems : []);
+        if (result == 0) AppendCommonRewardItems(w, grantedItems);
         return w.ToArray();
     }
 
     /// <summary>
     /// TakeAchievementRewardBatch_RS (usmap): {result, category u8, group i32, only bool, more bool,
-    /// [Common_AchievementRewardBatchTakeResult {group i32, [group step u8], map achievement i32 -> step u8}]}.
-    /// The client summary sheet and red-dot clear read _take_result only; extra Common_RewardItem bytes after take_result break that
-    /// layout on the live client (the popup can show while granted_step and inventory never apply). Single/group RS still append items.
-    /// The map value is a ByteProperty: an i32 there shifts every later group and the client reads garbage counts.
+    /// [Common_AchievementRewardBatchTakeResult {group i32, [group step u8], map achievement i32 -> step u8}]},
+    /// then Common_RewardItem[] consolidated stacks (live client; omitted from usmap). Map values are u8 steps (not i32).
     /// </summary>
     public static byte[] RewardBatchReply(byte category, int groupId, bool only,
         IReadOnlyList<(int Group, IReadOnlyList<byte> GroupSteps, IReadOnlyDictionary<int, int> Steps)> results, int result = 0,
-        bool moreRewardAvailable = false)
+        bool moreRewardAvailable = false, IReadOnlyList<(int ItemId, long Count)>? grantedItems = null)
     {
         var w = PacketWriter.Opcode(TakeAchievementRewardBatchRs).I32(result).U8(category).I32(groupId).U8(only ? (byte)1 : (byte)0)
             .U8(moreRewardAvailable ? (byte)1 : (byte)0).Varint((uint)results.Count);
@@ -817,6 +842,7 @@ public sealed partial class GameSession
             w.Varint((uint)steps.Count);
             foreach (var (id, step) in steps.OrderBy(p => p.Key)) w.I32(id).U8((byte)step);
         }
+        if (result == 0) AppendCommonRewardItems(w, grantedItems);
         return w.ToArray();
     }
 

@@ -157,6 +157,24 @@ public sealed partial class GameSession
         return [GamePackets.CharCustomizingList(0, entries)];
     }
 
+    /// <summary>Occupied lobby slot indices for layout/capacity (0..capacity-1).</summary>
+    static HashSet<int> OccupiedLobbySlots(IReadOnlyList<CharacterState> characters, int capacity) =>
+        LobbySlotLayout(characters, capacity).Select(p => p.SlotNo).ToHashSet();
+
+    /// <summary>
+    /// Maps the client's CharCreate _slot_no to a stored lobby slot. In-range free slots are honored; out-of-range
+    /// or occupied requests pick the first free slot (live OBSERVED: slot equals capacity on an empty max-unlocked account).
+    /// </summary>
+    internal static int? ResolveCreateLobbySlot(int requested, int capacity, IReadOnlyList<CharacterState> lobby)
+    {
+        if (capacity <= 0) return null;
+        var occupied = OccupiedLobbySlots(lobby, capacity);
+        if (requested >= 0 && requested < capacity && !occupied.Contains(requested)) return requested;
+        foreach (var slot in Enumerable.Range(0, capacity))
+            if (!occupied.Contains(slot)) return slot;
+        return null;
+    }
+
     /// <summary>Every lobby character gets a unique display slot (creation order fills gaps).</summary>
     internal static IReadOnlyList<(CharacterState State, int SlotNo)> LobbySlotLayout(
         IReadOnlyList<CharacterState> characters, int capacity)

@@ -181,7 +181,8 @@ public sealed class FakeCharacterStore : INativeCharacterStore
         if (States.Any(s => string.Equals(s.Summary.Name, input.Name, StringComparison.OrdinalIgnoreCase)))
             throw new GameplayException("name_taken");
         var slotCapacity = GameSession.DefaultLobbySlots + Math.Clamp(ExtendedCharacterSlots, 0, GameSession.MaxExtendedLobbySlots);
-        if (input.LobbySlot is int slot && (slot < 0 || slot >= slotCapacity || States.Any(s => s.LobbySlot == slot)))
+        var occupied = GameSession.LobbySlotLayout(States, slotCapacity).Select(p => p.SlotNo).ToHashSet();
+        if (input.LobbySlot is int slot && (slot < 0 || slot >= slotCapacity || occupied.Contains(slot)))
             throw new GameplayException("slot_unavailable");
         var parts = input.ProfileId["dev-v1-".Length..].Split(':');
         var (creation, gender) = (int.Parse(parts[0]), int.Parse(parts[1]));

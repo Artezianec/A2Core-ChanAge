@@ -6,6 +6,15 @@ namespace Aion.Launcher.Core.Tests;
 public sealed class ClientBuildProfilesTests
 {
     [Fact]
+    public void Profile_table_includes_2_0_12_without_aes_key()
+    {
+        var v212 = ClientBuildProfiles.Get("2.0.12.0");
+        Assert.Equal("26728906", v212.SteamBuildId);
+        Assert.Null(v212.AesPakKeyHex);
+        Assert.True(v212.ProtocolVerified);
+    }
+
+    [Fact]
     public void Profile_table_keeps_pinned_2_0_9_0_and_optional_2_0_13_without_published_key()
     {
         Assert.Equal(ClientVersion.DefaultId, ClientBuildProfiles.DefaultVersionId);

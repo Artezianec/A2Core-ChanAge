@@ -181,8 +181,7 @@ public sealed class NcGuardSink : BackgroundService
                 await next(context);
                 var tlsSni = context.Items.TryGetValue("ncguard.tls.sni", out var sniItem) ? sniItem as string : sni;
                 var tlsCert = context.Items.TryGetValue("ncguard.tls.cert", out var certItem) ? certItem as string : null;
-                var alpnProto = context.Features.Get<ITlsApplicationProtocolFeature>()?.ApplicationProtocol;
-                var alpn = alpnProto is { Length: > 0 } p ? System.Text.Encoding.UTF8.GetString(p.Span) : "(none)";
+                var alpn = NcGuardTlsFeatureAccess.AlpnText(context.Features);
                 if (context.Items.TryGetValue("ncguard.http", out var seen) && seen is true)
                     logger.LogInformation("NCGuard TLS handshake succeeded SNI={Sni} Remote={Remote}", sni ?? "(none)", remote);
                 else
@@ -190,18 +189,21 @@ public sealed class NcGuardSink : BackgroundService
                     logger.LogWarning(
                         "NCGuard TLS closed without a completed HTTP exchange SNI={Sni} Cert={Cert} Remote={Remote} ElapsedMs={ElapsedMs} Protocol={Protocol} ALPN={Alpn}",
                         tlsSni ?? "(none)", tlsCert ?? "(unknown)", remote, (long)(DateTimeOffset.UtcNow - started).TotalMilliseconds,
-                        context.Features.Get<IHttpRequestFeature>()?.Protocol ?? "(none)", alpn);
+                        NcGuardTlsFeatureAccess.HttpProtocol(context.Features), alpn);
                 }
             }
             catch (Exception error)
             {
-                if (context.Items.TryGetValue("ncguard.http", out var seen) && seen is true)
+                var httpCompleted = context.Items.TryGetValue("ncguard.http", out var seen) && seen is true;
+                if (httpCompleted)
                     logger.LogWarning(error, "NCGuard connection failed after HTTP SNI={Sni} Remote={Remote}", sni ?? "(none)", remote);
                 else if (context.Features.Get<ITlsHandshakeFeature>() is not null)
                     logger.LogWarning(error, "NCGuard TLS/HTTP aborted before exchange SNI={Sni} Remote={Remote} ElapsedMs={ElapsedMs}",
                         sni ?? "(none)", remote, (long)(DateTimeOffset.UtcNow - started).TotalMilliseconds);
                 else
                     logger.LogWarning(error, "NCGuard TLS handshake failed SNI={Sni} Remote={Remote}", sni ?? "(none)", remote);
+                if (!httpCompleted && NcGuardTlsFeatureAccess.IsBenignConnectionAbort(error))
+                    return;
                 throw;
             }
         });

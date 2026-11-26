@@ -1,6 +1,13 @@
 {
   "source": "BM shop gaps when Item.dat / BoxReward are incomplete (client export 2026-11-22). Re-run: python tools/box_data.py",
-  "uses": {},
+  "uses": {
+    "503898725": [
+      "RewardBox",
+      0,
+      "G_BM_Box_Package_WP_002_b",
+      "5"
+    ]
+  },
   "rides": {},
   "skins": {},
   "skin_categories": {},

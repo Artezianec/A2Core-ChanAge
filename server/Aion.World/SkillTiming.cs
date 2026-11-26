@@ -15,6 +15,12 @@ public static class SkillTiming
         return skill.CastingMs + offset;
     }
 
+    /// <summary>First damage row: at least as late as a forward CasterMove leap's impact (class-skills end_ms).</summary>
+    public static int FirstHitLandMs(int skillId, SkillDefinition skill, int attackSpeed) =>
+        Math.Max(HitLandMs(skill, 0),
+            SkillMoves.CasterMoveFor(skillId) is { } move && SkillMoves.IsForwardMove(move)
+                ? SkillMoves.ForwardLeapImpactMs(skill, attackSpeed) : 0);
+
     /// <summary>
     /// A projectile row's release after the cast accept: its own row time, else OBSERVED official Ranger 2026-10-30 (the
     /// exported Skill.dat rows carry no time): a single arrow one server tick after the cast batch (Snipe's 0x3803 57 / 76 ms

@@ -180,12 +180,22 @@ public sealed partial class GameSession
             _ => [],
         };
 
-    /// <summary>Weapon-skin reward boxes: class pick row when the client sends select 0 (quick use).</summary>
-    byte WeaponSkinBoxSelectIndex(byte requested, string group)
+    /// <summary>Weapon-skin reward boxes: class pick row when the client sends select 0 (quick use);
+    /// select 0xFF is the popup default reward (optional UseEffectValues[1] = select row index) or class row when unset.</summary>
+    byte WeaponSkinBoxSelectIndex(byte requested, string group, int boxItemId)
     {
-        if (group is not "G_BM_Box_Package_WP_002_b" and not "G_BM_Box_Package_WP_004_b" || requested != 0)
+        if (requested == 255 && Boxes.Use(boxItemId) is { Values: [_, var defaultSelect, ..] }
+            && byte.TryParse(defaultSelect, out var pick))
+            requested = pick;
+        if (group is "G_BM_Box_Package_WP_002_b" or "G_BM_Box_Package_WP_004_b")
+        {
+            if (requested is 0 or 255)
+                return WeaponSkinBoxSelectForHeldWeapon();
             return requested;
-        return WeaponSkinBoxSelectForHeldWeapon();
+        }
+        if (requested == 255)
+            return 0;
+        return requested;
     }
 
     /// <summary>ESkin-equip order in G_BM_Box_Package_WP_002/004 select tables (GS..ST).</summary>

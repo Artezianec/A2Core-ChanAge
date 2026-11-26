@@ -24,10 +24,14 @@ public sealed class AttendanceBatchClaimTests
             Now + 101);
 
         var rsIndex = batch.FindIndex(p => Op(p) == GameSession.TakeAchievementRewardBatchRs);
+        var invIndex = batch.FindIndex(p => Op(p) == 0x561b);
         Assert.True(rsIndex >= 0);
         Assert.Equal(0, BitConverter.ToInt32(batch[rsIndex], 2));
         var updateIndex = batch.FindIndex(p => Op(p) == GameSession.AchievementCountUpdateNt);
+        Assert.True(invIndex > rsIndex, "0x561b follows TakeAchievementRewardBatch_RS so the summary lists stacks before inventory applies");
         Assert.True(updateIndex > rsIndex, "0x5684 follows TakeAchievementRewardBatch_RS after the rewards summary is shown");
+        var batchRs = batch[rsIndex];
+        Assert.True(batchRs.Length > 14, "batch RS carries Common_RewardItem tail for the summary sheet");
         Assert.DoesNotContain(batch, p => Op(p) == GameSession.AchievementListNt);
 
         var again = await session.HandleAsync(
@@ -51,7 +55,8 @@ public sealed class AttendanceBatchClaimTests
             Now + 101);
         var updateIndex = reward.FindIndex(p => Op(p) == GameSession.AchievementCountUpdateNt);
         var rsIndex = reward.FindIndex(p => Op(p) == GameSession.TakeAchievementRewardRs);
-        Assert.True(updateIndex >= 0 && rsIndex > updateIndex);
+        var invIndex = reward.FindIndex(p => Op(p) == 0x561b);
+        Assert.True(updateIndex >= 0 && rsIndex > updateIndex && invIndex > rsIndex);
         Assert.Equal(0, BitConverter.ToInt32(reward[rsIndex], 2));
         var rs = reward[rsIndex];
         Assert.Equal(1, rs[11]);

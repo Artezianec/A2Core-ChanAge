@@ -4,6 +4,7 @@ namespace Aion.Host;
 public static class AionConfiguration
 {
     public const string Section = "Aion";
+    public const string ClientProtocol = Section + ":ClientProtocol";
     public const string Network = Section + ":Network";
     public const string Native = Section + ":Native";
     public const string Progression = Section + ":Progression";

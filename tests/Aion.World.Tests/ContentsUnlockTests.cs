@@ -14,12 +14,12 @@ public sealed class ContentsUnlockTests
     }
 
     [Fact]
-    public void World_entry_includes_chat_and_customizing_when_quests_unlocked()
+    public void World_entry_omits_chat_and_customizing_even_when_quests_unlocked()
     {
         var quest = new byte[] { 43, 45 };
         var list = GamePackets.WorldEntryContentsUnlocks(16, quest, []);
-        Assert.Contains((byte)43, list);
-        Assert.Contains((byte)45, list);
+        Assert.DoesNotContain((byte)43, list);
+        Assert.DoesNotContain((byte)45, list);
     }
 
     [Fact]

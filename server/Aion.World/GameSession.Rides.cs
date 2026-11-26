@@ -173,7 +173,7 @@ public sealed partial class GameSession
         var boxCooldown = Boxes.Cooldown(row.TemplateId);
         if (boxCooldown.Group != "None" && now < itemCooldowns.GetValueOrDefault(boxCooldown.Group)) return Fail();
         count = (int)Math.Min(Math.Clamp(count, 1, Math.Max(1, Boxes.MaxOpen(group))), row.Quantity);
-        select = WeaponSkinBoxSelectIndex(select, group);
+        select = WeaponSkinBoxSelectIndex(select, group, row.TemplateId);
         if (count < 1 || Boxes.Roll(group, select, count, rng) is not { } rolled) return Fail();
         var rewards = options.Rates.WithKinah(rolled);
         var done = await Stored(async () => await store.ConsumeAndGrantAsync(character, row.InstanceId, row.Revision, count, rewards, ct) ? [[]] : []);

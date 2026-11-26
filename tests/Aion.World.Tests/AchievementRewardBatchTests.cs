@@ -53,6 +53,22 @@ public sealed class AchievementRewardBatchTests
     }
 
     [Fact]
+    public void Batch_reply_appends_consolidated_common_reward_items()
+    {
+        var results = new List<(int, IReadOnlyList<byte>, IReadOnlyDictionary<int, int>)>
+        {
+            (400_000_103, [], new Dictionary<int, int> { [403_100_300] = 1 }),
+        };
+        var granted = new List<(int ItemId, long Count)> { (930_100_001, 3000), (930_100_001, 2000), (930_100_030, 100) };
+        var packet = GameSession.RewardBatchReply(1, 0, false, results, grantedItems: granted);
+        Assert.Equal(2, packet[^17]);
+        Assert.Equal(930_100_001, BitConverter.ToInt32(packet, packet.Length - 16));
+        Assert.Equal(5000, BitConverter.ToInt32(packet, packet.Length - 12));
+        Assert.Equal(930_100_030, BitConverter.ToInt32(packet, packet.Length - 8));
+        Assert.Equal(100, BitConverter.ToInt32(packet, packet.Length - 4));
+    }
+
+    [Fact]
     public void Single_step_reply_appends_reward_items()
     {
         var packet = GameSession.TakeAchievementRewardReply(0, 403_100_300, 1, [(930_100_001, 3000)]);

@@ -121,6 +121,30 @@ Example (`appsettings.json` or env `Aion__Rates__Experience=2`):
 }
 ```
 
+## Client protocol version
+
+| Key / env | Default | Description |
+|-----------|---------|-------------|
+| `Aion:ClientProtocol` or `Aion:ClientBuild` | `2.0.9` | Which client wire profile the **whole server** uses: handshake, game-port framing, NPLogin parsing, and world-entry opcode layouts. Unset or invalid values fall back to **2.0.9** (build `26262663`). |
+| `AION_CLIENT_PROTOCOL` | — | Overrides `Aion:ClientProtocol` / `Aion:ClientBuild` (same tokens). |
+
+| Value | Meaning |
+|-------|---------|
+| `2.0.9` | Default. Login `0x3900`/`0x3901`, game `0x3610`/`0x3611`, RC4 on all client bodies, world login `0x3613`. |
+| `2.0.12` | Game handshake `0x5E58` → `0xCB02`, clear opcode framing after handshake, varint NPLogin on the login port, world login `0xD456`, select/load `0x3C4F`/`0xB24E`. Opcode profile `26728906`. Launcher `/api/launcher/config` advertises build `2.0.12.0`. |
+| `2.0.13` | Experimental: modern handshake detection and varint NPLogin; opcode table still reuses pinned 2.0.9 until verified. |
+| `auto` | Per connection: detect `0x5E58`/`0x16FE` vs `0x3610` and clear-opcode framing from the first game frames; login parsing accepts both legacy and varint shapes. Default opcode profile stays `26262663` until you pin `2.0.12`. |
+
+Example (`appsettings.json` for a 2.0.12 Steam private copy):
+
+```json
+"Aion": {
+  "ClientProtocol": "2.0.12"
+}
+```
+
+Profiles and Steam build ids are in `tools/data/client-build-profiles.json` (embedded in `Aion.Core`).
+
 ## `Aion:Native`
 
 Native login/game ports (optional; both off unless ports are set).

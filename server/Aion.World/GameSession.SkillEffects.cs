@@ -45,7 +45,7 @@ partial class GameSession
             && (area.CasterDebuffRows.Any() || area.TargetDebuffRows.Any());
         if (rows.Count == 0 && !friendlyBuffs) return [];
         var enemies = rows.Any(SkillEffects.IsHostileRow) ? HostileNpcsOf(skill, area, request).Select(t => t.Key).ToList() : [];
-        var due = definition.Damage.Length > 0 ? now + SkillTiming.HitLandMs(definition, 0) : now + definition.CastingMs + NpcAi.HitDelayMs;
+        var due = definition.Damage.Length > 0 ? now + SkillTiming.FirstHitLandMs(skill, definition, AttackSpeed) : now + definition.CastingMs + NpcAi.HitDelayMs;
         pendingSkillEffects.Add(new(due, skill, request.TargetKey, enemies));
         return [];
     }

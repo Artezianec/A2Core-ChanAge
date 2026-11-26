@@ -66132,17 +66132,16 @@
     "11190000": {
       "effects": [
         [
-          "Teleport_Caster",
-          "TargetLocation_CasterToTargetDirection",
-          "100",
-          "180",
-          "100"
+          "CasterMove",
+          "Forward",
+          "1500"
         ],
         [
           "GroggyGuardDecreaseEnergy",
           "10"
         ]
-      ]
+      ],
+      "effects_source": "override"
     },
     "11200000": {
       "shape": "Circle",

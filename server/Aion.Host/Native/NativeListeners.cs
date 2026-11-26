@@ -10,6 +10,7 @@ using Aion.Core.Accounts;
 using Aion.Protocol.Native;
 using Aion.Host;
 using Aion.Host.Debug;
+using Aion.Core;
 using Aion.World;
 
 namespace Aion.Host.Native;
@@ -69,6 +70,8 @@ public sealed record NativeOptions
     public NetworkOptions Network { get; init; } = new();
     /// <summary>Resolved at host startup from <c>Aion:World</c> and <c>Aion:Debug:Enabled</c>.</summary>
     public bool MapEventAskNpcProximityFallback { get; init; }
+    /// <summary>Server client protocol (handshake, framing, login layouts).</summary>
+    public ClientProtocolSettings ClientProtocol { get; init; } = ClientProtocolSettings.Default;
 
     public bool Development => string.Equals(Logins, "development", StringComparison.OrdinalIgnoreCase);
 
@@ -96,7 +99,7 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
 
     protected abstract string Name { get; }
     protected abstract byte[] HandshakeReply(RsaPublicKey key, byte[] sessionKey);
-    protected abstract Task RunAsync(NetworkStream stream, Rc4 cipher, FrameBuffer buffer, IPAddress? clientAddress, CancellationToken ct);
+    protected abstract Task RunAsync(NetworkStream stream, Rc4 cipher, FrameBuffer buffer, IPAddress? clientAddress, CancellationToken ct, bool clearOpcodeFraming);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -128,6 +131,9 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
         }
     }
 
+    protected Task RunWithFraming(NetworkStream stream, Rc4 cipher, FrameBuffer buffer, IPAddress? clientAddress, CancellationToken ct, bool clearOpcodeFraming) =>
+        RunAsync(stream, cipher, buffer, clientAddress, ct, clearOpcodeFraming);
+
     async Task ServeAsync(TcpClient client, CancellationToken stoppingToken)
     {
         client.NoDelay = true;
@@ -151,14 +157,27 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
                 if (buffer.Length > 65536) throw new ProtocolException("Greeting too large");
                 frames = buffer.Drain();
             } while (frames.Count == 0);
-            var key = NativeHandshake.ReadGreeting(frames[0], greetingTag);
-            var sessionKey = RandomNumberGenerator.GetBytes(32);
-            await stream.WriteAsync(HandshakeReply(key, sessionKey), connection.Token);
-            var cipher = new Rc4(sessionKey);
-            CryptographicOperations.ZeroMemory(sessionKey);
+            var protocol = Options.ClientProtocol;
+            var clearOpcodeFraming = protocol.PreferClearOpcodeFraming;
+            var modernAllowed = protocol.UsesModernGameHandshake || protocol.Kind == ClientProtocolKind.Auto;
+            if (modernAllowed && NativeHandshake.IsWorldGreeting(frames[0]))
+            {
+                var key = NativeHandshake.ReadWorldGreeting(frames[0], out var v13);
+                var sessionKey = RandomNumberGenerator.GetBytes(32);
+                await stream.WriteAsync(NativeHandshake.WorldReply(key, sessionKey, v13), connection.Token);
+                var cipher = new Rc4(sessionKey);
+                CryptographicOperations.ZeroMemory(sessionKey);
+                await RunWithFraming(stream, cipher, buffer, clientAddress, connection.Token, true);
+                return;
+            }
+            var legacyKey = NativeHandshake.ReadGreeting(frames[0], greetingTag);
+            var sessionKeyLegacy = RandomNumberGenerator.GetBytes(32);
+            await stream.WriteAsync(HandshakeReply(legacyKey, sessionKeyLegacy), connection.Token);
+            var cipherLegacy = new Rc4(sessionKeyLegacy);
+            CryptographicOperations.ZeroMemory(sessionKeyLegacy);
             // The client waits for the reply before its first encrypted body; like the Python
             // server, anything framed alongside the greeting is ignored.
-            await RunAsync(stream, cipher, buffer, clientAddress, connection.Token);
+            await RunWithFraming(stream, cipherLegacy, buffer, clientAddress, connection.Token, clearOpcodeFraming);
         }
         catch (Exception error) when (error is ProtocolException or IOException or SocketException or OperationCanceledException or ObjectDisposedException)
         {
@@ -229,8 +248,9 @@ public sealed class NativeLoginListener(NativeOptions options, IServiceProvider 
     protected override string Name => "Native login";
     protected override byte[] HandshakeReply(RsaPublicKey key, byte[] sessionKey) => NativeHandshake.LoginReply(key, sessionKey);
 
-    protected override async Task RunAsync(NetworkStream stream, Rc4 cipher, FrameBuffer buffer, IPAddress? clientAddress, CancellationToken ct)
+    protected override async Task RunAsync(NetworkStream stream, Rc4 cipher, FrameBuffer buffer, IPAddress? clientAddress, CancellationToken ct, bool clearOpcodeFraming)
     {
+        _ = clearOpcodeFraming;
         // Multi-world: the registered worlds that are up now (null without a registry: the single world on GamePort).
         var worldList = services.GetService<Aion.Host.Worlds.LoginWorldList>();
         var directory = worldList is not null && Options.MultiWorld ? await worldList.DirectoryAsync(ct) : null;
@@ -332,7 +352,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
     protected override string Name => "Native game";
     protected override byte[] HandshakeReply(RsaPublicKey key, byte[] sessionKey) => NativeHandshake.GameReply(key, sessionKey);
 
-    protected override async Task RunAsync(NetworkStream stream, Rc4 cipher, FrameBuffer buffer, IPAddress? clientAddress, CancellationToken ct)
+    protected override async Task RunAsync(NetworkStream stream, Rc4 cipher, FrameBuffer buffer, IPAddress? clientAddress, CancellationToken ct, bool clearOpcodeFraming)
     {
         var intro = Options.Development && Options.IntroCharacter
             ? LoginPackets.PreGeneratedIntro(LoginPackets.DefaultWorlds[0].Id, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) : null;
@@ -400,7 +420,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         }
         var authenticated = Options.Development;
         var chunk = new byte[8192];
-        var backlog = new ClientFrameBacklog(cipher);
+        var backlog = new ClientFrameBacklog(cipher, detectClearOpcodes: clearOpcodeFraming || Options.ClientProtocol.Kind == ClientProtocolKind.Auto);
         Task<int>? pending = null;
         Task? wake = null;
         var lastData = DateTimeOffset.UtcNow;
@@ -455,11 +475,11 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
                     var header = plain.Length >= 2 ? plain[0] | plain[1] << 8 : -1;
                     if (!Options.Development)
                     {
-                        if (header == 0x3613)
+                        if (header is 0x3613 or 0xD456 or 0x4BAF or 0x8CFD)
                         {
                             if (authenticated) { Logger.LogInformation("Native game closed: replay_rejected"); return; }
                             ClientIdentity identity;
-                            try { identity = ClientIdentity.Parse(plain, game: true); }
+                            try { identity = header == 0x3613 ? ClientIdentity.Parse(plain, game: true) : ClientIdentity.ParseWorld(plain); }
                             catch (ProtocolException) { Logger.LogInformation("Native game closed: rejected"); return; }
                             if (headless.TryGameSession(identity, clientAddress))
                             {
@@ -655,7 +675,11 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         var sessions = services.GetService<IWorldSessions>();
         if (sessions is null) return (null, failed);
         ClientIdentity identity;
-        try { identity = ClientIdentity.Parse(plain, game: true); }
+        try
+        {
+            var opcode = plain.Length >= 2 ? plain[0] | plain[1] << 8 : 0;
+            identity = opcode == 0x3613 ? ClientIdentity.Parse(plain, game: true) : ClientIdentity.ParseWorld(plain);
+        }
         catch (ProtocolException) { return (null, failed); }
         var (wireAccount, grant) = identity.Session();
         var opened = await sessions.OpenAsync(identity.AuthnToken, wireAccount, grant, Options.WorldId, ct);

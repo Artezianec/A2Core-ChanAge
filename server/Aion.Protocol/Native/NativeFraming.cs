@@ -103,12 +103,16 @@ public sealed class FrameBuffer
 /// behind, and every later request read as a random opcode (about 800 "unanswered opcodes", 10-byte movement among them) until the
 /// client gave up a minute later. Only frames past <see cref="Capacity"/> are dropped, still deciphered.
 /// </summary>
-public sealed class ClientFrameBacklog(Rc4 cipher, int capacity = 1024)
+public sealed class ClientFrameBacklog(Rc4 cipher, int capacity = 1024, bool detectClearOpcodes = false)
 {
     readonly Queue<byte[]> frames = new();
+    bool? encrypted;
 
     public int Capacity { get; } = capacity;
     public int Count => frames.Count;
+
+    static bool ClearWorldOpcode(ReadOnlySpan<byte> body) =>
+        body.Length >= 2 && (body[0] | body[1] << 8) is 0xD456 or 0x4BAF or 0x3602;
 
     /// <summary>Deciphers and queues the frames; returns how many were dropped because the backlog was full.</summary>
     public int Add(IEnumerable<byte[]> bodies)
@@ -116,7 +120,8 @@ public sealed class ClientFrameBacklog(Rc4 cipher, int capacity = 1024)
         var dropped = 0;
         foreach (var body in bodies)
         {
-            var plain = cipher.Crypt(body);
+            if (detectClearOpcodes) encrypted ??= !ClearWorldOpcode(body);
+            var plain = detectClearOpcodes && encrypted == false ? body : cipher.Crypt(body);
             if (frames.Count >= Capacity) dropped++;
             else frames.Enqueue(plain);
         }
