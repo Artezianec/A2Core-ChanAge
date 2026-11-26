@@ -35,10 +35,7 @@ public sealed partial class Aion2DatFileEncryption
 
         var payload = EncryptCompressedPayload(plaintext, key, out var packedSize);
         var header = new byte[0x10];
-        BinaryPrimitives.WriteInt32LittleEndian(header, packedSize);
-        BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(4), (int)EEncryptionType.CompressedAES);
-        BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(8), payload.Length);
-        BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(12), plaintext.Length);
+        WriteCompressedHeader(header, EEncryptionType.CompressedAES, plaintext.Length, packedSize, payload.Length);
         FAion2DatFileArchive.DecryptData(header, DeriveHeaderKey(seed, EHeaderType.Localization));
 
         using var output = new MemoryStream();
@@ -96,24 +93,40 @@ public sealed partial class Aion2DatFileEncryption
     static byte[] EncryptCompressedDataTable(byte[] plaintext, ulong seed, FAesKey key)
     {
         var payload = EncryptCompressedPayload(plaintext, key, out var packedSize);
-        var prefix = new byte[8];
-        BinaryPrimitives.WriteInt32LittleEndian(prefix, packedSize);
-        BinaryPrimitives.WriteInt32LittleEndian(prefix.AsSpan(4), (int)EEncryptionType.CompressedAES);
-        var compressedKey = DeriveHeaderKey(seed, EHeaderType.CompressedDataTable);
-        FAion2DatFileArchive.DecryptData(prefix, compressedKey);
-
-        var suffix = new byte[8];
-        BinaryPrimitives.WriteInt32LittleEndian(suffix, payload.Length);
-        BinaryPrimitives.WriteInt32LittleEndian(suffix.AsSpan(4), plaintext.Length);
-        FAion2DatFileArchive.DecryptData(suffix, compressedKey[8..16]);
+        var header = new byte[0x10];
+        WriteCompressedHeader(header, EEncryptionType.CompressedAES, plaintext.Length, packedSize, payload.Length);
+        FAion2DatFileArchive.DecryptData(header, DeriveHeaderKey(seed, EHeaderType.CompressedDataTable));
 
         using var output = new MemoryStream();
         using var writer = new BinaryWriter(output);
         writer.Write(13);
-        writer.Write(prefix);
-        writer.Write(suffix);
+        writer.Write(header);
         writer.Write(payload);
         return output.ToArray();
+    }
+
+    /// <summary>
+    /// Writes the four compressed-header ints: permuted by the build's computed order when the
+    /// manifest carries an AppVersion, otherwise the legacy packed/type/aligned/raw layout.
+    /// </summary>
+    static void WriteCompressedHeader(Span<byte> header, EEncryptionType type, int rawSize, int packedSize, int alignedSize)
+    {
+        Span<int> fields = [(int) type, rawSize, packedSize, alignedSize];
+        var rootBits = Volatile.Read(ref _permutationRootBits);
+
+        if (rootBits != NoPermutationRoot)
+        {
+            var permutation = DeriveHeaderPermutation((ulong) rootBits);
+            for (var index = 0; index < 4; index++)
+                BinaryPrimitives.WriteInt32LittleEndian(header[(index * 4)..], fields[permutation[index]]);
+        }
+        else
+        {
+            BinaryPrimitives.WriteInt32LittleEndian(header, packedSize);
+            BinaryPrimitives.WriteInt32LittleEndian(header[4..], (int) type);
+            BinaryPrimitives.WriteInt32LittleEndian(header[8..], alignedSize);
+            BinaryPrimitives.WriteInt32LittleEndian(header[12..], rawSize);
+        }
     }
 
     static byte[] EncryptCompressedPayload(byte[] plaintext, FAesKey key, out int packedSize)
