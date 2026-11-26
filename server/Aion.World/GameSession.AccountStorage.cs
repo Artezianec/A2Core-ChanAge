@@ -17,9 +17,13 @@ public sealed partial class GameSession
 
     static byte[] ItemStoreReply(ushort opcode, int result, int npc, IReadOnlyList<(long Key, long Count)> items, int storeContainerType)
     {
-        var w = PacketWriter.Opcode(opcode).I32(result).I32(npc).Varint(items.Count);
+        // 2.0.12 writes result u16 and the container u8; 2.0.9 keeps i32 for both.
+        var modern = WireContext.IsModern;
+        var w = PacketWriter.Opcode(opcode);
+        if (modern) w.U16(result); else w.I32(result);
+        w.I32(npc).Varint(items.Count);
         foreach (var (key, count) in items) w.I64(key).I64(count);
-        return w.I32(storeContainerType).ToArray();
+        return modern ? w.U8((byte)storeContainerType).ToArray() : w.I32(storeContainerType).ToArray();
     }
 
     static bool TryParseStorePacket(byte[] plain, out int npc, out List<(long Key, long Count)> items, out int storeContainerType)
@@ -32,7 +36,7 @@ public sealed partial class GameSession
             var r = new PacketReader(plain) { Offset = 2 };
             npc = (int)r.I32();
             items = ReadItemMap(r);
-            storeContainerType = (int)r.I32();
+            storeContainerType = WireContext.IsModern ? r.U8() : (int)r.I32();
             return true;
         }
         catch (ProtocolException)
