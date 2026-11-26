@@ -75,10 +75,16 @@ public sealed partial class GameSession
         return [GamePackets.ContentsUnlockUpdate([RideContentsUnlock])];
     }
 
-    async Task PersistDefaultRideIfUnsetAsync(int rideId, CancellationToken ct)
+    /// <summary>
+    /// Remembers the first acquired ride as the default and tells the client (0x900c), so its C mount key has a
+    /// ride to summon. Call it after the ride is in the dictionary: the ownership check reads it.
+    /// </summary>
+    async Task<List<byte[]>> PersistDefaultRideIfUnsetAsync(int rideId, CancellationToken ct)
     {
-        if (defaultRide != 0 || rideId == 0 || Store is not { } store || CharacterId is not { } character || !OwnsRide(rideId)) return;
-        if (await store.SetDefaultRideAsync(character, rideId, ct)) defaultRide = rideId;
+        if (defaultRide != 0 || rideId == 0 || Store is not { } store || CharacterId is not { } character || !OwnsRide(rideId)) return [];
+        if (!await store.SetDefaultRideAsync(character, rideId, ct)) return [];
+        defaultRide = rideId;
+        return [RidePackets.DefaultSetNotice(playerKey, 0, rideId)];
     }
 
     bool SubzoneAllowsRideNow()
@@ -410,8 +416,8 @@ public sealed partial class GameSession
             var (extra, board) = await RideBoardAsync(info, 1, ct);
             replies.Add(RidePackets.Acquired(playerKey, rideId, ride.Level, (byte)info.Type, board?.Level ?? 1, board?.Exp ?? 0));
             replies.AddRange(extra);
-            await PersistDefaultRideIfUnsetAsync(rideId, ct);
             replies.AddRange(RememberRide(ride, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
+            replies.AddRange(await PersistDefaultRideIfUnsetAsync(rideId, ct));
         }
         replies.AddRange(UnlockRideContentsIfNeeded());
         replies.AddRange(await InventoryChangesAsync(ct, IncreaseItemUse, DecreaseItemUse));
@@ -646,10 +652,11 @@ public sealed partial class GameSession
         if (ride is null) return [RidePackets.AcquireReply(playerKey, 1)];
         var paid = Paid(rideId, soulsBefore, info.NeedSoul);
         var (extra, board) = await RideBoardAsync(info, 1, ct);
-        await PersistDefaultRideIfUnsetAsync(rideId, ct);
         var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var remembered = RememberRide(ride, nowMs);
+        var defaultSet = await PersistDefaultRideIfUnsetAsync(rideId, ct);
         return [RidePackets.AcquireReply(playerKey, 0), .. paid, RidePackets.Acquired(playerKey, rideId, ride.Level, (byte)info.Type, board?.Level ?? 1, board?.Exp ?? 0),
-            .. extra, .. RememberRide(ride, nowMs), .. RefreshStats(), .. UnlockRideContentsIfNeeded()];
+            .. extra, .. remembered, .. defaultSet, .. RefreshStats(), .. UnlockRideContentsIfNeeded()];
     }
 
     /// <summary>0x9013 RideLevelUp_RQ {i32 ride}: an acquired ride levels up for VehicleLevel NeedSoulCount soul points.</summary>
@@ -682,10 +689,10 @@ public sealed partial class GameSession
         if (ride is null) return [];
         var paid = Paid(rideId, soulsBefore, info.NeedSoul);
         var (extra, board) = await RideBoardAsync(info, 1, ct);
-        Remember(ride);
-        await PersistDefaultRideIfUnsetAsync(rideId, ct);
+        var remembered = RememberRide(ride, nowMs);
+        var defaultSet = await PersistDefaultRideIfUnsetAsync(rideId, ct);
         return [.. paid, RidePackets.Acquired(playerKey, rideId, ride.Level, (byte)info.Type, board?.Level ?? 1, board?.Exp ?? 0),
-            .. extra, .. RememberRide(ride, nowMs), .. RefreshStats(), .. UnlockRideContentsIfNeeded()];
+            .. extra, .. remembered, .. defaultSet, .. RefreshStats(), .. UnlockRideContentsIfNeeded()];
     }
 
     string MountRefusalReason(int ride)
