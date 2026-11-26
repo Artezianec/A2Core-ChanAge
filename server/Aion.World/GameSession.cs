@@ -3709,61 +3709,6 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     }
 
 
-    async Task<List<byte[]>> SelectWorldAsync(byte[] plain, long now, CancellationToken ct)
-    {
-        var reader = new PacketReader(plain) { Offset = 2 };
-        int x, y, z, mapId;
-        uint key;
-        try
-        {
-            x = reader.I32(); y = reader.I32(); z = reader.I32();
-            mapId = reader.I32(); key = reader.Varint();
-        }
-        catch (ProtocolException) { return []; }
-        var legacy = new PacketWriter().U16(0x361f).Varint(key).I32(mapId).Vec3(new Vector3d(x, y, z)).ToArray();
-        var replies = await SelectAsync(legacy, now, ct);
-        if (selected is { } state)
-        {
-            var world = GamePackets.SelectCharacterWorld((int)key, state.WireId, playerKey, state.Appearance);
-            for (var i = 0; i < replies.Count; i++)
-                if (replies[i].Length >= 2 && (replies[i][0] | replies[i][1] << 8) == 0x3620)
-                    replies[i] = world;
-        }
-        return replies;
-    }
-
-    async Task<List<byte[]>> LoadCompleteWorldAsync(byte[] plain, long now, CancellationToken ct)
-    {
-        var reader = new PacketReader(plain) { Offset = 2 };
-        int ticket;
-        Vector3d clientPosition;
-        try
-        {
-            _ = reader.Varint();
-            _ = reader.Bool();
-            _ = ReadVarintString(reader);
-            _ = reader.F32();
-            ticket = reader.I32();
-            clientPosition = reader.Vec3();
-            _ = reader.Varint();
-        }
-        catch (ProtocolException) { return []; }
-        var legacy = new PacketWriter().U16(0x3622).I32(ticket).Zeros(12).ToArray();
-        var replies = await LoadCompleteAsync(legacy, now, ct);
-        var at = position ?? clientPosition;
-        var world = GamePackets.LoadCompleteWorld(ticket, playerKey, at);
-        for (var i = 0; i < replies.Count; i++)
-            if (replies[i].Length >= 2 && (replies[i][0] | replies[i][1] << 8) == 0x3623)
-                replies[i] = world;
-        return replies;
-    }
-
-    static string ReadVarintString(PacketReader reader)
-    {
-        var length = checked((int)reader.Varint());
-        return System.Text.Encoding.UTF8.GetString(reader.Take(length));
-    }
-
     /// <summary>"account:guid" from a 0x3613 body (u8 length + string after the opcode); placeholders when absent.</summary>
     public static (string AccountSid, string Guid) LoginIdentity(byte[] body)
     {
