@@ -54,13 +54,25 @@ public static class SkillEffects
         Source(skill) is { } area && (area.Scope is { } scope ? FriendlyScopes.Contains(scope) : area.EffectRows.Any(r => r.Length > 0 && IsFriendlyRow(r)));
 
     /// <summary>
-    /// A skill that clears crowd control from its caster (Defiance, 60 s: Dispel_Cc on self) is cast while held or silenced: the
-    /// point of it. OURS (the client's own cast rules for a held player are not in the export).
+    /// A skill that clears crowd control from its caster (Defiance: Dispel_Cc on self; 2.0.12 spells the same row
+    /// Dispel_True [DeBuff]) is cast while held or silenced: the point of it. OURS (the client's own cast rules for a
+    /// held player are not in the export).
     /// </summary>
-    public static bool BreaksControl(int skill) => Scope(skill) == "self" && Rows(skill).Any(r => r[0] == "Dispel_Cc");
+    public static bool BreaksControl(int skill) =>
+        Scope(skill) == "self" && Rows(skill).Any(r => r[0] == "Dispel_Cc" || r[0] == "Dispel_True" && !PurgesEnemies(r));
 
-    /// <summary>Who a friendly skill lands on: self / target / party / area (the area's scope, else the target).</summary>
-    public static string Scope(int skill) => Source(skill)?.Scope is { Length: > 0 } scope ? scope.ToLowerInvariant() : "target";
+    /// <summary>Who a friendly skill lands on: self / target / party / area (the area's scope, else the skill's target).</summary>
+    public static string Scope(int skill)
+    {
+        if (Source(skill)?.Scope is { Length: > 0 } scope) return scope.ToLowerInvariant();
+        return GameData.Embedded.Skill(skill)?.Target?.ToLowerInvariant() switch
+        {
+            "self" => "self",
+            "party" => "party",
+            "area" => "area",
+            _ => "target",
+        };
+    }
 
     public static int ScopeRange(int skill) => Source(skill)?.ScopeRange is > 0 and var range ? range : (int)GameSession.AreaRange;
 
