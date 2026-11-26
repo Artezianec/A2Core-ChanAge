@@ -388,10 +388,10 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         switch (header)
         {
             case 0x3613: return await GameLoginAsync(plain, now, ct);
+            // 2.0.12/2.0.13 game-port NPLogin (0xD456 and the 0x4BAF/0x8CFD aliases) carries the same
+            // grant as 0x3613; without these the client hangs on the server list after "Enter Server".
             case 0xD456 or 0x4BAF or 0x8CFD:
                 return await GameLoginAsync(plain, now, ct);
-            case 0x3C4F when Uses2012WorldEntry(): return await SelectWorldAsync(plain, now, ct);
-            case 0xB24E when Uses2012WorldEntry(): return await LoadCompleteWorldAsync(plain, now, ct);
             case 0x3619:
             {
                 var name = NameRequest(plain);
@@ -1782,7 +1782,12 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             var stage1 = all.Where(b => EntryPriority(b) < 100).OrderBy(EntryPriority).ToList();
             var lists = all.Where(b => EntryPriority(b) == 100 && !EntryAfterLoad(b)).ToList();
             var spawn = all.Where(EntryAfterLoad).OrderBy(SpawnPriority).ToList();
+            // The 2.0.13 client hangs on the loading screen when our 0x3634 env objects arrive with the
+            // spawn (the 2.0.12 map data has objects the 2.0.13 client rejects). Send none at entry.
+            spawn.RemoveAll(b => b.Length >= 2 && (b[0] | b[1] << 8) == 0x3634);
+            // The official spawn burst repeats the state packets (abyss/abnormals/stats/points) after LoadComplete.
             spawn.AddRange(stage1.Where(b => b.Length >= 2 && (b[0] | b[1] << 8) is 0xffab or 0x382a or 0x364a or 0x3656 or 0x8d00));
+            spawn = spawn.OrderBy(SpawnPriority).ToList();
             var extras = replies.Where(b => b.Length >= 2 && (b[0] | b[1] << 8) is 0x8d44 or 0x3621).ToList();
             replies.Clear();
             replies.AddRange(stage1);
@@ -1826,13 +1831,15 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         if (deferredSpawn is { Count: > 0 } burst)
         {
             replies.AddRange(burst);
+            // The official burst ends with a target update (0x3835, the char with no target) after the last stat set.
+            replies.Add(GamePackets.TargetUpdate(playerKey));
             deferredSpawn = null;
         }
         else
         {
             var legacy = new PacketWriter().U16(0x3622).I32(1).Zeros(12).ToArray();
             replies.AddRange(await LoadCompleteAsync(legacy, now, ct));
-            replies.RemoveAll(b => b.Length >= 2 && (b[0] | b[1] << 8) == 0x3623);
+            replies.RemoveAll(b => b.Length >= 2 && (b[0] | b[1] << 8) is 0x3623 or 0x3634);
         }
         return replies;
     }
@@ -3781,8 +3788,6 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         }
     }
 
-    static bool Uses2012WorldEntry() =>
-        ClientProtocolRuntime.Current.Uses2012WorldEntryOpcodes || ClientProtocolRuntime.Current.Kind == ClientProtocolKind.Auto;
 
     async Task<List<byte[]>> SelectWorldAsync(byte[] plain, long now, CancellationToken ct)
     {
