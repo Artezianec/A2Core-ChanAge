@@ -185,6 +185,14 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     Task<NavMesh?>? navLoad;
     bool invisible;
     bool reloading;   // a teleport's map load (0x3621 in the world) is pending
+    /// <summary>The 17 passive abnormals the official 2.0.13 server adds first at the world entry.</summary>
+    static readonly (int Uid, int Id)[] V13EntryAbnormals =
+    [
+        (1, 12011), (2, 12031), (3, 80001), (4, 110000001), (5, 111700371), (6, 113000371),
+        (7, 113800071), (8, 117100001), (9, 117200001), (10, 117300001), (11, 117400001),
+        (12, 117500001), (13, 117600001), (14, 117700001), (15, 117800001), (16, 117900001),
+        (17, 118000001),
+    ];
     bool sprinting;
     /// <summary>Sitting (CharRestStart_RQ 0x3747 until CharRestStop_RQ 0x374a, a move or combat); recovery is <see cref="RestRegenFactor"/> times faster.</summary>
     public bool Resting { get; private set; }
@@ -388,8 +396,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case 0x361b: return await CreateAsync(plain, now, ct);
             case 0x361f: return await SelectAsync(plain, now, ct);
             case 0x3C4F: return await SelectWorldAsync(plain, now, ct);   // 2.0.12 SelectCharacter_RQ
+            case 0x83A9: return await SelectWorldV13Async(plain, now, ct, order13: false);
+            case 0xC4F6: return await SelectWorldV13Async(plain, now, ct, order13: true);
             case 0x3622: return await LoadCompleteAsync(plain, now, ct);
             case 0xB24E: return await LoadCompleteWorldAsync(plain, now, ct);   // 2.0.12 LoadComplete_RQ
+            case 0x6AF4: return await LoadCompleteV13Async(plain, now, ct);
             case 0x3630:
                 // Logout_RQ (in-game Exit). Save first: the client disconnects on the reply.
                 await FlushDeferredPersistenceAsync(now, ct);
@@ -1665,6 +1676,45 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         return replies;
     }
 
+    /// <summary>0x83A9 / 0xC4F6 SelectCharacter_RQ (2.0.13), answered with the compressed 0x2053.</summary>
+    async Task<List<byte[]>> SelectWorldV13Async(byte[] plain, long now, CancellationToken ct, bool order13)
+    {
+        var reader = new PacketReader(plain) { Offset = 2 };
+        int x, y, z, mapId;
+        uint key;
+        try
+        {
+            x = reader.I32(); y = reader.I32(); z = reader.I32();
+            if (order13) { key = reader.Varint(); mapId = reader.I32(); }
+            else { mapId = reader.I32(); key = reader.Varint(); }
+        }
+        catch (ProtocolException) { return []; }
+        var legacy = new PacketWriter().U16(0x361f).Varint(key).I32(mapId).Vec3(new Vector3d(x, y, z)).ToArray();
+        var replies = await SelectAsync(legacy, now, ct);
+        if (selected is { } state)
+        {
+            var world = GamePackets.SelectCharacterWorldV13((int)key, state.WireId, playerKey, state.Appearance);
+            world = NativeFraming.CompressedEnvelope(world);
+            for (var i = 0; i < replies.Count; i++)
+                if (replies[i].Length >= 2 && (replies[i][0] | replies[i][1] << 8) == 0x3620)
+                    replies[i] = world;
+        }
+        return replies;
+    }
+
+    /// <summary>
+    /// 0x6AF4 LoadComplete_RQ (2.0.13): the official server answers 0xd79e and the spawn burst,
+    /// with no LoadComplete_RS.
+    /// </summary>
+    async Task<List<byte[]>> LoadCompleteV13Async(byte[] plain, long now, CancellationToken ct)
+    {
+        var replies = new List<byte[]> { GamePackets.ServerEnterMapPos(position ?? spawn?.Position ?? GamePackets.SpawnPosition) };
+        var legacy = new PacketWriter().U16(0x3622).I32(1).Zeros(12).ToArray();
+        replies.AddRange(await LoadCompleteAsync(legacy, now, ct));
+        replies.RemoveAll(b => b.Length >= 2 && (b[0] | b[1] << 8) == 0x3623);
+        return replies;
+    }
+
     /// <summary>
     /// 0xB24E LoadComplete_RQ (2.0.12) into the existing load logic, then the 0x4EF8
     /// LoadComplete_RS instead of the 2.0.9 0x3623.
@@ -1851,6 +1901,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 EquipItemLevel = armed, HighestTotalItemLevel = armed,
                 CombatPower = combatPower,
                 SubzoneId = Subzones.SubzoneIdAt(mapId, at),
+                V13 = WireContext.Current == WireVersion.V213,
+                Abnormals = WireContext.Current == WireVersion.V213
+                    ? V13EntryAbnormals.Select(e => new AbnormalWire(e.Uid, e.Id, -1, 4102412400000,
+                        CasterKey: playerKey, Level: 1, RangeBase: at)).ToArray()
+                    : [],
                 UsedDaevanionPoints = DaevanionUsedPointWire(),
                 BonusDaevanionPoints = DaevanionBonusPointWire(),
             }));
