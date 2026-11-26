@@ -24,8 +24,11 @@ public static class ProtocolTranslation
 
     static ProtocolTranslation()
     {
-        // Party loot / dice: 0x3813-0x3830 -> 0x5718-0x5735.
-        Range(0x3813, 0x3830, 0x1F05);
+        // Party loot / dice: 0x3813-0x3828 and 0x3830 -> 0x5718-0x572D and 0x5735.
+        // 0x3829-0x382F stay untouched: 0x382A/0x382C are the abnormal add/remove packets.
+        for (var value = 0x3813; value <= 0x3828; value++)
+            Pair((ushort)value, (ushort)(value + 0x1F05));
+        Pair(0x3830, 0x5735);
         // Trade: 0x3B69-0x3B77 -> 0xE264-0xE272.
         Range(0x3B69, 0x3B77, 0xA6FB);
         // Party dungeon rooms: 0x3AC1-0x3AF5 -> 0x9700-0x9734.
