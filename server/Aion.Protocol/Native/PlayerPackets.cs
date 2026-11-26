@@ -675,6 +675,21 @@ public static class PlayerPackets
     public static byte[] MoveReject(ushort opcode, int key, Vector3d position, int reason = 1) =>
         PacketWriter.Opcode(opcode).Varint(key).U8(0).U8(0).Vec3(position).I32(reason).ToArray();
 
+    /// <summary>
+    /// 0x373c CharWarpLeave_NT (2.0.12): key varint | u8 flags (bit0 skill id, bit1 effect id) | pos |
+    /// direction f32 | move state | substate | EWarpReason | [skill i32] | [effect i32] | duration varint.
+    /// </summary>
+    public static byte[] WarpLeave(int key, Vector3d position, double direction, byte moveState, byte substate,
+        byte reason, int skillId = 0, int effectId = 0, int durationMs = 0)
+    {
+        var flags = (byte)((skillId != 0 ? 1 : 0) | (effectId != 0 ? 2 : 0));
+        var w = PacketWriter.Opcode(0x373c).Varint(key).U8(flags).Vec3(position).F32(direction)
+            .U8(moveState).U8(substate).U8(reason);
+        if (skillId != 0) w.I32(skillId);
+        if (effectId != 0) w.I32(effectId);
+        return w.Varint(durationMs).ToArray();
+    }
+
     /// <summary>EAbnormalMoveType (usmap): how an abnormal moves its owner.</summary>
     public const byte MovePush = 0, MoveKnockback = 1, MovePull = 2, MoveKnockbackInstant = 3, MoveKnockdownInstant = 4;
     /// <summary>ETerrainType (usmap) of the ground the move starts and ends on (the server has no per-point terrain: Ground).</summary>
