@@ -402,8 +402,15 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case CharRenameRq when plain.Length >= 4: return await RenameCharacterAsync(plain, ct);
             case CharSlotSwapRq when plain.Length >= 4: return await SwapLobbySlotsAsync(plain, now, ct);
             case CharCustomizingListRq when plain.Length == 2: return await CharCustomizingListAsync(ct);
+            case CharCustomizingListRqV12 when plain.Length == 2: return await CharCustomizingListAsync(ct, modern: true);
             case CharCustomizingStatusCheckRq when plain.Length >= 2:
-                return [PacketWriter.Opcode(CharCustomizingStatusCheckRs).U16(0).ToArray()];
+                return [GamePackets.CharCustomizingStatusCheckReply()];
+            case CharCustomizingMetaDataRq when plain.Length == 2:
+                return [GamePackets.CharCustomizingMetaDataReply()];
+            case CharCustomizingSettlementStatusRq when plain.Length == 2:
+                return [GamePackets.CharCustomizingSettlementStatusReply()];
+            case CharCustomizingSettleRq when plain.Length >= 6:
+                return [GamePackets.CharCustomizingSettleReply(BitConverter.ToInt32(plain, 2))];
             case BookmarkRq when plain.Length >= 8 && resources is not null: return await BookmarkAsync(plain, now, ct);
         }
         if (InWorld && Opcode(plain) is LatestSeasonRankingRq or MySeasonRankingRq or TakePrevSeasonRankingRewardRq
@@ -780,7 +787,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                     [
                         GamePackets.LoginCharacters([], $"{loginIdentity.AccountSid}:{loginIdentity.Guid}", Store.WorldId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                             GamePackets.CommServerKey, now, isBornServer: true, chatEnableLevel: 0, extendedSlotCount: ExtendedCharacterSlotCount),
-                        GamePackets.ExtendedCharacterSlot(ExtendedCharacterSlotCount),
+                        ExtendedSlotPacket(),
                     ];
                 });
         }
@@ -1299,7 +1306,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                         $"{loginIdentity.AccountSid}:{loginIdentity.Guid}", Store.WorldId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         GamePackets.CommServerKey, now, serverRace: worldRace ?? (races.Count == 1 ? races[0] : 0), isAdmin: ClientLobbyAdmin,
                         extendedSlotCount: ExtendedCharacterSlotCount)),
-                    GamePackets.ExtendedCharacterSlot(ExtendedCharacterSlotCount),
+                    ExtendedSlotPacket(),
                 ];
             });
         // A '$' placeholder with the spawn position loads by itself; the origin record leaves

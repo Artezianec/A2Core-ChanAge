@@ -18,7 +18,11 @@ public sealed partial class GameSession
         CharDeletedNt = 0x362b, CharRenameRq = 0x362c, CharRenameRs = 0x362d, CharSlotSwapRq = SocialOpcodes.E3Base + 1480, CharSlotSwapRs = SocialOpcodes.E3Base + 1481,
         CharCustomizingListRq = 0x37DF, CharCustomizingListRs = 0x37E0, BroadcastCharCustomizingUpdateNt = 0x37ED,
         /// <summary>Live wire = usmap 0x37E1 + 0x1EBE (same family as Black Cloud 0x5691-0x5699).</summary>
-        CharCustomizingStatusCheckRq = 0x569F, CharCustomizingStatusCheckRs = 0x56A0;
+        CharCustomizingStatusCheckRq = 0x569F, CharCustomizingStatusCheckRs = 0x56A0,
+        CharCustomizingListRqV12 = 0x569D, CharCustomizingListRsV12 = 0x569E, BroadcastCharCustomizingUpdateNtV12 = 0x56AB,
+        CharCustomizingMetaDataRq = 0x56A5, CharCustomizingMetaDataRs = 0x56A6,
+        CharCustomizingSettlementStatusRq = 0x56A7, CharCustomizingSettlementStatusRs = 0x56A8,
+        CharCustomizingSettleRq = 0x56A9, CharCustomizingSettleRs = 0x56AA;
     /// <summary>GlobalSetting lobby_pc_slot_default_open_count (tools/data/lobby_slots.json).</summary>
     public const int DefaultLobbySlots = 4;
     /// <summary>GlobalSetting lobby_pc_slot_max_extended_count.</summary>
@@ -147,14 +151,15 @@ public sealed partial class GameSession
         return true;
     }
 
-    /// <summary>0x37DF CharCustomizingList_RQ (no body): per-slot appearance the lobby pedestals use (live after slot swap).</summary>
-    async Task<List<byte[]>> CharCustomizingListAsync(CancellationToken ct)
+    /// <summary>0x37DF (2.0.9) / 0x569D (2.0.12) CharCustomizingList_RQ: per-slot appearance the lobby pedestals use.</summary>
+    async Task<List<byte[]>> CharCustomizingListAsync(CancellationToken ct, bool modern = false)
     {
-        if (Store is null || selected is not null) return [GamePackets.CharCustomizingList(1, [])];
+        if (Store is null || selected is not null)
+            return [modern ? GamePackets.CharCustomizingListV12(1, []) : GamePackets.CharCustomizingList(1, [])];
         await EnsureExtendedCharacterSlotsAsync(ct);
         var characters = await LobbyCharactersAsync(ct);
         var entries = characters.Select(c => (c.SlotNo, c.CustomizingData, c.VoiceType, c.PcId)).ToList();
-        return [GamePackets.CharCustomizingList(0, entries)];
+        return [modern ? GamePackets.CharCustomizingListV12(0, entries) : GamePackets.CharCustomizingList(0, entries)];
     }
 
     /// <summary>Occupied lobby slot indices for layout/capacity (0..capacity-1).</summary>
@@ -174,6 +179,11 @@ public sealed partial class GameSession
             if (!occupied.Contains(slot)) return slot;
         return null;
     }
+
+    /// <summary>The 2.0.12 client reads the purchased lobby slots from 0x910A, not 0x3A16.</summary>
+    byte[] ExtendedSlotPacket() => WireContext.IsModern
+        ? GamePackets.ExtendedCharacterSlotV12(ExtendedCharacterSlotCount)
+        : GamePackets.ExtendedCharacterSlot(ExtendedCharacterSlotCount);
 
     /// <summary>Every lobby character gets a unique display slot (creation order fills gaps).</summary>
     internal static IReadOnlyList<(CharacterState State, int SlotNo)> LobbySlotLayout(
@@ -217,7 +227,7 @@ public sealed partial class GameSession
     List<byte[]> LobbyCharacterReplies(IReadOnlyList<LobbyCharacter> characters) =>
     [
         GamePackets.LobbyCharacters(characters, ExtendedCharacterSlotCount),
-        GamePackets.ExtendedCharacterSlot(ExtendedCharacterSlotCount),
+        ExtendedSlotPacket(),
     ];
 
     /// <summary>
