@@ -151,6 +151,7 @@ public sealed class ClientFrameBacklog(Rc4 cipher, int capacity = 1024, bool det
         {
             if (detectClearOpcodes) encrypted ??= !ClearWorldOpcode(body);
             var plain = detectClearOpcodes && encrypted == false ? body : cipher.Crypt(body);
+            if (WireContext.IsModern) plain = ProtocolTranslation.ToServer(plain);
             if (frames.Count >= Capacity) dropped++;
             else frames.Enqueue(plain);
         }
