@@ -50,6 +50,16 @@ public sealed class ProtocolTranslationTests
         Assert.Equal(v209, Op(ProtocolTranslation.ToServer(modern)));
     }
 
+    [Theory]
+    [InlineData(0x382A)]   // abnormal add
+    [InlineData(0x382C)]   // abnormal remove
+    public void Abnormal_packets_inside_the_loot_range_are_not_rewritten(ushort opcode)
+    {
+        var body = new byte[] { (byte)opcode, (byte)(opcode >> 8) };
+        Assert.Same(body, ProtocolTranslation.ToClient(body));
+        Assert.Same(body, ProtocolTranslation.ToServer(body));
+    }
+
     [Fact]
     public void Unknown_opcodes_are_left_untouched()
     {
