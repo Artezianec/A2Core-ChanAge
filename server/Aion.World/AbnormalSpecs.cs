@@ -72,12 +72,19 @@ public static class AbnormalSpecs
             }
             if (HoldTypes.Contains(type)) held = true;
             if (SilenceTypes.Contains(type)) silence = true;
+            // The 2.0.12/2.0.13 client rows carry the movement slow as StatChange MoveSpeed (Slow has no value of its own).
+            if (type.Equals("StatChange", StringComparison.OrdinalIgnoreCase) && values.Count >= 2
+                && values[0].Equals("MoveSpeed", StringComparison.OrdinalIgnoreCase)
+                && int.TryParse(values[1], out var moveDelta) && moveDelta < 0)
+                slow = Math.Max(slow, -moveDelta);
             switch (type)
             {
                 case "Slow": slow = Math.Max(slow, Value(values, 0)); break;
                 case "Snare": slow = 10_000; break;
                 case "Dot_TargetMaxHP" when Value(values, 0) > 0: dots.Add(new(id, Value(values, 0), Value(values, 1), Value(values, 2))); break;
                 case "Knockback": moves.Add(new(DisplaceKind.Knockback, Value(values, 0), Math.Max(100, Value(values, 1)))); break;
+                // KnockdownInstant [distance]: the client has no Knockback row; 1 is a knockdown in place.
+                case "KnockdownInstant" when Value(values, 0) >= 50: moves.Add(new(DisplaceKind.Knockback, Value(values, 0), 2_000)); break;
                 case "Aerial": moves.Add(new(DisplaceKind.Aerial, Value(values, 0), Math.Max(100, Value(values, 1)))); break;
             }
         }
