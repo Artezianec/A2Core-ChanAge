@@ -161,6 +161,18 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
                 if (buffer.Length > 65536) throw new ProtocolException("Greeting too large");
                 frames = buffer.Drain();
             } while (frames.Count == 0);
+            // A pinned Aion:ClientProtocol enforces its game greeting; auto follows the client.
+            var greetingTagRead = frames[0].Length >= 2 ? frames[0][0] | frames[0][1] << 8 : 0;
+            if (greetingTagRead is NativeHandshake.GameGreeting or NativeHandshake.WorldGreeting or NativeHandshake.WorldGreetingV13)
+            {
+                var pinned = NativeProtocolGate.RequiredGameGreeting(Options.ClientProtocol.Kind);
+                if (pinned is { } expected && greetingTagRead != expected)
+                {
+                    Logger.LogWarning("{Name} greeting 0x{Greeting:x4} rejected: Aion:ClientProtocol={Kind} requires 0x{Expected:x4}",
+                        Name, greetingTagRead, Options.ClientProtocol.Kind, expected);
+                    throw new ProtocolException($"Greeting 0x{greetingTagRead:x4} rejected by Aion:ClientProtocol");
+                }
+            }
             var modern = IsModernGreeting(frames[0]);
             var v13 = false;
             var key = modern
@@ -252,6 +264,18 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
         }
         finally { System.Buffers.ArrayPool<byte>.Shared.Return(buffer); }
     }
+}
+
+/// <summary>A pinned Aion:ClientProtocol requires its game greeting; auto accepts any.</summary>
+internal static class NativeProtocolGate
+{
+    internal static ushort? RequiredGameGreeting(ClientProtocolKind kind) => kind switch
+    {
+        ClientProtocolKind.V209 => NativeHandshake.GameGreeting,
+        ClientProtocolKind.V2012 => NativeHandshake.WorldGreeting,
+        ClientProtocolKind.V2013 => NativeHandshake.WorldGreetingV13,
+        _ => null,
+    };
 }
 
 /// <summary>The login port (port of tools/login_server.py), answering in plaintext after the handshake.</summary>
