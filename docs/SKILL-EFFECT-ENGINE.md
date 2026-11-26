@@ -130,6 +130,24 @@ The replies are the caller's to send.
 The boss mechanics engine uses both: `debuff` actions with an `abnormal` id go through `EngineApplyAbnormal` (`GameSession.OnMechanicDebuff`, wired to
 `NpcAi.MechanicDebuffHook`), and `damage.hp_ratio` in an encounter file is the same MaxHPRatio share as `NpcRatioDamage` (flag `AION_NPC_RATIO_DAMAGE`).
 
+## Caster movement (Teleport_Caster rows)
+
+`SkillMoves` (`GameSession.SkillMoves.cs`) moves the caster for the `Teleport_Caster`, `Pre_Cast_Teleport_Caster` and
+`Pre_SkillStart_Teleport_Caster` rows of `skill-areas.json` (`effects`), by row, never by skill id. The row is
+`[type, location, distance cm, angle degrees, height cm]`:
+
+| Location | Destination |
+|---|---|
+| `TargetLocation_CasterToTargetDirection` | the target's edge on the caster's side (angle 180: Leaping Slam 11190000 lands in front of its target). |
+| `TargetLocation_TargetDirection` | the target's edge in the direction of its own facing (angle 180 = its back: Shadowstrike 13070000). |
+| `CasterLocation_*` / `SpawnLocation_*` | a dash from the caster toward the target, capped at the row's distance. |
+| `MapLocation_*` | the row's absolute `x,y,z`. |
+
+The row's distance is added to the target's radius for the target locations; 0 falls back to the edge plus the melee gap.
+The height value is ignored (2D). `Teleport_Caster` applies when the skill's first hit lands, the `Pre_` rows at the cast
+start. The caster's client gets `CharMoveUpdateReject_RS`, the others `CharMoveStop_NT` (CANDIDATE: no live capture of the
+official skill-teleport message).
+
 ## Flags
 
 | Variable | Default | Off |
