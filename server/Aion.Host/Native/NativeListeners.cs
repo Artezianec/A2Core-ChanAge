@@ -99,6 +99,8 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
 
     protected abstract string Name { get; }
     protected abstract byte[] HandshakeReply(RsaPublicKey key, byte[] sessionKey);
+    /// <summary>2.0.12+ uses a different game greeting and reply; the login port keeps the legacy one.</summary>
+    protected virtual bool IsModernGreeting(byte[] body) => false;
     protected abstract Task RunAsync(NetworkStream stream, Rc4 cipher, FrameBuffer buffer, IPAddress? clientAddress, CancellationToken ct, bool clearOpcodeFraming);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -159,27 +161,31 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
                 if (buffer.Length > 65536) throw new ProtocolException("Greeting too large");
                 frames = buffer.Drain();
             } while (frames.Count == 0);
-            var protocol = Options.ClientProtocol;
-            var clearOpcodeFraming = protocol.PreferClearOpcodeFraming;
-            var modernAllowed = protocol.UsesModernGameHandshake || protocol.Kind == ClientProtocolKind.Auto;
-            if (modernAllowed && NativeHandshake.IsWorldGreeting(frames[0]))
+            var modern = IsModernGreeting(frames[0]);
+            var v13 = false;
+            var key = modern
+                ? NativeHandshake.ReadWorldGreeting(frames[0], out v13)
+                : NativeHandshake.ReadGreeting(frames[0], greetingTag);
+            var sessionKey = RandomNumberGenerator.GetBytes(32);
+            byte[] reply;
+            var clearOpcodeFraming = modern;
+            if (modern)
             {
-                var key = NativeHandshake.ReadWorldGreeting(frames[0], out var v13);
-                var sessionKey = RandomNumberGenerator.GetBytes(32);
-                await stream.WriteAsync(NativeHandshake.WorldReply(key, sessionKey, v13), connection.Token);
-                var cipher = new Rc4(sessionKey);
-                CryptographicOperations.ZeroMemory(sessionKey);
-                await RunWithFraming(stream, cipher, buffer, clientAddress, connection.Token, true);
-                return;
+                var replyOpcode = v13 ? NativeHandshake.WorldReplyOpcodeV13 : NativeHandshake.WorldReplyOpcode;
+                reply = NativeHandshake.WorldReply(key, sessionKey, v13: v13, replyOpcode: replyOpcode);
+                WireContext.Current = v13 ? WireVersion.V213 : WireVersion.V212;
             }
-            var legacyKey = NativeHandshake.ReadGreeting(frames[0], greetingTag);
-            var sessionKeyLegacy = RandomNumberGenerator.GetBytes(32);
-            await stream.WriteAsync(HandshakeReply(legacyKey, sessionKeyLegacy), connection.Token);
-            var cipherLegacy = new Rc4(sessionKeyLegacy);
-            CryptographicOperations.ZeroMemory(sessionKeyLegacy);
+            else
+            {
+                reply = HandshakeReply(key, sessionKey);
+                WireContext.Current = WireVersion.V209;
+            }
+            await stream.WriteAsync(reply, connection.Token);
+            var cipher = new Rc4(sessionKey);
+            CryptographicOperations.ZeroMemory(sessionKey);
             // The client waits for the reply before its first encrypted body; like the Python
             // server, anything framed alongside the greeting is ignored.
-            await RunWithFraming(stream, cipherLegacy, buffer, clientAddress, connection.Token, clearOpcodeFraming);
+            await RunWithFraming(stream, cipher, buffer, clientAddress, connection.Token, clearOpcodeFraming);
         }
         catch (Exception error) when (error is ProtocolException or IOException or SocketException or OperationCanceledException or ObjectDisposedException)
         {
@@ -357,6 +363,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
     const int MaxClientFramesPerTick = 64;
     protected override string Name => "Native game";
     protected override byte[] HandshakeReply(RsaPublicKey key, byte[] sessionKey) => NativeHandshake.GameReply(key, sessionKey);
+    protected override bool IsModernGreeting(byte[] body) => NativeHandshake.IsWorldGreeting(body);
 
     protected override async Task RunAsync(NetworkStream stream, Rc4 cipher, FrameBuffer buffer, IPAddress? clientAddress, CancellationToken ct, bool clearOpcodeFraming)
     {
@@ -426,7 +433,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         }
         var authenticated = Options.Development;
         var chunk = new byte[8192];
-        var backlog = new ClientFrameBacklog(cipher, detectClearOpcodes: clearOpcodeFraming || Options.ClientProtocol.Kind == ClientProtocolKind.Auto);
+        var backlog = new ClientFrameBacklog(cipher, detectClearOpcodes: clearOpcodeFraming);
         Task<int>? pending = null;
         Task? wake = null;
         var lastData = DateTimeOffset.UtcNow;
