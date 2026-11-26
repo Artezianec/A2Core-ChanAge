@@ -76,11 +76,15 @@ public sealed partial class GameSession
 
     static bool CanTransferToWarehouse(ItemState row) => SoulBindCount(row) == 0;
 
-    int DestinationSlotLimit(string location) => location switch
+    /// <summary>
+    /// The destination slot limit of a wire EItemContainerType. Keyed by the client's container id so the
+    /// 2.0.12 swap (15 = character warehouse, 2 = account warehouse) reads the matching extension counters.
+    /// </summary>
+    int SlotLimitFor(int container) => container switch
     {
-        "storage" => containerSlotExtends.StorageSlotLimit,
-        "account_storage" => containerSlotExtends.AccountStorageSlotLimit,
-        "bag" => containerSlotExtends.BagSlotLimit,
+        InventoryItem.Bag => containerSlotExtends.BagSlotLimit,
+        InventoryItem.Storage => containerSlotExtends.StorageSlotLimit,
+        CharacterStorageContainer or InventoryItem.AccountStorage => containerSlotExtends.AccountStorageSlotLimit,
         _ => 0,
     };
 
@@ -103,7 +107,7 @@ public sealed partial class GameSession
         var outcome = "none";
         await Stored(async () =>
         {
-            outcome = await store.TransferContainerItemsAsync(character, "bag", toLocation, transfers, DestinationSlotLimit(toLocation), ct);
+            outcome = await store.TransferContainerItemsAsync(character, "bag", toLocation, transfers, SlotLimitFor(storeContainerType), ct);
             return outcome == "ok" ? [[]] : [];
         });
         if (outcome != "ok")
@@ -135,7 +139,7 @@ public sealed partial class GameSession
         var outcome = "none";
         await Stored(async () =>
         {
-            outcome = await store.TransferContainerItemsAsync(character, fromLocation, "bag", transfers, DestinationSlotLimit("bag"), ct);
+            outcome = await store.TransferContainerItemsAsync(character, fromLocation, "bag", transfers, SlotLimitFor(InventoryItem.Bag), ct);
             return outcome == "ok" ? [[]] : [];
         });
         if (outcome != "ok")
