@@ -13,9 +13,9 @@ public sealed class OfficialShopCatalogTests
     {
         using var doc = JsonDocument.Parse(OfficialShopCatalog.Goods(1, 400, Now));
         var root = doc.RootElement;
-        Assert.Equal("257", root.GetProperty("total_count").GetString());
+        Assert.Equal("201", root.GetProperty("total_count").GetString());
         var page = root.GetProperty("page");
-        Assert.Equal(257, page.GetArrayLength());
+        Assert.Equal(201, page.GetArrayLength());
         var cats = page.EnumerateArray().Select(g => g.TryGetProperty("goods_data", out var d) ? d.GetString() ?? "" : "").ToList();
         Assert.Contains(cats, c => c.StartsWith("catl:SkinShop_SkinSet,", StringComparison.Ordinal));
         Assert.Contains(cats, c => c.StartsWith("catl:SkinShop_Weapon,", StringComparison.Ordinal));
@@ -76,7 +76,7 @@ public sealed class OfficialShopCatalogTests
         var q = new Microsoft.AspNetCore.Http.QueryCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues> { ["page_index"] = "1", ["page_size"] = "400" });
         Assert.True(PlatformApiGateResponses.TryReply("GET", "/local-api-gate/goods/v2.0/goods", q, null, out var body));
         using var doc = JsonDocument.Parse(body);
-        Assert.Equal("257", doc.RootElement.GetProperty("total_count").GetString());
+        Assert.Equal("201", doc.RootElement.GetProperty("total_count").GetString());
         Assert.True(PlatformApiGateResponses.TryReply("GET", "/local-api-gate/goods/v2.0/me/goods", q, null, out var me));
         using var meDoc = JsonDocument.Parse(me);
         Assert.Equal(18, meDoc.RootElement.GetProperty("page").GetArrayLength());
