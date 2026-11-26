@@ -387,7 +387,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             }
             case 0x361b: return await CreateAsync(plain, now, ct);
             case 0x361f: return await SelectAsync(plain, now, ct);
+            case 0x3C4F: return await SelectWorldAsync(plain, now, ct);   // 2.0.12 SelectCharacter_RQ
             case 0x3622: return await LoadCompleteAsync(plain, now, ct);
+            case 0xB24E: return await LoadCompleteWorldAsync(plain, now, ct);   // 2.0.12 LoadComplete_RQ
             case 0x3630:
                 // Logout_RQ (in-game Exit). Save first: the client disconnects on the reply.
                 await FlushDeferredPersistenceAsync(now, ct);
@@ -1628,6 +1630,71 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         }
         return [GamePackets.SelectCharacter((int)request.Value.Key, 1, 1, p?.PcId ?? 1, chosen?.CustomizingData ?? [], now),
             GamePackets.ClientEnvSetting(), GamePackets.PrepareEnterMap(1, devMap, devAt, now)];
+    }
+
+    /// <summary>
+    /// 0x3C4F SelectCharacter_RQ (2.0.12: position, map id, key) into the existing selection logic,
+    /// then the 0xA8F9 SelectCharacter_RS instead of the 2.0.9 0x3620.
+    /// </summary>
+    async Task<List<byte[]>> SelectWorldAsync(byte[] plain, long now, CancellationToken ct)
+    {
+        var reader = new PacketReader(plain) { Offset = 2 };
+        int x, y, z, mapId;
+        uint key;
+        try
+        {
+            x = reader.I32(); y = reader.I32(); z = reader.I32();
+            mapId = reader.I32(); key = reader.Varint();
+        }
+        catch (ProtocolException) { return []; }
+        FlowLog.Event("select_character", $"key={key} map={mapId} pos={x},{y},{z}");
+        var legacy = new PacketWriter().U16(0x361f).Varint(key).I32(mapId).Vec3(new Vector3d(x, y, z)).ToArray();
+        var replies = await SelectAsync(legacy, now, ct);
+        if (selected is { } state)
+        {
+            var world = GamePackets.SelectCharacterWorld((int)key, state.WireId, playerKey, state.Appearance);
+            for (var i = 0; i < replies.Count; i++)
+                if (replies[i].Length >= 2 && (replies[i][0] | replies[i][1] << 8) == 0x3620)
+                    replies[i] = world;
+        }
+        return replies;
+    }
+
+    /// <summary>
+    /// 0xB24E LoadComplete_RQ (2.0.12) into the existing load logic, then the 0x4EF8
+    /// LoadComplete_RS instead of the 2.0.9 0x3623.
+    /// </summary>
+    async Task<List<byte[]>> LoadCompleteWorldAsync(byte[] plain, long now, CancellationToken ct)
+    {
+        var reader = new PacketReader(plain) { Offset = 2 };
+        int ticket;
+        Vector3d clientPosition;
+        try
+        {
+            _ = reader.Varint();                          // voxel export revision
+            _ = reader.Bool();                            // use client enter-map position
+            _ = ReadVarintString(reader);                 // npk did
+            _ = reader.F32();                             // visible length
+            ticket = reader.I32();
+            clientPosition = reader.Vec3();
+            _ = reader.Varint();                          // voxel export tick
+        }
+        catch (ProtocolException) { return []; }
+        FlowLog.Event("load_complete", $"ticket={ticket}");
+        var legacy = new PacketWriter().U16(0x3622).I32(ticket).Zeros(12).ToArray();
+        var replies = await LoadCompleteAsync(legacy, now, ct);
+        var at = position ?? clientPosition;
+        var world = GamePackets.LoadCompleteWorld(ticket, playerKey, at);
+        for (var i = 0; i < replies.Count; i++)
+            if (replies[i].Length >= 2 && (replies[i][0] | replies[i][1] << 8) == 0x3623)
+                replies[i] = world;
+        return replies;
+    }
+
+    static string ReadVarintString(PacketReader reader)
+    {
+        var length = checked((int)reader.Varint());
+        return System.Text.Encoding.UTF8.GetString(reader.Take(length));
     }
 
     async Task<List<byte[]>> LoadCompleteAsync(byte[] plain, long now, CancellationToken ct)

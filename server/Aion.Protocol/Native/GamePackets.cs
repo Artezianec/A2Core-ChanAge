@@ -386,12 +386,20 @@ public static class GamePackets
         return w.Bytes(customizingData ?? []).I64(serverStartTime ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()).ToArray();
     }
 
-    /// <summary>0xA8F9 SelectCharacter_RS (2.0.12 wire layout).</summary>
+    /// <summary>
+    /// 0xA8F9 SelectCharacter_RS (2.0.12): customizing blob, option blob, varint key, result,
+    /// server start time, skill-customizing list, dbid, last pc id, varint char key.
+    /// </summary>
     public static byte[] SelectCharacterWorld(int key, long dbId, int charKey, byte[]? customizingData = null,
-        byte[]? optionData = null, long serverStartTime = 0, ushort opcode = 0xA8F9) =>
-        PacketWriter.Opcode(opcode).Bytes(customizingData ?? []).Bytes(optionData ?? [])
+        byte[]? optionData = null, long serverStartTime = 0, ushort opcode = 0xA8F9)
+    {
+        var w = PacketWriter.Opcode(opcode).Bytes(customizingData ?? []).Bytes(optionData ?? [])
             .Varint(key).U16(0).I64(serverStartTime)
-            .Varint(0).I64(dbId).I32(0).Varint(charKey).ToArray();
+            .Varint(0)                     // skill customizing list
+            .I64(dbId).I32(0)              // dbid, last using pc id
+            .Varint(charKey);
+        return w.ToArray();
+    }
 
     /// <summary>0x36EF SkillCustomizingUpdate_RS: result u16.</summary>
     public static byte[] SkillCustomizingUpdate(int result = 0) => PacketWriter.Opcode(0x36EF).U16(result).ToArray();
@@ -430,7 +438,7 @@ public static class GamePackets
     public static byte[] LoadComplete(int ticket, Vector3d position, int frame = 2, int charKey = 1) =>
         PacketWriter.Opcode(0x3623).U16(0).I32(ticket).Vec3(position).I32(frame).U16(charKey).ToArray();
 
-    /// <summary>0x4EF8 LoadComplete_RS (2.0.12).</summary>
+    /// <summary>0x4EF8 LoadComplete_RS (2.0.12): ticket u32, char key varint, position, frame, result.</summary>
     public static byte[] LoadCompleteWorld(int ticket, int charKey, Vector3d position, int frame = 2, ushort opcode = 0x4EF8) =>
         PacketWriter.Opcode(opcode).U32((uint)ticket).Varint(charKey).Vec3(position).I32(frame).U16(0).ToArray();
 
