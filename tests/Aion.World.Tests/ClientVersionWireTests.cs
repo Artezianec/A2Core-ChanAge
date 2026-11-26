@@ -54,6 +54,26 @@ public sealed class ClientVersionWireTests
     }
 
     [Fact]
+    public void Two_0_13_uses_the_v13_appearance_and_select_opcodes()
+    {
+        var state = WireContext.Current;
+        try
+        {
+            WireContext.Current = WireVersion.V213;
+            var appear = GamePackets.MyCharAppear(new MyCharacterAppear
+            {
+                V13 = true, Key = 1, Name = "Name", Position = new Vector3d(1, 2, 3),
+            });
+            Assert.Equal(0x3633, Op(appear));
+            Assert.Equal(0x2AE9815Fu, BitConverter.ToUInt32(appear, 3));
+
+            Assert.Equal(0x2053, Op(GamePackets.SelectCharacterWorldV13(1, 2, 3)));
+            Assert.Equal(0xD79E, Op(GamePackets.ServerEnterMapPos(new Vector3d(1, 2, 3))));
+        }
+        finally { WireContext.Current = state; }
+    }
+
+    [Fact]
     public void Dodge_result_is_flags_first_on_modern()
     {
         var state = WireContext.Current;

@@ -159,6 +159,10 @@ public sealed record MyCharacterAppear
     public IReadOnlyList<EquipBroad> Equips { get; init; } = [];
     public byte[] CustomizingData { get; init; } = [];
     public int VoiceType { get; init; }
+    /// <summary>2.0.13 wire: mask 0x2AE9815F and the prev-subzone/channel/ground-Z tail.</summary>
+    public bool V13 { get; init; }
+    /// <summary>Buffs carried in the 2.0.13 MyCharAppear body.</summary>
+    public IReadOnlyList<AbnormalWire> Abnormals { get; init; } = [];
     /// <summary>Mounted VehicleList id (_ride_data_id); omitted on the wire when 0 (world entry).</summary>
     public int RideDataId { get; init; }
     /// <summary>MyCharAppear _used_daevanion_point_infos (same spent values as 0xe22e / 0x3b33).</summary>
@@ -430,6 +434,18 @@ public static class GamePackets
     public static byte[] ExtendedCharacterSlotV12(int extendedSlotCount) =>
         PacketWriter.Opcode(0x910A).U8(extendedSlotCount).ToArray();
 
+    /// <summary>0x2053 SelectCharacter_RS (2.0.13): dbid, server start, result, option, key, customizing, key, last pc.</summary>
+    public static byte[] SelectCharacterWorldV13(int key, long dbId, int charKey, byte[]? customizingData = null,
+        byte[]? optionData = null, long serverStartTime = 0, ushort opcode = 0x2053) =>
+        PacketWriter.Opcode(opcode).I64(dbId).I64(serverStartTime).U16(0)
+            .Bytes(optionData ?? [])
+            .Varint(0)
+            .Varint(charKey)
+            .Bytes(customizingData ?? [])
+            .Varint(key)
+            .I32(0)
+            .ToArray();
+
     /// <summary>0x36EF SkillCustomizingUpdate_RS: result u16.</summary>
     public static byte[] SkillCustomizingUpdate(int result = 0) => PacketWriter.Opcode(0x36EF).U16(result).ToArray();
 
@@ -473,6 +489,10 @@ public static class GamePackets
     public static byte[] LoadCompleteWorld(int ticket, int charKey, Vector3d position, int frame = 2, ushort opcode = 0x4EF8) =>
         PacketWriter.Opcode(opcode).U32((uint)ticket).Varint(charKey).Vec3(position).I32(frame).U16(0).ToArray();
 
+    /// <summary>0xd79e server enter-map position, sent just before the 2.0.13 spawn burst.</summary>
+    public static byte[] ServerEnterMapPos(Vector3d position) =>
+        PacketWriter.Opcode(0xd79e).Vec3(position).I32(23976).I32(0).I32(5).ToArray();
+
     static void WriteSpawnDetailTail(PacketWriter w, int ascension = 1, MyCharacterAppear? a = null)
     {
         // Observed starter layout (official offsets 66..183); semantics partly unknown.
@@ -500,8 +520,67 @@ public static class GamePackets
             w.U8((byte)type).I32(point);
     }
 
+    /// <summary>2.0.13 MyCharAppear_NT tail after the customizing blob, from the official entry.</summary>
+    static readonly byte[] V13AppearTail = Convert.FromHexString(
+        "00000000005D731100000000000000000000000000000000000000000C00000000C7090741696F6E32544800000000000000" +
+        "00000000000000000000000000000000000000000001000001000000080000000000000000000000");
+
+    static void WriteSpawnDetailTailV13(PacketWriter w, MyCharacterAppear a)
+    {
+        w.Varint(1);
+        w.U16(100).I64(0).U16(0).U16(0);
+        w.Varint(5);
+        for (var category = 1; category <= 5; category++) w.U8((byte)category).U16(1).I64(0).U16(0);
+        w.I32(0).I32(0).I64(0).U8((byte)a.Ascension);
+        int[][] groups = [[a.SpentSkillPoints, a.SpentStigmaPoints, 0], [a.ItemSkillPoints, a.ItemStigmaPoints, 0]];
+        foreach (var group in groups)
+        {
+            w.Varint(3);
+            for (var pointType = 1; pointType <= 3; pointType++)
+                w.U8((byte)pointType).U16(Math.Clamp(group[pointType - 1], 0, ushort.MaxValue));
+        }
+    }
+
+    static void WriteGuildDescV13(PacketWriter w) => w.I64(0).String("").U16(0).U8(0).I32(0).I64(0).U16(0).String("");
+
     /// <summary>0x3633 MyCharAppear_NT (client decoders 0x8498b80/0x91f3870).</summary>
-    public static byte[] MyCharAppear(MyCharacterAppear a)
+    public static byte[] MyCharAppear(MyCharacterAppear a) =>
+        a.V13 ? MyCharAppearV13(a) : MyCharAppearLegacy(a);
+
+    static byte[] MyCharAppearV13(MyCharacterAppear a)
+    {
+        var mask = 0x2AE9815Fu | (a.TeleportEffect != 0 ? 0x1000u : 0);
+        var w = PacketWriter.Opcode(0x3633).Varint(a.Key).U32(mask).U8(0x37).String(a.Name).U16(a.ServerId)
+            .I32(a.PcId).U8(a.Race).I32(a.CharLevel).I32(a.EquipItemLevel).I32(a.HighestTotalItemLevel).I32(a.LevelMax)
+            .I64(a.Experience).I32(a.CombatLevel).I64(a.CombatExperience).U8(a.Gender);
+        WriteSpawnDetailTailV13(w, a);
+        w.U16(0x9280).Vec3(a.Position).F32(a.Direction).U16(0).U8(1);
+        w.Varint(a.Hp).Varint(a.HpMax);
+        w.I32(a.Mp).I32(a.MpMax).I32(0).I32(0)
+            .I32(SpawnSp).I32(SpawnSp).I32(0).I32(150000).I32(1).I32(100000).I32(100000).I32(a.Fp).I32(a.FpMax);
+        w.I32(a.ToggleFlags).U8(a.Relationship).I32(a.WingId).I32(0);
+        WriteGuildDescV13(w);
+        w.Varint(3);
+        Stat(w, 206, -3000); Stat(w, 208, 300); Stat(w, 551, -3000);
+        if (a.Abnormals.Count > 0) PlayerPackets.WriteAbnormals(w, a.Abnormals);
+        else w.Varint(0);
+        var equips = a.Equips.Count > 0 ? a.Equips
+            : a.WeaponId is { } weapon ? [new EquipBroad(weapon, VisualSlot: 1, Godstones: [0, 0, 0])] : [];
+        w.Varint(equips.Count);
+        foreach (var e in equips) WriteEquip(w, e);
+        w.U8(0).U16(a.MapId).I32(0).U8(a.AppearReason).U8(0).U16(a.MapId).U16(0)
+            .I32(a.SubzoneId).I32(a.SubzoneId).Vec3(a.Position)
+            .I64(a.DbId == 0 ? 1 : a.DbId).F32((float)a.Position.Z)
+            .U8(a.TeleportEffect != 0 ? a.TeleportEffect : (byte)1);
+        var padded = a.CustomizingData;
+        if (padded.Length is > 0 and < 350 && padded[0] == 12)
+            padded = [.. padded, .. new byte[350 - padded.Length]];
+        w.Bytes(padded);
+        w.Raw(V13AppearTail);
+        return w.ToArray();
+    }
+
+    static byte[] MyCharAppearLegacy(MyCharacterAppear a)
     {
         // 2.0.12 carries the 0x2AC1815F body mask and the AP/DP point block; 2.0.9 keeps its mask.
         var modern12 = WireContext.Current == WireVersion.V212;
