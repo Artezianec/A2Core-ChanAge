@@ -90,41 +90,40 @@ public sealed partial class Aion2DatFileEncryption
 
         public FDataTableHeader(GenericBufferReader Ar, ulong seed)
         {
-            var encodedPrefix = Ar.ReadArray<byte>(8);
-            var compressedPrefix = encodedPrefix.AsSpan().ToArray();
+            var start = Ar.Position;
             var compressedKey = DeriveHeaderKey(seed, EHeaderType.CompressedDataTable);
-            FAion2DatFileArchive.DecryptData(compressedPrefix, compressedKey);
 
-            using var prefixAr = new GenericBufferReader(compressedPrefix);
-            PackedSize = prefixAr.Read<int>();
-            var encryptionType = prefixAr.Read<EEncryptionType>();
-            switch (encryptionType)
+            // The encryption type may sit in any of the four words, so peek the whole 16-byte header
+            // before deciding. A stream table has only an 8-byte header: rewind when it is not compressed.
+            if (Ar.Length - start >= 0x10)
             {
-                case EEncryptionType.CompressedAES:
-                {
-                    var encodedSuffix = Ar.ReadArray<byte>(8);
-                    FAion2DatFileArchive.DecryptData(encodedSuffix, compressedKey[8..16]);
+                var encoded = Ar.ReadArray<byte>(0x10);
+                FAion2DatFileArchive.DecryptData(encoded, compressedKey);
 
-                    using var suffixAr = new GenericBufferReader(encodedSuffix);
-                    EncryptionType = encryptionType;
-                    AlignedSize = suffixAr.Read<int>();
-                    RawSize = suffixAr.Read<int>();
+                var fields = ReadCompressedHeader(encoded);
+                if ((EEncryptionType) fields.EncryptionType == EEncryptionType.CompressedAES)
+                {
+                    EncryptionType = EEncryptionType.CompressedAES;
+                    PackedSize = fields.PackedSize;
+                    AlignedSize = fields.AlignedSize;
+                    RawSize = fields.RawSize;
                     OutputSize = 0;
-                    break;
+                    return;
                 }
-                default:
-                {
-                    FAion2DatFileArchive.DecryptData(encodedPrefix, DeriveHeaderKey(seed, EHeaderType.StreamDataTable));
 
-                    using var streamAr = new GenericBufferReader(encodedPrefix);
-                    OutputSize = streamAr.Read<int>();
-                    EncryptionType = streamAr.Read<EEncryptionType>();
-                    PackedSize = 0;
-                    AlignedSize = 0;
-                    RawSize = 0;
-                    break;
-                }
+                Ar.Position = start;
             }
+
+            var streamKey = DeriveHeaderKey(seed, EHeaderType.StreamDataTable);
+            var prefix = Ar.ReadArray<byte>(8);
+            FAion2DatFileArchive.DecryptData(prefix, streamKey);
+
+            using var streamAr = new GenericBufferReader(prefix);
+            OutputSize = streamAr.Read<int>();
+            EncryptionType = streamAr.Read<EEncryptionType>();
+            PackedSize = 0;
+            AlignedSize = 0;
+            RawSize = 0;
         }
     }
 }
