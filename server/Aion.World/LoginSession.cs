@@ -88,7 +88,7 @@ public sealed class LoginSession(LoginSessionOptions options, Func<ClientIdentit
             {
                 if (Authentication is not null) return SessionStep.Closed(Authentication = "replay_rejected");
                 ClientIdentity identity;
-                try { identity = ClientIdentity.Parse(plain, game: false, tryVarintNpLogin: ClientProtocolRuntime.Current.AcceptsVarintNpLogin); }
+                try { identity = ClientIdentity.Parse(plain, game: false, tryVarintNpLogin: true); }
                 catch (ProtocolException) { return SessionStep.Closed(Authentication = "rejected"); }
                 var grant = await authenticate(identity, ct);
                 if (grant is null) return SessionStep.Closed(Authentication = "rejected");
