@@ -50,12 +50,22 @@ rooms, arena, duel, airspace, godstone, monolith, force, abyss, achievements and
 single moves. `0x382A`/`0x382C` stay untouched because they are the abnormal add/remove
 packets.
 
+## Modern-only behavior (2.0.12 / 2.0.13)
+
+- Bomb `Ready` only enters the ground aim (`0x384c`); `Start` plants and plays the throw.
+  2.0.9 keeps the single Ready = plant path.
+- Sprint defaults to variant 11: one reply batch and one re-assert of the client's opening
+  roll. 2.0.9 keeps variant 0.
+- Warehouses use the 2.0.12 container ids: 15 is the per-character warehouse and 2 the account
+  one (`ContainerToLocation` / `ContainerOf`); the list (`0x5611`), move (`0x563a`), sort and
+  store/take-out (`0x5642` / `0x5644`) share the mapping. 2.0.9 keeps 2/3.
+- Soul-bind attune (`0x5631` -> `0x5632`) replaces the selected stat with a different pool stat
+  and consumes the cost item; the reply layout is the client's own reader (no capture yet).
+
 ## Not ported
 
-- 2.0.13 deferred entry bursts (`0x61A0`, `0xE25A`, the staged list/spawn queues) until a
-  live 2.0.13 run confirms the frames.
-- Mixed changes: bomb Ready/Start, sprint/dash, warehouse container semantics
-  (2 vs 15), soul-bind attune.
+- The 2.0.13 deferred entry bursts are emitted and staged (`0x61A0`, `0xE25A`, the list and
+  spawn queues) but still need a live 2.0.13 run to confirm the frames.
 - Launcher 2.0.12 build pin: the Target still pins 2.0.9 and offers 2.0.13 only as an
   experimental profile. Add 2.0.12 as a profile instead of replacing the 2.0.9 manifest.
 
