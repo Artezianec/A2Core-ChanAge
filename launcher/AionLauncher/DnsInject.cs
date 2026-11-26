@@ -21,6 +21,8 @@ static class DnsInject
     const uint MemRelease = 0x8000;
     const uint ListModulesAll = 0x03;
     const int InjectWaitMilliseconds = 15000;
+    const int ApcWaitMilliseconds = 3000;
+    const int RemoteThreadWaitMilliseconds = 10000;
 
     public static void Log(string message)
     {
@@ -190,9 +192,25 @@ static class DnsInject
             }
 
             var dllName = Path.GetFileName(fullPath);
-            if (!WaitForModule(process, dllName, InjectWaitMilliseconds))
+            var attachTick = DateTime.UtcNow.Ticks;
+            // NCGuard's client does not reach an alertable wait early enough for the APC in some builds;
+            // a remote thread does not need one. Keep the APC path first (it works while the process is
+            // still suspended on other builds) and verify the module or the DLL's own trace marker.
+            if (!WaitForModule(process, dllName, ApcWaitMilliseconds) && !TraceAttachedSince(attachTick))
             {
-                failure = $"LoadLibraryW APC did not load {dllName} within {InjectWaitMilliseconds}ms (pid={processId})";
+                var thread = CreateRemoteThread(process, IntPtr.Zero, 0, loadLibrary, remote, 0, out var threadId);
+                if (thread == IntPtr.Zero) Log($"CreateRemoteThread failed: {Stage("CreateRemoteThread", Marshal.GetLastWin32Error())}");
+                else
+                {
+                    Log($"APC did not land; remote thread {threadId} started for {dllName}");
+                    WaitForSingleObject(thread, RemoteThreadWaitMilliseconds);
+                    CloseHandle(thread);
+                }
+            }
+
+            if (!WaitForModule(process, dllName, RemoteThreadWaitMilliseconds) && !TraceAttachedSince(attachTick))
+            {
+                failure = $"LoadLibraryW did not load {dllName} within {InjectWaitMilliseconds}ms (pid={processId})";
                 return false;
             }
             Log($"injected {dllName} into pid={processId}");
@@ -202,6 +220,20 @@ static class DnsInject
         {
             VirtualFreeEx(process, remote, 0, MemRelease);
         }
+    }
+
+    /// <summary>NCGuard can hide modules from EnumProcessModules; the DLL's trace file is the second witness.</summary>
+    static bool TraceAttachedSince(long ticks)
+    {
+        try
+        {
+            var path = Path.Combine(LauncherSettings.Folder, "trace.log");
+            if (!File.Exists(path) || File.GetLastWriteTimeUtc(path).Ticks < ticks) return false;
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd().Contains("A2Core.Redirect attached", StringComparison.Ordinal);
+        }
+        catch (IOException) { return false; }
     }
 
     static bool WaitForModule(IntPtr process, string dllName, int milliseconds)
@@ -263,6 +295,8 @@ static class DnsInject
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern IntPtr GetModuleHandle(string moduleName);
     [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)] static extern IntPtr GetProcAddress(IntPtr module, string procName);
     [DllImport("kernel32.dll", SetLastError = true)] static extern uint QueueUserAPC(IntPtr pfnAPC, IntPtr hThread, IntPtr dwData);
+    [DllImport("kernel32.dll", SetLastError = true)] static extern IntPtr CreateRemoteThread(IntPtr process, IntPtr threadAttributes, nuint stackSize, IntPtr startAddress, IntPtr parameter, uint creationFlags, out uint threadId);
+    [DllImport("kernel32.dll", SetLastError = true)] static extern uint WaitForSingleObject(IntPtr handle, uint milliseconds);
     [DllImport("kernel32.dll", SetLastError = true)] static extern bool K32EnumProcessModulesEx(IntPtr process, [Out] IntPtr[] modules, int size, out int needed, uint filter);
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)] static extern uint K32GetModuleFileNameEx(IntPtr process, IntPtr module, StringBuilder fileName, int size);
 }
