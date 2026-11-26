@@ -326,7 +326,10 @@ public static class QaMapEventRunner
         if (driver.TryHeightRepositionSlice(session, state, me, now, "map_event") is { } heightFix)
             return heightFix;
         var waveSpawnerDuty = OpenKillSpawnerLiving(session, run) > 0;
-        var orderedOpen = run.Open.ToList().OrderBy(x => ObjectiveSortKey(session, run, x.Index, x.Objective, mapId, deferCombat, run.StageOrder)).ToList();
+        var orderedOpen = run.Open.ToList().OrderBy(x => ObjectiveSortKey(session, run, x.Index, x.Objective, mapId, deferCombat, run.StageOrder)
+            // A required volume is the step's progress; an optional escort (Nania walking to a waypoint)
+            // must not hold the bot at "escort_wait" while the required trigger is still open.
+            + (x.Objective.Optional ? 10 : 0)).ToList();
         if (session.QaBot && (mapId is 220016 or 101027 or 100002 || run.Open.Any(x => x.Objective.Type == "KillSpawner")))
         {
             var lead = orderedOpen.FirstOrDefault();

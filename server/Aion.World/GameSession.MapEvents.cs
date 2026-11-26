@@ -102,6 +102,9 @@ public sealed partial class GameSession : IMapEventHost
             selected = flushed;
     }
     long mapEventNow;
+    /// <summary>Last standing position check (EnterVolumePC/EnterSubZone) for an active map event.</summary>
+    long mapEventPositionCheckedAt;
+    const int MapEventPositionCheckMs = 500;
     static int nextMapEventId = 0x149942;   // the official run's id; one per run on this host
 
     /// <summary>Walk-in layer volumes: edge-triggered entry on 0x3701 (throttled / cell change).</summary>
@@ -777,6 +780,20 @@ public sealed partial class GameSession : IMapEventHost
         }
     }
 
+    /// <summary>
+    /// The player is standing still in a map-event volume: the client sends no position reports while idle, so
+    /// EnterVolumePC/EnterSubZone objectives would wait for the next move. Re-check the current position twice a
+    /// second, only while a run has such an objective open.
+    /// </summary>
+    List<byte[]> MapEventStandingPositionTick(long now)
+    {
+        if (position is not { } at || now - mapEventPositionCheckedAt < MapEventPositionCheckMs) return [];
+        var host = CopyOwner ?? this;
+        if (!host.mapEventRuns.Any(r => r.NeedsPositionCheck)) return [];
+        mapEventPositionCheckedAt = now;
+        return MapEventPosition(at, now);
+    }
+
     List<byte[]> MapEventPosition(Vector3d at, long now)
     {
         if (ToCopyOwner(o => o.MapEventPosition(at, now)) || mapEventRuns.Count == 0) return [];
@@ -999,7 +1016,7 @@ public sealed partial class GameSession : IMapEventHost
             {
                 var spawner = o.Value(0);
                 var route = o.Value(1);
-                var escorts = SpawnerNpcs(spawner).ToList();
+                var escorts = ScriptNpcs(spawner).ToList();
                 var scripted = escorts.Count(t => ai.Brains.TryGetValue(t.Key, out var b) && b.Mode == NpcAi.Mode.Scripted);
                 if (QaBot && mapEventObjectiveAuditLogged.Add($"step:{step.Id}:NpcArrive:{spawner}"))
                     Note($"EnsureNpcArrive {spawner}: matched={escorts.Count} living={escorts.Count(t => !t.Dead)} scripted={scripted} route={route} map={worldMap}");
@@ -1209,6 +1226,17 @@ public sealed partial class GameSession : IMapEventHost
     IEnumerable<Target> SpawnerNpcs(string spawner) =>
         targets?.Values.Where(t => MapEventRun.NameMatches(spawner, t.Name)) ?? [];
 
+    /// <summary>
+    /// NPCs a script directive names. A base spawner with phase variants (Nania_01, Nania_01_1, Nania_01_2)
+    /// must move/revive only the named one: prefix matching is for kill waves, not for escorts.
+    /// </summary>
+    IEnumerable<Target> ScriptNpcs(string spawner)
+    {
+        var all = targets?.Values.ToList() ?? [];
+        var exact = all.Where(t => string.Equals(t.Name, spawner, StringComparison.OrdinalIgnoreCase)).ToList();
+        return exact.Count > 0 ? exact : all.Where(t => MapEventRun.NameMatches(spawner, t.Name));
+    }
+
     void LogQaKillSpawnerKill(Target killed, bool spawnerAliveAfter, long now)
     {
         foreach (var run in mapEventRuns)
@@ -1345,7 +1373,7 @@ public sealed partial class GameSession : IMapEventHost
     {
         var wasDormant = dormantSpawners.Remove(spawner);
         startedSpawners.Add(spawner);
-        var matched = SpawnerNpcs(spawner).ToList();
+        var matched = ScriptNpcs(spawner).ToList();
         var revived = 0;
         var already = 0;
         foreach (var t in matched)
@@ -1474,12 +1502,12 @@ public sealed partial class GameSession : IMapEventHost
     void IMapEventHost.MoveNpc(string spawner, string route)
     {
         if (data.Route(worldMap, route) is not { } path) { Note($"map event route {route} is not on map {worldMap}"); return; }
-        foreach (var t in SpawnerNpcs(spawner).Where(t => !t.Dead)) mapEventOut.AddRange(ai.Walk(t, path, mapEventNow));
+        foreach (var t in ScriptNpcs(spawner).Where(t => !t.Dead)) mapEventOut.AddRange(ai.Walk(t, path, mapEventNow));
     }
 
     void IMapEventHost.FollowPc(string spawner, bool follow)
     {
-        foreach (var t in SpawnerNpcs(spawner).Where(t => !t.Dead)) mapEventOut.AddRange(ai.Follow(t, playerKey, follow, mapEventNow));
+        foreach (var t in ScriptNpcs(spawner).Where(t => !t.Dead)) mapEventOut.AddRange(ai.Follow(t, playerKey, follow, mapEventNow));
     }
 
     /// <summary>NpcRotate: face the named NPC or object, else the player.</summary>
@@ -1488,7 +1516,7 @@ public sealed partial class GameSession : IMapEventHost
         Vector3d? aim = target.Length == 0 ? position
             : SpawnerNpcs(target).FirstOrDefault(t => !t.Dead)?.Position ?? SpawnerObjects(target).Select(x => (Vector3d?)x.Object.At).FirstOrDefault();
         if (aim is not { } goal) return;
-        foreach (var t in SpawnerNpcs(spawner).Where(t => !t.Dead))
+        foreach (var t in ScriptNpcs(spawner).Where(t => !t.Dead))
             mapEventOut.AddRange(ai.Face(t, NpcAi.HeadingTo(t.Position, (goal.X, goal.Y)), mapEventNow));
     }
 

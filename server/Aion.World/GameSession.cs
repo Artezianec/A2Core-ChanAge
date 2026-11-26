@@ -1516,6 +1516,16 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 if (!candidates.Contains((uint)state.WireId)) throw new ArgumentException("Character identity mismatch");
                 var profile = StoredProfile(state);
                 var savedAt = StoredCharacters.Position(state);
+                // A zero/non-finite saved position (a stuck client reports 0,0,0) spawns the character in the void: use
+                // the map's own start instead.
+                if (!savedAt.IsFinite || Math.Abs(savedAt.X) + Math.Abs(savedAt.Y) + Math.Abs(savedAt.Z) < 1)
+                {
+                    savedAt = data.MapStart(state.Progress.MapId ?? GamePackets.SpawnMapId)?.Position ?? GamePackets.SpawnPosition;
+                    // MapStart for the open-world maps is an overview point (Z ~25,000, far from the playfield): the
+                    // client spawns there and falls forever. Map 1010's town ground is the point the official server enters at.
+                    if (state.Progress.MapId == 1010 && Math.Abs(savedAt.Z) > 5000)
+                        savedAt = new Vector3d(95539.921875, -191087.828125, 72.0);
+                }
                 if (state.Progress.MapId is not > 0) throw new ArgumentException("Saved character has no valid map");
                 selected = state;
                 StaffRole = state.Staff ? accountRole : null;
@@ -1780,6 +1790,10 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             replies.Add(GamePackets.MentoringRoleUpdate());
             replies.Add(GamePackets.WingList(OwnedWings()));
             replies.Add(RideInit());
+            // RideInitData's default field and the DefaultSet event are what the client's mount key reads; the event was
+            // only sent when a ride was acquired mid-session, never after a login that already owned one.
+            var initDefaultRide = defaultRide != 0 && OwnsRide(defaultRide) ? defaultRide : Rides.FirstOrDefault();
+            if (initDefaultRide != 0) replies.Add(RidePackets.DefaultSetNotice(playerKey, 0, initDefaultRide));
             replies.Add(GamePackets.GlideCooltime(playerKey));
         }
         // Respawn protection (10002) and class passives right after the own appearance (0x3633 / 0x3645).
@@ -3126,6 +3140,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             // start by themselves here.
             arrivalCheckDue = false;
             replies.AddRange(MapEventPosition(arrivedAt, now));
+            mapEventPositionCheckedAt = now;
             fogCheckAt = 0;
             replies.AddRange(await UncoverFogAsync(arrivedAt, now, ct));
             replies.AddRange(await Stored(() => AutoAcquireAsync(ct)));
@@ -3227,6 +3242,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         replies.AddRange(BuffTick(now));
         replies.AddRange(DropTick(now));
         replies.AddRange(MapEventTick(now));
+        replies.AddRange(MapEventStandingPositionTick(now));
         replies.AddRange(InstanceTick(now));
         replies.AddRange(AbyssTick(now));
         replies.AddRange(AirspaceWorldTick(now));
@@ -3380,6 +3396,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         {
             await FlushPendingInstanceReturnAsync(ct);
             if (position is not { } at) return;
+            // Never persist the void: a client stuck on the loading screen reports 0,0,0, and the next login then
+            // spawns the character at the map origin.
+            if (!at.IsFinite || Math.Abs(at.X) + Math.Abs(at.Y) + Math.Abs(at.Z) < 1) return;
             var staleMap = selected.Progress.MapId != worldMap;
             if (!force && now < checkpointAt && !staleMap) return;
             if (at == savedPosition && !staleMap) return;
