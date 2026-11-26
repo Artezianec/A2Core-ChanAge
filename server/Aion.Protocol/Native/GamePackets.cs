@@ -437,7 +437,9 @@ public static class GamePackets
     public static byte[] CharacterCreated(string name, int gender, int pcId, int race, int key, long dbId,
         byte[] customizingData, int voiceType, int slotNo, long nowMs, int level = 1, int result = 0)
     {
-        var w = PacketWriter.Opcode(0x361c).I32(result);
+        // 2.0.12 writes the result as u16 before the lobby desc; 2.0.9 keeps the i32.
+        var w = PacketWriter.Opcode(0x361c);
+        if (WireContext.IsModern) w.U16(result); else w.I32(result);
         WriteLobbyCharacter(w, new LobbyCharacter
         {
             Key = key, Nickname = name, PcId = pcId, Race = race, Gender = gender, Level = level, CombatLevel = level,
