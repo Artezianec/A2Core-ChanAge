@@ -170,7 +170,8 @@ public sealed class NcGuardSink : BackgroundService
 
     public void Configure(KestrelServerOptions server) => server.Listen(IPAddress.Parse(options.BindAddress), options.Port!.Value, listener =>
     {
-        listener.Protocols = HttpProtocols.Http1AndHttp2;
+//        listener.Protocols = HttpProtocols.Http1AndHttp2;
+        listener.Protocols = HttpProtocols.Http1;
         listener.Use(next => async context =>
         {
             var sni = context.Features.Get<ITlsHandshakeFeature>()?.HostName;
@@ -226,7 +227,7 @@ public sealed class NcGuardSink : BackgroundService
                 return certificates["localhost"];
             };
         });
-        NcGuardTlsTapMiddleware.Use(listener, logger);
+//        NcGuardTlsTapMiddleware.Use(listener, logger);
     });
 
     public override async Task StartAsync(CancellationToken cancellationToken)
