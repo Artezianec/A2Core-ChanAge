@@ -503,7 +503,10 @@ public static class GamePackets
     /// <summary>0x3633 MyCharAppear_NT (client decoders 0x8498b80/0x91f3870).</summary>
     public static byte[] MyCharAppear(MyCharacterAppear a)
     {
-        var w = PacketWriter.Opcode(0x3633).Varint(a.Key).U32(0x2006u | (a.TeleportEffect != 0 ? 0x1000u : 0)).U8(0x37).String(a.Name).U16(a.ServerId)
+        // 2.0.12 carries the 0x2AC1815F body mask and the AP/DP point block; 2.0.9 keeps its mask.
+        var modern12 = WireContext.Current == WireVersion.V212;
+        var mask = (modern12 ? 0x2AC1815Fu : 0x2006u) | (a.TeleportEffect != 0 ? 0x1000u : 0);
+        var w = PacketWriter.Opcode(0x3633).Varint(a.Key).U32(mask).U8(0x37).String(a.Name).U16(a.ServerId)
             .I32(a.PcId).U8(a.Race).I32(a.CharLevel).I32(a.EquipItemLevel).I32(a.HighestTotalItemLevel).I32(a.LevelMax)
             .I64(a.Experience).I32(a.CombatLevel).I64(a.CombatExperience).U8(a.Gender);
         WriteSpawnDetailTail(w, a.Ascension, a);
@@ -513,7 +516,11 @@ public static class GamePackets
         // red; other players' 0x3645 carry 1 PC_Light_Common in every sample (CANDIDATE for the own character).
         w.U16((a.ToggleFlags != 0 ? 1 << 7 : 0) | (a.Relationship != 0 ? 1 << 9 : 0) | (a.WingId != 0 ? 1 << 12 : 0)).Vec3(a.Position).F32(a.Direction).U16(0).U8(1);
         w.Varint(a.Hp).Varint(a.HpMax);
-        foreach (var v in new[] { a.Mp, a.MpMax, 0, 0, SpawnSp, SpawnSp, 0, 10000, 0, 100000, 100000, a.Fp, a.FpMax }) w.I32(v);
+        if (modern12)
+            w.I32(a.Mp).I32(a.MpMax).I32(0).I32(0)
+                .I32(SpawnSp).I32(SpawnSp).I32(0).I32(150000).I32(1).I32(100000).I32(100000).I32(a.Fp).I32(a.FpMax);
+        else
+            foreach (var v in new[] { a.Mp, a.MpMax, 0, 0, SpawnSp, SpawnSp, 0, 10000, 0, 100000, 100000, a.Fp, a.FpMax }) w.I32(v);
         if (a.ToggleFlags != 0) w.I32(a.ToggleFlags);   // state bit 7 (the official own appearance: 1 = the seal stone on)
         if (a.Relationship != 0) w.U8(a.Relationship);
         if (a.WingId != 0) w.I32(a.WingId);

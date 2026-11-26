@@ -167,6 +167,14 @@ public static class PlayerPackets
         if (c.TeleportEffectId != 0) mask |= 1 << 17;
         if (c.VoiceType != 0) mask |= 1 << 18;
         if (c.SealstoneItemId != 0) mask |= 1 << 21;
+        // 2.0.12 gates the ride, vessel and default-ride fields with these bits; 2.0.9 wrote them unconditionally.
+        var modern12 = WireContext.Current == WireVersion.V212;
+        if (modern12)
+        {
+            if (c.RideDataId != 0) mask |= 1 << 15;
+            if (c.VesselKey != 0) mask |= 1 << 16;
+            if (c.DefaultRideDataId != 0) mask |= 1 << 23;
+        }
 
         var w = PacketWriter.Opcode(0x3645).Varint(c.Key).U32(mask).U8(0x07).String(c.Name).I32(c.PcId).U8(c.Race).U8(c.Gender);
 
@@ -195,7 +203,12 @@ public static class PlayerPackets
         w.I64(c.DbId).U8(c.Stats.Count);
         foreach (var (type, value) in c.Stats) GamePackets.Stat(w, type, value);
         w.I32(c.Level).I32(c.ConquerorLevel).I32(c.EquipItemLevel);
-        if (c.RideDataId != 0 || c.VesselKey != 0)
+        if (modern12)
+        {
+            if (c.RideDataId != 0) w.I32(c.RideDataId);
+            if (c.VesselKey != 0) w.I32(c.VesselKey);
+        }
+        else if (c.RideDataId != 0 || c.VesselKey != 0)
         {
             w.I32(c.RideDataId).I32(c.VesselKey);
         }
