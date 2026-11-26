@@ -222,6 +222,7 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
     {
         var list = bodies as IReadOnlyList<byte[]> ?? bodies.ToList();
         if (list.Count == 0) return;
+        if (WireContext.IsModern) list = list.Select(ProtocolTranslation.ToClient).ToList();
         foreach (var body in list)
             if (body.Length >= 2) FlowLog.Packet("S2C", (ushort)(body[0] | body[1] << 8), body.Length);
         if (list.Count == 1)
