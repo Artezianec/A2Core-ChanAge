@@ -34,8 +34,14 @@ partial class GameSession
     public const ushort SkillGroundReadyRq = 0x384a, SkillGroundReadyRs = 0x384b, SkillGroundStartRq = 0x384d, SkillGroundStartRs = 0x384e,
         SkillGroundStopRq = 0x384f, SkillGroundStopRs = 0x3850;
 
-    /// <summary>Max horizontal distance to plant on a tower: EnvObj InteractRange + <see cref="WorldObjects.InteractSlack"/> (matches InteractEnvObj_RQ).</summary>
-    public static double BombPlantReach(WorldObject tower) => tower.InteractRange + WorldObjects.InteractSlack;
+    /// <summary>Skill 5003 NeedSkillUseRange (Skill.json: 3000) lets the throw land from 30 m, not only at the
+    /// tower's 650 cm interact range. Add a small latency margin so a throw at the edge is not refused.</summary>
+    public const double BombThrowRange = 3_000, BombThrowSlack = 250;
+
+    /// <summary>Max horizontal distance to plant on a tower: the bomb skill's ground range (or the tower's interact
+    /// range, whichever is larger).</summary>
+    public static double BombPlantReach(WorldObject tower) =>
+        Math.Max(tower.InteractRange + WorldObjects.InteractSlack, BombThrowRange + BombThrowSlack);
 
     public static bool InBombPlantRange(Vector3d here, WorldObject tower)
     {
@@ -267,8 +273,11 @@ partial class GameSession
     {
         if (position is not { } here) return null;
         var objects = WorldObjects.ObjectsOn(worldMap);
-        var candidates = shownObjects.Where(i => i < objects.Count && EnvObjBombTowerRemaining(i, objects[i], now) && InBombPlantRange(here, objects[i]))
-            .OrderBy(i => objects[i].At.DistanceSquared(here)).ToList();
+        // Not every tower is pushed to the client's shown set while the player stands at it (map-event visibility is
+        // distance-triggered); the plant is in reach, so consider every remaining tower and let the range decide.
+        var candidates = objects.Select((o, i) => (o, i))
+            .Where(x => EnvObjBombTowerRemaining(x.i, x.o, now) && InBombPlantRange(here, x.o))
+            .OrderBy(x => x.o.At.DistanceSquared(here)).Select(x => x.i).ToList();
         if (candidates.Count == 0) return null;
         var selected = selectedTarget - WorldObjects.FirstKey;
         return candidates.Contains(selected) ? selected : candidates[0];
@@ -284,16 +293,14 @@ partial class GameSession
         if (position is not { } here) return "no_position";
         var objects = WorldObjects.ObjectsOn(worldMap);
         var selected = selectedTarget - WorldObjects.FirstKey;
-        if (selected >= 0 && selected < objects.Count && objects[selected].Destructible)
-        {
-            if (Broken(selected, now)) return "broken";
-            if (usedObjects.Contains(selected)) return "used";
-            if (!InBombPlantRange(here, objects[selected])) return "out_of_range";
-            if (!PlayerMayUseEnvObj(selected, objects[selected])) return "cannot_use";
-        }
+        // A stale selected target (another tower, or one already broken) must not block a tower that is in reach now.
+        if (selected >= 0 && selected < objects.Count && objects[selected].Destructible
+            && !Broken(selected, now) && !usedObjects.Contains(selected)
+            && InBombPlantRange(here, objects[selected]) && PlayerMayUseEnvObj(selected, objects[selected]))
+            return "ok";
         if (BombTarget(now) is not null) return "ok";
-        var near = shownObjects.Where(i => i < objects.Count && objects[i].Destructible)
-            .OrderBy(i => objects[i].At.DistanceSquared(here)).FirstOrDefault();
+        var near = objects.Select((o, i) => (o, i)).Where(x => x.o.Destructible)
+            .OrderBy(x => x.o.At.DistanceSquared(here)).Select(x => x.i).FirstOrDefault();
         if (near >= 0)
         {
             if (Broken(near, now)) return "broken";
