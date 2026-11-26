@@ -141,6 +141,8 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
         using var connection = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
         var stream = client.GetStream();
         var clientAddress = client.Client.RemoteEndPoint is IPEndPoint ep ? ep.Address : null;
+        FlowLog.Attach($"{Name.Replace(' ', '-').ToLowerInvariant()}-{DateTimeOffset.Now:yyyyMMdd-HHmmss}-{RandomNumberGenerator.GetInt32(0x10000):x4}");
+        FlowLog.Event("connected", clientAddress?.ToString());
         var buffer = new FrameBuffer();
         try
         {
@@ -181,11 +183,13 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
         }
         catch (Exception error) when (error is ProtocolException or IOException or SocketException or OperationCanceledException or ObjectDisposedException)
         {
+            FlowLog.Error("connection_ended", error);
             Logger.LogInformation("{Name} connection ended: {Reason}", Name, error.GetType().Name);
         }
         catch (Exception error)
         {
             // Anything else ended the connection without a trace before (live 2026-10-16).
+            FlowLog.Error("connection_ended", error);
             Logger.LogWarning(error, "{Name} connection ended by an unexpected error", Name);
         }
     }
@@ -212,6 +216,8 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
     {
         var list = bodies as IReadOnlyList<byte[]> ?? bodies.ToList();
         if (list.Count == 0) return;
+        foreach (var body in list)
+            if (body.Length >= 2) FlowLog.Packet("S2C", (ushort)(body[0] | body[1] << 8), body.Length);
         if (list.Count == 1)
         {
             await stream.WriteAsync(NativeFraming.Frame(list[0]), ct);
@@ -473,6 +479,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
                 foreach (var plain in backlog.Take(MaxClientFramesPerTick))
                 {
                     var header = plain.Length >= 2 ? plain[0] | plain[1] << 8 : -1;
+                    if (header >= 0) FlowLog.Packet("C2S", (ushort)header, plain.Length);
                     if (!Options.Development)
                     {
                         if (header is 0x3613 or 0xD456 or 0x4BAF or 0x8CFD)
@@ -601,6 +608,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         finally
         {
             presence.Disconnected();
+            FlowLog.Event("disconnect");
             // The trace first: it is only a file, and a failure later in this block must not lose it (live 2026-10-19: no trace
             // was written at a logout or at the deploy restart, which took the host's whole 30 s shutdown timeout).
             try { if (trace?.Write() is { } written) Logger.LogInformation("Client trace written: {Path}", written); }
