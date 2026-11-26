@@ -974,6 +974,17 @@ public static class GamePackets
     /// <summary>0x562e ItemSoulBindCancel_RS: result, item uid.</summary>
     public static byte[] SoulBindCancel(long uid, int result = 0) => PacketWriter.Opcode(0x562e).U16(result).I64(uid).ToArray();
     /// <summary>
+    /// 0x5632 ItemSoulBindAttune_RS (client deserializer sub_149210EB0): result i16 | uid i64 | select_stat i16 |
+    /// select_skill i32 | is_success bit | new stat {u16 EStat, i32 value} | new skill {i32 id, u8 level}.
+    /// CANDIDATE: the layout is the client's own reader; no capture yet.
+    /// </summary>
+    public static byte[] SoulBindAttune(long uid, short selectStat, int selectSkill, bool success,
+        (int Type, int Value) stat, (int Skill, byte Level) skill, int result = 0)
+    {
+        var w = PacketWriter.Opcode(0x5632).U16(result).I64(uid).U16(selectStat & 0xFFFF).I32(selectSkill).Bool(success);
+        return w.U16(stat.Type).I32(stat.Value).I32(skill.Skill).U8(skill.Level).ToArray();
+    }
+    /// <summary>
     /// 0x5630 ItemSoulBindComplete_RS: result, item uid, bind count, the bound stats {u16 EStat, i32 value} and skills (none).
     /// OBSERVED (community recordings 2026-11-04 and 11-06, build 26262663: 3 and 4 stats, every one without skills).
     /// </summary>

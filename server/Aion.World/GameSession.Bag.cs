@@ -130,7 +130,7 @@ public sealed partial class GameSession
         byte container = plain[6];
         var key = BitConverter.ToInt64(plain, 7);
         byte[] Reply(int result) => PacketWriter.Opcode(ItemMoveRs).U16(result).I32(npc).U8(container).I64(key).I32(slot).ToArray();
-        var target = container switch { InventoryItem.Bag => "bag", InventoryItem.Storage => "storage", InventoryItem.AccountStorage => "account_storage", _ => null };
+        var target = ContainerToLocation(container);
         if (target is null || Store is not { } store || CharacterId is not { } character || !storedItems.TryGetValue(key, out var row) || row.Location is not ("bag" or "storage" or "account_storage") || slot < 0)
             return [Reply(1)];
         var moved = await Stored(async () => (target == "bag" && row.Location == "bag"
@@ -349,7 +349,7 @@ public sealed partial class GameSession
         var npc = BitConverter.ToInt32(plain, 2);
         var container = plain[6];
         byte[] Reply(int result) => PacketWriter.Opcode(ItemSortRs).U16(result).I32(npc).U8(container).ToArray();
-        var location = container switch { InventoryItem.Bag => "bag", InventoryItem.Storage => "storage", InventoryItem.AccountStorage => "account_storage", _ => null };
+        var location = ContainerToLocation(container);
         if (location is null || Store is not { } store || CharacterId is not { } character) return [Reply(1)];
         var sorted = await Stored(async () => await store.SortContainerAsync(character, location, ct, ItemCurrencies.All) ? [[]] : []);
         return sorted.Count == 0 ? [Reply(1)] : [Reply(0), .. await InventoryChangesAsync(ct, 0, 0)];

@@ -624,6 +624,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case RidePackets.DefaultSetRq when plain.Length == 6: return await SetDefaultRideAsync(BitConverter.ToInt32(plain, 2), ct);
             case 0x562f when plain.Length == 10 && inventory.ContainsKey(BitConverter.ToInt64(plain, 2)):
                 return await SoulBindCompleteAsync(BitConverter.ToInt64(plain, 2), ct);
+            // Soul-bind attune (0x5631, 24 bytes: uid i64, select stat i16, select skill i32, cost uid i64). The live
+            // client leaves the soul-bind window hanging if this goes unanswered.
+            case 0x5631 when plain.Length == 24:
+                return await SoulBindAttuneAsync(BitConverter.ToInt64(plain, 2), BitConverter.ToInt16(plain, 10),
+                    BitConverter.ToInt32(plain, 12), BitConverter.ToInt64(plain, 16), ct);
             case 0x3704 when plain.Length == 10: return SprintOn(now);
             // Glide (0x3706) and flight (0x370a) starts, sent once a wing is equipped (live 2026-10-15).
             case 0x3706 when resources is not null && wingId != 0:
@@ -1103,7 +1108,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         var kept = new Dictionary<long, int>();
         foreach (var i in items.Where(i => i.Location is "bag" or "storage" or "account_storage" && i.Slot is null))
         {
-            var container = i.Location switch { "storage" => InventoryItem.Storage, "account_storage" => InventoryItem.AccountStorage, _ => InventoryItem.Bag };
+            var container = ContainerOf(i.Location);
             if (shown?.GetValueOrDefault(WireKey(i)) is { } was && was.Container == container && used[i.Location].Add(was.Slot))
                 kept[WireKey(i)] = was.Slot;
         }
@@ -1126,12 +1131,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             }
             var key = item.WireId > 0 ? item.WireId : BitConverter.ToInt64(item.InstanceId.ToByteArray(), 0) & long.MaxValue;
             var equipment = equipped || data?.Item(item.TemplateId) is not null;
-            var container = equipped ? InventoryItem.Equipped : item.Location switch
-            {
-                "storage" => InventoryItem.Storage,
-                "account_storage" => InventoryItem.AccountStorage,
-                _ => InventoryItem.Bag,
-            };
+            var container = equipped ? InventoryItem.Equipped : ContainerOf(item.Location);
             result.Add(new InventoryItem(key, item.TemplateId, item.Quantity, container, slot,
                 // Item level: its own, the enchant's and the manastone grades' (OBSERVED 2026-11-06 234912: 23 + grades; GameSession.Imprint.cs).
                 equipment ? new EquipDetail((data?.ItemLevel(item.TemplateId) ?? 1) + Enchants.Effect(item.TemplateId, EnchantOf(item)).ItemLevel
@@ -1166,6 +1166,42 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             .. Emit(new AchievementEvent("SoulbindTry")),
             .. Emit(new AchievementEvent("SoulbindMax", SetValue: count))];
         if (row.Location == "equipment" && stats is { Count: > 0 }) replies.AddRange(RefreshStats());
+        return replies;
+    }
+
+    /// <summary>
+    /// 0x5631 ItemSoulBindAttune_RQ: the bound item takes the selected stat from its soul-bind pool (the cost item
+    /// is used up), answered 0x5632. A stat outside the item's pool, an unbound item or a missing cost is result 1.
+    /// </summary>
+    async Task<List<byte[]>> SoulBindAttuneAsync(long key, short selectStat, int selectSkill, long costUid, CancellationToken ct)
+    {
+        List<byte[]> Fail() => [GamePackets.SoulBindAttune(key, selectStat, selectSkill, false, (0, 0), (0, 0), 1)];
+        if (Store is not { } store || CharacterId is not { } character || !storedItems.TryGetValue(key, out var row)
+            || SoulBindCount(row) == 0 || !storedItems.TryGetValue(costUid, out var cost)
+            || cost.InstanceId == row.InstanceId || cost.Location != "bag" || cost.Quantity < 1
+            || SoulBindPools.Of(row.TemplateId) is not { } binding
+            || binding.Pool.FirstOrDefault(p => p[0] == selectStat) is not { } pool)
+            return Fail();
+        // Attune replaces the selected stat with a different random pool stat (keeping the same type made the
+        // option look unchanged in the window: 5 live attunes all returned type 318 with only the value moving).
+        var held = SoulBindHeld(row);
+        var heldTypes = held.Select(s => s.Type).ToHashSet();
+        var candidates = binding.Pool.Where(p => p[3] > 0 && p[0] != selectStat && !heldTypes.Contains(p[0])).ToList();
+        if (candidates.Count == 0) candidates = binding.Pool.Where(p => p[3] > 0 && p[0] != selectStat).ToList();
+        if (candidates.Count == 0) return Fail();
+        var roll = rng.NextInt64(candidates.Sum(p => (long)p[3]));
+        var pick = candidates.First(p => (roll -= p[3]) < 0);
+        var newType = pick[0];
+        var value = rng.Next(pick[1], pick[2] + 1);
+        var stats = held.Where(s => s.Type != selectStat).Append((Type: newType, Value: value))
+            .OrderBy(s => s.Type).ToList();
+        var used = await Stored(async () => await store.ConsumeItemAsync(character, cost.InstanceId, cost.Revision, 1, ct) ? [Array.Empty<byte>()] : []);
+        if (used.Count == 0) return Fail();
+        var saved = await Stored(async () => await store.SoulBindItemAsync(character, row.InstanceId, SoulBindCount(row), ct, stats) ? [Array.Empty<byte>()] : []);
+        if (saved.Count == 0) return Fail();
+        List<byte[]> replies = [GamePackets.SoulBindAttune(key, selectStat, selectSkill, true, (newType, value), (0, 0)),
+            .. await InventoryChangesAsync(ct)];
+        if (row.Location == "equipment") replies.AddRange(RefreshStats());
         return replies;
     }
 
