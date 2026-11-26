@@ -492,6 +492,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
                         if (header is 0x3613 or 0xD456 or 0x4BAF or 0x8CFD)
                         {
                             if (authenticated) { Logger.LogInformation("Native game closed: replay_rejected"); return; }
+                            var worldLogin = header is 0xD456 or 0x4BAF or 0x8CFD;
                             ClientIdentity identity;
                             try { identity = header == 0x3613 ? ClientIdentity.Parse(plain, game: true) : ClientIdentity.ParseWorld(plain); }
                             catch (ProtocolException) { Logger.LogInformation("Native game closed: rejected"); return; }
@@ -502,7 +503,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
                             }
                             else
                             {
-                                session.Store = await AuthenticateAsync(plain, ct);
+                                session.Store = await AuthenticateAsync(plain, ct, worldLogin);
                                 if (session.Store is { } opened && turn is not null) session.Store = TurnStore.Wrap(opened, turn);
                                 if (session.Store is null) { Logger.LogInformation("Native game closed: rejected"); return; }
                             // Keep the address on the platform account lookup (auth.platform_client_context lasts 15 minutes)
@@ -677,14 +678,14 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
     }
 
     /// <summary>The game login check with its outcome counted for the diagnostics API (the check itself is unchanged).</summary>
-    async Task<INativeCharacterStore?> AuthenticateAsync(byte[] plain, CancellationToken ct)
+    async Task<INativeCharacterStore?> AuthenticateAsync(byte[] plain, CancellationToken ct, bool worldLogin = false)
     {
-        var (store, outcome) = await OpenStoreAsync(plain, ct);
+        var (store, outcome) = await OpenStoreAsync(plain, ct, worldLogin);
         services.GetService<HostDiagnostics>()?.Login(HostDiagnostics.NativeGame, outcome);
         return store;
     }
 
-    async Task<(INativeCharacterStore?, HostDiagnostics.Outcome)> OpenStoreAsync(byte[] plain, CancellationToken ct)
+    async Task<(INativeCharacterStore?, HostDiagnostics.Outcome)> OpenStoreAsync(byte[] plain, CancellationToken ct, bool worldLogin = false)
     {
         const HostDiagnostics.Outcome failed = HostDiagnostics.Outcome.Failed;
         var sessions = services.GetService<IWorldSessions>();
@@ -697,7 +698,11 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         }
         catch (ProtocolException) { return (null, failed); }
         var (wireAccount, grant) = identity.Session();
-        var opened = await sessions.OpenAsync(identity.AuthnToken, wireAccount, grant, Options.WorldId, ct);
+        // 2.0.12's 0xD456 has the login grant but not the 64-hex ticket; open the world session
+        // from the single-use grant. 2.0.6's 0x3613 keeps the strict ticket + grant path.
+        var opened = worldLogin
+            ? await sessions.OpenByGrantAsync(wireAccount, grant, Options.WorldId, ct)
+            : await sessions.OpenAsync(identity.AuthnToken, wireAccount, grant, Options.WorldId, ct);
         if (opened is null) return (null, failed);
         // The login port (maybe another process) recorded the picked row's race for this world's lobby.
         if (opened.Race is { } race && services.GetService<WorldChoices>() is { } choices)
