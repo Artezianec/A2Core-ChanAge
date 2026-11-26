@@ -3,12 +3,13 @@ using Aion.Protocol.Native;
 namespace Aion.World;
 
 // Generic caster-movement effects (see SkillMoves): the caster of any skill whose Skill.dat rows hold a Teleport_Caster-family
-// effect is put behind its locked target. Player movement is client-authoritative here, so the server moves the position it
-// keeps, restarts the movement check (the next report is measured from the new point, with the post-skill grace), tells the
-// caster's client where it stands and shows the jump to the other players.
+// effect moves where the row says (onto its target for Leaping Slam, behind it for a Shadowstrike-style blink, or a dash from
+// its own position). Player movement is client-authoritative here, so the server moves the position it keeps, restarts the
+// movement check (the next report is measured from the new point, with the post-skill grace), tells the caster's client where
+// it stands and shows the jump to the other players.
 partial class GameSession
 {
-    sealed record PendingCasterMove(long DueMs, int SkillId, int TargetKey);
+    sealed record PendingCasterMove(long DueMs, int SkillId, int TargetKey, string[] Row);
 
     readonly List<PendingCasterMove> pendingCasterMoves = [];
 
@@ -22,9 +23,9 @@ partial class GameSession
             if (SkillMoves.IsForwardMove(move)) return replies;
         }
         if (SkillMoves.CasterTeleportFor(skill) is not { Length: > 0 } row || TeleportAnchor(request.TargetKey) is not { } anchor) return replies;
-        if (SkillMoves.IsBeforeHit(row[0])) { replies.AddRange(TeleportBehind(anchor, now)); return replies; }
+        if (SkillMoves.IsBeforeHit(row[0])) { replies.AddRange(TeleportTo(anchor, row, now)); return replies; }
         var due = now + (definition.Damage.Length > 0 ? SkillTiming.HitLandMs(definition, 0) : definition.CastingMs);
-        pendingCasterMoves.Add(new(due, skill, request.TargetKey));
+        pendingCasterMoves.Add(new(due, skill, request.TargetKey, row));
         return replies;
     }
 
@@ -84,7 +85,7 @@ partial class GameSession
         foreach (var move in pendingCasterMoves.Where(m => now >= m.DueMs).ToList())
         {
             pendingCasterMoves.Remove(move);
-            if (TeleportAnchor(move.TargetKey) is { } anchor) replies.AddRange(TeleportBehind(anchor, now));
+            if (TeleportAnchor(move.TargetKey) is { } anchor) replies.AddRange(TeleportTo(anchor, move.Row, now));
         }
         return replies;
     }
@@ -99,14 +100,16 @@ partial class GameSession
     }
 
     /// <summary>
-    /// Moves the caster behind <paramref name="target"/>, looking at it. The caster's client gets the CharMoveUpdateReject_RS
-    /// position correction (CANDIDATE: the official message for a skill teleport was not captured; the reject is the client's
-    /// own "stand here" order and is what the speed check already uses), the others the observed CharMoveStop_NT.
+    /// Moves the caster to the Teleport_Caster row's destination (SkillMoves.TeleportDestination: the target's near side for
+    /// Leaping Slam, its back for a TargetDirection blink), looking at it. The caster's client gets the
+    /// CharMoveUpdateReject_RS position correction (CANDIDATE: the official message for a skill teleport was not captured;
+    /// the reject is the client's own "stand here" order and is what the speed check already uses), the others the observed
+    /// CharMoveStop_NT.
     /// </summary>
-    List<byte[]> TeleportBehind(TeleportPoint target, long now)
+    List<byte[]> TeleportTo(TeleportPoint target, string[] row, long now)
     {
         if (dead || position is null) return [];
-        var at = SkillMoves.BehindPoint(target.At, target.Facing, target.Radius);
+        var at = SkillMoves.TeleportDestination(row, position.Value, target.At, target.Facing, target.Radius);
         var facing = SkillMoves.Facing(at, target.At);
         position = at;
         ResetMovementCheck(at, now);

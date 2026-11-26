@@ -40,8 +40,10 @@ public sealed class SkillMoveTests
     [Fact]
     public void Shadowstrike_data_carries_the_teleport_row_and_a_held_stun()
     {
-        Assert.Equal([SkillMoves.TeleportCaster], SkillMoves.CasterTeleportFor(Shadowstrike)!);
-        Assert.Equal([SkillMoves.TeleportCaster], SkillMoves.CasterTeleportFor(Shadowstrike + 5)!);
+        var row = SkillMoves.CasterTeleportFor(Shadowstrike)!;
+        Assert.Equal(SkillMoves.TeleportCaster, row[0]);
+        Assert.Equal("TargetLocation_TargetDirection", row[1]);
+        Assert.Equal(SkillMoves.TeleportCaster, SkillMoves.CasterTeleportFor(Shadowstrike + 5)![0]);
         Assert.Equal([(100000301, 3000, 3000, true)], SkillAreas.For(Shadowstrike)!.DebuffRows);
         Assert.Null(SkillMoves.CasterTeleportFor(11020000));
     }
@@ -71,6 +73,7 @@ public sealed class SkillMoveTests
     public async Task Cast_puts_the_caster_behind_the_target_when_the_first_hit_lands_and_stuns_it()
     {
         var (session, mob) = await Setup(direction: 0);
+        var start = session.WorldPlayer!.Position;
         var replies = await session.HandleAsync(Cast(Shadowstrike, mob.Key, mob.Position), Now + 6_000);
         Assert.Contains(replies, p => GameSessionTestHelpers.Op(p) == 0x3801 && GameSession.CastResultCode(p) == 0);
         Assert.Equal(1, session.PendingCasterMoveCount);
@@ -78,7 +81,8 @@ public sealed class SkillMoveTests
 
         var landed = await session.TickAsync(Now + 9_000);
 
-        var expected = SkillMoves.BehindPoint(mob.Position, mob.Direction, mob.Radius);
+        var row = SkillMoves.CasterTeleportFor(Shadowstrike)!;
+        var expected = SkillMoves.TeleportDestination(row, start, mob.Position, mob.Direction, mob.Radius);
         Assert.Equal(0, session.PendingCasterMoveCount);
         Assert.Equal(expected.X, session.WorldPlayer!.Position.X, 3);
         Assert.Equal(expected.Y, session.WorldPlayer.Position.Y, 3);
