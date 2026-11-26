@@ -591,8 +591,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case RidePackets.CrystallizeRq when plain.Length >= 3: return await CrystallizeAsync(plain, ct);
             case RidePackets.BoardRollRq when plain.Length >= 5: return await RollBoardAsync(plain, ct);
             case RidePackets.BoardLockRq when plain.Length == 6: return await LockBoardSlotAsync(plain[2], plain[3], plain[4], plain[5] != 0, ct);
-            case RidePackets.RespawnRq when plain.Length >= 3:
-                return await RespawnRequestAsync(plain[2], plain.Length >= 11 ? BitConverter.ToInt64(plain, 3) : 0, now, ct);
+            case RidePackets.RespawnRq when plain.Length >= 4:
+            {
+                var (type, itemUid) = ParseRespawnRequest(plain);
+                return await RespawnRequestAsync(type, itemUid, now, ct);
+            }
             case RidePackets.UseRebirthRq when plain.Length == 3: return UseRebirth(plain[2] != 0, now);
             case RidePackets.LevelUpRq when plain.Length == 6: return await LevelUpRideAsync(BitConverter.ToInt32(plain, 2), ct);
             case RidePackets.GetOnRq when plain.Length == 6: return await GetOnRideAsync(BitConverter.ToInt32(plain, 2), ct);
@@ -734,8 +737,13 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case 0xe244 when NpcKeyFromBody(plain) is { } npcKey: return [GamePackets.KeepAliveNpcInteractionReply(npcKey, now + 300_000)];
             // Unrecorded client layouts (the recordings hold the server's side only; live 2026-10-18 NpcConversation_RQ carried a
             // byte before its key): the quest id or uid is the first i32 in the body that names one, wherever it sits.
-            case 0x8d0a when plain.Length >= 6:
-                return await QuestAcceptAsync(FirstInt32(plain, id => questLog?.Book.ById.ContainsKey(id) == true) ?? BitConverter.ToInt32(plain, 2), plain.Length >= 10 ? BitConverter.ToInt32(plain, 6) : 0, ct);
+            case 0x8d0a when plain.Length >= 7:
+            {
+                var (questId, npcKey) = ParseQuestAcceptRequest(plain);
+                if (questLog?.Book.ById.ContainsKey(questId) != true)
+                    questId = FirstInt32(plain, id => questLog?.Book.ById.ContainsKey(id) == true) ?? questId;
+                return await QuestAcceptAsync(questId, npcKey, ct);
+            }
             case 0x8d0c when plain.Length >= 6:
                 return await QuestGiveUpAsync(FirstInt32(plain, uid => questLog?.ByUid(uid) is not null) ?? BitConverter.ToInt32(plain, 2), ct);
             // MapExit_RQ 0x4004 (the leave button of a layer or dungeon) and ExitInstanceLayer_RQ 0x930d: bodies unrecorded, ignored;
