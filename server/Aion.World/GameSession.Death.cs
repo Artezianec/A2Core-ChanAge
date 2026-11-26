@@ -63,7 +63,19 @@ public sealed partial class GameSession
         return [.. CancelPendingSkillCharge(sendStopReply: true), .. deathLimit, .. ForceDismount(), .. DropCarried(ExpireEventFunction), .. ClearBuffs(), kill, GamePackets.CombatState(playerKey, false)];
     }
 
-    /// <summary>0x8d22 CharRespawn_RQ {ERespawnType u8, item uid i64}.</summary>
+    /// <summary>
+    /// 0x8D22 CharRespawn_RQ: 2.0.12 sends u8 has_item, u8 ERespawnType, then the item uid i64 only when
+    /// has_item. The 2.0.9 form {type u8, uid i64} is 11 bytes including the opcode and stays readable.
+    /// </summary>
+    internal static (byte Type, long ItemUid) ParseRespawnRequest(byte[] plain)
+    {
+        if (plain.Length < 4) return (0, 0);
+        if (plain.Length == 11) return (plain[2], BitConverter.ToInt64(plain, 3));
+        var hasItem = plain[2] != 0;
+        return (plain[3], hasItem && plain.Length >= 12 ? BitConverter.ToInt64(plain, 4) : 0);
+    }
+
+    /// <summary>0x8d22 CharRespawn_RQ.</summary>
     async Task<List<byte[]>> RespawnRequestAsync(byte type, long itemUid, long now, CancellationToken ct)
     {
         if (!dead) return [RidePackets.RespawnReply(1)];
