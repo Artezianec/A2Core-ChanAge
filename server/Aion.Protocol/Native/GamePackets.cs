@@ -401,6 +401,35 @@ public static class GamePackets
         return w.ToArray();
     }
 
+    /// <summary>0x569E CharCustomizingList_RS (2.0.12): result u16, Common_CharCustomizingInfo list.</summary>
+    public static byte[] CharCustomizingListV12(int result, IReadOnlyList<(int Slot, byte[] Customizing, int VoiceType, int PcId)> entries)
+    {
+        var w = PacketWriter.Opcode(0x569E).U16(result).Varint(entries.Count);
+        foreach (var (slot, customizing, voice, pcId) in entries)
+            w.U8(slot).Bytes(customizing).U8(voice).I32(pcId);
+        return w.ToArray();
+    }
+
+    /// <summary>0x56A0 CharCustomizingStatusCheck_RS: result u16.</summary>
+    public static byte[] CharCustomizingStatusCheckReply(int result = 0) =>
+        PacketWriter.Opcode(0x56A0).U16(result).ToArray();
+
+    /// <summary>0x56A6 CharCustomizingGetMetaData_RS: result u16 + empty metadata blob.</summary>
+    public static byte[] CharCustomizingMetaDataReply(int result = 0) =>
+        PacketWriter.Opcode(0x56A6).U16(result).Varint(0).ToArray();
+
+    /// <summary>0x56A8 CharCustomizingGetSettlementStatus_RS: result, settled count, unsettled count.</summary>
+    public static byte[] CharCustomizingSettlementStatusReply(int settled = 0, int unsettled = 0, int result = 0) =>
+        PacketWriter.Opcode(0x56A8).U16(result).I32(settled).I32(unsettled).ToArray();
+
+    /// <summary>0x56AA CharCustomizingSettle_RS: result + the settled count (echo).</summary>
+    public static byte[] CharCustomizingSettleReply(int settleCount, int result = 0) =>
+        PacketWriter.Opcode(0x56AA).U16(result).I32(settleCount).ToArray();
+
+    /// <summary>0x910A ExtendedCharacterSlot_NT (2.0.12): purchased lobby slot count.</summary>
+    public static byte[] ExtendedCharacterSlotV12(int extendedSlotCount) =>
+        PacketWriter.Opcode(0x910A).U8(extendedSlotCount).ToArray();
+
     /// <summary>0x36EF SkillCustomizingUpdate_RS: result u16.</summary>
     public static byte[] SkillCustomizingUpdate(int result = 0) => PacketWriter.Opcode(0x36EF).U16(result).ToArray();
 
