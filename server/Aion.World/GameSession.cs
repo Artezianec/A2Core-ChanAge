@@ -2440,18 +2440,23 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     /// An NPC hit lands on the player: combat starts, HP drops (official 0x8d00 for the player's key).
     /// At HP 0 the player dies (see Die); invincible HP holds.
     /// </summary>
-    internal List<byte[]> NpcHitsPlayer(int damage, long now, int killerKey = 0, int killerSkill = 0, int hitSeq = 1, Vector3d? casterAt = null)
+    internal List<byte[]> NpcHitsPlayer(int damage, long now, int killerKey = 0, int killerSkill = 0, int hitSeq = 1, Vector3d? casterAt = null,
+        bool enterCombat = true)
     {
         if (resources is null || dead) return [];
         if (killerSkill > 0) lastNpcHitSkill = killerSkill;
         damage = DungeonBossDamage(damage, killerKey);
         var replies = new List<byte[]>();
-        if (!inCombat)
+        // Fall damage has no attacker: the official client does not draw the weapon or enter combat for it.
+        if (enterCombat)
         {
-            inCombat = true;
-            replies.Add(GamePackets.CombatState(playerKey, true));
+            if (!inCombat)
+            {
+                inCombat = true;
+                replies.Add(GamePackets.CombatState(playerKey, true));
+            }
+            combatUntil = now + CombatTimeoutMs;
         }
-        combatUntil = now + CombatTimeoutMs;
         replies.AddRange(PlayerDamageReplies(damage, killerKey, now));
         if (!dead && killerSkill > 0)
             replies.AddRange(NpcSkillAbnormals(killerKey, killerSkill, casterAt, now, damage, hitSeq));
