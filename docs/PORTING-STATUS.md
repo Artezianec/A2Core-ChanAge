@@ -39,8 +39,10 @@ game greeting:
   (`0x569D`..`0x56AA`, extended slot `0x910A`), create result `u16`, warp-leave flags,
   appearance mask/point block, respawn/quest bodies, dodge flags, item-store widths and
   ride success results.
-- **2.0.13** (`0x16FE`, reply `0x83A9`) negotiates and logs in with the 2.0.12 opcode map.
-  The 2.0.13 appearance/entry burst is still pending live verification.
+- **2.0.13** (`0x16FE`, reply `0x83A9`) negotiates, logs in with the 2.0.12 opcode map and
+  has an **experimental** entry path: `0x83A9`/`0xC4F6` select, compressed `0x2053`,
+  `0x6AF4` load complete, `0xd79e` enter-map position, the `0x2AE9815F` `MyCharAppear`
+  body with the 17 entry abnormals and no `0x3623`. Still pending a live 2.0.13 run.
 
 Renumbered 2.0.12 families are translated at the connection edges
 (`ProtocolTranslation`), so the 2.0.9 handlers stay unchanged: party loot, trade, dungeon
@@ -50,7 +52,8 @@ packets.
 
 ## Not ported
 
-- 2.0.13 `MyCharAppear`/deferred entry bursts (needs the live client).
+- 2.0.13 deferred entry bursts (`0x61A0`, `0xE25A`, the staged list/spawn queues) until a
+  live 2.0.13 run confirms the frames.
 - Mixed changes: bomb Ready/Start, sprint/dash, warehouse container semantics
   (2 vs 15), soul-bind attune.
 - Launcher 2.0.12 build pin: the Target still pins 2.0.9 and offers 2.0.13 only as an
