@@ -193,6 +193,14 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         (12, 117500001), (13, 117600001), (14, 117700001), (15, 117800001), (16, 117900001),
         (17, 118000001),
     ];
+    // 2.0.13 entry is staged: the state burst first, the lists 150 ms later, PrepareEnterMap 250 ms
+    // after that, and the spawn burst only when the client sends 0x6AF4.
+    List<byte[]>? deferredEntry;
+    long nextStage2At;
+    List<byte[]>? deferredSpawn;
+    long nextSpawnAt;
+    byte[]? deferredPrepare;
+    long nextPrepareAt;
     bool sprinting;
     /// <summary>Sitting (CharRestStart_RQ 0x3747 until CharRestStop_RQ 0x374a, a move or combat); recovery is <see cref="RestRegenFactor"/> times faster.</summary>
     public bool Resting { get; private set; }
@@ -1708,9 +1716,49 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             for (var i = 0; i < replies.Count; i++)
                 if (replies[i].Length >= 2 && (replies[i][0] | replies[i][1] << 8) == 0x3620)
                     replies[i] = world;
+
+            // 2.0.13 merges selection and load: build the world state now, split it into the official
+            // state burst, the lists and the post-LoadComplete spawn burst.
+            var all = await LoadCompleteAsync(new PacketWriter().U16(0x3622).I32((int)key).Zeros(12).ToArray(), now, ct);
+            all.Add(GamePackets.ClientSettings(playerKey, state.WireId, state.Appearance));
+            all.Add(GamePackets.NcGuardData());
+            all.RemoveAll(b => b.Length >= 2 && (b[0] | b[1] << 8) == 0x3623);
+            var stage1 = all.Where(b => EntryPriority(b) < 100).OrderBy(EntryPriority).ToList();
+            var lists = all.Where(b => EntryPriority(b) == 100 && !EntryAfterLoad(b)).ToList();
+            var spawn = all.Where(EntryAfterLoad).OrderBy(SpawnPriority).ToList();
+            spawn.AddRange(stage1.Where(b => b.Length >= 2 && (b[0] | b[1] << 8) is 0xffab or 0x382a or 0x364a or 0x3656 or 0x8d00));
+            var extras = replies.Where(b => b.Length >= 2 && (b[0] | b[1] << 8) is 0x8d44 or 0x3621).ToList();
+            replies.Clear();
+            replies.AddRange(stage1);
+            replies.AddRange(extras.Where(b => b.Length >= 2 && (b[0] | b[1] << 8) == 0x8d44));
+            deferredEntry = lists.Count > 0 ? lists : null;
+            nextStage2At = now + 150;
+            deferredPrepare = extras.FirstOrDefault(b => b.Length >= 2 && (b[0] | b[1] << 8) == 0x3621);
+            nextPrepareAt = lists.Count > 0 ? 0 : now;
+            deferredSpawn = spawn;
+            nextSpawnAt = 0;
         }
         return replies;
     }
+
+    static int EntryPriority(byte[] body) => body.Length >= 2 ? (body[0] | body[1] << 8) switch
+    {
+        0x382a => 0, 0x5684 => 1, 0xffab => 2, 0xe263 => 3,
+        0x364a => 4, 0x3656 => 5, 0x8d00 => 6, 0xe25a => 7, 0x61a0 => 8,
+        _ => 100,
+    } : 100;
+
+    static bool EntryAfterLoad(byte[] body) => body.Length >= 2 && (body[0] | body[1] << 8) is
+        0x3633 or 0x3634 or 0x3641 or 0x3746 or 0x3646 or 0x3657 or 0x4001 or 0x4002 or 0xe223 or 0x6000 or 0x561e
+        or 0x5100 or 0x3900 or 0x9501 or 0x5600 or 0x9000 or 0x400a or 0xe251 or 0xe200 or 0xffab;
+
+    static int SpawnPriority(byte[] body) => body.Length >= 2 ? (body[0] | body[1] << 8) switch
+    {
+        0x3746 => 0, 0x5100 => 1, 0x3900 => 2, 0x9501 => 3, 0x5600 => 4, 0xe251 => 5,
+        0x400a => 6, 0x9000 => 7, 0xe200 => 8, 0xffab => 9, 0x3633 => 10, 0x3646 => 11,
+        0xe223 => 12, 0x6000 => 13, 0x382a => 14, 0x364a => 15, 0x3657 => 16, 0x8d00 => 17,
+        0x4001 => 18, 0x4002 => 19, 0x561e => 20, _ => 100,
+    } : 100;
 
     /// <summary>
     /// 0x6AF4 LoadComplete_RQ (2.0.13): the official server answers 0xd79e and the spawn burst,
@@ -1719,9 +1767,17 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     async Task<List<byte[]>> LoadCompleteV13Async(byte[] plain, long now, CancellationToken ct)
     {
         var replies = new List<byte[]> { GamePackets.ServerEnterMapPos(position ?? spawn?.Position ?? GamePackets.SpawnPosition) };
-        var legacy = new PacketWriter().U16(0x3622).I32(1).Zeros(12).ToArray();
-        replies.AddRange(await LoadCompleteAsync(legacy, now, ct));
-        replies.RemoveAll(b => b.Length >= 2 && (b[0] | b[1] << 8) == 0x3623);
+        if (deferredSpawn is { Count: > 0 } burst)
+        {
+            replies.AddRange(burst);
+            deferredSpawn = null;
+        }
+        else
+        {
+            var legacy = new PacketWriter().U16(0x3622).I32(1).Zeros(12).ToArray();
+            replies.AddRange(await LoadCompleteAsync(legacy, now, ct));
+            replies.RemoveAll(b => b.Length >= 2 && (b[0] | b[1] << 8) == 0x3623);
+        }
         return replies;
     }
 
@@ -3268,6 +3324,26 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         batchAchievementCountUpdates = true;
         achievementCountBatch.Clear();
         var replies = new List<byte[]>();
+        if (deferredEntry is { Count: > 0 } stage2 && now >= nextStage2At)
+        {
+            replies.AddRange(stage2);
+            deferredEntry = null;
+            nextPrepareAt = now + 250;
+        }
+        else if (deferredEntry is null && deferredPrepare is { } prepare && now >= nextPrepareAt)
+        {
+            replies.Add(prepare);
+            deferredPrepare = null;
+        }
+        else if (deferredEntry is null && deferredPrepare is null && deferredSpawn is { Count: > 0 } burst)
+        {
+            if (nextSpawnAt == 0) nextSpawnAt = now + 12000;
+            else if (now >= nextSpawnAt)
+            {
+                replies.AddRange(burst);
+                deferredSpawn = null;
+            }
+        }
         while (posted.TryDequeue(out var item)) replies.AddRange(await item.Run(now));
         replies.AddRange(IdleReturnTick(now));
         if (arrivalCheckDue && !reloading && position is { } arrivedAt)

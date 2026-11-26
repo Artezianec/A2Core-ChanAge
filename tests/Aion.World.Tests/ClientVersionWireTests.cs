@@ -69,6 +69,8 @@ public sealed class ClientVersionWireTests
 
             Assert.Equal(0x2053, Op(GamePackets.SelectCharacterWorldV13(1, 2, 3)));
             Assert.Equal(0xD79E, Op(GamePackets.ServerEnterMapPos(new Vector3d(1, 2, 3))));
+            Assert.Equal(0x61A0, Op(GamePackets.ClientSettings(1, 2, [0x0C, 1, 2])));
+            Assert.Equal(0xE25A, Op(GamePackets.NcGuardData()));
         }
         finally { WireContext.Current = state; }
     }
