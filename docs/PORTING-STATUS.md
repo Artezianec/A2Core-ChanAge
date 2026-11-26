@@ -28,11 +28,31 @@ and the mixed wire/behavior changes are intentionally not on this branch yet.
 | Tooling | 2.0.12 opcode audit, local supported-build generator, patch pipeline, NCGuard CA helper | `tools/` |
 | Diagnostics | Opt-in native flow journal (`AION_FLOW_LOG=1`) | `FlowLog.cs`, `NativeListeners.cs` |
 
-## Not ported (needs a client-version decision)
+## Protocol (2.0.9 / 2.0.12 / 2.0.13)
 
-- 2.0.12 opcode families and layouts (`B01`-`B09` in the audit).
-- 2.0.13 greeting/entry.
-- Mixed changes: bomb Ready/Start, sprint/dash, warehouse container semantics, soul-bind attune.
+The server keeps its 2.0.9 handlers and selects a wire version per native connection from the
+game greeting:
+
+- **2.0.9** (`0x3610`) keeps the original path.
+- **2.0.12** (`0x5E58`, reply `0xCB02`) uses the 2.0.12 greeting, world login (`0xD456`),
+  select (`0x3C4F` / `0xA8F9`), load (`0xB24E` / `0x4EF8`), lobby customizing
+  (`0x569D`..`0x56AA`, extended slot `0x910A`), create result `u16`, warp-leave flags,
+  appearance mask/point block, respawn/quest bodies, dodge flags, item-store widths and
+  ride success results.
+- **2.0.13** (`0x16FE`, reply `0x83A9`) negotiates and logs in with the 2.0.12 opcode map.
+  The 2.0.13 appearance/entry burst is still pending live verification.
+
+Renumbered 2.0.12 families are translated at the connection edges
+(`ProtocolTranslation`), so the 2.0.9 handlers stay unchanged: party loot, trade, dungeon
+rooms, arena, duel, airspace, godstone, monolith, force, abyss, achievements and the
+single moves. `0x382A`/`0x382C` stay untouched because they are the abnormal add/remove
+packets.
+
+## Not ported
+
+- 2.0.13 `MyCharAppear`/deferred entry bursts (needs the live client).
+- Mixed changes: bomb Ready/Start, sprint/dash, warehouse container semantics
+  (2 vs 15), soul-bind attune.
 - Launcher 2.0.12 build pin: the Target still pins 2.0.9 and offers 2.0.13 only as an
   experimental profile. Add 2.0.12 as a profile instead of replacing the 2.0.9 manifest.
 
