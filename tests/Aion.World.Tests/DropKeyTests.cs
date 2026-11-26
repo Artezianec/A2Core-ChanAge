@@ -66,6 +66,10 @@ public sealed class DropKeyTests
     }
 
     [Fact]
+    public void Drop_ownership_lasts_120_seconds() =>
+        Assert.Equal(120_000, GameSession.DropLifetimeMs);
+
+    [Fact]
     public void Removal_batch_has_twenty_byte_records_and_one_trailing_byte()
     {
         var p = LootPackets.DropsRemoved([(7, 11, 99, true), (7, 12, 99, true)]);

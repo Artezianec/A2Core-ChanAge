@@ -17,15 +17,16 @@ public sealed partial class GameSession
     static WorldRules hostWorldRules = WorldRules.Default;
     public static void ConfigureWorldRules(WorldRules rules) => hostWorldRules = rules.Validated();
     WorldRules WorldRules => options.Rules ?? hostWorldRules;
+    /// <summary>
+    /// A drop's first field is its source, the entity it dropped from (u32, OBSERVED: one chest's nine drops share it). GroundDrop.Key holds that source.
+    /// </summary>
     internal sealed record GroundDrop(int Key, long Uid, int ItemId, long Count, Vector3d Center, Vector3d At, long ExpiresAt,
         byte OwnerType = 2, long Owner = 0);
 
     readonly Dictionary<long, GroundDrop> drops = [];
     int dropCounter;
-    /// <summary>
-    /// A drop's first field is its source, the entity it dropped from (u32, OBSERVED: one chest's nine drops share it). GroundDrop.Key holds that source.
-    /// </summary>
-    public const int DropLifetimeMs = 60_000;
+    /// <summary>Official drop ownership expiry: 120 s after the kill (capture 20261124-130131 #3188: exp - packet time 120047 ms).</summary>
+    public const int DropLifetimeMs = 120_000;
     /// <summary>A drop is picked up within this distance (cm), with room for latency.</summary>
     public const double LootRange = 1500;
     const byte IncreaseDropItemGet = 5;   // EIncreaseReason kDropItemGet
