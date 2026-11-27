@@ -163,11 +163,16 @@ public sealed class ModernOpcodeWireTests
             Assert.NotEmpty(uids);
             var loot = new PacketWriter().U16(0x5620).Varint((uint)uids.Count);
             foreach (var uid in uids) loot.I64(uid);
-            var replies = await session.HandleAsync(loot.U8(0).ToArray(), landAt + 100);
+            var answers = await session.HandleAsync(loot.U8(0).ToArray(), landAt + 100);
+
+            // 2.0.13 removes each ground drop with its own 24-byte 0x561f.
+            var removals = answers.Where(p => Op(p) == LootPackets.DropRemoveNt).ToList();
+            Assert.Equal(uids.Count, removals.Count);
+            Assert.All(removals, p => Assert.Equal(24, p.Length));
 
             var kina = store.Items.Where(i => i.TemplateId == GameSession.KinaItemId && i.Location == "bag").Sum(i => i.Quantity);
             Assert.True(kina > 0, "a monster kill with MonsterKinahDrops should leave Kina to loot");
-            var status = Assert.Single(replies, p => Op(p) == 0xFFA6);
+            var status = Assert.Single(answers, p => Op(p) == 0xFFA6);
             Assert.Equal(kina, BitConverter.ToInt64(status, 2));
         }
         finally { WireContext.Current = previous; }

@@ -86,7 +86,7 @@ public sealed partial class GameSession
     void BroadcastDropRemoved(IReadOnlyList<(int Key, long Uid, long CharDbId, bool Auto)> removed)
     {
         if (removed.Count == 0 || worldPlayer?.Map is not { } map) return;
-        map.BroadcastAll([LootPackets.DropsRemoved(removed)], worldPlayer);
+        map.BroadcastAll(LootPackets.DropsRemovedPackets(removed), worldPlayer);
     }
 
     void RemoveSharedDrop(long uid)

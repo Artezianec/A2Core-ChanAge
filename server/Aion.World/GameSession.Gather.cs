@@ -40,7 +40,10 @@ public sealed partial class GameSession
     /// packets came 1.7 s after the start for one turn, 12.7 s for ten; about 1.3 s a turn plus 0.4 s, for won and lost
     /// attempts alike). Ending sooner closed the mini-game the moment it opened.
     /// </summary>
-    public static long GatherRaceMs(int turns) => 400 + 1300L * Math.Max(1, turns);
+    public static long GatherRaceMs(int turns) =>
+        WireContext.Current == WireVersion.V213
+            ? 400 + 1500L * Math.Max(1, turns)
+            : 400 + 1300L * Math.Max(1, turns);
 
     /// <summary>A lost attempt whose end (0x8d33 result 2, the attempt spent) waits for the client's turns to play out.</summary>
     (int Index, int Key, long DueMs)? pendingGatherLoss;
@@ -61,6 +64,7 @@ public sealed partial class GameSession
     /// </summary>
     List<GatherTurn> GatherTurns(int target, int nodeMastery)
     {
+        if (WireContext.Current == WireVersion.V213) return GatherTurnsV213(target, nodeMastery);
         var turns = new List<GatherTurn>();
         var chance = Math.Clamp(6500 + 300 * (gatherLevel - nodeMastery), 3500, 9500);
         int success = 0, fail = 0;
@@ -81,6 +85,31 @@ public sealed partial class GameSession
                 fail += result == TurnFailSmall ? Math.Max(1, target / 6) : Math.Max(1, target / 3);
             }
             turns.Add(new GatherTurn(result, Percent(before), Percent(success), Percent(failBefore), Percent(fail)));
+        }
+        return turns;
+    }
+
+    /// <summary>
+    /// 2.0.13 turns (OBSERVED ingame-3.a2p #3003/#3688): the client animates a raw gauge, not percentages, so each
+    /// turn carries its own per-turn gain and the opposite gauge stays zero. 3-5 turns of ~110-150 units fill the
+    /// node's gauge smoothly, and the last turn is clamped so the gains sum exactly to the target.
+    /// </summary>
+    List<GatherTurn> GatherTurnsV213(int target, int nodeMastery)
+    {
+        target = Math.Max(1, target);
+        var chance = Math.Clamp(6500 + 300 * (gatherLevel - nodeMastery), 3500, 9500);
+        var won = GatherRoll() < chance;
+        var count = Math.Clamp((target + 139) / 140, 3, 5);
+        var turns = new List<GatherTurn>(count);
+        var remaining = target;
+        for (var i = 0; i < count; i++)
+        {
+            var left = count - i;
+            var delta = i == count - 1 ? remaining : Math.Clamp(remaining / left, 1, 150);
+            remaining -= delta;
+            turns.Add(won
+                ? new GatherTurn(TurnBasic, 0, delta, 0, 0)
+                : new GatherTurn(TurnFailBasic, 0, 0, 0, delta));
         }
         return turns;
     }
@@ -164,6 +193,18 @@ public sealed partial class GameSession
         {
             // OBSERVED (88 official GatherSourceStart_RS): _mastery_grade_quest is one bool sharing the open bool byte.
             var masteryGradeQuest = TryElevateGatherCollect(out _, out var stepId) ? stepId : 0;
+            if (WireContext.Current == WireVersion.V213)
+            {
+                // OBSERVED 2.0.13 (#3003, #3688): four packed header bools, each turn's raw per-turn gauges, and
+                // _mastery_grade_quest as a bool — no trailing i32.
+                var v13 = PacketWriter.Opcode(GatherStartRs).U16(result).Varint(key).I32(attempts)
+                    .Bool(won).Bool(false).Varint(0)
+                    .Bool(false).Varint(0)
+                    .I32(1).Varint(turns.Count);
+                foreach (var t in turns)
+                    v13.U8(t.Result).Varint(0).I32(t.SuccessBefore).I32(t.SuccessAfter).I32(t.FailBefore).I32(t.FailAfter).Bool(false);
+                return v13.Bool(masteryGradeQuest != 0).ToArray();
+            }
             var w = PacketWriter.Opcode(GatherStartRs).U16(result).Varint(key).I32(attempts).Bool(won).Bool(false).Varint(0)
                 .Bool(false).Varint(0).I32(1).Varint(turns.Count);
             foreach (var t in turns) w.U8(t.Result).Bool(false).Varint(0).I32(t.SuccessBefore).I32(t.SuccessAfter).I32(t.FailBefore).I32(t.FailAfter);
@@ -193,7 +234,9 @@ public sealed partial class GameSession
         // 0x8d31's u32 counts the gathers on this node so far, this one included (OBSERVED), not the attempts left.
         var gatherNumber = total - attempts + 1;
         var turns = GatherTurns(target, node.Length >= 5 ? (int)node[4] : 1);
-        var won = turns.Count > 0 && turns[^1].SuccessAfter >= 100;
+        var won = turns.Count > 0 && (WireContext.Current == WireVersion.V213
+            ? turns.Sum(t => t.SuccessAfter - t.SuccessBefore) >= target
+            : turns[^1].SuccessAfter >= 100);
         if (won)
         {
             var replies = await UseObjectAsync(new PacketWriter().U16(0x3636).Varint(key).ToArray(), now, ct);

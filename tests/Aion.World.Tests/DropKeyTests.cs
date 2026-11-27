@@ -66,6 +66,36 @@ public sealed class DropKeyTests
     }
 
     [Fact]
+    public void Drop_ownership_lasts_120_seconds() =>
+        Assert.Equal(120_000, GameSession.DropLifetimeMs);
+
+    [Fact]
+    public void Two_0_13_removal_emits_one_24_byte_packet_per_drop()
+    {
+        var previous = WireContext.Current;
+        WireContext.Current = WireVersion.V213;
+        try
+        {
+            var packets = LootPackets.DropsRemovedPackets([(7, 11, 99, true), (7, 12, 99, false)]);
+            Assert.Equal(2, packets.Count);
+            Assert.All(packets, p => Assert.Equal(24, p.Length));
+
+            var reader = new PacketReader(packets[0]) { Offset = 2 };
+            Assert.Equal(1, reader.U8());
+            Assert.Equal(7u, reader.U32());
+            Assert.Equal(11, reader.I64());
+            Assert.Equal(99, reader.I64());
+            Assert.True(reader.Bool());
+            Assert.True(reader.End);
+
+            // A multi-entry call also writes its bool per record on 2.0.13.
+            var batched = LootPackets.DropsRemoved([(7, 11, 99, true), (7, 12, 99, false)]);
+            Assert.Equal(2 + 1 + 2 * 21, batched.Length);
+        }
+        finally { WireContext.Current = previous; }
+    }
+
+    [Fact]
     public void Removal_batch_has_twenty_byte_records_and_one_trailing_byte()
     {
         var p = LootPackets.DropsRemoved([(7, 11, 99, true), (7, 12, 99, true)]);

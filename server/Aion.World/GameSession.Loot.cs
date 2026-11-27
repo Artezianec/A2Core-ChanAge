@@ -167,7 +167,7 @@ public sealed partial class GameSession
         }
         replies.AddRange(taken.Select(d => LootPackets.LootReply(0, d.Uid, auto)));
         var removed = taken.Select(d => (d.Key, d.Uid, (long)(selected?.WireId ?? playerKey), auto)).ToList();
-        replies.Add(LootPackets.DropsRemoved(removed));
+        replies.AddRange(LootPackets.DropsRemovedPackets(removed));
         BroadcastDropRemoved(removed);
         var inventory = await InventoryChangesAsync(ct, IncreaseDropItemGet, 0);
         var autoUse = await AutoUseAcquiredItemsAsync(taken.Select(d => d.ItemId), now, ct);
@@ -187,6 +187,6 @@ public sealed partial class GameSession
         foreach (var d in gone) drops.Remove(d.Uid);
         var expired = gone.Select(d => (d.Key, d.Uid, 0L, false)).ToList();
         BroadcastDropRemoved(expired);
-        return [LootPackets.DropsRemoved(expired)];
+        return LootPackets.DropsRemovedPackets(expired);
     }
 }
