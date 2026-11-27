@@ -40,7 +40,10 @@ public sealed partial class GameSession
     /// packets came 1.7 s after the start for one turn, 12.7 s for ten; about 1.3 s a turn plus 0.4 s, for won and lost
     /// attempts alike). Ending sooner closed the mini-game the moment it opened.
     /// </summary>
-    public static long GatherRaceMs(int turns) => 400 + 1300L * Math.Max(1, turns);
+    public static long GatherRaceMs(int turns) =>
+        WireContext.Current == WireVersion.V213
+            ? 400 + 1500L * Math.Max(1, turns)
+            : 400 + 1300L * Math.Max(1, turns);
 
     /// <summary>A lost attempt whose end (0x8d33 result 2, the attempt spent) waits for the client's turns to play out.</summary>
     (int Index, int Key, long DueMs)? pendingGatherLoss;
@@ -61,6 +64,7 @@ public sealed partial class GameSession
     /// </summary>
     List<GatherTurn> GatherTurns(int target, int nodeMastery)
     {
+        if (WireContext.Current == WireVersion.V213) return GatherTurnsV213(target, nodeMastery);
         var turns = new List<GatherTurn>();
         var chance = Math.Clamp(6500 + 300 * (gatherLevel - nodeMastery), 3500, 9500);
         int success = 0, fail = 0;
@@ -81,6 +85,31 @@ public sealed partial class GameSession
                 fail += result == TurnFailSmall ? Math.Max(1, target / 6) : Math.Max(1, target / 3);
             }
             turns.Add(new GatherTurn(result, Percent(before), Percent(success), Percent(failBefore), Percent(fail)));
+        }
+        return turns;
+    }
+
+    /// <summary>
+    /// 2.0.13 turns (OBSERVED ingame-3.a2p #3003/#3688): the client animates a raw gauge, not percentages, so each
+    /// turn carries its own per-turn gain and the opposite gauge stays zero. 3-5 turns of ~110-150 units fill the
+    /// node's gauge smoothly, and the last turn is clamped so the gains sum exactly to the target.
+    /// </summary>
+    List<GatherTurn> GatherTurnsV213(int target, int nodeMastery)
+    {
+        target = Math.Max(1, target);
+        var chance = Math.Clamp(6500 + 300 * (gatherLevel - nodeMastery), 3500, 9500);
+        var won = GatherRoll() < chance;
+        var count = Math.Clamp((target + 139) / 140, 3, 5);
+        var turns = new List<GatherTurn>(count);
+        var remaining = target;
+        for (var i = 0; i < count; i++)
+        {
+            var left = count - i;
+            var delta = i == count - 1 ? remaining : Math.Clamp(remaining / left, 1, 150);
+            remaining -= delta;
+            turns.Add(won
+                ? new GatherTurn(TurnBasic, 0, delta, 0, 0)
+                : new GatherTurn(TurnFailBasic, 0, 0, 0, delta));
         }
         return turns;
     }
@@ -164,6 +193,18 @@ public sealed partial class GameSession
         {
             // OBSERVED (88 official GatherSourceStart_RS): _mastery_grade_quest is one bool sharing the open bool byte.
             var masteryGradeQuest = TryElevateGatherCollect(out _, out var stepId) ? stepId : 0;
+            if (WireContext.Current == WireVersion.V213)
+            {
+                // OBSERVED 2.0.13 (#3003, #3688): four packed header bools, each turn's raw per-turn gauges, and
+                // _mastery_grade_quest as a bool — no trailing i32.
+                var v13 = PacketWriter.Opcode(GatherStartRs).U16(result).Varint(key).I32(attempts)
+                    .Bool(won).Bool(false).Varint(0)
+                    .Bool(false).Varint(0)
+                    .I32(1).Varint(turns.Count);
+                foreach (var t in turns)
+                    v13.U8(t.Result).Varint(0).I32(t.SuccessBefore).I32(t.SuccessAfter).I32(t.FailBefore).I32(t.FailAfter).Bool(false);
+                return v13.Bool(masteryGradeQuest != 0).ToArray();
+            }
             var w = PacketWriter.Opcode(GatherStartRs).U16(result).Varint(key).I32(attempts).Bool(won).Bool(false).Varint(0)
                 .Bool(false).Varint(0).I32(1).Varint(turns.Count);
             foreach (var t in turns) w.U8(t.Result).Bool(false).Varint(0).I32(t.SuccessBefore).I32(t.SuccessAfter).I32(t.FailBefore).I32(t.FailAfter);
@@ -193,23 +234,29 @@ public sealed partial class GameSession
         // 0x8d31's u32 counts the gathers on this node so far, this one included (OBSERVED), not the attempts left.
         var gatherNumber = total - attempts + 1;
         var turns = GatherTurns(target, node.Length >= 5 ? (int)node[4] : 1);
-        var won = turns.Count > 0 && turns[^1].SuccessAfter >= 100;
+        var won = turns.Count > 0 && (WireContext.Current == WireVersion.V213
+            ? turns.Sum(t => t.SuccessAfter - t.SuccessBefore) >= target
+            : turns[^1].SuccessAfter >= 100);
         if (won)
         {
             var replies = await UseObjectAsync(new PacketWriter().U16(0x3636).Varint(key).ToArray(), now, ct);
             var refused = replies.Any(b => b[0] == 0x37 && b[1] == 0x36 && b.Length > 2 && b[2] != 0);
             if (!refused)
             {
-                gatherAttempts.Remove(index);
+                // 2.0.13 keeps the node's remaining attempts: CompleteGatherAsync decrements them.
+                if (WireContext.Current != WireVersion.V213) gatherAttempts.Remove(index);
                 // The node's timed interaction completes only once the turns have played out on the client.
                 if (pendingUse is { } use && use.Key == keyInt)
                     pendingUse = use with { DueMs = Math.Max(use.DueMs, now + GatherRaceMs(turns.Count)) };
             }
+            if (WireContext.Current == WireVersion.V213 && mountedRide is not null) replies.InsertRange(0, ForceDismount());
             return [Reply(refused ? 1 : 0, gatherNumber, !refused, turns), .. replies];
         }
         pendingUse = null;
         pendingGatherLoss = (index, keyInt, now + GatherRaceMs(turns.Count));
-        return [Reply(0, gatherNumber, false, turns), GamePackets.InteractEnvObjStarted(keyInt, playerKey)];
+        var lost = new List<byte[]> { Reply(0, gatherNumber, false, turns), GamePackets.InteractEnvObjStarted(keyInt, playerKey) };
+        if (WireContext.Current == WireVersion.V213 && mountedRide is not null) lost.InsertRange(0, ForceDismount());
+        return lost;
     }
 
     /// <summary>A lost attempt's end once its turns have played out: 0x8d33 result 2; the attempt is spent and the last one uses the node up.</summary>
@@ -223,17 +270,29 @@ public sealed partial class GameSession
         var key = loss.Key;
         var total = node.Length >= 7 && node[6] > 0 ? (int)node[6] : 3;
         var attempts = (gatherAttempts.TryGetValue(index, out var left) ? left : total) - 1;
-        var lost = new List<byte[]> { GatherCompleted(GatherFailed, key).I32((int)node[0]).I32(0).I32(0).I32(0).I32(0).ToArray() };
+        var v13 = WireContext.Current == WireVersion.V213;
+        var lost = new List<byte[]>();
+        // Official 2.0.13 (#3442-#3449): 0x363A then (if attempts remain) 0x363B, 0x8D33 and 0x8D34. The
+        // missing 0x363A left the client in the interact state and blocked mounting.
+        if (v13) lost.Add(GamePackets.InteractEnvObjCompleted(key, playerKey, total - Math.Max(0, attempts)));
+        if (attempts > 0)
+        {
+            gatherAttempts[index] = attempts;
+            if (v13) lost.Add(GamePackets.InteractEnvObjAvailableState(key));
+        }
+        lost.Add(GatherCompleted(GatherFailed, key).I32((int)node[0]).I32(0).I32(0).I32(0).I32(0).ToArray());
         if (attempts <= 0)
         {
             gatherAttempts.Remove(index);
             gathered[index] = now + GatherRespawnMs;
-            if (shownObjects.Remove(index)) lost.Add(GamePackets.EnvObjDespawn((int)key));
+            if (shownObjects.Remove(index)) lost.Add(GamePackets.EnvObjDespawn(key));
         }
-        else
+        else if (!v13) lost.Add(GamePackets.InteractEnvObjAvailableState(key));
+        if (v13)
         {
-            gatherAttempts[index] = attempts;
-            lost.Add(GamePackets.InteractEnvObjAvailableState((int)key));
+            var fail = ModernPackets.BroadcastGatherSourceResult(playerKey, ModernPackets.GatherResultFail, key);
+            worldPlayer?.Map?.Broadcast(worldPlayer, [fail]);
+            lost.Add(fail);
         }
         return lost;
     }
@@ -243,9 +302,15 @@ public sealed partial class GameSession
     {
         uint key;
         try { key = new PacketReader(plain) { Offset = 2 }.Varint(); } catch (ProtocolException) { return []; }
-        if (pendingUse is { } use && use.Key == (int)key) pendingUse = null;
-        if (pendingGatherLoss is { } loss && loss.Key == (int)key) pendingGatherLoss = null;
-        return [GamePackets.InteractEnvObjAvailableState((int)key)];
+        var cancelled = false;
+        if (pendingUse is { } use && use.Key == (int)key) { pendingUse = null; cancelled = true; }
+        if (pendingGatherLoss is { } loss && loss.Key == (int)key) { pendingGatherLoss = null; cancelled = true; }
+        var replies = new List<byte[]>();
+        // 2.0.13: leave the interact state before the node becomes available again.
+        if (cancelled && WireContext.Current == WireVersion.V213)
+            replies.Add(GamePackets.InteractEnvObjInterrupted((int)key, 0, playerKey));
+        replies.Add(GamePackets.InteractEnvObjAvailableState((int)key));
+        return replies;
     }
 
     /// <summary>A gather node's interaction completed: the material, 0x8d33, the node used up (0x3635).</summary>
@@ -268,11 +333,40 @@ public sealed partial class GameSession
                 return [GatherCompleted(GatherFailed, key).I32(item).I32(0).I32(0).I32(0).I32(0).ToArray()];
             replies.AddRange(await InventoryChangesAsync(ct, IncreaseGatherSource, 0));
         }
-        replies.Insert(0, GatherCompleted(0, key).I32(item).I32(count).I32(0).I32(bonus.Item1).I32(bonus.Item2).ToArray());
-        gathered[index] = now + GatherRespawnMs;
-        gatherAttempts.Remove(index);
-        if (shownObjects.Remove(index)) replies.Add(GamePackets.EnvObjDespawn(key));
+        var completed = GatherCompleted(0, key).I32(item).I32(count).I32(0).I32(bonus.Item1).I32(bonus.Item2).ToArray();
+        if (WireContext.Current == WireVersion.V213)
+        {
+            // Official 2.0.13 (#4013/#4014/#4024): a win spends one of the node's attempts and only the last
+            // one despawns it; 0x363A, 0x363B (while attempts remain), then 0x8D33.
+            var total = g.Length >= 7 && g[6] > 0 ? (int)g[6] : 3;
+            var attempts = (gatherAttempts.TryGetValue(index, out var left) ? left : total) - 1;
+            var head = new List<byte[]>
+            {
+                GamePackets.InteractEnvObjCompleted(key, playerKey, total - Math.Max(0, attempts)),
+            };
+            if (attempts > 0)
+            {
+                gatherAttempts[index] = attempts;
+                head.Add(GamePackets.InteractEnvObjAvailableState(key));
+            }
+            else
+            {
+                gatherAttempts.Remove(index);
+                gathered[index] = now + GatherRespawnMs;
+            }
+            head.Add(completed);
+            replies.InsertRange(0, head);
+            if (attempts <= 0 && shownObjects.Remove(index)) replies.Add(GamePackets.EnvObjDespawn(key));
+        }
+        else
+        {
+            replies.Insert(0, completed);
+            gathered[index] = now + GatherRespawnMs;
+            gatherAttempts.Remove(index);
+            if (shownObjects.Remove(index)) replies.Add(GamePackets.EnvObjDespawn(key));
+        }
         replies.AddRange(await GatherMasteryExpAsync(ct));
+        replies.AddRange(GatherResultNotices(key, now));
         replies.AddRange(AchieveGather(gatherLevel));
         return replies;
     }

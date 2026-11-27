@@ -38,6 +38,22 @@ def _rows(name):
     return json.loads((TABLES / name).read_text(encoding='utf-8'))['Properties']['Data']
 
 
+def _table_map():
+    """Exported .dat basename -> table-NNN.json, from the export's summary.json (the order is not stable)."""
+    summary = TABLES / 'summary.json'
+    if not summary.exists():
+        return {}
+    data = json.loads(summary.read_text(encoding='utf-8'))
+    return {Path(pkg['path']).name: pkg['file'] for pkg in data.get('packages', []) if pkg.get('file')}
+
+
+TABLE_MAP = _table_map()
+
+
+def _dat_rows(name, fallback):
+    return _rows(TABLE_MAP.get(name, fallback))
+
+
 def _enum(value):
     return str(value).split('::')[-1]
 
@@ -118,22 +134,34 @@ def build():
         if items:
             group_rewards[str(row['GroupId']['Value'])] = items
     attendance = {}
+    previous_attendance = json.loads(DATA.read_text(encoding='utf-8')).get('attendance', {}) if DATA.exists() else {}
     for row in _rows('table-000.json'):
         start = int((row.get('AttendanceStartDate') or {}).get('Ticks') or 0)
         end = int((row.get('AttendanceEndDate') or {}).get('Ticks') or 0)
-        attendance[str(row['ID']['Value'])] = {'a': row['AchievementId']['Value'], 'r': RACES.get(_enum(row['Race']), 0), 'd': int(row['AttendanceMaxDays'] or 0),
-                                               's': _enum(row['SeasonContentsType']), 'always': start == 0,
-                                               'from': _ticks_ms(start), 'to': _ticks_ms(end)}
+        key = str(row['ID']['Value'])
+        entry = {'a': row['AchievementId']['Value'], 'r': RACES.get(_enum(row['Race']), 0), 'd': int(row['AttendanceMaxDays'] or 0),
+                 's': _enum(row['SeasonContentsType']), 'always': start == 0,
+                 'from': _ticks_ms(start), 'to': _ticks_ms(end)}
+        # Season schedule enrichment (merge_attendance) must survive a plain build.
+        for extra in ('sg', 'sn', 'sgid'):
+            if extra in previous_attendance.get(key, {}):
+                entry[extra] = previous_attendance[key][extra]
+        attendance[key] = entry
     passes = {}
-    for row in _rows('table-007.json'):
+    for row in _dat_rows('BattlePass.dat', 'table-008.json'):
         passes.setdefault(row['GroupName'], []).append([row['ID']['Value'], row['ExpAchievementId']['Value'], int(int(row.get('UnlockCostCount') or 0) > 0 or bool(row.get('bIsPremium')))])
     battlepass = {}
-    for row in _rows('table-008.json'):
-        name = row['Name']
-        missions = name.replace('battlepass', 'BattlePass_Mission').replace('Eventpass', 'EventPass_Mission')
-        battlepass[str(row['ID']['Value'])] = {'n': name, 'r': RACES.get(_enum(row['Race']), 0), 'from': _ticks_ms(int((row.get('ActivationStartDate') or {}).get('Ticks') or 0)),
-                                               'to': _ticks_ms(int((row.get('ActivationEndDate') or {}).get('Ticks') or 0)), 'limit': int(row.get('ExpLimitValue') or 0),
-                                               'passes': passes.get(name, []), 'missions': missions if missions in groups else None}
+    # BattlePassGroup.dat rows carry the real activation window, race and weekly limit. Some exports (build
+    # 26909920) leave the file out; keep the last known-good groups instead of replacing them with BattlePass rows.
+    if 'BattlePassGroup.dat' in TABLE_MAP:
+        for row in _rows(TABLE_MAP['BattlePassGroup.dat']):
+            name = row['Name']
+            missions = name.replace('battlepass', 'BattlePass_Mission').replace('Eventpass', 'EventPass_Mission')
+            battlepass[str(row['ID']['Value'])] = {'n': name, 'r': RACES.get(_enum(row.get('Race')), 0), 'from': _ticks_ms(int((row.get('ActivationStartDate') or {}).get('Ticks') or 0)),
+                                                   'to': _ticks_ms(int((row.get('ActivationEndDate') or {}).get('Ticks') or 0)), 'limit': int(row.get('ExpLimitValue') or 0),
+                                                   'passes': passes.get(name, []), 'missions': missions if missions in groups else None}
+    elif DATA.exists():
+        battlepass = json.loads(DATA.read_text(encoding='utf-8')).get('battlepass', {})
     return {'source': 'Achievement/AchievementGroup/AchievementGroupReward/AchievementReward/AchievementStep/Attendance/BattlePass/BattlePassGroup.dat (tools/achievement_data.py)',
             'achievements': achievements, 'groups': groups, 'group_rewards': group_rewards, 'attendance': attendance, 'battlepass': battlepass}
 

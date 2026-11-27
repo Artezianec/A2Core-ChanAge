@@ -9,8 +9,6 @@ public sealed class ProtocolTranslationTests
     static ushort Op(byte[] body) => BitConverter.ToUInt16(body, 0);
 
     [Theory]
-    [InlineData(0x3813, 0x5718)]   // party loot begin
-    [InlineData(0x3830, 0x5735)]   // party loot result
     [InlineData(0x3B69, 0xE264)]   // trade sell
     [InlineData(0x3B77, 0xE272)]   // trade summary
     [InlineData(0x3AC1, 0x9700)]   // dungeon room list
@@ -19,8 +17,6 @@ public sealed class ProtocolTranslationTests
     [InlineData(0xE2C5, 0xE32C)]   // arena record
     [InlineData(0x933C, 0x9400)]   // duel call-out
     [InlineData(0x934A, 0x940E)]   // duel cancel
-    [InlineData(0x372C, 0x4300)]   // airspace battle
-    [InlineData(0x373A, 0x430E)]   // airspace ranking
     [InlineData(0x3776, 0x5634)]   // godstone update
     [InlineData(0x377B, 0x5639)]   // godstone combine
     public void Renumbered_families_round_trip(ushort v209, ushort v212)
@@ -29,6 +25,32 @@ public sealed class ProtocolTranslationTests
         var modern = ProtocolTranslation.ToClient(body);
         Assert.Equal(v212, Op(modern));
         Assert.Equal(v209, Op(ProtocolTranslation.ToServer(modern)));
+    }
+
+    /// <summary>
+    /// 2.0.13 uses the old numbers for movement/skills/projectiles, so these families are not
+    /// rewritten at the frame edge: the writer emits the modern number and dispatch matches it.
+    /// </summary>
+    [Theory]
+    [InlineData(0x3813, 0x5718)]   // party loot begin
+    [InlineData(0x3830, 0x5735)]   // party loot result / LockOnTarget_RQ
+    [InlineData(0x372C, 0x4300)]   // airspace battle
+    [InlineData(0x373A, 0x430E)]   // airspace ranking
+    [InlineData(0x385B, 0x6302)]   // abyss rift progress
+    [InlineData(0x385F, 0x6306)]   // abyss rift phase start
+    public void Moved_families_are_written_and_dispatched_by_their_modern_number(ushort v209, ushort v212)
+    {
+        var previous = WireContext.Current;
+        WireContext.Current = WireVersion.V213;
+        try
+        {
+            var legacy = new byte[] { (byte)v209, (byte)(v209 >> 8), 0xAA };
+            Assert.Equal(v209, Op(ProtocolTranslation.ToClient(legacy)));
+            Assert.Equal(v212, ProtocolTranslation.ForModern(v209));
+            var modern = new byte[] { (byte)v212, (byte)(v212 >> 8), 0xAA };
+            Assert.Equal(v212, Op(ProtocolTranslation.ToServer(modern)));
+        }
+        finally { WireContext.Current = previous; }
     }
 
     [Theory]

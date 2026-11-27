@@ -223,12 +223,13 @@ public sealed partial class GameSession
         return list;
     }
 
-    /// <summary>0x3626 Lobby_RS plus 0x3A16 ExtendedCharacterSlot_NT after the stored extended count is loaded.</summary>
-    List<byte[]> LobbyCharacterReplies(IReadOnlyList<LobbyCharacter> characters) =>
-    [
-        GamePackets.LobbyCharacters(characters, ExtendedCharacterSlotCount),
-        ExtendedSlotPacket(),
-    ];
+    /// <summary>0x3626 Lobby_RS. 2.0.13 carries the extended slot count inside the reply (no 0x910A toast).</summary>
+    List<byte[]> LobbyCharacterReplies(IReadOnlyList<LobbyCharacter> characters)
+    {
+        var replies = new List<byte[]> { GamePackets.LobbyCharacters(characters, ExtendedCharacterSlotCount) };
+        if (WireContext.Current != WireVersion.V213) replies.Add(ExtendedSlotPacket());
+        return replies;
+    }
 
     /// <summary>
     /// 0x3625 Lobby_RQ: opcode only from the world, or opcode plus slot u8 when backing out of character creation

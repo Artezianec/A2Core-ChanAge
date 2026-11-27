@@ -560,8 +560,17 @@ public sealed partial class GameSession
             (pastInventory ? trailing : leading).Add(p);
         }
         replies.AddRange(leading);
-        replies.Add(TakeAchievementRewardReply(0, id, step, granted));
-        replies.AddRange(inventory);
+        if (WireContext.Current == WireVersion.V213)
+        {
+            // 2.0.13: the achievement inventory change (0x561B, kAchievement) arrives before 0x5686.
+            replies.AddRange(inventory);
+            replies.Add(TakeAchievementRewardReply(0, id, step, granted));
+        }
+        else
+        {
+            replies.Add(TakeAchievementRewardReply(0, id, step, granted));
+            replies.AddRange(inventory);
+        }
         replies.AddRange(trailing);
         if (Achievements.Boards.Any(b => b.Achievement == id)) replies.Add(AccountContentsInfoList(now));
         return replies;
@@ -601,10 +610,32 @@ public sealed partial class GameSession
         var row = step >= 1 && step <= Achievements.GroupRewards(groupId).Count ? Achievements.GroupRewards(groupId)[step - 1] : null;
         var granted = row is { Length: >= 3 } ? options.Rates.WithKinah([((int)row[1], row[2])]) : [];
         var taken = await TakeGroupStepAsync(groupId, step, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), ct);
-        return taken is null ? [TakeAchievementGroupRewardReply(1, groupId, step)] : [TakeAchievementGroupRewardReply(0, groupId, step, granted), .. taken];
+        if (taken is null) return [TakeAchievementGroupRewardReply(1, groupId, step)];
+        // 2.0.13: 0x561B (inside taken) arrives before 0x5688.
+        return WireContext.Current == WireVersion.V213
+            ? [.. taken, TakeAchievementGroupRewardReply(0, groupId, step, granted)]
+            : [TakeAchievementGroupRewardReply(0, groupId, step, granted), .. taken];
     }
 
-    int CompletedInGroup(int groupId) => Achievements.InGroup(groupId).Count(e => (achievements.GetValueOrDefault(e.Id)?.CompletedMs ?? 0) != 0);
+    /// <summary>
+    /// Completed steps (not whole achievements) across a group: the group reward thresholds count steps
+    /// (Group_L_Growth_Complete has 13 achievements but 74 steps, thresholds 12/24/36/48/61/74).
+    /// </summary>
+    int CompletedInGroup(int groupId)
+    {
+        var total = 0;
+        foreach (var entry in Achievements.InGroup(groupId))
+        {
+            if (!achievements.TryGetValue(entry.Id, out var state)) continue;
+            var done = 0;
+            for (var step = 1; step <= entry.Steps.Length; step++)
+                if (state.Count >= entry.StepCount(step)) done++;
+            // Tests and old saves may seed only CompletedMs (Count 0): keep counting that achievement.
+            if (done == 0 && state.CompletedMs != 0) done = 1;
+            total += done;
+        }
+        return total;
+    }
 
     async Task<List<byte[]>?> TakeGroupStepAsync(int groupId, int step, long now, CancellationToken ct, bool syncInventory = true, bool refreshGroupStates = true, string logSource = "single")
     {
@@ -741,13 +772,23 @@ public sealed partial class GameSession
         var moreReward = takeResults.Count > 0 && BatchHasMoreClaimableRewards(groups, groupId, category, only, now);
         if (takeResults.Count > 0) await FlushAchievementsAsync(now, ct, force: true);
         var consolidatedRewards = ConsolidateRewardItems(grantedRewards);
-        // TakeAchievementRewardBatch_RS with _take_result, then Common_RewardItem[] (client build; not in usmap), then 0x561b, then 0x5684.
-        // Inventory before the batch RS prevents the rewards-collected sheet from listing granted stacks (live 0x5689 captures).
+        Note($"achievement_batch_claim: cat={category} group={groupId} only={only} claimed={takeResults.Count} result={batchResult}");
+        // 2.0.9/2.0.12: 0x568A then Common_RewardItem[], 0x561b, 0x5684.
+        // 2.0.13 (#7548 -> #7549): 0x561b (kAchievement) first, then the 22-byte 0x568A, then 0x5684.
         var batch = new List<byte[]>();
         batch.AddRange(checkIn);
-        batch.Add(RewardBatchReply(category, groupId, only, takeResults, batchResult, moreReward, consolidatedRewards));
-        if (inventoryChanges.Count > 0) batch.AddRange(inventoryChanges);
-        if (claimedAchievementIds.Count > 0) batch.Add(AchievementUpdate(claimedAchievementIds));
+        if (WireContext.Current == WireVersion.V213)
+        {
+            if (inventoryChanges.Count > 0) batch.AddRange(inventoryChanges);
+            batch.Add(RewardBatchReply(category, groupId, only, takeResults, batchResult, moreReward, consolidatedRewards));
+            if (claimedAchievementIds.Count > 0) batch.Add(AchievementUpdate(claimedAchievementIds));
+        }
+        else
+        {
+            batch.Add(RewardBatchReply(category, groupId, only, takeResults, batchResult, moreReward, consolidatedRewards));
+            if (inventoryChanges.Count > 0) batch.AddRange(inventoryChanges);
+            if (claimedAchievementIds.Count > 0) batch.Add(AchievementUpdate(claimedAchievementIds));
+        }
         if (grantedItems)
         {
             batch.AddRange(await AutoUseAcquiredItemsAsync(rewardItems, now, ct, deferAutoUseTitles: true));
@@ -811,6 +852,9 @@ public sealed partial class GameSession
     /// </summary>
     public static byte[] TakeAchievementRewardReply(int result, int id, byte step, IReadOnlyList<(int ItemId, long Count)>? grantedItems = null)
     {
+        // 2.0.13: u16 result, no trailing Common_RewardItem[] (verified a2p 0x5686).
+        if (WireContext.Current == WireVersion.V213)
+            return PacketWriter.Opcode(TakeAchievementRewardRs).U16(result).I32(id).U8(step).ToArray();
         var w = PacketWriter.Opcode(TakeAchievementRewardRs).I32(result).I32(id).U8(step);
         if (result == 0) AppendCommonRewardItems(w, grantedItems);
         return w.ToArray();
@@ -819,6 +863,9 @@ public sealed partial class GameSession
     /// <summary>TakeAchievementGroupReward_RS with the same trailing Common_RewardItem[] as single step rewards.</summary>
     public static byte[] TakeAchievementGroupRewardReply(int result, int groupId, byte step, IReadOnlyList<(int ItemId, long Count)>? grantedItems = null)
     {
+        // 2.0.13: u16 result, no trailing Common_RewardItem[] (verified a2p 0x5688).
+        if (WireContext.Current == WireVersion.V213)
+            return PacketWriter.Opcode(TakeAchievementGroupRewardRs).U16(result).I32(groupId).U8(step).ToArray();
         var w = PacketWriter.Opcode(TakeAchievementGroupRewardRs).I32(result).I32(groupId).U8(step);
         if (result == 0) AppendCommonRewardItems(w, grantedItems);
         return w.ToArray();
@@ -833,8 +880,13 @@ public sealed partial class GameSession
         IReadOnlyList<(int Group, IReadOnlyList<byte> GroupSteps, IReadOnlyDictionary<int, int> Steps)> results, int result = 0,
         bool moreRewardAvailable = false, IReadOnlyList<(int ItemId, long Count)>? grantedItems = null)
     {
-        var w = PacketWriter.Opcode(TakeAchievementRewardBatchRs).I32(result).U8(category).I32(groupId).U8(only ? (byte)1 : (byte)0)
-            .U8(moreRewardAvailable ? (byte)1 : (byte)0).Varint((uint)results.Count);
+        var v13 = WireContext.Current == WireVersion.V213;
+        // 2.0.13: u16 result, two packed bools and no trailing Common_RewardItem[] (verified a2p 0x568A).
+        var w = v13
+            ? PacketWriter.Opcode(TakeAchievementRewardBatchRs).U16(result).U8(category).I32(groupId)
+                .Bool(only).Bool(moreRewardAvailable).Varint((uint)results.Count)
+            : PacketWriter.Opcode(TakeAchievementRewardBatchRs).I32(result).U8(category).I32(groupId)
+                .U8(only ? (byte)1 : (byte)0).U8(moreRewardAvailable ? (byte)1 : (byte)0).Varint((uint)results.Count);
         foreach (var (gid, groupSteps, steps) in results)
         {
             w.I32(gid).Varint((uint)groupSteps.Count);
@@ -842,7 +894,7 @@ public sealed partial class GameSession
             w.Varint((uint)steps.Count);
             foreach (var (id, step) in steps.OrderBy(p => p.Key)) w.I32(id).U8((byte)step);
         }
-        if (result == 0) AppendCommonRewardItems(w, grantedItems);
+        if (!v13 && result == 0) AppendCommonRewardItems(w, grantedItems);
         return w.ToArray();
     }
 
@@ -933,9 +985,22 @@ public sealed partial class GameSession
         foreach (var (type, board) in keyed)
         {
             var (checkDay, rewardDay) = state(board.Achievement);
-            w.U8(type).I32(board.SeasonGroupId).I32(board.SeasonNo).I32(serverId).I64(charDbId).I32(checkDay).I32(rewardDay);
+            WriteAccountContentsInfo(w, type, board.SeasonGroupId, board.SeasonNo, serverId, charDbId, checkDay, rewardDay);
         }
         return w.ToArray();
+    }
+
+    /// <summary>
+    /// One Common_AccountContentsInfo row. 2.0.13 writes _server_id as u16 (OBSERVED #4759: e1 05 = 1505), so
+    /// char dbid / check day / reward day stay aligned and Attendance does not reopen every login.
+    /// </summary>
+    internal static void WriteAccountContentsInfo(PacketWriter w, byte type, int seasonGroupId, int seasonNo,
+        int serverId, long charDbId, int checkDay, int rewardDay)
+    {
+        w.U8(type).I32(seasonGroupId).I32(seasonNo);
+        if (WireContext.Current == WireVersion.V213) w.U16(serverId);
+        else w.I32(serverId);
+        w.I64(charDbId).I32(checkDay).I32(rewardDay);
     }
 
     /// <summary>Today's check-in on each open attendance board not yet stamped this game day (same rules as 0xe34d).</summary>

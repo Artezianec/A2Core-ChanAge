@@ -373,12 +373,13 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         lastNow = now;
         if (plain.Length < 2) return [];
         var header = Opcode(plain);
-        if (plain.Length == 2 && header is 0x383a or 0x383c)
+        if (plain.Length == 2 && header is CombatStateOnRq or CombatStateOffRq)
         {
-            // Every cast is bracketed by 0x383a/0x383c (u16 result replies). The player enters combat with the accepted cast
-            // (EnterCombat) and leaves ~3.5 s after the last action, not on 0x383c.
+            // Every cast is bracketed by 0x383a/0x383c (u16 result replies). The official 2.0.13 server only
+            // acks them (0x383b/0x383d): the player enters combat with the accepted cast (EnterCombat) and
+            // leaves ~3.5 s after the last action in TickAsync, which is what sends 0x8d21 true/false.
             var replies = new List<byte[]> { GamePackets.RequestAck(header) };
-            if (header == 0x383a && inCombat) combatUntil = now + CombatTimeoutMs;
+            if (header == CombatStateOnRq && inCombat) combatUntil = now + CombatTimeoutMs;
             return replies;
         }
         if (header == 0x3602 && plain.Length >= 10) return [GamePackets.Ping(BitConverter.ToUInt64(plain, 2), now)];
@@ -416,6 +417,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 return [GamePackets.Logout()];
             case 0x362e: return await BuilderAsync(plain, now, ct);
             case 0x3625 when IsLobbyRequest(plain): return await LobbyAsync(now, ct);
+            case ClientKeyBindingInfoRt: StoreClientKeyBindingInfo(plain); return [];
             case CharDeleteRq when plain.Length >= 3: return await DeleteCharacterAsync(plain, now, ct);
             case CharDeleteCancelRq when plain.Length >= 3: return await CancelDeleteAsync(plain, ct);
             case CharRenameRq when plain.Length >= 4: return await RenameCharacterAsync(plain, ct);
@@ -810,12 +812,13 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 return await Stored(async () =>
                 {
                     await EnsureExtendedCharacterSlotsAsync(ct);
-                    return
-                    [
+                    var lobbyLogin = new List<byte[]>
+                    {
                         GamePackets.LoginCharacters([], $"{loginIdentity.AccountSid}:{loginIdentity.Guid}", Store.WorldId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                             GamePackets.CommServerKey, now, isBornServer: true, chatEnableLevel: 0, extendedSlotCount: ExtendedCharacterSlotCount),
-                        ExtendedSlotPacket(),
-                    ];
+                    };
+                    if (WireContext.Current != WireVersion.V213) lobbyLogin.Add(ExtendedSlotPacket());
+                    return lobbyLogin;
                 });
         }
         if (GamePackets.WorldEntryQueryReplies.TryGetValue(header, out var reply))
@@ -1219,6 +1222,12 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             replies.AddRange(RefreshStats());
             var level = EquipItemLevel();
             replies.Add(GamePackets.ItemEquipLevelChange(level, level));
+            // 2.0.13 keeps the HUD combat power live after a gear change.
+            if (WireContext.Current == WireVersion.V213)
+            {
+                RecomputeCombatPower();
+                replies.Add(CharCombatPowerUpdate());
+            }
             // Also to the wearer: without it the own model kept its old look (live 2026-10-15).
             if (EquipChange(before, level) is { } change)
             {
@@ -1327,14 +1336,15 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 // _server_race: the picked world's race (each world holds one race, as an official server), else the race
                 // of the account's characters (0 when none, CANDIDATE "not chosen"; a new account then saw its own race's
                 // text scrambled).
-                return
-                [
+                var selectReplies = new List<byte[]>
+                {
                     NativeFraming.CompressedEnvelope(GamePackets.LoginCharacters(characters,
                         $"{loginIdentity.AccountSid}:{loginIdentity.Guid}", Store.WorldId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         GamePackets.CommServerKey, now, serverRace: worldRace ?? (races.Count == 1 ? races[0] : 0), isAdmin: ClientLobbyAdmin,
                         extendedSlotCount: ExtendedCharacterSlotCount)),
-                    ExtendedSlotPacket(),
-                ];
+                };
+                if (WireContext.Current != WireVersion.V213) selectReplies.Add(ExtendedSlotPacket());
+                return selectReplies;
             });
         // A '$' placeholder with the spawn position loads by itself; the origin record leaves
         // the client on the create screen.
@@ -1712,6 +1722,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             var all = await LoadCompleteAsync(new PacketWriter().U16(0x3622).I32((int)key).Zeros(12).ToArray(), now, ct);
             all.Add(GamePackets.ClientSettings(playerKey, state.WireId, state.Appearance));
             all.Add(GamePackets.NcGuardData());
+            all.AddRange(ModernEntryPackets(now));
             all.RemoveAll(b => b.Length >= 2 && (b[0] | b[1] << 8) == 0x3623);
             var stage1 = all.Where(b => EntryPriority(b) < 100).OrderBy(EntryPriority).ToList();
             var lists = all.Where(b => EntryPriority(b) == 100 && !EntryAfterLoad(b)).ToList();
@@ -1739,7 +1750,10 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     static int EntryPriority(byte[] body) => body.Length >= 2 ? (body[0] | body[1] << 8) switch
     {
         0x382a => 0, 0x5684 => 1, 0xffab => 2, 0xe263 => 3,
-        0x364a => 4, 0x3656 => 5, 0x8d00 => 6, 0xe25a => 7, 0x61a0 => 8,
+        0x364a => 4, 0x3656 => 5, 0x8d00 => 6, 0x561d when WireContext.Current == WireVersion.V213 => 6, 0xe25a => 7, 0x61a0 => 8,
+        ModernPackets.InitKinaLimitStatusNt => 9, ModernPackets.InitGatherLimitStatusNt => 10,
+        ModernPackets.AccountCurrencyLimitStatusNt => 11, ModernPackets.OdEnergyCubeCeilingInfoNt => 12,
+        ModernPackets.GuildCraftRecipeListNt => 13, ModernPackets.RetrievePostNoticeInfoNt => 14,
         _ => 100,
     } : 100;
 
@@ -1761,7 +1775,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     /// </summary>
     async Task<List<byte[]>> LoadCompleteV13Async(byte[] plain, long now, CancellationToken ct)
     {
-        var replies = new List<byte[]> { GamePackets.ServerEnterMapPos(position ?? spawn?.Position ?? GamePackets.SpawnPosition) };
+        // _char_key is the character's wire key (OBSERVED 26 B: Vec3 | varint key | u16 result |
+        // i32 ticket | i32 frame); the old 23976 was a captured key+result pair, not our character.
+        var replies = new List<byte[]> { GamePackets.ServerEnterMapPos(position ?? spawn?.Position ?? GamePackets.SpawnPosition, playerKey, ticket: 0, frame: 2) };
         if (deferredSpawn is { Count: > 0 } burst)
         {
             replies.AddRange(burst);
@@ -1941,6 +1957,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             replies.Add(resources.Maxima());
         }
         RecomputeCombatPower();
+        // Official 2.0.13 entry (#4702/#4764/#4766/#4828) sends both the gear score and the combat power;
+        // 0x561D already rides with InventoryDepotSyncPackets, so only combat power is added here.
+        if (WireContext.Current == WireVersion.V213) replies.Add(CharCombatPowerUpdate());
         replies.Add(GamePackets.MyCharAppear(new MyCharacterAppear
             {
                 ToggleFlags = sealStoneOn ? 1 : 0,
@@ -1963,6 +1982,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 WingId = wingId, Fp = resources.Fp, FpMax = resources.FpMax,
                 EquipItemLevel = armed, HighestTotalItemLevel = armed,
                 CombatPower = combatPower,
+                GatherLevel = gatherLevel, GatherExp = gatherExp, CraftMasteries = craftMastery,
                 SubzoneId = Subzones.SubzoneIdAt(mapId, at),
                 V13 = WireContext.Current == WireVersion.V213,
                 Abnormals = WireContext.Current == WireVersion.V213

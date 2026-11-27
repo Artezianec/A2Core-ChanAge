@@ -122,6 +122,7 @@ public sealed partial class GameSession
             if (granted.Count == 0) return DropSharedLoot(items, killSite, now);
             replies.AddRange(await InventoryChangesAsync(ct, IncreaseDropItemGet, 0));
             replies.AddRange(await AutoUseAcquiredItemsAsync(items.Select(i => i.ItemId), now, ct));
+            replies.AddRange(KinaLootStatus(items.Where(i => i.ItemId == KinaItemId).Sum(i => i.Count), now));
         }
         return replies;
     }
@@ -166,13 +167,14 @@ public sealed partial class GameSession
         }
         replies.AddRange(taken.Select(d => LootPackets.LootReply(0, d.Uid, auto)));
         var removed = taken.Select(d => (d.Key, d.Uid, (long)(selected?.WireId ?? playerKey), auto)).ToList();
-        replies.Add(LootPackets.DropsRemoved(removed));
+        replies.AddRange(LootPackets.DropsRemovedPackets(removed));
         BroadcastDropRemoved(removed);
         var inventory = await InventoryChangesAsync(ct, IncreaseDropItemGet, 0);
         var autoUse = await AutoUseAcquiredItemsAsync(taken.Select(d => d.ItemId), now, ct);
         // Official solo pickup order after 0x5621: 0x561f, 0x561b, then 0x5616 when auto-use applies.
         replies.AddRange(inventory);
         replies.AddRange(autoUse);
+        replies.AddRange(KinaLootStatus(taken.Where(d => d.ItemId == KinaItemId).Sum(d => d.Count), now));
         return replies;
     }
 
@@ -185,6 +187,6 @@ public sealed partial class GameSession
         foreach (var d in gone) drops.Remove(d.Uid);
         var expired = gone.Select(d => (d.Key, d.Uid, 0L, false)).ToList();
         BroadcastDropRemoved(expired);
-        return [LootPackets.DropsRemoved(expired)];
+        return LootPackets.DropsRemovedPackets(expired);
     }
 }

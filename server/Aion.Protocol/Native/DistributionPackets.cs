@@ -17,7 +17,9 @@ public static class DistributionOpcodes
 
 public static class DistributionPackets
 {
-    static PacketWriter Op(ushort opcode) => PacketWriter.Opcode(opcode);
+    // 0x3813-0x3828 and 0x3830 are skill/combat packets on 2.0.12+, so the loot/dice family
+    // writes its moved numbers there (2.0.9 keeps the old ones).
+    static PacketWriter Op(ushort opcode) => PacketWriter.Opcode(ProtocolTranslation.ForModern(opcode));
 
     /// <summary>0x3813 BeginItemBidding_NT: bidding uid, item, count, expire time (ms).</summary>
     public static byte[] BeginItemBidding(long biddingUid, int itemId, int count, long expireTime) =>

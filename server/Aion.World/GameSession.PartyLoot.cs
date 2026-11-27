@@ -86,7 +86,7 @@ public sealed partial class GameSession
     void BroadcastDropRemoved(IReadOnlyList<(int Key, long Uid, long CharDbId, bool Auto)> removed)
     {
         if (removed.Count == 0 || worldPlayer?.Map is not { } map) return;
-        map.BroadcastAll([LootPackets.DropsRemoved(removed)], worldPlayer);
+        map.BroadcastAll(LootPackets.DropsRemovedPackets(removed), worldPlayer);
     }
 
     void RemoveSharedDrop(long uid)
@@ -202,18 +202,21 @@ public sealed partial class GameSession
     async Task<List<byte[]>?> PartyLootRequestAsync(byte[] plain, long now, CancellationToken ct)
     {
         var header = Opcode(plain);
+        // On 2.0.12+ the loot/dice family moved to 0x5718-0x572D/0x5735; the 2.0.9 numbers are
+        // other skill/combat packets there, so match the modern numbers instead of translating down.
+        var rollDiceRq = ProtocolTranslation.ForModern(DistributionOpcodes.RollDiceRq);
+        var rollDiceWithdrawRq = ProtocolTranslation.ForModern(DistributionOpcodes.RollDiceWithdrawRq);
         // Live dev+0x157 skill charging reuses 0x381d/0x381f with different bodies (step+skill i32… / empty stop).
         // Party roll withdraw is opcode + i64 dice uid (10 bytes); charging end is 12 bytes.
-        if (header == DistributionOpcodes.RollDiceRq && plain.Length != 10) return null;
-        if (header == DistributionOpcodes.RollDiceWithdrawRq && plain.Length != 10) return null;
-        return header switch
-        {
-            DistributionOpcodes.RollDiceRq => RollDiceAsync(plain, now),
-            DistributionOpcodes.RollDiceWithdrawRq => RollDiceWithdrawAsync(plain, now),
-            DistributionOpcodes.BidItemRq => await BidItemAsync(plain, now, ct),
-            DistributionOpcodes.BidItemWithdrawRq => await BidItemWithdrawAsync(plain, now, ct),
-            _ => null,
-        };
+        if (header == rollDiceRq)
+            return plain.Length == 10 ? RollDiceAsync(plain, now) : null;
+        if (header == rollDiceWithdrawRq)
+            return plain.Length == 10 ? RollDiceWithdrawAsync(plain, now) : null;
+        if (header == ProtocolTranslation.ForModern(DistributionOpcodes.BidItemRq))
+            return await BidItemAsync(plain, now, ct);
+        if (header == ProtocolTranslation.ForModern(DistributionOpcodes.BidItemWithdrawRq))
+            return await BidItemWithdrawAsync(plain, now, ct);
+        return null;
     }
 
     List<byte[]> RollDiceAsync(byte[] plain, long now)

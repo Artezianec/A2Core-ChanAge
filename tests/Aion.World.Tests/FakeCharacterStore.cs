@@ -381,8 +381,11 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     public Dictionary<int, int> Skins { get; } = [];
     public Dictionary<int, int> SkinEquips { get; } = [];
 
+    /// <summary>Craft/gather masteries returned by ExtrasAsync.</summary>
+    public List<MasteryRecord> Masteries { get; } = [];
+
     public Task<CharacterExtras> ExtrasAsync(Guid character, CancellationToken ct) =>
-        Task.FromResult(new CharacterExtras(Titles.ToList(), new Dictionary<int, int>(TitleEquips), new Dictionary<int, int>(Skins), new Dictionary<int, int>(SkinEquips), []));
+        Task.FromResult(new CharacterExtras(Titles.ToList(), new Dictionary<int, int>(TitleEquips), new Dictionary<int, int>(Skins), new Dictionary<int, int>(SkinEquips), Masteries.ToList()));
 
     public Task<bool> GrantTitleAsync(Guid character, int titleId, CancellationToken ct) => Task.FromResult(Titles.Add(titleId));
 
@@ -791,6 +794,21 @@ public sealed class FakeCharacterStore : INativeCharacterStore
 
     public Task<IReadOnlyList<AchievementRecord>> AchievementsAsync(Guid character, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<AchievementRecord>>(Achievements.ToList());
+
+    /// <summary>Group reward steps already taken (GameSession.Achievements.cs group thresholds).</summary>
+    public List<(int Group, int Step)> GroupRewardsTaken { get; } = [];
+
+    public Task<IReadOnlyList<(int Group, int Step)>> GroupRewardsTakenAsync(Guid character, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<(int, int)>>(GroupRewardsTaken.ToList());
+
+    public Task<bool> TakeGroupRewardAsync(Guid character, int groupId, int step, IReadOnlyList<(int TemplateId, long Count)> items, CancellationToken ct)
+    {
+        if (GroupRewardsTaken.Contains((groupId, step))) return Task.FromResult(false);
+        GroupRewardsTaken.Add((groupId, step));
+        var wire = Items.Count == 0 ? 5000 : Items.Max(i => i.WireId) + 1;
+        foreach (var (template, quantity) in items) Items.Add(BagItem(template, quantity, wire++));
+        return Task.FromResult(true);
+    }
 
     public Task<bool> SaveAchievementsAsync(Guid character, IReadOnlyList<AchievementRecord> records, CancellationToken ct)
     {

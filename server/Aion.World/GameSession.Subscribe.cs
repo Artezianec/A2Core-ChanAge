@@ -16,6 +16,13 @@ public sealed partial class GameSession
         1, 25, 26, 27, 2, 4, 28,
     ];
 
+    /// <summary>2.0.13 ESubscribeType values for the same Quai Membership (OBSERVED ingame-3.a2p #4748).</summary>
+    public static readonly IReadOnlyList<(byte Type, int DataId)> QuaiMembershipTypes213 =
+    [
+        (34, 4), (35, 4), (37, 4), (38, 4), (39, 4), (40, 4), (41, 4), (42, 4),
+        (44, 8),   // ItemAutoLooting
+    ];
+
     public sealed record Membership(long StartMs, long EndMs, bool Revoked)
     {
         public bool ActiveAt(long now) => !Revoked && StartMs <= now && now < EndMs;
@@ -77,6 +84,13 @@ public sealed partial class GameSession
         var membership = CurrentMembership(now);
         var w = PacketWriter.Opcode(opcode);
         if (membership is null) return w.Varint(0).ToArray();
+        if (WireContext.Current == WireVersion.V213)
+        {
+            w.Varint((uint)QuaiMembershipTypes213.Count);
+            foreach (var (type, dataId) in QuaiMembershipTypes213)
+                w.U8(type).I32(dataId).I64(membership.StartMs).I64(membership.EndMs);
+            return w.ToArray();
+        }
         w.Varint((uint)QuaiMembershipTypes.Count);
         foreach (var type in QuaiMembershipTypes) w.U8(type).I32(QuaiMembershipDataId).I64(membership.StartMs).I64(membership.EndMs);
         return w.ToArray();

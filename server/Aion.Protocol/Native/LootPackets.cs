@@ -35,15 +35,34 @@ public static class LootPackets
     }
 
     /// <summary>
-    /// 0x561f DropItemRemove_NT: count u8, then 20 bytes per drop: source u32 | uid i64 | taker's dbid i64 (0: it vanished);
-    /// then one byte for the batch (auto looting). A bool per record broke every batch of more than one.
+    /// 0x561f DropItemRemove_NT. 2.0.9: count u8, 20 bytes per drop (source u32 | uid i64 | taker dbid i64), then one
+    /// auto-looting byte for the batch. 2.0.13: 21 bytes per drop, the bool on each record (OBSERVED SDK
+    /// Common_DropItemSmall); one 24-byte packet per drop through <see cref="DropsRemovedPackets"/>.
     /// </summary>
     public static byte[] DropsRemoved(IReadOnlyList<(int Key, long Uid, long CharDbId, bool Auto)> removed)
     {
         if (removed.Count > byte.MaxValue) throw new ArgumentException("At most 255 drops in one batch", nameof(removed));
         var w = PacketWriter.Opcode(DropRemoveNt).U8(removed.Count);
+        if (WireContext.Current == WireVersion.V213)
+        {
+            foreach (var (key, uid, dbid, auto) in removed) w.U32((uint)key).I64(uid).I64(dbid).Bool(auto);
+            return w.ToArray();
+        }
         foreach (var (key, uid, dbid, _) in removed) w.U32((uint)key).I64(uid).I64(dbid);
         return w.U8(removed.Any(r => r.Auto) ? 1 : 0).ToArray();
+    }
+
+    /// <summary>
+    /// Removal frames for a batch: 2.0.13 sends one 24-byte 0x561f per removed drop (all 92 official 2.0.13
+    /// frames are count 1); 2.0.9 and 2.0.12 keep the single batched frame.
+    /// </summary>
+    public static List<byte[]> DropsRemovedPackets(IReadOnlyList<(int Key, long Uid, long CharDbId, bool Auto)> removed)
+    {
+        if (WireContext.Current != WireVersion.V213) return [DropsRemoved(removed)];
+        var packets = new List<byte[]>(removed.Count);
+        foreach (var (key, uid, dbid, auto) in removed)
+            packets.Add(PacketWriter.Opcode(DropRemoveNt).U8(1).U32((uint)key).I64(uid).I64(dbid).Bool(auto).ToArray());
+        return packets;
     }
 
     /// <summary>0x5621 ItemLooting_RS: result u16 | drop uid i64 | auto looting bool.</summary>
