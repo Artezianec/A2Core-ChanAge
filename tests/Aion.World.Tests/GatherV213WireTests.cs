@@ -1,13 +1,15 @@
+using Aion.Application.Gameplay;
 using Aion.Protocol.Native;
 using Aion.World;
 using Xunit;
 
 namespace Aion.World.Tests;
 
-/// <summary>The 2.0.13 GatherSourceStart_RS: raw per-turn gauges and its own turn pacing.</summary>
+/// <summary>The 2.0.13 gather wire: raw per-turn gauges, attempts per node and the interaction state packets.</summary>
 public sealed class GatherV213WireTests
 {
     const long Now = 1_760_300_000_000;
+    const int PetRide = 1002;
 
     static (WorldObject Node, int Index, int Key) FirstGatherNode(int mapId = 1010)
     {
@@ -15,18 +17,34 @@ public sealed class GatherV213WireTests
         return (hit.o, hit.i, WorldObjects.FirstKey + hit.i);
     }
 
+    static int TargetOf(WorldObject node) => node.Gather!.Length >= 6 && node.Gather[5] > 0 ? (int)node.Gather[5] : 360;
+
+    static int TurnsOf(WorldObject node) => Math.Clamp((TargetOf(node) + 139) / 140, 3, 5);
+
+    static async Task<GameSession> SessionOnNodeAsync(FakeCharacterStore store, WorldObject node, long now)
+    {
+        store.Progress = (55, 0);
+        var session = await GameSessionTestHelpers.EnterMap1010Async(store, now);
+        session.Teleport(1010, node.At with { X = node.At.X + 50 }, now);
+        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), now);
+        return session;
+    }
+
+    static WireVersion Pin(WireVersion version)
+    {
+        var previous = WireContext.Current;
+        WireContext.Current = version;
+        return previous;
+    }
+
     [Fact]
     public async Task V213_reply_carries_raw_per_turn_gauges_and_no_trailing_i32()
     {
-        var store = new FakeCharacterStore { Progress = (55, 0) };
-        var session = await GameSessionTestHelpers.EnterMap1010Async(store, Now);
         var (node, _, key) = FirstGatherNode();
-        session.Teleport(1010, node.At with { X = node.At.X + 50 }, Now);
-        await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now);
+        var session = await SessionOnNodeAsync(new FakeCharacterStore(), node, Now);
         session.GatherRoll = () => 0;   // a winning attempt
 
-        var previous = WireContext.Current;
-        WireContext.Current = WireVersion.V213;
+        var previous = Pin(WireVersion.V213);
         try
         {
             var startAt = Now + 10;
@@ -44,7 +62,7 @@ public sealed class GatherV213WireTests
             _ = reader.Varint();                    // _discovery_skill_effect_sets
             _ = reader.I32();                       // _material_group_key
             var turnCount = (int)reader.Varint();
-            var target = node.Gather!.Length >= 6 && node.Gather[5] > 0 ? node.Gather[5] : 360;
+            var target = TargetOf(node);
             var sum = 0;
             for (var i = 0; i < turnCount; i++)
             {
@@ -71,6 +89,114 @@ public sealed class GatherV213WireTests
             Assert.DoesNotContain(early, p => GameSessionTestHelpers.Op(p) == GameSession.GatherCompletedNt);
             var done = await session.TickAsync(startAt + Math.Max(race, node.InteractTime) + 100);
             Assert.Contains(done, p => GameSessionTestHelpers.Op(p) == GameSession.GatherCompletedNt && p[2] == 0);
+        }
+        finally { WireContext.Current = previous; }
+    }
+
+    [Fact]
+    public async Task V213_three_attempt_node_survives_two_wins_and_despawns_on_the_third()
+    {
+        var (node, index, key) = FirstGatherNode();
+        var total = node.Gather!.Length >= 7 && node.Gather[6] > 0 ? (int)node.Gather[6] : 3;
+        var session = await SessionOnNodeAsync(new FakeCharacterStore(), node, Now);
+        session.GatherRoll = () => 0;
+
+        var previous = Pin(WireVersion.V213);
+        try
+        {
+            var wait = Math.Max(GameSession.GatherRaceMs(TurnsOf(node)), node.InteractTime) + 100;
+            var at = Now + 10;
+            for (var attempt = 1; attempt <= total; attempt++)
+            {
+                var start = await session.HandleAsync(new PacketWriter().U16(GameSession.GatherStartRq).Varint((uint)key).ToArray(), at);
+                Assert.Contains(start, p => GameSessionTestHelpers.Op(p) == GameSession.GatherStartRs);
+                var done = await session.TickAsync(at + wait);
+                Assert.Contains(done, p => GameSessionTestHelpers.Op(p) == GameSession.GatherCompletedNt && p[2] == 0);
+                if (attempt < total)
+                {
+                    Assert.DoesNotContain(done, p => p.SequenceEqual(GamePackets.EnvObjDespawn(key)));
+                    Assert.Contains(done, p => GameSessionTestHelpers.Op(p) == 0x363B);
+                    Assert.Equal(total - attempt, session.GatherAttemptsLeft(index));
+                }
+                else
+                {
+                    Assert.Contains(done, p => p.SequenceEqual(GamePackets.EnvObjDespawn(key)));
+                    Assert.Equal(-1, session.GatherAttemptsLeft(index));
+                }
+                at += wait + 500;
+            }
+        }
+        finally { WireContext.Current = previous; }
+    }
+
+    [Fact]
+    public async Task V213_lost_attempt_completes_the_interaction_before_0x8d33_and_allows_mounting()
+    {
+        var (node, _, key) = FirstGatherNode();
+        var store = new FakeCharacterStore();
+        store.RideRows.Add(new RideRecord(PetRide, 1, 0, Owned: true));
+        store.DefaultRide = PetRide;
+        var session = await SessionOnNodeAsync(store, node, Now);
+        session.GatherRoll = () => 9999;   // a lost attempt
+
+        var previous = Pin(WireVersion.V213);
+        try
+        {
+            var startAt = Now + 10;
+            await session.HandleAsync(new PacketWriter().U16(GameSession.GatherStartRq).Varint((uint)key).ToArray(), startAt);
+            var done = await session.TickAsync(startAt + Math.Max(GameSession.GatherRaceMs(TurnsOf(node)), node.InteractTime) + 100);
+
+            var completed = done.FindIndex(p => GameSessionTestHelpers.Op(p) == 0x363A);
+            var gatherDone = done.FindIndex(p => GameSessionTestHelpers.Op(p) == GameSession.GatherCompletedNt && p[2] == 2);
+            Assert.True(completed >= 0, "0x363A InteractEnvObjCompleted_NT must leave the interact state");
+            Assert.True(gatherDone > completed, "0x363A must precede 0x8D33");
+            Assert.Contains(done, p => GameSessionTestHelpers.Op(p) == 0x8D34);
+
+            await session.HandleAsync(new PacketWriter().U16(RidePackets.GetOnRq).I32(PetRide).ToArray(), startAt + 3_000);
+            Assert.Equal(PetRide, session.MountedRide);
+        }
+        finally { WireContext.Current = previous; }
+    }
+
+    [Fact]
+    public async Task V213_gather_stop_leaves_the_interaction_state_before_available()
+    {
+        var (node, _, key) = FirstGatherNode();
+        var session = await SessionOnNodeAsync(new FakeCharacterStore(), node, Now);
+        session.GatherRoll = () => 0;
+
+        var previous = Pin(WireVersion.V213);
+        try
+        {
+            await session.HandleAsync(new PacketWriter().U16(GameSession.GatherStartRq).Varint((uint)key).ToArray(), Now + 10);
+            var stop = await session.HandleAsync(new PacketWriter().U16(0x8D32).Varint((uint)key).ToArray(), Now + 20);
+            var interrupted = stop.FindIndex(p => GameSessionTestHelpers.Op(p) == 0x3639);
+            var available = stop.FindIndex(p => GameSessionTestHelpers.Op(p) == 0x363B);
+            Assert.True(interrupted >= 0);
+            Assert.True(available > interrupted);
+        }
+        finally { WireContext.Current = previous; }
+    }
+
+    [Fact]
+    public async Task V213_starting_a_gather_dismounts_first()
+    {
+        var (node, _, key) = FirstGatherNode();
+        var store = new FakeCharacterStore();
+        store.RideRows.Add(new RideRecord(PetRide, 1, 0, Owned: true));
+        store.DefaultRide = PetRide;
+        var session = await SessionOnNodeAsync(store, node, Now);
+
+        var previous = Pin(WireVersion.V213);
+        try
+        {
+            await session.HandleAsync(new PacketWriter().U16(RidePackets.GetOnRq).I32(PetRide).ToArray(), Now + 5);
+            Assert.Equal(PetRide, session.MountedRide);
+
+            session.GatherRoll = () => 0;
+            var start = await session.HandleAsync(new PacketWriter().U16(GameSession.GatherStartRq).Varint((uint)key).ToArray(), Now + 10);
+            Assert.Null(session.MountedRide);
+            Assert.Contains(start, p => GameSessionTestHelpers.Op(p) == RidePackets.GetOffNt);
         }
         finally { WireContext.Current = previous; }
     }

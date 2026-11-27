@@ -1633,7 +1633,8 @@ public static class GamePackets
     /// <summary>0x3638 InteractEnvObjStarted_NT: object key, interactor key, state 1.</summary>
     public static byte[] InteractEnvObjStarted(int key, int interactor) => PacketWriter.Opcode(0x3638).Varint(key).Varint(interactor).U8(1).ToArray();
     /// <summary>0x363a InteractEnvObjCompleted_NT: object key, interactor key, interaction count, item id.</summary>
-    public static byte[] InteractEnvObjCompleted(int key, int interactor) => PacketWriter.Opcode(0x363a).Varint(key).Varint(interactor).I32(0).I32(0).ToArray();
+    public static byte[] InteractEnvObjCompleted(int key, int interactor, int interactionCount = 0) =>
+        PacketWriter.Opcode(0x363a).Varint(key).Varint(interactor).I32(interactionCount).I32(0).ToArray();
     /// <summary>0x8d6d InteractionEnvObjFinishState_NT: object key (no usmap struct at this index; OBSERVED body = the key varint).</summary>
     public static byte[] InteractEnvObjFinishState(int key) => PacketWriter.Opcode(0x8d6d).Varint(key).ToArray();
     /// <summary>0x363b InteractEnvObjAvailableState_NT: object key.</summary>
