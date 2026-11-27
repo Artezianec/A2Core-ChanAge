@@ -112,6 +112,8 @@ public sealed class GatherV213WireTests
                 Assert.Contains(start, p => GameSessionTestHelpers.Op(p) == GameSession.GatherStartRs);
                 var done = await session.TickAsync(at + wait);
                 Assert.Contains(done, p => GameSessionTestHelpers.Op(p) == GameSession.GatherCompletedNt && p[2] == 0);
+                // Player key, 0x3A00 success, node key (ingame-3.a2p #4034).
+                Assert.Contains(done, p => p.SequenceEqual(ModernPackets.BroadcastGatherSourceResult(session.PlayerKey, ModernPackets.GatherResultSuccess, key)));
                 if (attempt < total)
                 {
                     Assert.DoesNotContain(done, p => p.SequenceEqual(GamePackets.EnvObjDespawn(key)));
@@ -150,7 +152,7 @@ public sealed class GatherV213WireTests
             var gatherDone = done.FindIndex(p => GameSessionTestHelpers.Op(p) == GameSession.GatherCompletedNt && p[2] == 2);
             Assert.True(completed >= 0, "0x363A InteractEnvObjCompleted_NT must leave the interact state");
             Assert.True(gatherDone > completed, "0x363A must precede 0x8D33");
-            Assert.Contains(done, p => GameSessionTestHelpers.Op(p) == 0x8D34);
+            Assert.Contains(done, p => p.SequenceEqual(ModernPackets.BroadcastGatherSourceResult(session.PlayerKey, ModernPackets.GatherResultFail, key)));
 
             await session.HandleAsync(new PacketWriter().U16(RidePackets.GetOnRq).I32(PetRide).ToArray(), startAt + 3_000);
             Assert.Equal(PetRide, session.MountedRide);

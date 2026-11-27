@@ -289,7 +289,11 @@ public sealed partial class GameSession
         }
         else if (!v13) lost.Add(GamePackets.InteractEnvObjAvailableState(key));
         if (v13)
-            lost.Add(ModernPackets.BroadcastGatherSourceResult(playerKey, 0x3A02, key));
+        {
+            var fail = ModernPackets.BroadcastGatherSourceResult(playerKey, ModernPackets.GatherResultFail, key);
+            worldPlayer?.Map?.Broadcast(worldPlayer, [fail]);
+            lost.Add(fail);
+        }
         return lost;
     }
 

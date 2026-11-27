@@ -51,15 +51,18 @@ public sealed partial class GameSession
         catch (ProtocolException) { }
     }
 
-    /// <summary>Gather result notice: source result, combo start and the updated daily count (2.0.13 only).</summary>
+    /// <summary>Gather result notice: combo start, the success broadcast and the updated daily count (2.0.13 only).</summary>
     List<byte[]> GatherResultNotices(int sourceKey, long now)
     {
         if (!IsV213) return [];
         var count = options.World?.GatherLimiter.Used(now) ?? 0;
+        var broadcast = ModernPackets.BroadcastGatherSourceResult(playerKey, ModernPackets.GatherResultSuccess, sourceKey);
+        // The success animation and sound play on the player actor, and nearby players see it too.
+        worldPlayer?.Map?.Broadcast(worldPlayer, [broadcast]);
         return
         [
-            ModernPackets.BroadcastGatherSourceResult(sourceKey, 0, playerKey),
             ModernPackets.GatherComboStart(1, now + 30_000),
+            broadcast,
             ModernPackets.GatherLimitStatus(count, now),
         ];
     }

@@ -66,9 +66,17 @@ public static class ModernPackets
         WriteRows(PacketWriter.Opcode(OdEnergyCubeCeilingInfoNt), rows,
             (w, row) => w.I32(row.DungeonId).U8(row.CeilingPoint).U8(row.RewardCount));
 
-    /// <summary>0x8D34 BroadcastGatherSourceResult_NT: source key varint, result u16, target key varint.</summary>
-    public static byte[] BroadcastGatherSourceResult(int sourceKey, ushort result, int targetKey) =>
-        PacketWriter.Opcode(BroadcastGatherSourceResultNt).Varint(sourceKey).U16(result).Varint(targetKey).ToArray();
+    /// <summary>EResult::kGatherSource_Success (OBSERVED 0x8D34 #4034).</summary>
+    public const ushort GatherResultSuccess = 0x3A00;
+    /// <summary>EResult::kGatherSource_Fail_GatherFailed (OBSERVED 0x8D34 #3449).</summary>
+    public const ushort GatherResultFail = 0x3A02;
+
+    /// <summary>
+    /// 0x8D34 BroadcastGatherSourceResult_NT: the PLAYER key varint, the EResult u16, then the GATHER NODE key
+    /// varint (OBSERVED #4034: player 11502, result 0x3A00, node 32635).
+    /// </summary>
+    public static byte[] BroadcastGatherSourceResult(int playerKey, ushort result, int nodeKey) =>
+        PacketWriter.Opcode(BroadcastGatherSourceResultNt).Varint(playerKey).U16(result).Varint(nodeKey).ToArray();
 
     /// <summary>0x8D3E GatherComboStart_NT: combo count i32, expiration i64.</summary>
     public static byte[] GatherComboStart(int comboCount, long expirationMs) =>

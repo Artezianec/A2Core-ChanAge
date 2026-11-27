@@ -88,13 +88,19 @@ public sealed class ModernPacketsTests
     }
 
     [Fact]
-    public void Gather_source_result_and_combo_start_match_the_captures()
+    public void Gather_source_result_matches_the_official_success_bytes()
     {
-        var result = ModernPackets.BroadcastGatherSourceResult(11944, 0, 7);
+        // ingame-3.a2p #4034: 34 8d ee 59 00 3a fb fe 01 = player 11502, result 0x3A00, node 32635.
+        var result = ModernPackets.BroadcastGatherSourceResult(11502, ModernPackets.GatherResultSuccess, 32635);
         Assert.Equal(0x8D34, Op(result));
-        Assert.Equal(11944u, NativeVarint.Read(result, 2, out var at));
-        Assert.Equal(0, BitConverter.ToUInt16(result, at));
-        Assert.Equal(7u, NativeVarint.Read(result, at + 2, out _));
+        Assert.Equal(new byte[] { 0x34, 0x8D, 0xEE, 0x59, 0x00, 0x3A, 0xFB, 0xFE, 0x01 }, result);
+        Assert.Equal(0x3A00, ModernPackets.GatherResultSuccess);
+        Assert.Equal(0x3A02, ModernPackets.GatherResultFail);
+
+        var result2 = ModernPackets.BroadcastGatherSourceResult(11944, 0, 7);
+        Assert.Equal(11944u, NativeVarint.Read(result2, 2, out var at));
+        Assert.Equal(0, BitConverter.ToUInt16(result2, at));
+        Assert.Equal(7u, NativeVarint.Read(result2, at + 2, out _));
 
         var combo = ModernPackets.GatherComboStart(4, 1_700_000_000_000);
         Assert.Equal(0x8D3E, Op(combo));
