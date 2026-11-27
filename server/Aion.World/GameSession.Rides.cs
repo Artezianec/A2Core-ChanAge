@@ -136,6 +136,8 @@ public sealed partial class GameSession
         var notice = RidePackets.GetOnNotice(playerKey, ride, moveState, moveSubstate, isSprinting: sprinting && moving);
         worldPlayer?.Map?.Broadcast(worldPlayer, [notice]);
         worldPlayer?.Map?.UpdateVisibility(worldPlayer, refresh: true);
+        if (WireContext.IsModern)
+            return [.. InterruptItemCast(), RidePackets.GetOnReply(playerKey, RidePackets.OnSuccess, ride), .. RefreshStats()];
         return
         [
             .. InterruptItemCast(),
@@ -738,6 +740,8 @@ public sealed partial class GameSession
         var off = RidePackets.GetOffNotice(playerKey, RidePackets.ByClient, bySwap);
         worldPlayer?.Map?.Broadcast(worldPlayer, [off]);
         worldPlayer?.Map?.UpdateVisibility(worldPlayer, refresh: true);
+        if (WireContext.IsModern)
+            return [RidePackets.GetOffReply(playerKey, RidePackets.OffSuccess, RidePackets.ByClient), .. RefreshStats()];
         return [RidePackets.GetOffReply(playerKey, 0), off, .. RefreshStats()];
     }
 

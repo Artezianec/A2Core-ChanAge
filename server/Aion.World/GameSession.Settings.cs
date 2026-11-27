@@ -353,8 +353,10 @@ public sealed partial class GameSession
     void BroadcastWarpLeave(byte effect, bool cutscene)
     {
         if (worldPlayer?.Map is null || position is not { } here) return;
-        var leave = PacketWriter.Opcode(0x373c).Varint(playerKey).Vec3(here).F32(worldPlayer.Heading).U8(0).U8(0).U8(cutscene ? 5 : 1)
-            .I32(0).I32(effect).I32(0).ToArray();
+        var leave = WireContext.IsModern
+            ? PlayerPackets.WarpLeave(playerKey, here, worldPlayer.Heading, 0, 0, cutscene ? (byte)5 : (byte)1, effectId: effect)
+            : PacketWriter.Opcode(0x373c).Varint(playerKey).Vec3(here).F32(worldPlayer.Heading).U8(0).U8(0).U8(cutscene ? 5 : 1)
+                .I32(0).I32(effect).I32(0).ToArray();
         worldPlayer.Map.Broadcast(worldPlayer, [leave]);
     }
 }

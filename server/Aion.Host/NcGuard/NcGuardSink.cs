@@ -170,7 +170,9 @@ public sealed class NcGuardSink : BackgroundService
 
     public void Configure(KestrelServerOptions server) => server.Listen(IPAddress.Parse(options.BindAddress), options.Port!.Value, listener =>
     {
-        listener.Protocols = HttpProtocols.Http1AndHttp2;
+        // HTTP/1.1 only: the 2.0.13 mobileappconfig client aborts when the sink negotiates h2.
+        // NcGuardTlsTapMiddleware (the optional TLS-tap/h2 path) stays in the tree but is not wired.
+        listener.Protocols = HttpProtocols.Http1;
         listener.Use(next => async context =>
         {
             var sni = context.Features.Get<ITlsHandshakeFeature>()?.HostName;
@@ -226,7 +228,7 @@ public sealed class NcGuardSink : BackgroundService
                 return certificates["localhost"];
             };
         });
-        NcGuardTlsTapMiddleware.Use(listener, logger);
+        // Optional TLS-tap/h2 path: NcGuardTlsTapMiddleware.Use(listener, logger);
     });
 
     public override async Task StartAsync(CancellationToken cancellationToken)

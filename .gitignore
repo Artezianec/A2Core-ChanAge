@@ -46,6 +46,17 @@ editor/**/obj/
 tools/AionClientProbe/bin/
 tools/AionClientProbe/obj/
 
+# Local workspace directories (IDE state, start scripts, build output): never commit.
+/.openidea/
+/.start-all/
+/build/
+/out/
+/tests/**/*.trx
+
+# Raw extractions, captures and notes stay local (bring your own); only the NCGuard write-up is shared.
+/research/*
+!/research/e259-ncguard.md
+
 # The server data bundle is a release download (too large for the repository): place it in data/.
 /data/
 # Raw extractions and the client archive key stay local (bring your own).

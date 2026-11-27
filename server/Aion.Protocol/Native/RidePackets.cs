@@ -25,6 +25,8 @@ public sealed record RideEntry(int RideId, int Level, int SoulPoints = 0, bool O
 
 public static class RidePackets
 {
+    /// <summary>The 2.0.12 client's ride ActionProtocol success values (official #831/#1374).</summary>
+    public const int OnSuccess = 0x3B2D, OffSuccess = 0x3B38;
     public const ushort RideInit = 0x9000, GetOnRq = 0x9001, GetOnRs = 0x9002, GetOnNt = 0x9003,
         GetOffRq = 0x9004, GetOffRs = 0x9005, GetOffNt = 0x9006, AcquireRq = 0x9007, AcquireRs = 0x9008, AcquireNt = 0x9009,
         DefaultSetRq = 0x900a, DefaultSetRs = 0x900b, DefaultSetNt = 0x900c, SoulPointIncrease = 0x900d, BoardRollRq = 0x9017, BoardRollRs = 0x9018,

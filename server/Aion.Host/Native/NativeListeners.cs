@@ -99,6 +99,8 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
 
     protected abstract string Name { get; }
     protected abstract byte[] HandshakeReply(RsaPublicKey key, byte[] sessionKey);
+    /// <summary>2.0.12+ uses a different game greeting and reply; the login port keeps the legacy one.</summary>
+    protected virtual bool IsModernGreeting(byte[] body) => false;
     protected abstract Task RunAsync(NetworkStream stream, Rc4 cipher, FrameBuffer buffer, IPAddress? clientAddress, CancellationToken ct, bool clearOpcodeFraming);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -141,6 +143,8 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
         using var connection = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
         var stream = client.GetStream();
         var clientAddress = client.Client.RemoteEndPoint is IPEndPoint ep ? ep.Address : null;
+        FlowLog.Attach($"{Name.Replace(' ', '-').ToLowerInvariant()}-{DateTimeOffset.Now:yyyyMMdd-HHmmss}-{RandomNumberGenerator.GetInt32(0x10000):x4}");
+        FlowLog.Event("connected", clientAddress?.ToString());
         var buffer = new FrameBuffer();
         try
         {
@@ -157,35 +161,53 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
                 if (buffer.Length > 65536) throw new ProtocolException("Greeting too large");
                 frames = buffer.Drain();
             } while (frames.Count == 0);
-            var protocol = Options.ClientProtocol;
-            var clearOpcodeFraming = protocol.PreferClearOpcodeFraming;
-            var modernAllowed = protocol.UsesModernGameHandshake || protocol.Kind == ClientProtocolKind.Auto;
-            if (modernAllowed && NativeHandshake.IsWorldGreeting(frames[0]))
+            // A pinned Aion:ClientProtocol enforces its game greeting; auto follows the client.
+            var greetingTagRead = frames[0].Length >= 2 ? frames[0][0] | frames[0][1] << 8 : 0;
+            if (greetingTagRead is NativeHandshake.GameGreeting or NativeHandshake.WorldGreeting or NativeHandshake.WorldGreetingV13)
             {
-                var key = NativeHandshake.ReadWorldGreeting(frames[0], out var v13);
-                var sessionKey = RandomNumberGenerator.GetBytes(32);
-                await stream.WriteAsync(NativeHandshake.WorldReply(key, sessionKey, v13), connection.Token);
-                var cipher = new Rc4(sessionKey);
-                CryptographicOperations.ZeroMemory(sessionKey);
-                await RunWithFraming(stream, cipher, buffer, clientAddress, connection.Token, true);
-                return;
+                var pinned = NativeProtocolGate.RequiredGameGreeting(Options.ClientProtocol.Kind);
+                if (pinned is { } expected && greetingTagRead != expected)
+                {
+                    Logger.LogWarning("{Name} greeting 0x{Greeting:x4} rejected: Aion:ClientProtocol={Kind} requires 0x{Expected:x4}",
+                        Name, greetingTagRead, Options.ClientProtocol.Kind, expected);
+                    throw new ProtocolException($"Greeting 0x{greetingTagRead:x4} rejected by Aion:ClientProtocol");
+                }
             }
-            var legacyKey = NativeHandshake.ReadGreeting(frames[0], greetingTag);
-            var sessionKeyLegacy = RandomNumberGenerator.GetBytes(32);
-            await stream.WriteAsync(HandshakeReply(legacyKey, sessionKeyLegacy), connection.Token);
-            var cipherLegacy = new Rc4(sessionKeyLegacy);
-            CryptographicOperations.ZeroMemory(sessionKeyLegacy);
+            var modern = IsModernGreeting(frames[0]);
+            var v13 = false;
+            var key = modern
+                ? NativeHandshake.ReadWorldGreeting(frames[0], out v13)
+                : NativeHandshake.ReadGreeting(frames[0], greetingTag);
+            var sessionKey = RandomNumberGenerator.GetBytes(32);
+            byte[] reply;
+            var clearOpcodeFraming = modern;
+            if (modern)
+            {
+                var replyOpcode = v13 ? NativeHandshake.WorldReplyOpcodeV13 : NativeHandshake.WorldReplyOpcode;
+                reply = NativeHandshake.WorldReply(key, sessionKey, v13: v13, replyOpcode: replyOpcode);
+                WireContext.Current = v13 ? WireVersion.V213 : WireVersion.V212;
+            }
+            else
+            {
+                reply = HandshakeReply(key, sessionKey);
+                WireContext.Current = WireVersion.V209;
+            }
+            await stream.WriteAsync(reply, connection.Token);
+            var cipher = new Rc4(sessionKey);
+            CryptographicOperations.ZeroMemory(sessionKey);
             // The client waits for the reply before its first encrypted body; like the Python
             // server, anything framed alongside the greeting is ignored.
-            await RunWithFraming(stream, cipherLegacy, buffer, clientAddress, connection.Token, clearOpcodeFraming);
+            await RunWithFraming(stream, cipher, buffer, clientAddress, connection.Token, clearOpcodeFraming);
         }
         catch (Exception error) when (error is ProtocolException or IOException or SocketException or OperationCanceledException or ObjectDisposedException)
         {
+            FlowLog.Error("connection_ended", error);
             Logger.LogInformation("{Name} connection ended: {Reason}", Name, error.GetType().Name);
         }
         catch (Exception error)
         {
             // Anything else ended the connection without a trace before (live 2026-10-16).
+            FlowLog.Error("connection_ended", error);
             Logger.LogWarning(error, "{Name} connection ended by an unexpected error", Name);
         }
     }
@@ -212,6 +234,9 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
     {
         var list = bodies as IReadOnlyList<byte[]> ?? bodies.ToList();
         if (list.Count == 0) return;
+        if (WireContext.IsModern) list = list.Select(ProtocolTranslation.ToClient).ToList();
+        foreach (var body in list)
+            if (body.Length >= 2) FlowLog.Packet("S2C", (ushort)(body[0] | body[1] << 8), body.Length);
         if (list.Count == 1)
         {
             await stream.WriteAsync(NativeFraming.Frame(list[0]), ct);
@@ -239,6 +264,18 @@ public abstract class NativeListener(int port, ushort greetingTag, NativeOptions
         }
         finally { System.Buffers.ArrayPool<byte>.Shared.Return(buffer); }
     }
+}
+
+/// <summary>A pinned Aion:ClientProtocol requires its game greeting; auto accepts any.</summary>
+internal static class NativeProtocolGate
+{
+    internal static ushort? RequiredGameGreeting(ClientProtocolKind kind) => kind switch
+    {
+        ClientProtocolKind.V209 => NativeHandshake.GameGreeting,
+        ClientProtocolKind.V2012 => NativeHandshake.WorldGreeting,
+        ClientProtocolKind.V2013 => NativeHandshake.WorldGreetingV13,
+        _ => null,
+    };
 }
 
 /// <summary>The login port (port of tools/login_server.py), answering in plaintext after the handshake.</summary>
@@ -351,6 +388,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
     const int MaxClientFramesPerTick = 64;
     protected override string Name => "Native game";
     protected override byte[] HandshakeReply(RsaPublicKey key, byte[] sessionKey) => NativeHandshake.GameReply(key, sessionKey);
+    protected override bool IsModernGreeting(byte[] body) => NativeHandshake.IsWorldGreeting(body);
 
     protected override async Task RunAsync(NetworkStream stream, Rc4 cipher, FrameBuffer buffer, IPAddress? clientAddress, CancellationToken ct, bool clearOpcodeFraming)
     {
@@ -420,7 +458,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         }
         var authenticated = Options.Development;
         var chunk = new byte[8192];
-        var backlog = new ClientFrameBacklog(cipher, detectClearOpcodes: clearOpcodeFraming || Options.ClientProtocol.Kind == ClientProtocolKind.Auto);
+        var backlog = new ClientFrameBacklog(cipher, detectClearOpcodes: clearOpcodeFraming);
         Task<int>? pending = null;
         Task? wake = null;
         var lastData = DateTimeOffset.UtcNow;
@@ -473,11 +511,13 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
                 foreach (var plain in backlog.Take(MaxClientFramesPerTick))
                 {
                     var header = plain.Length >= 2 ? plain[0] | plain[1] << 8 : -1;
+                    if (header >= 0) FlowLog.Packet("C2S", (ushort)header, plain.Length);
                     if (!Options.Development)
                     {
                         if (header is 0x3613 or 0xD456 or 0x4BAF or 0x8CFD)
                         {
                             if (authenticated) { Logger.LogInformation("Native game closed: replay_rejected"); return; }
+                            var worldLogin = header is 0xD456 or 0x4BAF or 0x8CFD;
                             ClientIdentity identity;
                             try { identity = header == 0x3613 ? ClientIdentity.Parse(plain, game: true) : ClientIdentity.ParseWorld(plain); }
                             catch (ProtocolException) { Logger.LogInformation("Native game closed: rejected"); return; }
@@ -488,7 +528,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
                             }
                             else
                             {
-                                session.Store = await AuthenticateAsync(plain, ct);
+                                session.Store = await AuthenticateAsync(plain, ct, worldLogin);
                                 if (session.Store is { } opened && turn is not null) session.Store = TurnStore.Wrap(opened, turn);
                                 if (session.Store is null) { Logger.LogInformation("Native game closed: rejected"); return; }
                             // Keep the address on the platform account lookup (auth.platform_client_context lasts 15 minutes)
@@ -601,6 +641,7 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         finally
         {
             presence.Disconnected();
+            FlowLog.Event("disconnect");
             // The trace first: it is only a file, and a failure later in this block must not lose it (live 2026-10-19: no trace
             // was written at a logout or at the deploy restart, which took the host's whole 30 s shutdown timeout).
             try { if (trace?.Write() is { } written) Logger.LogInformation("Client trace written: {Path}", written); }
@@ -662,14 +703,14 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
     }
 
     /// <summary>The game login check with its outcome counted for the diagnostics API (the check itself is unchanged).</summary>
-    async Task<INativeCharacterStore?> AuthenticateAsync(byte[] plain, CancellationToken ct)
+    async Task<INativeCharacterStore?> AuthenticateAsync(byte[] plain, CancellationToken ct, bool worldLogin = false)
     {
-        var (store, outcome) = await OpenStoreAsync(plain, ct);
+        var (store, outcome) = await OpenStoreAsync(plain, ct, worldLogin);
         services.GetService<HostDiagnostics>()?.Login(HostDiagnostics.NativeGame, outcome);
         return store;
     }
 
-    async Task<(INativeCharacterStore?, HostDiagnostics.Outcome)> OpenStoreAsync(byte[] plain, CancellationToken ct)
+    async Task<(INativeCharacterStore?, HostDiagnostics.Outcome)> OpenStoreAsync(byte[] plain, CancellationToken ct, bool worldLogin = false)
     {
         const HostDiagnostics.Outcome failed = HostDiagnostics.Outcome.Failed;
         var sessions = services.GetService<IWorldSessions>();
@@ -682,7 +723,11 @@ public sealed class NativeGameListener(NativeOptions options, IServiceProvider s
         }
         catch (ProtocolException) { return (null, failed); }
         var (wireAccount, grant) = identity.Session();
-        var opened = await sessions.OpenAsync(identity.AuthnToken, wireAccount, grant, Options.WorldId, ct);
+        // 2.0.12's 0xD456 has the login grant but not the 64-hex ticket; open the world session
+        // from the single-use grant. 2.0.6's 0x3613 keeps the strict ticket + grant path.
+        var opened = worldLogin
+            ? await sessions.OpenByGrantAsync(wireAccount, grant, Options.WorldId, ct)
+            : await sessions.OpenAsync(identity.AuthnToken, wireAccount, grant, Options.WorldId, ct);
         if (opened is null) return (null, failed);
         // The login port (maybe another process) recorded the picked row's race for this world's lobby.
         if (opened.Race is { } race && services.GetService<WorldChoices>() is { } choices)

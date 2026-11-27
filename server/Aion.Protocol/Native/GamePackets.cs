@@ -159,6 +159,10 @@ public sealed record MyCharacterAppear
     public IReadOnlyList<EquipBroad> Equips { get; init; } = [];
     public byte[] CustomizingData { get; init; } = [];
     public int VoiceType { get; init; }
+    /// <summary>2.0.13 wire: mask 0x2AE9815F and the prev-subzone/channel/ground-Z tail.</summary>
+    public bool V13 { get; init; }
+    /// <summary>Buffs carried in the 2.0.13 MyCharAppear body.</summary>
+    public IReadOnlyList<AbnormalWire> Abnormals { get; init; } = [];
     /// <summary>Mounted VehicleList id (_ride_data_id); omitted on the wire when 0 (world entry).</summary>
     public int RideDataId { get; init; }
     /// <summary>MyCharAppear _used_daevanion_point_infos (same spent values as 0xe22e / 0x3b33).</summary>
@@ -386,12 +390,61 @@ public static class GamePackets
         return w.Bytes(customizingData ?? []).I64(serverStartTime ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()).ToArray();
     }
 
-    /// <summary>0xA8F9 SelectCharacter_RS (2.0.12 wire layout).</summary>
+    /// <summary>
+    /// 0xA8F9 SelectCharacter_RS (2.0.12): customizing blob, option blob, varint key, result,
+    /// server start time, skill-customizing list, dbid, last pc id, varint char key.
+    /// </summary>
     public static byte[] SelectCharacterWorld(int key, long dbId, int charKey, byte[]? customizingData = null,
-        byte[]? optionData = null, long serverStartTime = 0, ushort opcode = 0xA8F9) =>
-        PacketWriter.Opcode(opcode).Bytes(customizingData ?? []).Bytes(optionData ?? [])
+        byte[]? optionData = null, long serverStartTime = 0, ushort opcode = 0xA8F9)
+    {
+        var w = PacketWriter.Opcode(opcode).Bytes(customizingData ?? []).Bytes(optionData ?? [])
             .Varint(key).U16(0).I64(serverStartTime)
-            .Varint(0).I64(dbId).I32(0).Varint(charKey).ToArray();
+            .Varint(0)                     // skill customizing list
+            .I64(dbId).I32(0)              // dbid, last using pc id
+            .Varint(charKey);
+        return w.ToArray();
+    }
+
+    /// <summary>0x569E CharCustomizingList_RS (2.0.12): result u16, Common_CharCustomizingInfo list.</summary>
+    public static byte[] CharCustomizingListV12(int result, IReadOnlyList<(int Slot, byte[] Customizing, int VoiceType, int PcId)> entries)
+    {
+        var w = PacketWriter.Opcode(0x569E).U16(result).Varint(entries.Count);
+        foreach (var (slot, customizing, voice, pcId) in entries)
+            w.U8(slot).Bytes(customizing).U8(voice).I32(pcId);
+        return w.ToArray();
+    }
+
+    /// <summary>0x56A0 CharCustomizingStatusCheck_RS: result u16.</summary>
+    public static byte[] CharCustomizingStatusCheckReply(int result = 0) =>
+        PacketWriter.Opcode(0x56A0).U16(result).ToArray();
+
+    /// <summary>0x56A6 CharCustomizingGetMetaData_RS: result u16 + empty metadata blob.</summary>
+    public static byte[] CharCustomizingMetaDataReply(int result = 0) =>
+        PacketWriter.Opcode(0x56A6).U16(result).Varint(0).ToArray();
+
+    /// <summary>0x56A8 CharCustomizingGetSettlementStatus_RS: result, settled count, unsettled count.</summary>
+    public static byte[] CharCustomizingSettlementStatusReply(int settled = 0, int unsettled = 0, int result = 0) =>
+        PacketWriter.Opcode(0x56A8).U16(result).I32(settled).I32(unsettled).ToArray();
+
+    /// <summary>0x56AA CharCustomizingSettle_RS: result + the settled count (echo).</summary>
+    public static byte[] CharCustomizingSettleReply(int settleCount, int result = 0) =>
+        PacketWriter.Opcode(0x56AA).U16(result).I32(settleCount).ToArray();
+
+    /// <summary>0x910A ExtendedCharacterSlot_NT (2.0.12): purchased lobby slot count.</summary>
+    public static byte[] ExtendedCharacterSlotV12(int extendedSlotCount) =>
+        PacketWriter.Opcode(0x910A).U8(extendedSlotCount).ToArray();
+
+    /// <summary>0x2053 SelectCharacter_RS (2.0.13): dbid, server start, result, option, key, customizing, key, last pc.</summary>
+    public static byte[] SelectCharacterWorldV13(int key, long dbId, int charKey, byte[]? customizingData = null,
+        byte[]? optionData = null, long serverStartTime = 0, ushort opcode = 0x2053) =>
+        PacketWriter.Opcode(opcode).I64(dbId).I64(serverStartTime).U16(0)
+            .Bytes(optionData ?? [])
+            .Varint(0)
+            .Varint(charKey)
+            .Bytes(customizingData ?? [])
+            .Varint(key)
+            .I32(0)
+            .ToArray();
 
     /// <summary>0x36EF SkillCustomizingUpdate_RS: result u16.</summary>
     public static byte[] SkillCustomizingUpdate(int result = 0) => PacketWriter.Opcode(0x36EF).U16(result).ToArray();
@@ -400,7 +453,9 @@ public static class GamePackets
     public static byte[] CharacterCreated(string name, int gender, int pcId, int race, int key, long dbId,
         byte[] customizingData, int voiceType, int slotNo, long nowMs, int level = 1, int result = 0)
     {
-        var w = PacketWriter.Opcode(0x361c).I32(result);
+        // 2.0.12 writes the result as u16 before the lobby desc; 2.0.9 keeps the i32.
+        var w = PacketWriter.Opcode(0x361c);
+        if (WireContext.IsModern) w.U16(result); else w.I32(result);
         WriteLobbyCharacter(w, new LobbyCharacter
         {
             Key = key, Nickname = name, PcId = pcId, Race = race, Gender = gender, Level = level, CombatLevel = level,
@@ -430,9 +485,13 @@ public static class GamePackets
     public static byte[] LoadComplete(int ticket, Vector3d position, int frame = 2, int charKey = 1) =>
         PacketWriter.Opcode(0x3623).U16(0).I32(ticket).Vec3(position).I32(frame).U16(charKey).ToArray();
 
-    /// <summary>0x4EF8 LoadComplete_RS (2.0.12).</summary>
+    /// <summary>0x4EF8 LoadComplete_RS (2.0.12): ticket u32, char key varint, position, frame, result.</summary>
     public static byte[] LoadCompleteWorld(int ticket, int charKey, Vector3d position, int frame = 2, ushort opcode = 0x4EF8) =>
         PacketWriter.Opcode(opcode).U32((uint)ticket).Varint(charKey).Vec3(position).I32(frame).U16(0).ToArray();
+
+    /// <summary>0xd79e server enter-map position, sent just before the 2.0.13 spawn burst.</summary>
+    public static byte[] ServerEnterMapPos(Vector3d position) =>
+        PacketWriter.Opcode(0xd79e).Vec3(position).I32(23976).I32(0).I32(5).ToArray();
 
     static void WriteSpawnDetailTail(PacketWriter w, int ascension = 1, MyCharacterAppear? a = null)
     {
@@ -461,10 +520,72 @@ public static class GamePackets
             w.U8((byte)type).I32(point);
     }
 
-    /// <summary>0x3633 MyCharAppear_NT (client decoders 0x8498b80/0x91f3870).</summary>
-    public static byte[] MyCharAppear(MyCharacterAppear a)
+    /// <summary>2.0.13 MyCharAppear_NT tail after the customizing blob, from the official entry.</summary>
+    static readonly byte[] V13AppearTail = Convert.FromHexString(
+        "00000000005D731100000000000000000000000000000000000000000C00000000C7090741696F6E32544800000000000000" +
+        "00000000000000000000000000000000000000000001000001000000080000000000000000000000");
+
+    static void WriteSpawnDetailTailV13(PacketWriter w, MyCharacterAppear a)
     {
-        var w = PacketWriter.Opcode(0x3633).Varint(a.Key).U32(0x2006u | (a.TeleportEffect != 0 ? 0x1000u : 0)).U8(0x37).String(a.Name).U16(a.ServerId)
+        w.Varint(1);
+        w.U16(100).I64(0).U16(0).U16(0);
+        w.Varint(5);
+        for (var category = 1; category <= 5; category++) w.U8((byte)category).U16(1).I64(0).U16(0);
+        w.I32(0).I32(0).I64(0).U8((byte)a.Ascension);
+        int[][] groups = [[a.SpentSkillPoints, a.SpentStigmaPoints, 0], [a.ItemSkillPoints, a.ItemStigmaPoints, 0]];
+        foreach (var group in groups)
+        {
+            w.Varint(3);
+            for (var pointType = 1; pointType <= 3; pointType++)
+                w.U8((byte)pointType).U16(Math.Clamp(group[pointType - 1], 0, ushort.MaxValue));
+        }
+    }
+
+    static void WriteGuildDescV13(PacketWriter w) => w.I64(0).String("").U16(0).U8(0).I32(0).I64(0).U16(0).String("");
+
+    /// <summary>0x3633 MyCharAppear_NT (client decoders 0x8498b80/0x91f3870).</summary>
+    public static byte[] MyCharAppear(MyCharacterAppear a) =>
+        a.V13 ? MyCharAppearV13(a) : MyCharAppearLegacy(a);
+
+    static byte[] MyCharAppearV13(MyCharacterAppear a)
+    {
+        var mask = 0x2AE9815Fu | (a.TeleportEffect != 0 ? 0x1000u : 0);
+        var w = PacketWriter.Opcode(0x3633).Varint(a.Key).U32(mask).U8(0x37).String(a.Name).U16(a.ServerId)
+            .I32(a.PcId).U8(a.Race).I32(a.CharLevel).I32(a.EquipItemLevel).I32(a.HighestTotalItemLevel).I32(a.LevelMax)
+            .I64(a.Experience).I32(a.CombatLevel).I64(a.CombatExperience).U8(a.Gender);
+        WriteSpawnDetailTailV13(w, a);
+        w.U16(0x9280).Vec3(a.Position).F32(a.Direction).U16(0).U8(1);
+        w.Varint(a.Hp).Varint(a.HpMax);
+        w.I32(a.Mp).I32(a.MpMax).I32(0).I32(0)
+            .I32(SpawnSp).I32(SpawnSp).I32(0).I32(150000).I32(1).I32(100000).I32(100000).I32(a.Fp).I32(a.FpMax);
+        w.I32(a.ToggleFlags).U8(a.Relationship).I32(a.WingId).I32(0);
+        WriteGuildDescV13(w);
+        w.Varint(3);
+        Stat(w, 206, -3000); Stat(w, 208, 300); Stat(w, 551, -3000);
+        if (a.Abnormals.Count > 0) PlayerPackets.WriteAbnormals(w, a.Abnormals);
+        else w.Varint(0);
+        var equips = a.Equips.Count > 0 ? a.Equips
+            : a.WeaponId is { } weapon ? [new EquipBroad(weapon, VisualSlot: 1, Godstones: [0, 0, 0])] : [];
+        w.Varint(equips.Count);
+        foreach (var e in equips) WriteEquip(w, e);
+        w.U8(0).U16(a.MapId).I32(0).U8(a.AppearReason).U8(0).U16(a.MapId).U16(0)
+            .I32(a.SubzoneId).I32(a.SubzoneId).Vec3(a.Position)
+            .I64(a.DbId == 0 ? 1 : a.DbId).F32((float)a.Position.Z)
+            .U8(a.TeleportEffect != 0 ? a.TeleportEffect : (byte)1);
+        var padded = a.CustomizingData;
+        if (padded.Length is > 0 and < 350 && padded[0] == 12)
+            padded = [.. padded, .. new byte[350 - padded.Length]];
+        w.Bytes(padded);
+        w.Raw(V13AppearTail);
+        return w.ToArray();
+    }
+
+    static byte[] MyCharAppearLegacy(MyCharacterAppear a)
+    {
+        // 2.0.12 carries the 0x2AC1815F body mask and the AP/DP point block; 2.0.9 keeps its mask.
+        var modern12 = WireContext.Current == WireVersion.V212;
+        var mask = (modern12 ? 0x2AC1815Fu : 0x2006u) | (a.TeleportEffect != 0 ? 0x1000u : 0);
+        var w = PacketWriter.Opcode(0x3633).Varint(a.Key).U32(mask).U8(0x37).String(a.Name).U16(a.ServerId)
             .I32(a.PcId).U8(a.Race).I32(a.CharLevel).I32(a.EquipItemLevel).I32(a.HighestTotalItemLevel).I32(a.LevelMax)
             .I64(a.Experience).I32(a.CombatLevel).I64(a.CombatExperience).U8(a.Gender);
         WriteSpawnDetailTail(w, a.Ascension, a);
@@ -474,7 +595,11 @@ public static class GamePackets
         // red; other players' 0x3645 carry 1 PC_Light_Common in every sample (CANDIDATE for the own character).
         w.U16((a.ToggleFlags != 0 ? 1 << 7 : 0) | (a.Relationship != 0 ? 1 << 9 : 0) | (a.WingId != 0 ? 1 << 12 : 0)).Vec3(a.Position).F32(a.Direction).U16(0).U8(1);
         w.Varint(a.Hp).Varint(a.HpMax);
-        foreach (var v in new[] { a.Mp, a.MpMax, 0, 0, SpawnSp, SpawnSp, 0, 10000, 0, 100000, 100000, a.Fp, a.FpMax }) w.I32(v);
+        if (modern12)
+            w.I32(a.Mp).I32(a.MpMax).I32(0).I32(0)
+                .I32(SpawnSp).I32(SpawnSp).I32(0).I32(150000).I32(1).I32(100000).I32(100000).I32(a.Fp).I32(a.FpMax);
+        else
+            foreach (var v in new[] { a.Mp, a.MpMax, 0, 0, SpawnSp, SpawnSp, 0, 10000, 0, 100000, 100000, a.Fp, a.FpMax }) w.I32(v);
         if (a.ToggleFlags != 0) w.I32(a.ToggleFlags);   // state bit 7 (the official own appearance: 1 = the seal stone on)
         if (a.Relationship != 0) w.U8(a.Relationship);
         if (a.WingId != 0) w.I32(a.WingId);
@@ -861,6 +986,58 @@ public static class GamePackets
 
     /// <summary>0x561d ItemEquipLevelChange_NT: equipped item level total and the highest reached.</summary>
     public static byte[] ItemEquipLevelChange(int level, int highest) => PacketWriter.Opcode(0x561d).I32(level).I32(highest).ToArray();
+
+    /// <summary>0x61a0 ClientSettings_NT: our key, the gameplay-settings JSON and our own character tail.</summary>
+    public static byte[] ClientSettings(int key, long dbId, byte[] customizing)
+    {
+        var w = new PacketWriter(ClientSettingsBlob.Length + 512)
+            .Raw(ClientSettingsBlob.AsSpan(0, 2)).Varint(key).Raw(ClientSettingsBlob.AsSpan(4));
+        var padded = customizing;
+        if (padded.Length is > 0 and < 350 && padded[0] == 12)
+            padded = [.. padded, .. new byte[350 - padded.Length]];
+        return w.Bytes(padded).I64(dbId == 0 ? 1 : dbId).Raw(ClientSettingsTail).ToArray();
+    }
+
+    /// <summary>0x61a0 player settings echo: the compressed UTF-16 gameplay-settings JSON (keybinds, macros, filters).</summary>
+    static readonly byte[] ClientSettingsBlob = Convert.FromHexString(
+        "A061C612980C5E1F0000789CDD595B6F1A47149ED754EA7FB0788E2AE3C48D94370C26B56B6C629CB4AA6359CBC536EA2E50" +
+        "58E250CBFFBDDFF9666677F6CA82492B552B2D7B39F739E73B679627F5A3FA41BD5235F5598DD45C2DD4584DD504F7EFD59E" +
+        "AAABD7D1FB865AAA10EF7AEA4FD0F838AE94078E7BF0857832C1D5955AA919EE6F550794435CD58DA49A3AC1FB099ECEF1F4" +
+        "8C3AEE5597770B1C3547531F3A446607F245AEABE7081A1AF80DF16C004BB29AEEF0C687C49123F157DCAD8C546BABB5EB49" +
+        "7DC1B9437973C8FAC237D738E4EA779E6F20EB1A67F995FB26E802D8E941DA2DBC9852AAF81473C73CCF09EF7E630C7CD82C" +
+        "3A67AACD68868C7ED642CDF5647E85FF9C7A46C6FE105C4BC757A138A25D21A48E108D31CEA2AD98FEB3594F8F312EA6FB85" +
+        "364ED547BE5980A698B6852713CA8BB3298FEE8AD68D1007894A88B59DD3FF3BAE4799869E7A00CFAC946286A712CB509DE2" +
+        "6D504AAD57A34BFA62AAD8F70673D72BA16DC0B301AC1C41F3AA34061E57402250B6AABEC9F905E48D41F350422D193A056D" +
+        "31C529EE1F197DC97B0F112F8F7648FBD6E5C8B1FA8628FA86364CA0497ED4A744057FAD4769CAB6B12600DD84757882DF01" +
+        "2B73C69C0AD754C9D420CFF61A9BB9DAB208A42B62CCBC918C94CCAE52450D60CC8A565E42E604EB2915D862DE89450D6A9E" +
+        "97CAB86435ADABD5107AAA59B480F5E2BFED1455B8929837377E946919E210EF75C70818D1F295FA8A67BA869BB46BC8555B" +
+        "977F6DAEEE3D621932527167C8A7B6687A4C7D938AAB571DD53A5C59418D75B69C03AB9A19FC4CD26BEA67A7FB34F17C4EE4" +
+        "12DBFF204A04AC6E912115D44E750C7706E8D0AAF177EB5CC7B44AE778B5FE1163FC3DA23D657695F53A5DD30BA3A50ACE97" +
+        "65C39288730E1B06DFA5C77D30755E6EEB4B31F7A548BA2D4E6E87569B55ECA6C81367E066B5BE190265EBB28F2C9913E317" +
+        "E0F7A20AD5F2F4ACF35832E196717FE0D4B6A445D231669066E7967DF5933AAC28A7EB741D5746BD22FFEEF162BB6E5475DE" +
+        "DD748EAE8A59BBAEBFCDE6DC4DD1227F4ECACB60A91D0FBF62B11BBB26AE03AEBAC74CF65885C5B9DCCF20661B54B2C76B99" +
+        "1A2EAB8378AFD8E39C3467376D32423AF7C651E6D612B6D55236E44B72BDBC8085C908E6D97442BD01EB50FB71C6BE1B46FB" +
+        "E56C1D598A63F517E23D666F4E4B71EBA96DF2D9AED3817A9B2BCF4A29E73D4C60421F517AA0FFBA5F09CFB9895B97BCC5F9" +
+        "29DC1DEEBD252F0346AA3AAFCCCC82218328CA2E8AEB897A4629AB542C6BACAAA941EDAC2F61F43D23462C7F6D3DD4C83DE2" +
+        "2E2CDDD36C9D68F93E9F6B34383393BF9679CD08EFE390F5B1D707BC7E639EEFF1EB81D5D933D5A0633F64CECAD53DAB6315" +
+        "C5D37ADE83845BF8356694EA09FF5D59C516E7E37156EE7BC7E63C44D07DF0AB72BF2CD95E76490FC6D12C269E5DE0BD0F8F" +
+        "D219995755A7EC697356A39F8951BA0F5C477EC41E25E7BC74FEA4F76B350715B3FA6D377D5D20FD132AAFB596EA24EA2FFB" +
+        "11C5B3435DDD76BDA3EBD087F89BDEAE3C780BBAC30A5ED4991D07F87D8723F6485FB9392E7B991EEC19109D7D54675CF347" +
+        "E65B46606A3F5D4F37099CF3F8AE38B77BFCEA313253DAD299EBC4DAA4A4D078A4F17F1159535C352265DF1CF50AD21A6646" +
+        "92CEA86721FFC592AEF834D84A4A973196DCD9957F760FBC1DF7A3991626A5FCF1941F70D25CB7E34A67D4A200F1D27492D9" +
+        "0B27EFB2982713CA0888E7719FACF12E894C579C1E4E388D8F308BD98ACAE6B0EB7D8BD6DF118B96ECDCAB12CE96F9A2B84A" +
+        "CDA45573BFCFC946F4663B7FDE97C0FC29CEF22639F46CEB43FB90D5189AFF0486D16C523C49EC4AD247CE54D2C57B9C8443" +
+        "E7FBBFFD4F62646293CD8ABAF33C8DC9B19C344AC554499E570516C528FA730269D37A5ACC2F8F68DF73AAC4E5784E49D84C" +
+        "7FFD3FD6FF6E07FAE3BB9BE8DAB5AA862EF5EFAEEAFF37AA5954746B4AEFFCCFB91FB0FB8D324AFB8D60918979728D5CCEEC" +
+        "C4AD67ED75E7BD82ECD844D38123F1C039EF5ED31BB367C83FD7CDF55ECEDAB813533F9AC8DD7F35BB7C52FCADCCE5EB914E" +
+        "4FF9B23B88F722F97DC1F275238CAD4679CB9DE4E65C17CA7E435DCF6B77850D3315AFD4DFA0F844BA1E7BA6CF6F092BAE85" +
+        "9E54FDCC7F1322EF5929F50FF0327FD3");
+
+    /// <summary>0x61a0 tail after the character dbid: the map/channel filler and the NCGuard token.</summary>
+    static readonly byte[] ClientSettingsTail = Convert.FromHexString("00009E7E00000000000000000000000000");
+
+    /// <summary>0xe25a NCGuardData_RS: result 0 + the opaque 212-byte guard blob (2.0.13 entry).</summary>
+    public static byte[] NcGuardData() => Convert.FromHexString("5ae20000d4011400000000000e001800040008000c00100014000e000000be6c3d0edcd68d72900000007800000004000000800000004d451e8c87106b25f45151616ea9a0ce8326aaf26ad3c82df1ba918efd0ade845dceb7be26087010f06f68e7cd60959a7a01bb83ac5de623a3f06876b11c0831472618638007b148ca4cf73a1974712d1baa5cc8400f9861b3627eda950632fd4d13960739d5fa8e904943e271630eba11ad9f84ae9bb48893d805d1efbfdf2a20000000733abe782a9b02868441dbf5e880efac83466a4d42b70dfe0ec6a19fd0a3293f");
 
     /// <summary>0x3656 CharCombatPowerUpdate_NT: current and highest combat power (usmap: two i64).</summary>
     public static byte[] CharCombatPowerUpdate(long combatPower, long highestCombatPower) =>
@@ -1673,7 +1850,13 @@ public static class GamePackets
     public static byte[] CastResult(int skill, int result = 0, byte changeToggle = 0) =>
         PacketWriter.Opcode(0x3801).U16(result).I32(skill).U8(changeToggle).ToArray();
 
-    public static byte[] DodgeResult(int skill, int result = 0) => PacketWriter.Opcode(0x3801).U16(result).I32(skill).U8(0).ToArray();
+    /// <summary>
+    /// 0x3801 for a dodge in the official flags-first form on 2.0.12+: u8 flags (0) | result u16 | skill i32.
+    /// 2.0.9 keeps the result-first order.
+    /// </summary>
+    public static byte[] DodgeResult(int skill, int result = 0) => WireContext.IsModern
+        ? PacketWriter.Opcode(0x3801).U8(0).U16(result).I32(skill).ToArray()
+        : PacketWriter.Opcode(0x3801).U16(result).I32(skill).U8(0).ToArray();
 
     /// <summary>
     /// 0x3804 with switch 00: a self skill's effect (OBSERVED 50-60 ms after all 36 official CombatDodge starts): target, 00 00, actor,

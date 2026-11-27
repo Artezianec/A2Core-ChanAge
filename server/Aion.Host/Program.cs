@@ -448,7 +448,9 @@ if (ncGuard.Port is not null && platform.ConfigApiHost is null)
     platform = platform with { ConfigApiHost = "api.g.nc.com" };
 var platformResponses = platform.Port is not { } bootstrapPort ? null : PlatformResponses.Load(platform, network, bootstrapPort, native.LoginPort, chatPort);
 // Launchers that sign in on this host and start clients without a launch code in the bootstrap URL.
-if (platform.Port is not null && accountsReady) builder.Services.AddSingleton<LaunchPairing>();
+// Register on the account host too: it records /api/client-launches even when it does not serve the
+// platform bootstrap (platform.Port is null there); the native host reads the same platform-pairing.json.
+if (accountsReady) builder.Services.AddSingleton<LaunchPairing>();
 if (platform.Port is { } crlBootstrapPort && ncGuard.CrlDistributionUrl is null)
     ncGuard = ncGuard with { CrlDistributionUrl = $"http://{network.PublicAddress}:{crlBootstrapPort}/pki/ca-root.crl" };
 if (ncGuard.Port is not null && ncGuard.NccrMode is null && platform.NccrMode is not null)

@@ -132,8 +132,8 @@ Example (`appsettings.json` or env `Aion__Rates__Experience=2`):
 |-------|---------|
 | `2.0.9` | Default. Login `0x3900`/`0x3901`, game `0x3610`/`0x3611`, RC4 on all client bodies, world login `0x3613`. |
 | `2.0.12` | Game handshake `0x5E58` → `0xCB02`, clear opcode framing after handshake, varint NPLogin on the login port, world login `0xD456`, select/load `0x3C4F`/`0xB24E`. Opcode profile `26728906`. Launcher `/api/launcher/config` advertises build `2.0.12.0`. |
-| `2.0.13` | Experimental: modern handshake detection and varint NPLogin; opcode table still reuses pinned 2.0.9 until verified. |
-| `auto` | Per connection: detect `0x5E58`/`0x16FE` vs `0x3610` and clear-opcode framing from the first game frames; login parsing accepts both legacy and varint shapes. Default opcode profile stays `26262663` until you pin `2.0.12`. |
+| `2.0.13` | Game handshake `0x16FE` → `0x83A9`, world login `0xD456`/`0x4BAF`/`0x8CFD`, select `0x83A9`/`0xC4F6` → compressed `0x2053`, load `0x6AF4` → `0xd79e` + spawn burst, `MyCharAppear` `0x2AE9815F`. Live-tested with the Steam client. |
+| `auto` | Per connection: detect `0x5E58`/`0x16FE` vs `0x3610`; `WireContext` selects V209/V212/V213 and renumbered 2.0.12 families are translated at the frame edges. Login accepts legacy and varint shapes. |
 
 Example (`appsettings.json` for a 2.0.12 Steam private copy):
 
@@ -144,6 +144,19 @@ Example (`appsettings.json` for a 2.0.12 Steam private copy):
 ```
 
 Profiles and Steam build ids are in `tools/data/client-build-profiles.json` (embedded in `Aion.Core`).
+
+### `ClientProtocol` and `WireContext`
+
+`Aion:ClientProtocol` pins the **whole server**. A pinned value enforces its game greeting and
+rejects any other at the handshake: `2.0.9` expects `0x3610`, `2.0.12` expects `0x5E58`,
+`2.0.13` expects `0x16FE`; the login port keeps `0x3900`. `auto` accepts any greeting and lets
+each connection choose its wire version.
+
+`WireContext` is the **per-connection** version selected from the accepted greeting
+(`V209`/`V212`/`V213`). The 2.0.9 handlers stay the default; 2.0.12/2.0.13 wire differences are
+handled by `WireContext` branches and the edge `ProtocolTranslation`, so `auto` can serve a mixed
+player base. Pin `ClientProtocol` when the whole server should speak exactly one client version;
+a wrong client is then refused at the handshake instead of being translated.
 
 ## `Aion:Native`
 
@@ -202,6 +215,11 @@ Bootstrap HTTP for the dev client (`GamePlatform.ini` → `ConfigurationServerUr
 | `DurationSeconds` | — | Auto-stop after N seconds |
 | `StopFile` | — | Touch to stop sink |
 | `Hosts` | built-in list | Hostnames served |
+
+The TLS sink listens **HTTP/1.1 only**. The 2.0.13 client's `mobileappconfig` request aborts when
+the sink negotiates h2, so the optional TLS-tap/HTTP2 path (`NcGuardTlsTapMiddleware`) is kept in
+the tree but not wired. Re-enable it only for a host that needs HTTP/2 and can complete the
+exchange.
 
 ## `Aion:World`
 

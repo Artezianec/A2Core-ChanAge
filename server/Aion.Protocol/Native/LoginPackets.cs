@@ -130,8 +130,13 @@ public sealed record ClientIdentity(string AuthnToken, string AccountSession = "
     {
         var (opcode, count) = game ? (0x3613, 4) : (0x3905, 6);
         if (body.Length < 2 || (body[0] | body[1] << 8) != opcode) throw new ProtocolException("Unexpected identity opcode");
+
+        // 2.0.12 sends the six NPLogin strings with varint lengths and non-empty provider/session
+        // fields; the 2.0.6 captures used u8 lengths and empty placeholders. Try the varint form
+        // first (it is also valid for short legacy strings), then fall back to the legacy shape.
         if (tryVarintNpLogin && !game && TryParseVarintStrings(body, 2, count, out var modern) && modern[1].Length > 0)
             return new ClientIdentity(modern[1], modern[3]);
+
         var strict = new UTF8Encoding(false, true);
         var offset = 2;
         var strings = new string[count];
@@ -170,10 +175,18 @@ public sealed record ClientIdentity(string AuthnToken, string AccountSession = "
             catch (DecoderFallbackException) { return false; }
             offset += size;
         }
+
         return offset == body.Length;
     }
 
-    /// <summary>2.0.12 game-port world login (0xD456 and aliases).</summary>
+    /// <summary>
+    /// Game-port world login. 2.0.12 (0xD456): varint strings in the order account_session_token
+    /// ("wire:guid"), auth_provider_code, 2nd_auth_token, i64 teleport_world_token, authn_token, then
+    /// one flag byte. 2.0.13 (0x8CFD, and the 0x4BAF alias): auth_provider_code, 2nd_auth_token,
+    /// authn_token, teleport_world + reconnect, account_session_token, i64 teleport_world_token.
+    /// The string encoding (varint vs u16 length) and the bool width are not documented, so every
+    /// combination is tried and the one whose account session validates wins.
+    /// </summary>
     public static ClientIdentity ParseWorld(ReadOnlySpan<byte> body)
     {
         if (body.Length < 2 || (body[0] | body[1] << 8) is not (0xD456 or 0x4BAF or 0x8CFD))
@@ -195,21 +208,21 @@ public sealed record ClientIdentity(string AuthnToken, string AccountSession = "
             string account, authn;
             if (order13)
             {
-                _ = ReadString(body, ref offset, wide);
-                _ = ReadString(body, ref offset, wide);
+                _ = ReadString(body, ref offset, wide);   // auth_provider_code
+                _ = ReadString(body, ref offset, wide);   // 2nd_auth_token
                 authn = ReadString(body, ref offset, wide);
-                offset += boolSize;
+                offset += boolSize;                        // teleport_world + reconnect, packed into one field
                 account = ReadString(body, ref offset, wide);
-                offset += 8;
+                offset += 8;                               // teleport_world_token
             }
             else
             {
                 account = ReadString(body, ref offset, wide);
-                _ = ReadString(body, ref offset, wide);
-                _ = ReadString(body, ref offset, wide);
-                offset += 8;
+                _ = ReadString(body, ref offset, wide);   // auth_provider_code
+                _ = ReadString(body, ref offset, wide);   // 2nd_auth_token
+                offset += 8;                               // teleport_world_token
                 authn = ReadString(body, ref offset, wide);
-                offset += boolSize;
+                offset += boolSize;                        // teleport/reconnect bits
             }
             if (offset > body.Length || body[offset..].ContainsAnyExcept((byte)0)) return false;
             if (!ValidAccountSession(account)) return false;
@@ -247,6 +260,16 @@ public sealed record ClientIdentity(string AuthnToken, string AccountSession = "
         var parts = account.Split(':', 2);
         return parts.Length == 2 && parts[0].Length is >= 1 and <= 16 && parts[0].All(char.IsAsciiDigit)
             && Guid.TryParseExact(parts[1], "D", out var grant) && grant.ToString("D") == parts[1].ToLowerInvariant();
+    }
+
+    static string ReadVarintString(ReadOnlySpan<byte> body, ref int offset)
+    {
+        var size = checked((int)NativeVarint.Read(body, offset, out var next));
+        offset = next;
+        if (size < 0 || offset + size > body.Length) throw new ProtocolException("Invalid world login string");
+        var value = new UTF8Encoding(false, true).GetString(body.Slice(offset, size));
+        offset += size;
+        return value;
     }
 
     public (long WireAccountId, string Grant) Session()

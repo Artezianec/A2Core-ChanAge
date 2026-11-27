@@ -11,6 +11,12 @@ public sealed record WorldIdentity(VerifiedAccount Account, int WorldId);
 public interface IWorldSessions
 {
     Task<WorldSession?> OpenAsync(string ticket, long wireAccountId, string grant, int worldId, CancellationToken ct=default);
+    /// <summary>
+    /// 2.0.12 game-port handoff (0xD456): the client sends the login grant but not the 64-hex game
+    /// ticket, so open the world session from the single-use grant and wire account alone.
+    /// </summary>
+    Task<WorldSession?> OpenByGrantAsync(long wireAccountId, string grant, int worldId, CancellationToken ct=default) =>
+        Task.FromResult<WorldSession?>(null);
     Task<WorldIdentity?> ValidateAsync(string token, CancellationToken ct=default);
     Task CloseAsync(string token, CancellationToken ct=default);
 }

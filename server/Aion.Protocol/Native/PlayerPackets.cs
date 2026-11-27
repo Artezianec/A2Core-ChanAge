@@ -167,6 +167,14 @@ public static class PlayerPackets
         if (c.TeleportEffectId != 0) mask |= 1 << 17;
         if (c.VoiceType != 0) mask |= 1 << 18;
         if (c.SealstoneItemId != 0) mask |= 1 << 21;
+        // 2.0.12 gates the ride, vessel and default-ride fields with these bits; 2.0.9 wrote them unconditionally.
+        var modern12 = WireContext.Current == WireVersion.V212;
+        if (modern12)
+        {
+            if (c.RideDataId != 0) mask |= 1 << 15;
+            if (c.VesselKey != 0) mask |= 1 << 16;
+            if (c.DefaultRideDataId != 0) mask |= 1 << 23;
+        }
 
         var w = PacketWriter.Opcode(0x3645).Varint(c.Key).U32(mask).U8(0x07).String(c.Name).I32(c.PcId).U8(c.Race).U8(c.Gender);
 
@@ -195,7 +203,12 @@ public static class PlayerPackets
         w.I64(c.DbId).U8(c.Stats.Count);
         foreach (var (type, value) in c.Stats) GamePackets.Stat(w, type, value);
         w.I32(c.Level).I32(c.ConquerorLevel).I32(c.EquipItemLevel);
-        if (c.RideDataId != 0 || c.VesselKey != 0)
+        if (modern12)
+        {
+            if (c.RideDataId != 0) w.I32(c.RideDataId);
+            if (c.VesselKey != 0) w.I32(c.VesselKey);
+        }
+        else if (c.RideDataId != 0 || c.VesselKey != 0)
         {
             w.I32(c.RideDataId).I32(c.VesselKey);
         }
@@ -674,6 +687,21 @@ public static class PlayerPackets
     /// </summary>
     public static byte[] MoveReject(ushort opcode, int key, Vector3d position, int reason = 1) =>
         PacketWriter.Opcode(opcode).Varint(key).U8(0).U8(0).Vec3(position).I32(reason).ToArray();
+
+    /// <summary>
+    /// 0x373c CharWarpLeave_NT (2.0.12): key varint | u8 flags (bit0 skill id, bit1 effect id) | pos |
+    /// direction f32 | move state | substate | EWarpReason | [skill i32] | [effect i32] | duration varint.
+    /// </summary>
+    public static byte[] WarpLeave(int key, Vector3d position, double direction, byte moveState, byte substate,
+        byte reason, int skillId = 0, int effectId = 0, int durationMs = 0)
+    {
+        var flags = (byte)((skillId != 0 ? 1 : 0) | (effectId != 0 ? 2 : 0));
+        var w = PacketWriter.Opcode(0x373c).Varint(key).U8(flags).Vec3(position).F32(direction)
+            .U8(moveState).U8(substate).U8(reason);
+        if (skillId != 0) w.I32(skillId);
+        if (effectId != 0) w.I32(effectId);
+        return w.Varint(durationMs).ToArray();
+    }
 
     /// <summary>EAbnormalMoveType (usmap): how an abnormal moves its owner.</summary>
     public const byte MovePush = 0, MoveKnockback = 1, MovePull = 2, MoveKnockbackInstant = 3, MoveKnockdownInstant = 4;

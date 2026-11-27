@@ -185,6 +185,22 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     Task<NavMesh?>? navLoad;
     bool invisible;
     bool reloading;   // a teleport's map load (0x3621 in the world) is pending
+    /// <summary>The 17 passive abnormals the official 2.0.13 server adds first at the world entry.</summary>
+    static readonly (int Uid, int Id)[] V13EntryAbnormals =
+    [
+        (1, 12011), (2, 12031), (3, 80001), (4, 110000001), (5, 111700371), (6, 113000371),
+        (7, 113800071), (8, 117100001), (9, 117200001), (10, 117300001), (11, 117400001),
+        (12, 117500001), (13, 117600001), (14, 117700001), (15, 117800001), (16, 117900001),
+        (17, 118000001),
+    ];
+    // 2.0.13 entry is staged: the state burst first, the lists 150 ms later, PrepareEnterMap 250 ms
+    // after that, and the spawn burst only when the client sends 0x6AF4.
+    List<byte[]>? deferredEntry;
+    long nextStage2At;
+    List<byte[]>? deferredSpawn;
+    long nextSpawnAt;
+    byte[]? deferredPrepare;
+    long nextPrepareAt;
     bool sprinting;
     /// <summary>Sitting (CharRestStart_RQ 0x3747 until CharRestStop_RQ 0x374a, a move or combat); recovery is <see cref="RestRegenFactor"/> times faster.</summary>
     public bool Resting { get; private set; }
@@ -370,10 +386,10 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         switch (header)
         {
             case 0x3613: return await GameLoginAsync(plain, now, ct);
+            // 2.0.12/2.0.13 game-port NPLogin (0xD456 and the 0x4BAF/0x8CFD aliases) carries the same
+            // grant as 0x3613; without these the client hangs on the server list after "Enter Server".
             case 0xD456 or 0x4BAF or 0x8CFD:
                 return await GameLoginAsync(plain, now, ct);
-            case 0x3C4F when Uses2012WorldEntry(): return await SelectWorldAsync(plain, now, ct);
-            case 0xB24E when Uses2012WorldEntry(): return await LoadCompleteWorldAsync(plain, now, ct);
             case 0x3619:
             {
                 var name = NameRequest(plain);
@@ -387,7 +403,12 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             }
             case 0x361b: return await CreateAsync(plain, now, ct);
             case 0x361f: return await SelectAsync(plain, now, ct);
+            case 0x3C4F: return await SelectWorldAsync(plain, now, ct);   // 2.0.12 SelectCharacter_RQ
+            case 0x83A9: return await SelectWorldV13Async(plain, now, ct, order13: false);
+            case 0xC4F6: return await SelectWorldV13Async(plain, now, ct, order13: true);
             case 0x3622: return await LoadCompleteAsync(plain, now, ct);
+            case 0xB24E: return await LoadCompleteWorldAsync(plain, now, ct);   // 2.0.12 LoadComplete_RQ
+            case 0x6AF4: return await LoadCompleteV13Async(plain, now, ct);
             case 0x3630:
                 // Logout_RQ (in-game Exit). Save first: the client disconnects on the reply.
                 await FlushDeferredPersistenceAsync(now, ct);
@@ -400,8 +421,15 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case CharRenameRq when plain.Length >= 4: return await RenameCharacterAsync(plain, ct);
             case CharSlotSwapRq when plain.Length >= 4: return await SwapLobbySlotsAsync(plain, now, ct);
             case CharCustomizingListRq when plain.Length == 2: return await CharCustomizingListAsync(ct);
+            case CharCustomizingListRqV12 when plain.Length == 2: return await CharCustomizingListAsync(ct, modern: true);
             case CharCustomizingStatusCheckRq when plain.Length >= 2:
-                return [PacketWriter.Opcode(CharCustomizingStatusCheckRs).U16(0).ToArray()];
+                return [GamePackets.CharCustomizingStatusCheckReply()];
+            case CharCustomizingMetaDataRq when plain.Length == 2:
+                return [GamePackets.CharCustomizingMetaDataReply()];
+            case CharCustomizingSettlementStatusRq when plain.Length == 2:
+                return [GamePackets.CharCustomizingSettlementStatusReply()];
+            case CharCustomizingSettleRq when plain.Length >= 6:
+                return [GamePackets.CharCustomizingSettleReply(BitConverter.ToInt32(plain, 2))];
             case BookmarkRq when plain.Length >= 8 && resources is not null: return await BookmarkAsync(plain, now, ct);
         }
         if (InWorld && Opcode(plain) is LatestSeasonRankingRq or MySeasonRankingRq or TakePrevSeasonRankingRewardRq
@@ -582,8 +610,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case RidePackets.CrystallizeRq when plain.Length >= 3: return await CrystallizeAsync(plain, ct);
             case RidePackets.BoardRollRq when plain.Length >= 5: return await RollBoardAsync(plain, ct);
             case RidePackets.BoardLockRq when plain.Length == 6: return await LockBoardSlotAsync(plain[2], plain[3], plain[4], plain[5] != 0, ct);
-            case RidePackets.RespawnRq when plain.Length >= 3:
-                return await RespawnRequestAsync(plain[2], plain.Length >= 11 ? BitConverter.ToInt64(plain, 3) : 0, now, ct);
+            case RidePackets.RespawnRq when plain.Length >= 4:
+            {
+                var (type, itemUid) = ParseRespawnRequest(plain);
+                return await RespawnRequestAsync(type, itemUid, now, ct);
+            }
             case RidePackets.UseRebirthRq when plain.Length == 3: return UseRebirth(plain[2] != 0, now);
             case RidePackets.LevelUpRq when plain.Length == 6: return await LevelUpRideAsync(BitConverter.ToInt32(plain, 2), ct);
             case RidePackets.GetOnRq when plain.Length == 6: return await GetOnRideAsync(BitConverter.ToInt32(plain, 2), ct);
@@ -725,8 +756,13 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             case 0xe244 when NpcKeyFromBody(plain) is { } npcKey: return [GamePackets.KeepAliveNpcInteractionReply(npcKey, now + 300_000)];
             // Unrecorded client layouts (the recordings hold the server's side only; live 2026-10-18 NpcConversation_RQ carried a
             // byte before its key): the quest id or uid is the first i32 in the body that names one, wherever it sits.
-            case 0x8d0a when plain.Length >= 6:
-                return await QuestAcceptAsync(FirstInt32(plain, id => questLog?.Book.ById.ContainsKey(id) == true) ?? BitConverter.ToInt32(plain, 2), plain.Length >= 10 ? BitConverter.ToInt32(plain, 6) : 0, ct);
+            case 0x8d0a when plain.Length >= 7:
+            {
+                var (questId, npcKey) = ParseQuestAcceptRequest(plain);
+                if (questLog?.Book.ById.ContainsKey(questId) != true)
+                    questId = FirstInt32(plain, id => questLog?.Book.ById.ContainsKey(id) == true) ?? questId;
+                return await QuestAcceptAsync(questId, npcKey, ct);
+            }
             case 0x8d0c when plain.Length >= 6:
                 return await QuestGiveUpAsync(FirstInt32(plain, uid => questLog?.ByUid(uid) is not null) ?? BitConverter.ToInt32(plain, 2), ct);
             // MapExit_RQ 0x4004 (the leave button of a layer or dungeon) and ExitInstanceLayer_RQ 0x930d: bodies unrecorded, ignored;
@@ -778,7 +814,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                     [
                         GamePackets.LoginCharacters([], $"{loginIdentity.AccountSid}:{loginIdentity.Guid}", Store.WorldId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                             GamePackets.CommServerKey, now, isBornServer: true, chatEnableLevel: 0, extendedSlotCount: ExtendedCharacterSlotCount),
-                        GamePackets.ExtendedCharacterSlot(ExtendedCharacterSlotCount),
+                        ExtendedSlotPacket(),
                     ];
                 });
         }
@@ -1297,7 +1333,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                         $"{loginIdentity.AccountSid}:{loginIdentity.Guid}", Store.WorldId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         GamePackets.CommServerKey, now, serverRace: worldRace ?? (races.Count == 1 ? races[0] : 0), isAdmin: ClientLobbyAdmin,
                         extendedSlotCount: ExtendedCharacterSlotCount)),
-                    GamePackets.ExtendedCharacterSlot(ExtendedCharacterSlotCount),
+                    ExtendedSlotPacket(),
                 ];
             });
         // A '$' placeholder with the spawn position loads by itself; the origin record leaves
@@ -1620,6 +1656,165 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             GamePackets.ClientEnvSetting(), GamePackets.PrepareEnterMap(1, devMap, devAt, now)];
     }
 
+    /// <summary>
+    /// 0x3C4F SelectCharacter_RQ (2.0.12: position, map id, key) into the existing selection logic,
+    /// then the 0xA8F9 SelectCharacter_RS instead of the 2.0.9 0x3620.
+    /// </summary>
+    async Task<List<byte[]>> SelectWorldAsync(byte[] plain, long now, CancellationToken ct)
+    {
+        var reader = new PacketReader(plain) { Offset = 2 };
+        int x, y, z, mapId;
+        uint key;
+        try
+        {
+            x = reader.I32(); y = reader.I32(); z = reader.I32();
+            mapId = reader.I32(); key = reader.Varint();
+        }
+        catch (ProtocolException) { return []; }
+        FlowLog.Event("select_character", $"key={key} map={mapId} pos={x},{y},{z}");
+        var legacy = new PacketWriter().U16(0x361f).Varint(key).I32(mapId).Vec3(new Vector3d(x, y, z)).ToArray();
+        var replies = await SelectAsync(legacy, now, ct);
+        if (selected is { } state)
+        {
+            var world = GamePackets.SelectCharacterWorld((int)key, state.WireId, playerKey, state.Appearance);
+            for (var i = 0; i < replies.Count; i++)
+                if (replies[i].Length >= 2 && (replies[i][0] | replies[i][1] << 8) == 0x3620)
+                    replies[i] = world;
+        }
+        return replies;
+    }
+
+    /// <summary>0x83A9 / 0xC4F6 SelectCharacter_RQ (2.0.13), answered with the compressed 0x2053.</summary>
+    async Task<List<byte[]>> SelectWorldV13Async(byte[] plain, long now, CancellationToken ct, bool order13)
+    {
+        var reader = new PacketReader(plain) { Offset = 2 };
+        int x, y, z, mapId;
+        uint key;
+        try
+        {
+            x = reader.I32(); y = reader.I32(); z = reader.I32();
+            if (order13) { key = reader.Varint(); mapId = reader.I32(); }
+            else { mapId = reader.I32(); key = reader.Varint(); }
+        }
+        catch (ProtocolException) { return []; }
+        var legacy = new PacketWriter().U16(0x361f).Varint(key).I32(mapId).Vec3(new Vector3d(x, y, z)).ToArray();
+        var replies = await SelectAsync(legacy, now, ct);
+        if (selected is { } state)
+        {
+            var world = GamePackets.SelectCharacterWorldV13((int)key, state.WireId, playerKey, state.Appearance);
+            world = NativeFraming.CompressedEnvelope(world);
+            for (var i = 0; i < replies.Count; i++)
+                if (replies[i].Length >= 2 && (replies[i][0] | replies[i][1] << 8) == 0x3620)
+                    replies[i] = world;
+
+            // 2.0.13 merges selection and load: build the world state now, split it into the official
+            // state burst, the lists and the post-LoadComplete spawn burst.
+            var all = await LoadCompleteAsync(new PacketWriter().U16(0x3622).I32((int)key).Zeros(12).ToArray(), now, ct);
+            all.Add(GamePackets.ClientSettings(playerKey, state.WireId, state.Appearance));
+            all.Add(GamePackets.NcGuardData());
+            all.RemoveAll(b => b.Length >= 2 && (b[0] | b[1] << 8) == 0x3623);
+            var stage1 = all.Where(b => EntryPriority(b) < 100).OrderBy(EntryPriority).ToList();
+            var lists = all.Where(b => EntryPriority(b) == 100 && !EntryAfterLoad(b)).ToList();
+            var spawn = all.Where(EntryAfterLoad).OrderBy(SpawnPriority).ToList();
+            // The 2.0.13 client hangs on the loading screen when our 0x3634 env objects arrive with the
+            // spawn (the 2.0.12 map data has objects the 2.0.13 client rejects). Send none at entry.
+            spawn.RemoveAll(b => b.Length >= 2 && (b[0] | b[1] << 8) == 0x3634);
+            // The official spawn burst repeats the state packets (abyss/abnormals/stats/points) after LoadComplete.
+            spawn.AddRange(stage1.Where(b => b.Length >= 2 && (b[0] | b[1] << 8) is 0xffab or 0x382a or 0x364a or 0x3656 or 0x8d00));
+            spawn = spawn.OrderBy(SpawnPriority).ToList();
+            var extras = replies.Where(b => b.Length >= 2 && (b[0] | b[1] << 8) is 0x8d44 or 0x3621).ToList();
+            replies.Clear();
+            replies.AddRange(stage1);
+            replies.AddRange(extras.Where(b => b.Length >= 2 && (b[0] | b[1] << 8) == 0x8d44));
+            deferredEntry = lists.Count > 0 ? lists : null;
+            nextStage2At = now + 150;
+            deferredPrepare = extras.FirstOrDefault(b => b.Length >= 2 && (b[0] | b[1] << 8) == 0x3621);
+            nextPrepareAt = lists.Count > 0 ? 0 : now;
+            deferredSpawn = spawn;
+            nextSpawnAt = 0;
+        }
+        return replies;
+    }
+
+    static int EntryPriority(byte[] body) => body.Length >= 2 ? (body[0] | body[1] << 8) switch
+    {
+        0x382a => 0, 0x5684 => 1, 0xffab => 2, 0xe263 => 3,
+        0x364a => 4, 0x3656 => 5, 0x8d00 => 6, 0xe25a => 7, 0x61a0 => 8,
+        _ => 100,
+    } : 100;
+
+    static bool EntryAfterLoad(byte[] body) => body.Length >= 2 && (body[0] | body[1] << 8) is
+        0x3633 or 0x3634 or 0x3641 or 0x3746 or 0x3646 or 0x3657 or 0x4001 or 0x4002 or 0xe223 or 0x6000 or 0x561e
+        or 0x5100 or 0x3900 or 0x9501 or 0x5600 or 0x9000 or 0x400a or 0xe251 or 0xe200 or 0xffab;
+
+    static int SpawnPriority(byte[] body) => body.Length >= 2 ? (body[0] | body[1] << 8) switch
+    {
+        0x3746 => 0, 0x5100 => 1, 0x3900 => 2, 0x9501 => 3, 0x5600 => 4, 0xe251 => 5,
+        0x400a => 6, 0x9000 => 7, 0xe200 => 8, 0xffab => 9, 0x3633 => 10, 0x3646 => 11,
+        0xe223 => 12, 0x6000 => 13, 0x382a => 14, 0x364a => 15, 0x3657 => 16, 0x8d00 => 17,
+        0x4001 => 18, 0x4002 => 19, 0x561e => 20, _ => 100,
+    } : 100;
+
+    /// <summary>
+    /// 0x6AF4 LoadComplete_RQ (2.0.13): the official server answers 0xd79e and the spawn burst,
+    /// with no LoadComplete_RS.
+    /// </summary>
+    async Task<List<byte[]>> LoadCompleteV13Async(byte[] plain, long now, CancellationToken ct)
+    {
+        var replies = new List<byte[]> { GamePackets.ServerEnterMapPos(position ?? spawn?.Position ?? GamePackets.SpawnPosition) };
+        if (deferredSpawn is { Count: > 0 } burst)
+        {
+            replies.AddRange(burst);
+            // The official burst ends with a target update (0x3835, the char with no target) after the last stat set.
+            replies.Add(GamePackets.TargetUpdate(playerKey));
+            deferredSpawn = null;
+        }
+        else
+        {
+            var legacy = new PacketWriter().U16(0x3622).I32(1).Zeros(12).ToArray();
+            replies.AddRange(await LoadCompleteAsync(legacy, now, ct));
+            replies.RemoveAll(b => b.Length >= 2 && (b[0] | b[1] << 8) is 0x3623 or 0x3634);
+        }
+        return replies;
+    }
+
+    /// <summary>
+    /// 0xB24E LoadComplete_RQ (2.0.12) into the existing load logic, then the 0x4EF8
+    /// LoadComplete_RS instead of the 2.0.9 0x3623.
+    /// </summary>
+    async Task<List<byte[]>> LoadCompleteWorldAsync(byte[] plain, long now, CancellationToken ct)
+    {
+        var reader = new PacketReader(plain) { Offset = 2 };
+        int ticket;
+        Vector3d clientPosition;
+        try
+        {
+            _ = reader.Varint();                          // voxel export revision
+            _ = reader.Bool();                            // use client enter-map position
+            _ = ReadVarintString(reader);                 // npk did
+            _ = reader.F32();                             // visible length
+            ticket = reader.I32();
+            clientPosition = reader.Vec3();
+            _ = reader.Varint();                          // voxel export tick
+        }
+        catch (ProtocolException) { return []; }
+        FlowLog.Event("load_complete", $"ticket={ticket}");
+        var legacy = new PacketWriter().U16(0x3622).I32(ticket).Zeros(12).ToArray();
+        var replies = await LoadCompleteAsync(legacy, now, ct);
+        var at = position ?? clientPosition;
+        var world = GamePackets.LoadCompleteWorld(ticket, playerKey, at);
+        for (var i = 0; i < replies.Count; i++)
+            if (replies[i].Length >= 2 && (replies[i][0] | replies[i][1] << 8) == 0x3623)
+                replies[i] = world;
+        return replies;
+    }
+
+    static string ReadVarintString(PacketReader reader)
+    {
+        var length = checked((int)reader.Varint());
+        return System.Text.Encoding.UTF8.GetString(reader.Take(length));
+    }
+
     async Task<List<byte[]>> LoadCompleteAsync(byte[] plain, long now, CancellationToken ct)
     {
         if (plain.Length < 6) return [];
@@ -1769,6 +1964,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 EquipItemLevel = armed, HighestTotalItemLevel = armed,
                 CombatPower = combatPower,
                 SubzoneId = Subzones.SubzoneIdAt(mapId, at),
+                V13 = WireContext.Current == WireVersion.V213,
+                Abnormals = WireContext.Current == WireVersion.V213
+                    ? V13EntryAbnormals.Select(e => new AbnormalWire(e.Uid, e.Id, -1, 4102412400000,
+                        CasterKey: playerKey, Level: 1, RangeBase: at)).ToArray()
+                    : [],
                 UsedDaevanionPoints = DaevanionUsedPointWire(),
                 BonusDaevanionPoints = DaevanionBonusPointWire(),
             }));
@@ -3112,6 +3312,26 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         batchAchievementCountUpdates = true;
         achievementCountBatch.Clear();
         var replies = new List<byte[]>();
+        if (deferredEntry is { Count: > 0 } stage2 && now >= nextStage2At)
+        {
+            replies.AddRange(stage2);
+            deferredEntry = null;
+            nextPrepareAt = now + 250;
+        }
+        else if (deferredEntry is null && deferredPrepare is { } prepare && now >= nextPrepareAt)
+        {
+            replies.Add(prepare);
+            deferredPrepare = null;
+        }
+        else if (deferredEntry is null && deferredPrepare is null && deferredSpawn is { Count: > 0 } burst)
+        {
+            if (nextSpawnAt == 0) nextSpawnAt = now + 12000;
+            else if (now >= nextSpawnAt)
+            {
+                replies.AddRange(burst);
+                deferredSpawn = null;
+            }
+        }
         while (posted.TryDequeue(out var item)) replies.AddRange(await item.Run(now));
         replies.AddRange(IdleReturnTick(now));
         if (arrivalCheckDue && !reloading && position is { } arrivedAt)
@@ -3488,63 +3708,6 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         }
     }
 
-    static bool Uses2012WorldEntry() =>
-        ClientProtocolRuntime.Current.Uses2012WorldEntryOpcodes || ClientProtocolRuntime.Current.Kind == ClientProtocolKind.Auto;
-
-    async Task<List<byte[]>> SelectWorldAsync(byte[] plain, long now, CancellationToken ct)
-    {
-        var reader = new PacketReader(plain) { Offset = 2 };
-        int x, y, z, mapId;
-        uint key;
-        try
-        {
-            x = reader.I32(); y = reader.I32(); z = reader.I32();
-            mapId = reader.I32(); key = reader.Varint();
-        }
-        catch (ProtocolException) { return []; }
-        var legacy = new PacketWriter().U16(0x361f).Varint(key).I32(mapId).Vec3(new Vector3d(x, y, z)).ToArray();
-        var replies = await SelectAsync(legacy, now, ct);
-        if (selected is { } state)
-        {
-            var world = GamePackets.SelectCharacterWorld((int)key, state.WireId, playerKey, state.Appearance);
-            for (var i = 0; i < replies.Count; i++)
-                if (replies[i].Length >= 2 && (replies[i][0] | replies[i][1] << 8) == 0x3620)
-                    replies[i] = world;
-        }
-        return replies;
-    }
-
-    async Task<List<byte[]>> LoadCompleteWorldAsync(byte[] plain, long now, CancellationToken ct)
-    {
-        var reader = new PacketReader(plain) { Offset = 2 };
-        int ticket;
-        Vector3d clientPosition;
-        try
-        {
-            _ = reader.Varint();
-            _ = reader.Bool();
-            _ = ReadVarintString(reader);
-            _ = reader.F32();
-            ticket = reader.I32();
-            clientPosition = reader.Vec3();
-            _ = reader.Varint();
-        }
-        catch (ProtocolException) { return []; }
-        var legacy = new PacketWriter().U16(0x3622).I32(ticket).Zeros(12).ToArray();
-        var replies = await LoadCompleteAsync(legacy, now, ct);
-        var at = position ?? clientPosition;
-        var world = GamePackets.LoadCompleteWorld(ticket, playerKey, at);
-        for (var i = 0; i < replies.Count; i++)
-            if (replies[i].Length >= 2 && (replies[i][0] | replies[i][1] << 8) == 0x3623)
-                replies[i] = world;
-        return replies;
-    }
-
-    static string ReadVarintString(PacketReader reader)
-    {
-        var length = checked((int)reader.Varint());
-        return System.Text.Encoding.UTF8.GetString(reader.Take(length));
-    }
 
     /// <summary>"account:guid" from a 0x3613 body (u8 length + string after the opcode); placeholders when absent.</summary>
     public static (string AccountSid, string Guid) LoginIdentity(byte[] body)
