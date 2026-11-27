@@ -560,8 +560,17 @@ public sealed partial class GameSession
             (pastInventory ? trailing : leading).Add(p);
         }
         replies.AddRange(leading);
-        replies.Add(TakeAchievementRewardReply(0, id, step, granted));
-        replies.AddRange(inventory);
+        if (WireContext.Current == WireVersion.V213)
+        {
+            // 2.0.13: the achievement inventory change (0x561B, kAchievement) arrives before 0x5686.
+            replies.AddRange(inventory);
+            replies.Add(TakeAchievementRewardReply(0, id, step, granted));
+        }
+        else
+        {
+            replies.Add(TakeAchievementRewardReply(0, id, step, granted));
+            replies.AddRange(inventory);
+        }
         replies.AddRange(trailing);
         if (Achievements.Boards.Any(b => b.Achievement == id)) replies.Add(AccountContentsInfoList(now));
         return replies;
@@ -601,7 +610,11 @@ public sealed partial class GameSession
         var row = step >= 1 && step <= Achievements.GroupRewards(groupId).Count ? Achievements.GroupRewards(groupId)[step - 1] : null;
         var granted = row is { Length: >= 3 } ? options.Rates.WithKinah([((int)row[1], row[2])]) : [];
         var taken = await TakeGroupStepAsync(groupId, step, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), ct);
-        return taken is null ? [TakeAchievementGroupRewardReply(1, groupId, step)] : [TakeAchievementGroupRewardReply(0, groupId, step, granted), .. taken];
+        if (taken is null) return [TakeAchievementGroupRewardReply(1, groupId, step)];
+        // 2.0.13: 0x561B (inside taken) arrives before 0x5688.
+        return WireContext.Current == WireVersion.V213
+            ? [.. taken, TakeAchievementGroupRewardReply(0, groupId, step, granted)]
+            : [TakeAchievementGroupRewardReply(0, groupId, step, granted), .. taken];
     }
 
     int CompletedInGroup(int groupId) => Achievements.InGroup(groupId).Count(e => (achievements.GetValueOrDefault(e.Id)?.CompletedMs ?? 0) != 0);
@@ -741,13 +754,23 @@ public sealed partial class GameSession
         var moreReward = takeResults.Count > 0 && BatchHasMoreClaimableRewards(groups, groupId, category, only, now);
         if (takeResults.Count > 0) await FlushAchievementsAsync(now, ct, force: true);
         var consolidatedRewards = ConsolidateRewardItems(grantedRewards);
-        // TakeAchievementRewardBatch_RS with _take_result, then Common_RewardItem[] (client build; not in usmap), then 0x561b, then 0x5684.
-        // Inventory before the batch RS prevents the rewards-collected sheet from listing granted stacks (live 0x5689 captures).
+        Note($"achievement_batch_claim: cat={category} group={groupId} only={only} claimed={takeResults.Count} result={batchResult}");
+        // 2.0.9/2.0.12: 0x568A then Common_RewardItem[], 0x561b, 0x5684.
+        // 2.0.13 (#7548 -> #7549): 0x561b (kAchievement) first, then the 22-byte 0x568A, then 0x5684.
         var batch = new List<byte[]>();
         batch.AddRange(checkIn);
-        batch.Add(RewardBatchReply(category, groupId, only, takeResults, batchResult, moreReward, consolidatedRewards));
-        if (inventoryChanges.Count > 0) batch.AddRange(inventoryChanges);
-        if (claimedAchievementIds.Count > 0) batch.Add(AchievementUpdate(claimedAchievementIds));
+        if (WireContext.Current == WireVersion.V213)
+        {
+            if (inventoryChanges.Count > 0) batch.AddRange(inventoryChanges);
+            batch.Add(RewardBatchReply(category, groupId, only, takeResults, batchResult, moreReward, consolidatedRewards));
+            if (claimedAchievementIds.Count > 0) batch.Add(AchievementUpdate(claimedAchievementIds));
+        }
+        else
+        {
+            batch.Add(RewardBatchReply(category, groupId, only, takeResults, batchResult, moreReward, consolidatedRewards));
+            if (inventoryChanges.Count > 0) batch.AddRange(inventoryChanges);
+            if (claimedAchievementIds.Count > 0) batch.Add(AchievementUpdate(claimedAchievementIds));
+        }
         if (grantedItems)
         {
             batch.AddRange(await AutoUseAcquiredItemsAsync(rewardItems, now, ct, deferAutoUseTitles: true));

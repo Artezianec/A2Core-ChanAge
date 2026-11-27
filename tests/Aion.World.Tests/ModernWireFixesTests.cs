@@ -1,3 +1,4 @@
+using Aion.Application.Gameplay;
 using Aion.Protocol.Native;
 using Aion.World;
 using Xunit;
@@ -134,6 +135,59 @@ public sealed class ModernWireFixesTests
             Assert.Equal(20, r.I32());
             Assert.Equal(1, r.U8());
             Assert.True(r.End);   // no trailing Common_RewardItem[]
+        }
+        finally { WireContext.Current = previous; }
+    }
+
+    [Fact]
+    public async Task Achievement_batch_claim_puts_561b_before_568a_on_v213_and_after_it_on_v209()
+    {
+        const int growth = 301_100_300;
+        static async Task<(GameSession Session, List<byte[]> Replies)> ClaimAsync(long now)
+        {
+            var store = new FakeCharacterStore();
+            store.Achievements.Add(new AchievementRecord(growth, 300, null, 1, DateTimeOffset.FromUnixTimeMilliseconds(now)));
+            var session = await GameSessionTestHelpers.EnterWorldAsync(store, now, level: 55);
+            var replies = await session.HandleAsync(
+                new PacketWriter().U16(GameSession.TakeAchievementRewardBatchRq).U8(0).I32(0).U8(0).ToArray(), now + 50);
+            return (session, replies);
+        }
+
+        var previous = Pin(WireVersion.V213);
+        try
+        {
+            var (_, v213) = await ClaimAsync(Now);
+            var inventory = v213.FindIndex(p => Op(p) == 0x561B);
+            var batch = v213.FindIndex(p => Op(p) == GameSession.TakeAchievementRewardBatchRs);
+            Assert.True(inventory >= 0, "0x561B kAchievement must be present");
+            Assert.True(inventory < batch, "0x561B must precede 0x568A on 2.0.13");
+
+            // 0x568A: u16 result, packed bools, results and no Common_RewardItem[] tail (ingame-1 #7549).
+            var rs = v213[batch];
+            var r = new PacketReader(rs) { Offset = 2 };
+            Assert.Equal(0, r.U16());
+            _ = r.U8();                 // category
+            _ = r.I32();                // group
+            _ = r.Bool();               // only
+            _ = r.Bool();               // more reward available
+            for (var n = r.Varint(); n > 0; n--)
+            {
+                _ = r.I32();
+                for (var c = r.Varint(); c > 0; c--) _ = r.U8();
+                for (var c = r.Varint(); c > 0; c--) { _ = r.I32(); _ = r.U8(); }
+            }
+            Assert.True(r.End);
+        }
+        finally { WireContext.Current = previous; }
+
+        previous = Pin(WireVersion.V209);
+        try
+        {
+            var (_, v209) = await ClaimAsync(Now);
+            var inventory = v209.FindIndex(p => Op(p) == 0x561B);
+            var batch = v209.FindIndex(p => Op(p) == GameSession.TakeAchievementRewardBatchRs);
+            Assert.True(inventory >= 0);
+            Assert.True(batch < inventory, "2.0.9 keeps 0x568A before 0x561B");
         }
         finally { WireContext.Current = previous; }
     }
