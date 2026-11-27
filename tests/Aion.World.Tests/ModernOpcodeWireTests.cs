@@ -64,18 +64,27 @@ public sealed class ModernOpcodeWireTests
     }
 
     [Fact]
-    public async Task Combat_state_requests_update_the_session_and_reply_on_2_0_13_opcodes()
+    public async Task Combat_state_requests_only_ack_and_combat_ends_in_the_tick()
     {
         var session = await GameSessionTestHelpers.EnterFreshSharedWorldAsync(new FakeCharacterStore(), Now, race: 1, level: 55);
+        // Enter combat the way a monster hit does: TickAsync must be the one that ends it.
+        session.NpcHitsPlayer(1, Now + 1);
+        Assert.True(session.InCombat);
+
         var previous = Pin(WireVersion.V213);
         try
         {
-            var on = await session.HandleAsync(new byte[] { 0x3A, 0x38 }, Now + 1);
+            var on = await session.HandleAsync(new byte[] { 0x3A, 0x38 }, Now + 2);
             Assert.Contains(on, p => Op(p) == 0x383B);
             Assert.True(session.InCombat);
 
-            var off = await session.HandleAsync(new byte[] { 0x3C, 0x38 }, Now + 2);
+            // 0x383C is only acked; it must not swallow the 0x8D21(false) that TickAsync sends.
+            var off = await session.HandleAsync(new byte[] { 0x3C, 0x38 }, Now + 3);
             Assert.Contains(off, p => Op(p) == 0x383D);
+            Assert.True(session.InCombat);
+
+            var tick = await session.TickAsync(Now + GameSession.CombatTimeoutMs + 10);
+            Assert.Contains(tick, p => p.SequenceEqual(GamePackets.CombatState(session.PlayerKey, false)));
             Assert.False(session.InCombat);
         }
         finally { WireContext.Current = previous; }
@@ -115,6 +124,51 @@ public sealed class ModernOpcodeWireTests
             Assert.Contains(replies, p => Op(p) == 0x5712);
             Assert.Contains(replies, p => Op(p) == 0x8D83);
             Assert.Contains(replies, p => Op(p) == 0xE34C);
+        }
+        finally { WireContext.Current = previous; }
+    }
+
+    [Fact]
+    public async Task Monster_kill_with_kinah_drops_loots_kina_and_emits_limit_status_on_2_0_13()
+    {
+        var previous = Pin(WireVersion.V213);
+        try
+        {
+            var store = new FakeCharacterStore();
+            var shared = new SharedWorld(GameData.Embedded);
+            var session = new GameSession(GameData.Embedded,
+                new GameSessionOptions
+                {
+                    World = shared, CharacterLevel = 10, WorldId = store.WorldId, TrainingDummy = true,
+                    Rules = new WorldRules { MonsterKinahDrops = true },
+                }, new Random(19)) { Store = store };
+            await session.HandleAsync(GameSessionTestHelpers.Login(), Now);
+            await session.HandleAsync(GameSessionTestHelpers.LightCreate(), Now);
+            var wireId = store.States[0].WireId;
+            await session.HandleAsync(new PacketWriter().U16(0x361f).Varint((uint)wireId << 16).I32(0).Vec3(Vector3d.Zero).ToArray(), Now);
+            await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now);
+            var spawn = GameData.Embedded.Spawns(1010).First(s => LootTables.Embedded.HasLoot(s.NpcId) && s.Relationship == 6);
+            var at = new Vector3d(spawn.Position[0], spawn.Position[1], spawn.Position[2]);
+            session.Teleport(1010, at, Now);
+            await session.HandleAsync(new PacketWriter().U16(0x3622).I32(1).ToArray(), Now);
+            var target = session.Targets!.Values.First(t => t.NpcId == spawn.NpcId);
+            target.Hp = 1;
+            var skill = MapEventScenarioHelpers.BasicAttackSkill(session);
+            var castAt = Now + 1_000;
+            var kill = await MapEventScenarioHelpers.CombatCastAsync(session, skill, target.Key, at, castAt);
+            var landAt = castAt + MapEventScenarioHelpers.SkillHitsLandMs(skill);
+            Assert.Contains(kill, p => GameSessionTestHelpers.Op(p) == LootPackets.DropNt);
+
+            var uids = session.GroundDrops.ToList();
+            Assert.NotEmpty(uids);
+            var loot = new PacketWriter().U16(0x5620).Varint((uint)uids.Count);
+            foreach (var uid in uids) loot.I64(uid);
+            var replies = await session.HandleAsync(loot.U8(0).ToArray(), landAt + 100);
+
+            var kina = store.Items.Where(i => i.TemplateId == GameSession.KinaItemId && i.Location == "bag").Sum(i => i.Quantity);
+            Assert.True(kina > 0, "a monster kill with MonsterKinahDrops should leave Kina to loot");
+            var status = Assert.Single(replies, p => Op(p) == 0xFFA6);
+            Assert.Equal(kina, BitConverter.ToInt64(status, 2));
         }
         finally { WireContext.Current = previous; }
     }

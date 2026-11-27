@@ -375,17 +375,11 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         var header = Opcode(plain);
         if (plain.Length == 2 && header is CombatStateOnRq or CombatStateOffRq)
         {
-            // Every cast is bracketed by 0x383a/0x383c (u16 result replies). The player enters combat with the accepted cast
-            // (EnterCombat) and leaves ~3.5 s after the last action, not on 0x383c. 2.0.13 names these CombatStateOn/Off_RQ,
-            // so there the bracket itself enters or leaves combat.
+            // Every cast is bracketed by 0x383a/0x383c (u16 result replies). The official 2.0.13 server only
+            // acks them (0x383b/0x383d): the player enters combat with the accepted cast (EnterCombat) and
+            // leaves ~3.5 s after the last action in TickAsync, which is what sends 0x8d21 true/false.
             var replies = new List<byte[]> { GamePackets.RequestAck(header) };
-            var v13 = WireContext.Current == WireVersion.V213;
-            if (header == CombatStateOnRq)
-            {
-                if (inCombat) combatUntil = now + CombatTimeoutMs;
-                else if (v13) { inCombat = true; combatUntil = now + CombatTimeoutMs; }
-            }
-            else if (v13) { inCombat = false; combatUntil = 0; }
+            if (header == CombatStateOnRq && inCombat) combatUntil = now + CombatTimeoutMs;
             return replies;
         }
         if (header == 0x3602 && plain.Length >= 10) return [GamePackets.Ping(BitConverter.ToUInt64(plain, 2), now)];

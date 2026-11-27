@@ -14,6 +14,9 @@ public sealed partial class GameSession
     public string? ClientMainKeyBindings { get; private set; }
     public string? ClientSubKeyBindings { get; private set; }
 
+    /// <summary>Kina acquired this session (0xFFA6's _acquired_kina total).</summary>
+    long acquiredKina;
+
     static bool IsV213 => WireContext.Current == WireVersion.V213;
 
     /// <summary>
@@ -27,7 +30,7 @@ public sealed partial class GameSession
         var gatherCount = options.World?.GatherLimiter.Used(now) ?? 0;
         return
         [
-            ModernPackets.InitKinaLimitStatus(0, now),
+            ModernPackets.InitKinaLimitStatus(acquiredKina, now),
             ModernPackets.InitGatherLimitStatus(gatherCount, now),
             ModernPackets.AccountCurrencyLimitStatus(now),
             ModernPackets.OdEnergyCubeCeilingInfo([]),
@@ -59,5 +62,16 @@ public sealed partial class GameSession
             ModernPackets.GatherComboStart(1, now + 30_000),
             ModernPackets.GatherLimitStatus(count, now),
         ];
+    }
+
+    /// <summary>
+    /// Adds looted Kina to the session's acquired total and, on 2.0.13, emits 0xFFA6 with the new total
+    /// (OBSERVED in ingame-1.a2p when a monster kill pays Kina).
+    /// </summary>
+    List<byte[]> KinaLootStatus(long amount, long now)
+    {
+        if (!IsV213 || amount <= 0) return [];
+        acquiredKina += amount;
+        return [ModernPackets.KinaLimitStatus(acquiredKina, now)];
     }
 }
