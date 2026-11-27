@@ -489,9 +489,13 @@ public static class GamePackets
     public static byte[] LoadCompleteWorld(int ticket, int charKey, Vector3d position, int frame = 2, ushort opcode = 0x4EF8) =>
         PacketWriter.Opcode(opcode).U32((uint)ticket).Varint(charKey).Vec3(position).I32(frame).U16(0).ToArray();
 
-    /// <summary>0xd79e server enter-map position, sent just before the 2.0.13 spawn burst.</summary>
-    public static byte[] ServerEnterMapPos(Vector3d position) =>
-        PacketWriter.Opcode(0xd79e).Vec3(position).I32(23976).I32(0).I32(5).ToArray();
+    /// <summary>
+    /// 0xd79e LoadComplete_RS (2.0.13), sent just before the spawn burst:
+    /// position Vec3 | char key varint | result u16 | enter-map ticket i32 | frame i32.
+    /// OBSERVED 26 B in ingame-3.a2p (#2224, #4926).
+    /// </summary>
+    public static byte[] ServerEnterMapPos(Vector3d position, int charKey = 0, int ticket = 0, int frame = 2, ushort result = 0) =>
+        PacketWriter.Opcode(0xd79e).Vec3(position).Varint(charKey).U16(result).I32(ticket).I32(frame).ToArray();
 
     static void WriteSpawnDetailTail(PacketWriter w, int ascension = 1, MyCharacterAppear? a = null)
     {
@@ -987,7 +991,11 @@ public static class GamePackets
     /// <summary>0x561d ItemEquipLevelChange_NT: equipped item level total and the highest reached.</summary>
     public static byte[] ItemEquipLevelChange(int level, int highest) => PacketWriter.Opcode(0x561d).I32(level).I32(highest).ToArray();
 
-    /// <summary>0x61a0 ClientSettings_NT: our key, the gameplay-settings JSON and our own character tail.</summary>
+    /// <summary>
+    /// 0x61a0 SelectCharacter_RS (2.0.13; formerly labelled ClientSettings_NT): OBSERVED after
+    /// 0xC4F6 SelectCharacter_RQ as the character's settings/appearance tail of our world entry.
+    /// Our key, the gameplay-settings JSON and our own character tail.
+    /// </summary>
     public static byte[] ClientSettings(int key, long dbId, byte[] customizing)
     {
         var w = new PacketWriter(ClientSettingsBlob.Length + 512)
@@ -1033,7 +1041,7 @@ public static class GamePackets
         "4FF9B23B88F722F97DC1F275238CAD4679CB9DE4E65C17CA7E435DCF6B77850D3315AFD4DFA0F844BA1E7BA6CF6F092BAE85" +
         "9E54FDCC7F1322EF5929F50FF0327FD3");
 
-    /// <summary>0x61a0 tail after the character dbid: the map/channel filler and the NCGuard token.</summary>
+    /// <summary>0x61a0 SelectCharacter_RS tail after the character dbid: the map/channel filler and the NCGuard token.</summary>
     static readonly byte[] ClientSettingsTail = Convert.FromHexString("00009E7E00000000000000000000000000");
 
     /// <summary>0xe25a NCGuardData_RS: result 0 + the opaque 212-byte guard blob (2.0.13 entry).</summary>

@@ -100,6 +100,9 @@ public sealed partial class GameSession
         AbyssRiftProgressInfoRq = 0x385B, AbyssRiftProgressInfoRs = 0x385C, AbyssRiftPhaseInfoNt = 0x385E, AbyssRiftPhaseStartNt = 0x385F;
     const int RankingTypeAbyss = 1;
 
+    /// <summary>Modern number for a packet the 2.0.13 client moved off its 2.0.9 number.</summary>
+    static ushort Wire(ushort opcode) => ProtocolTranslation.ForModern(opcode);
+
     static AbyssTables Abyss => AbyssTables.Embedded;
 
     long entryRemainingMs;
@@ -388,7 +391,7 @@ public sealed partial class GameSession
             foreach (var (english, russian) in notices)
                 player.Send(Notice(english, russian, 22, "FF8040"));
             if (world.RiftZone.Current(riftId) is { } run)
-                player.Send(PacketWriter.Opcode(AbyssRiftPhaseInfoNt).I32(riftId).I32(run.Phase).I64(run.PhaseStartMs).ToArray());
+                player.Send(PacketWriter.Opcode(Wire(AbyssRiftPhaseInfoNt)).I32(riftId).I32(run.Phase).I64(run.PhaseStartMs).ToArray());
         }
         return [];
     }
@@ -396,29 +399,42 @@ public sealed partial class GameSession
     /// <summary>Fortress siege UI packets (AirspaceBattle_*). Called from <see cref="ClientRequest"/>.</summary>
     List<byte[]>? AbyssClientRequest(byte[] plain, long now)
     {
-        switch (Opcode(plain))
+        var header = Opcode(plain);
+        // 2.0.12+ moved these off 0x372C-0x373A and 0x385B-0x385F (movement and skill
+        // projectiles there), so match the modern numbers on modern connections.
+        var battleRq = ProtocolTranslation.ForModern(AirspaceBattleRq);
+        var applyRq = ProtocolTranslation.ForModern(AirspaceBattleApplyRq);
+        var applyCancelRq = ProtocolTranslation.ForModern(AirspaceBattleApplyCancelRq);
+        var rankingRq = ProtocolTranslation.ForModern(AirspaceBattleRankingRq);
+        var riftProgressRq = ProtocolTranslation.ForModern(AbyssRiftProgressInfoRq);
+        if (header == battleRq && plain.Length == 2)
+            return [AirspaceBattleSchedule(now)];
+        if (header == applyRq && plain.Length >= 10)
         {
-            case AirspaceBattleRq when plain.Length == 2:
-                return [AirspaceBattleSchedule(now)];
-            case AirspaceBattleApplyRq when plain.Length >= 10:
-            {
-                var reader = new PacketReader(plain) { Offset = 2 };
-                var battleId = reader.I32();
-                var airspaceId = reader.I32();
-                return AirspaceBattleApply(battleId, airspaceId, now);
-            }
-            case AirspaceBattleApplyCancelRq when plain.Length >= 10:
-            {
-                var reader = new PacketReader(plain) { Offset = 2 };
-                var battleId = reader.I32();
-                var airspaceId = reader.I32();
-                return AirspaceBattleApplyCancel(battleId, airspaceId);
-            }
-            case AirspaceBattleRankingRq when plain.Length >= 6:
-            {
-                var airspaceId = BitConverter.ToInt32(plain, 2);
-                return [AirspaceBattleRanking(airspaceId, now)];
-            }
+            var reader = new PacketReader(plain) { Offset = 2 };
+            var battleId = reader.I32();
+            var airspaceId = reader.I32();
+            return AirspaceBattleApply(battleId, airspaceId, now);
+        }
+        if (header == applyCancelRq && plain.Length >= 10)
+        {
+            var reader = new PacketReader(plain) { Offset = 2 };
+            var battleId = reader.I32();
+            var airspaceId = reader.I32();
+            return AirspaceBattleApplyCancel(battleId, airspaceId);
+        }
+        if (header == rankingRq && plain.Length >= 6)
+        {
+            var airspaceId = BitConverter.ToInt32(plain, 2);
+            return [AirspaceBattleRanking(airspaceId, now)];
+        }
+        if (header == riftProgressRq && plain.Length >= 6)
+        {
+            var id = BitConverter.ToInt32(plain, 2);
+            return AbyssRiftProgressInfo(id, now);
+        }
+        switch (header)
+        {
             case RiftOptionUpdateRq when plain.Length >= 3:
             {
                 var on = plain[2] != 0 ? 1 : 0;
@@ -426,11 +442,6 @@ public sealed partial class GameSession
             }
             case AbyssArtifactEventInfoRq when plain.Length == 2:
                 return [AbyssArtifactEventInfo()];
-            case AbyssRiftProgressInfoRq when plain.Length >= 6:
-            {
-                var id = BitConverter.ToInt32(plain, 2);
-                return AbyssRiftProgressInfo(id, now);
-            }
         }
         return null;
     }
@@ -440,28 +451,28 @@ public sealed partial class GameSession
     {
         var phases = AbyssRiftPhases.Embedded.PhasesOf(abyssRiftId);
         if (phases is null or { Length: 0 })
-            return [PacketWriter.Opcode(AbyssRiftProgressInfoRs).U16(1).I32(abyssRiftId).I32(0).I32(0).I32(0).ToArray()];
+            return [PacketWriter.Opcode(Wire(AbyssRiftProgressInfoRs)).U16(1).I32(abyssRiftId).I32(0).I32(0).I32(0).ToArray()];
         if (options.World?.RiftZone.Current(abyssRiftId) is { } zone)
             return
             [
-                PacketWriter.Opcode(AbyssRiftProgressInfoRs).U16(0).I32(abyssRiftId).I32(0).I32(0).I32(0).ToArray(),
-                PacketWriter.Opcode(AbyssRiftPhaseInfoNt).I32(abyssRiftId).I32(zone.Phase).I64(zone.PhaseStartMs).ToArray(),
+                PacketWriter.Opcode(Wire(AbyssRiftProgressInfoRs)).U16(0).I32(abyssRiftId).I32(0).I32(0).I32(0).ToArray(),
+                PacketWriter.Opcode(Wire(AbyssRiftPhaseInfoNt)).I32(abyssRiftId).I32(zone.Phase).I64(zone.PhaseStartMs).ToArray(),
             ];
         if (!abyssRiftPhase.ContainsKey(abyssRiftId))
         {
             abyssRiftPhase[abyssRiftId] = 1;
             return
             [
-                PacketWriter.Opcode(AbyssRiftProgressInfoRs).U16(0).I32(abyssRiftId).I32(0).I32(0).I32(0).ToArray(),
-                PacketWriter.Opcode(AbyssRiftPhaseStartNt).I32(abyssRiftId).I32(1).I64(now).ToArray(),
-                PacketWriter.Opcode(AbyssRiftPhaseInfoNt).I32(abyssRiftId).I32(1).I64(now).ToArray(),
+                PacketWriter.Opcode(Wire(AbyssRiftProgressInfoRs)).U16(0).I32(abyssRiftId).I32(0).I32(0).I32(0).ToArray(),
+                PacketWriter.Opcode(Wire(AbyssRiftPhaseStartNt)).I32(abyssRiftId).I32(1).I64(now).ToArray(),
+                PacketWriter.Opcode(Wire(AbyssRiftPhaseInfoNt)).I32(abyssRiftId).I32(1).I64(now).ToArray(),
             ];
         }
         var phase = abyssRiftPhase[abyssRiftId];
         return
         [
-            PacketWriter.Opcode(AbyssRiftProgressInfoRs).U16(0).I32(abyssRiftId).I32(0).I32(0).I32(0).ToArray(),
-            PacketWriter.Opcode(AbyssRiftPhaseInfoNt).I32(abyssRiftId).I32(phase).I64(now).ToArray(),
+            PacketWriter.Opcode(Wire(AbyssRiftProgressInfoRs)).U16(0).I32(abyssRiftId).I32(0).I32(0).I32(0).ToArray(),
+            PacketWriter.Opcode(Wire(AbyssRiftPhaseInfoNt)).I32(abyssRiftId).I32(phase).I64(now).ToArray(),
         ];
     }
 
@@ -492,7 +503,7 @@ public sealed partial class GameSession
     byte[] AirspaceBattleSchedule(long now)
     {
         var battles = Abyss.AirspaceBattles;
-        var w = PacketWriter.Opcode(AirspaceBattleNt).Varint(battles.Count);
+        var w = PacketWriter.Opcode(Wire(AirspaceBattleNt)).Varint(battles.Count);
         var siege = options.World?.Airspace;
         foreach (var battle in battles)
         {
@@ -517,7 +528,7 @@ public sealed partial class GameSession
         var ok = guild is not null && Abyss.AirspaceOf(airspaceId) is not null
             && Abyss.AirspaceBattles.Any(b => b.Id == battleId && b.AirspaceIds.Contains(airspaceId))
             && options.World?.Airspace.RegisterApply(battleId, airspaceId, guild!.Id, now) == true;
-        replies.Add(PacketWriter.Opcode(AirspaceBattleApplyRs).U16(ok ? (ushort)0 : (ushort)1).I32(battleId).I32(airspaceId).ToArray());
+        replies.Add(PacketWriter.Opcode(Wire(AirspaceBattleApplyRs)).U16(ok ? (ushort)0 : (ushort)1).I32(battleId).I32(airspaceId).ToArray());
         if (ok && options.World is { } world)
         {
             replies.Add(world.Airspace.BuildApplyNt(battleId, airspaceId, 1));
@@ -532,7 +543,7 @@ public sealed partial class GameSession
     {
         var replies = new List<byte[]>();
         var had = guild is not null && options.World?.Airspace.CancelApply(battleId, airspaceId, guild.Id) == true;
-        replies.Add(PacketWriter.Opcode(AirspaceBattleApplyCancelRs).U16(had ? (ushort)0 : (ushort)1).I32(battleId).I32(airspaceId).ToArray());
+        replies.Add(PacketWriter.Opcode(Wire(AirspaceBattleApplyCancelRs)).U16(had ? (ushort)0 : (ushort)1).I32(battleId).I32(airspaceId).ToArray());
         if (had && options.World is { } world)
         {
             var nt = world.Airspace.BuildApplyCancelNt(battleId, airspaceId);
@@ -545,7 +556,7 @@ public sealed partial class GameSession
 
     byte[] AirspaceBattleRanking(int airspaceId, long now)
     {
-        var w = PacketWriter.Opcode(AirspaceBattleRankingRs);
+        var w = PacketWriter.Opcode(Wire(AirspaceBattleRankingRs));
         if (options.World?.Airspace is { } siege) siege.WriteRanking(w, airspaceId, now);
         else w.U16(0).I32(airspaceId).I32(0).I64(now + 3_600_000).Varint(0);
         return w.ToArray();

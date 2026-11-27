@@ -1761,7 +1761,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     /// </summary>
     async Task<List<byte[]>> LoadCompleteV13Async(byte[] plain, long now, CancellationToken ct)
     {
-        var replies = new List<byte[]> { GamePackets.ServerEnterMapPos(position ?? spawn?.Position ?? GamePackets.SpawnPosition) };
+        // _char_key is the character's wire key (OBSERVED 26 B: Vec3 | varint key | u16 result |
+        // i32 ticket | i32 frame); the old 23976 was a captured key+result pair, not our character.
+        var replies = new List<byte[]> { GamePackets.ServerEnterMapPos(position ?? spawn?.Position ?? GamePackets.SpawnPosition, playerKey, ticket: 0, frame: 2) };
         if (deferredSpawn is { Count: > 0 } burst)
         {
             replies.AddRange(burst);

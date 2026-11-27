@@ -104,7 +104,7 @@ public static class FlowLog
         0x3656 => "CharCombatPowerUpdate_NT",
         0x8D00 => "CharPointUpdate_NT",
         0xE25A => "NCGuardData_RS",
-        0x61A0 => "ClientSettings_NT",
+        0x61A0 => "SelectCharacter_RS_v3",
         0x3600 => "MapFrame_NT",
         0x3601 => "Tick_RQ",
         0x3602 => "Ping_RQ",

@@ -1,14 +1,20 @@
 namespace Aion.Protocol.Native;
 
 /// <summary>
-/// Opcode translation between the pinned 2.0.9 server tables and the 2.0.12 dispatch table.
-/// The server keeps its 2.0.9 handlers; a modern connection has only the header rewritten at
-/// the frame edges. Layout changes at unchanged opcodes are handled by their own writers.
+/// Opcode translation between the pinned 2.0.9 server tables and the 2.0.12/2.0.13 tables.
+/// The server keeps its 2.0.9 handlers; safe renumberings are rewritten at the frame edges, while
+/// a packet whose old number a modern client uses for another message emits its modern number
+/// through <see cref="ForModern"/> and dispatches on that number itself.
 /// </summary>
 public static class ProtocolTranslation
 {
     static readonly Dictionary<ushort, ushort> To209 = [];
     static readonly Dictionary<ushort, ushort> To212 = [];
+    // 2.0.12+ numbers whose 2.0.9 number is another live message in the modern table (OBSERVED
+    // 2.0.13 captures: movement keeps 0x372C-0x373A, skills keep 0x3813-0x3828/0x3830 and
+    // projectiles keep 0x385B-0x385F). Those handlers emit the modern number themselves through
+    // ForModern, so ToClient must not rewrite the old number for the whole connection.
+    static readonly Dictionary<ushort, ushort> Moved = [];
 
     static void Pair(ushort v209, ushort v212)
     {
@@ -16,19 +22,28 @@ public static class ProtocolTranslation
         To212[v209] = v212;
     }
 
+    /// <summary>A handler packet whose modern number is only produced by the writer (dispatch matches it directly).</summary>
+    static void MovedOnly(ushort v209, ushort v212) => Moved[v209] = v212;
+
     static void Range(ushort first209, ushort last209, int delta)
     {
         for (var value = (int)first209; value <= last209; value++)
             Pair((ushort)value, (ushort)(value + delta));
     }
 
+    static void MovedRange(ushort first209, ushort last209, int delta)
+    {
+        for (var value = (int)first209; value <= last209; value++)
+            MovedOnly((ushort)value, (ushort)(value + delta));
+    }
+
     static ProtocolTranslation()
     {
         // Party loot / dice: 0x3813-0x3828 and 0x3830 -> 0x5718-0x572D and 0x5735.
         // 0x3829-0x382F stay untouched: 0x382A/0x382C are the abnormal add/remove packets.
-        for (var value = 0x3813; value <= 0x3828; value++)
-            Pair((ushort)value, (ushort)(value + 0x1F05));
-        Pair(0x3830, 0x5735);
+        // The 2.0.13 client still uses 0x3813-0x3828 for skills, so these move in the writer only.
+        MovedRange(0x3813, 0x3828, 0x1F05);
+        MovedOnly(0x3830, 0x5735);
         // Trade: 0x3B69-0x3B77 -> 0xE264-0xE272.
         Range(0x3B69, 0x3B77, 0xA6FB);
         // Party dungeon rooms: 0x3AC1-0x3AF5 -> 0x9700-0x9734.
@@ -37,8 +52,9 @@ public static class ProtocolTranslation
         Range(0xE2A8, 0xE2C5, 0x67);
         // Duel: 0x933C-0x934A -> 0x9400-0x940E.
         Range(0x933C, 0x934A, 0xC4);
-        // Airspace battle: 0x372C-0x373A -> 0x4300-0x430E.
-        Range(0x372C, 0x373A, 0xBD4);
+        // Airspace battle: 0x372C-0x373A -> 0x4300-0x430E. The 2.0.13 client uses
+        // 0x372C-0x373A for movement (parkour, lunges, rolling, wind paths, swimming).
+        MovedRange(0x372C, 0x373A, 0xBD4);
         // Godstone: 0x3776-0x377B -> 0x5634-0x5639.
         Range(0x3776, 0x377B, 0x1EBE);
         // Reward limits / abyss points: 0x3C04-0x3C06 -> 0xFFA9-0xFFAB.
@@ -64,8 +80,14 @@ public static class ProtocolTranslation
         Pair(0x36EE, 0x3845); Pair(0x36EF, 0x3846);   // skill customizing
         Pair(0x930D, 0xE21D); Pair(0x930E, 0xE21E);   // exit instance layer
         Pair(0x9327, 0x931F);   // party leave
-        // Abyss rift.
-        Pair(0x385B, 0x6302); Pair(0x385C, 0x6303); Pair(0x385E, 0x6305); Pair(0x385F, 0x6306);
+        // Abyss rift: 0x385B/0x385C/0x385E/0x385F -> 0x6302/0x6303/0x6305/0x6306
+        // (the 2.0.13 client keeps the skill-projectile / auto-use numbers).
+        MovedOnly(0x385B, 0x6302); MovedOnly(0x385C, 0x6303);
+        MovedOnly(0x385E, 0x6305); MovedOnly(0x385F, 0x6306);
+        // World map abyss rankers: 0x3A17/0x3A18 -> 0x910B/0x910C (OBSERVED 2.0.13).
+        Pair(0x3A17, 0x910B); Pair(0x3A18, 0x910C);
+        // Ranking point update: 0x3B78 -> 0xE273 (2.0.13 table; 0x3B78 itself is not used there).
+        Pair(0x3B78, 0xE273);
     }
 
     static byte[] Rewrite(byte[] body, Dictionary<ushort, ushort> map)
@@ -84,4 +106,11 @@ public static class ProtocolTranslation
 
     /// <summary>A 2.0.9 handler reply translated to the 2.0.12 client's opcode.</summary>
     public static byte[] ToClient(byte[] body) => Rewrite(body, To212);
+
+    /// <summary>
+    /// The modern number for a handler whose 2.0.9 number is another message on a modern client.
+    /// Returns <paramref name="opcode"/> unchanged on 2.0.9 and for every unmoved packet.
+    /// </summary>
+    public static ushort ForModern(ushort opcode) =>
+        WireContext.IsModern && Moved.TryGetValue(opcode, out var moved) ? moved : opcode;
 }

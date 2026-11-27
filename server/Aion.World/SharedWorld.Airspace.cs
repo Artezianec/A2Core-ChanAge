@@ -9,6 +9,9 @@ public sealed class AirspaceSiege
     /// <summary>EAirspaceBattleState on the Oct 7 pin (OURS until AirspaceBattle.dat export).</summary>
     public const int PhaseWait = 0, PhaseApply = 1, PhaseBattle = 2, PhaseEnd = 3;
 
+    /// <summary>Modern number for a packet the 2.0.13 client moved off its 2.0.9 number.</summary>
+    static ushort Wire(ushort opcode) => ProtocolTranslation.ForModern(opcode);
+
     public sealed record GuildDisplay(int ServerId, long GuildId, string Name, int Emblem, string MasterName);
 
     readonly Dictionary<int, GuildDisplay> owners = [];
@@ -260,7 +263,7 @@ public sealed class AirspaceSiege
     public byte[] BuildBattleUpdate(int battleId, int phase, long ready, long battleStart, long endStart)
     {
         var battle = AbyssTables.Embedded.AirspaceBattles.First(b => b.Id == battleId);
-        var w = PacketWriter.Opcode(GameSession.AirspaceBattleUpdateNt);
+        var w = PacketWriter.Opcode(Wire(GameSession.AirspaceBattleUpdateNt));
         w.I32(battle.Id).I32(phase).I64(ready).I64(battleStart).I64(endStart);
         w.Varint(battle.AirspaceIds.Length);
         foreach (var airspaceId in battle.AirspaceIds)
@@ -272,21 +275,21 @@ public sealed class AirspaceSiege
     }
 
     public byte[] BuildProgressResult(int airspaceId, GuildDisplay owner, long now) =>
-        PacketWriter.Opcode(GameSession.AirspaceBattleProgressResultNt).I32(airspaceId)
+        PacketWriter.Opcode(Wire(GameSession.AirspaceBattleProgressResultNt)).I32(airspaceId)
             .Also(w => WriteOwnerGuild(w, owner)).I64(now).ToArray();
 
     public byte[] BuildApplyNt(int battleId, int airspaceId, int login) =>
-        PacketWriter.Opcode(GameSession.AirspaceBattleApplyNt).I32(battleId).I32(airspaceId).I32(login).ToArray();
+        PacketWriter.Opcode(Wire(GameSession.AirspaceBattleApplyNt)).I32(battleId).I32(airspaceId).I32(login).ToArray();
 
     public byte[] BuildApplyCancelNt(int battleId, int airspaceId) =>
-        PacketWriter.Opcode(GameSession.AirspaceBattleApplyCancelNt).I32(battleId).I32(airspaceId).ToArray();
+        PacketWriter.Opcode(Wire(GameSession.AirspaceBattleApplyCancelNt)).I32(battleId).I32(airspaceId).ToArray();
 
     public static byte[] BuildCharAirspacePoint(int playerKey, int points) =>
-        PacketWriter.Opcode(GameSession.CharAirspacePointNt).Varint(playerKey).I32(points).ToArray();
+        PacketWriter.Opcode(Wire(GameSession.CharAirspacePointNt)).Varint(playerKey).I32(points).ToArray();
 
     public byte[] BuildApplyGuildList(SharedWorld world, int battleId, int airspaceId, int worldId)
     {
-        var w = PacketWriter.Opcode(GameSession.AirspaceBattleApplyGuildListNt).I32(battleId).I32(airspaceId);
+        var w = PacketWriter.Opcode(Wire(GameSession.AirspaceBattleApplyGuildListNt)).I32(battleId).I32(airspaceId);
         var guildIds = Applicants(battleId, airspaceId);
         w.Varint(guildIds.Count);
         foreach (var guildId in guildIds)
