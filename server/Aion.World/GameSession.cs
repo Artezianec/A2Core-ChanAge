@@ -812,12 +812,13 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 return await Stored(async () =>
                 {
                     await EnsureExtendedCharacterSlotsAsync(ct);
-                    return
-                    [
+                    var lobbyLogin = new List<byte[]>
+                    {
                         GamePackets.LoginCharacters([], $"{loginIdentity.AccountSid}:{loginIdentity.Guid}", Store.WorldId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                             GamePackets.CommServerKey, now, isBornServer: true, chatEnableLevel: 0, extendedSlotCount: ExtendedCharacterSlotCount),
-                        ExtendedSlotPacket(),
-                    ];
+                    };
+                    if (WireContext.Current != WireVersion.V213) lobbyLogin.Add(ExtendedSlotPacket());
+                    return lobbyLogin;
                 });
         }
         if (GamePackets.WorldEntryQueryReplies.TryGetValue(header, out var reply))
@@ -1335,14 +1336,15 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 // _server_race: the picked world's race (each world holds one race, as an official server), else the race
                 // of the account's characters (0 when none, CANDIDATE "not chosen"; a new account then saw its own race's
                 // text scrambled).
-                return
-                [
+                var selectReplies = new List<byte[]>
+                {
                     NativeFraming.CompressedEnvelope(GamePackets.LoginCharacters(characters,
                         $"{loginIdentity.AccountSid}:{loginIdentity.Guid}", Store.WorldId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         GamePackets.CommServerKey, now, serverRace: worldRace ?? (races.Count == 1 ? races[0] : 0), isAdmin: ClientLobbyAdmin,
                         extendedSlotCount: ExtendedCharacterSlotCount)),
-                    ExtendedSlotPacket(),
-                ];
+                };
+                if (WireContext.Current != WireVersion.V213) selectReplies.Add(ExtendedSlotPacket());
+                return selectReplies;
             });
         // A '$' placeholder with the spawn position loads by itself; the origin record leaves
         // the client on the create screen.
@@ -1980,6 +1982,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 WingId = wingId, Fp = resources.Fp, FpMax = resources.FpMax,
                 EquipItemLevel = armed, HighestTotalItemLevel = armed,
                 CombatPower = combatPower,
+                GatherLevel = gatherLevel, GatherExp = gatherExp, CraftMasteries = craftMastery,
                 SubzoneId = Subzones.SubzoneIdAt(mapId, at),
                 V13 = WireContext.Current == WireVersion.V213,
                 Abnormals = WireContext.Current == WireVersion.V213

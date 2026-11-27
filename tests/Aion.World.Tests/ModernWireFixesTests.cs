@@ -193,6 +193,93 @@ public sealed class ModernWireFixesTests
     }
 
     [Fact]
+    public async Task Lobby_entry_omits_the_910a_slot_toast_on_v213()
+    {
+        var session = await GameSessionTestHelpers.EnterWorldAsync(new FakeCharacterStore(Guid.NewGuid()), Now, level: 10);
+        var previous = Pin(WireVersion.V213);
+        try
+        {
+            var lobby = await session.HandleAsync(new PacketWriter().U16(0x3625).ToArray(), Now + 100);
+            Assert.Contains(lobby, p => Op(p) == 0x3626);
+            Assert.DoesNotContain(lobby, p => Op(p) == 0x910A);
+        }
+        finally { WireContext.Current = previous; }
+
+        // 2.0.12 keeps the live 0x910A notice.
+        var modern = await GameSessionTestHelpers.EnterWorldAsync(new FakeCharacterStore(Guid.NewGuid()), Now, level: 10);
+        previous = Pin(WireVersion.V212);
+        try
+        {
+            var lobby = await modern.HandleAsync(new PacketWriter().U16(0x3625).ToArray(), Now + 200);
+            Assert.Contains(lobby, p => Op(p) == 0x910A);
+        }
+        finally { WireContext.Current = previous; }
+    }
+
+    [Fact]
+    public void Account_contents_info_writes_u16_server_id_on_v213()
+    {
+        var previous = Pin(WireVersion.V213);
+        try
+        {
+            var w = PacketWriter.Opcode(GameSession.AccountContentsInfoListNt).Varint(1);
+            GameSession.WriteAccountContentsInfo(w, 1, 37, 2, 1505, 9001, 100, 0);
+            var packet = w.ToArray();
+            Assert.Equal(30, packet.Length);   // ingame-3 #4759
+            var r = new PacketReader(packet) { Offset = 2 };
+            Assert.Equal(1u, r.Varint());
+            Assert.Equal(1, r.U8());
+            Assert.Equal(37, r.I32());
+            Assert.Equal(2, r.I32());
+            Assert.Equal(1505, r.U16());
+            Assert.Equal(9001, r.I64());
+            Assert.Equal(100, r.I32());
+            Assert.Equal(0, r.I32());
+            Assert.True(r.End);
+        }
+        finally { WireContext.Current = previous; }
+    }
+
+    [Fact]
+    public async Task V213_entry_keeps_masteries_out_of_the_levelup_notices()
+    {
+        var store = new FakeCharacterStore(Guid.NewGuid());
+        store.Masteries.Add(new MasteryRecord("gather", 0, 77, 1_234_567_890));
+        store.Masteries.Add(new MasteryRecord("craft", 3, 4, 55));
+        var session = new GameSession(GameData.Embedded, new GameSessionOptions { CharacterLevel = 45, WorldId = store.WorldId }, new Random(5))
+        {
+            Store = store,
+        };
+        await session.HandleAsync(GameSessionTestHelpers.Login(), Now);
+        await session.HandleAsync(GameSessionTestHelpers.LightCreate(), Now);
+        var wireId = store.States[0].WireId;
+
+        var previous = Pin(WireVersion.V213);
+        try
+        {
+            var select = new PacketWriter().U16(0xC4F6).I32(0).I32(0).I32(0).Varint((uint)wireId << 16).I32(0).ToArray();
+            await session.HandleAsync(select, Now + 1);
+            var stage2 = await session.TickAsync(Now + 200);
+            Assert.Contains(stage2, p => Op(p) == GameSession.CraftRecipeListNt);
+            Assert.DoesNotContain(stage2, p => Op(p) == 0x8D36);   // GatherLevelUpdate_NT
+            Assert.DoesNotContain(stage2, p => Op(p) == 0x8D7D);   // CraftLevelUpdate_NT
+
+            var load = await session.HandleAsync(new PacketWriter().U16(0x6AF4).ToArray(), Now + 300);
+            var appear = Assert.Single(load, p => Op(p) == 0x3633);
+            var gather = new byte[10];
+            BitConverter.GetBytes((ushort)77).CopyTo(gather, 0);
+            BitConverter.GetBytes(1_234_567_890L).CopyTo(gather, 2);
+            Assert.True(appear.AsSpan().IndexOf(gather) >= 0, "MyCharAppear must carry the real gather level/exp");
+            var craft = new byte[11];
+            craft[0] = 3;
+            BitConverter.GetBytes((ushort)4).CopyTo(craft, 1);
+            BitConverter.GetBytes(55L).CopyTo(craft, 3);
+            Assert.True(appear.AsSpan().IndexOf(craft) >= 0, "MyCharAppear must carry the real craft mastery");
+        }
+        finally { WireContext.Current = previous; }
+    }
+
+    [Fact]
     public async Task Group_reward_threshold_counts_completed_steps_on_v213()
     {
         const int group = 300_000_102;   // Group_L_Growth_Complete: 13 achievements, 74 steps, steps at 12/24/...

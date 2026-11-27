@@ -169,6 +169,11 @@ public sealed record MyCharacterAppear
     public IReadOnlyList<(int Type, int Point)> UsedDaevanionPoints { get; init; } = [];
     /// <summary>MyCharAppear _bonus_daevanion_point_infos (item-granted bonus pools).</summary>
     public IReadOnlyList<(int Type, int Point)> BonusDaevanionPoints { get; init; } = [];
+    /// <summary>2.0.13 spawn-detail gather mastery level/exp (the initial values; 0x8d36 is only for level-ups).</summary>
+    public int GatherLevel { get; init; } = 1;
+    public long GatherExp { get; init; }
+    /// <summary>2.0.13 spawn-detail craft mastery by category (1..5); unset categories default to level 1 / exp 0.</summary>
+    public IReadOnlyDictionary<int, (int Level, long Exp)>? CraftMasteries { get; init; }
 }
 
 /// <summary>An NPC as the client draws it (0x3641).</summary>
@@ -532,9 +537,13 @@ public static class GamePackets
     static void WriteSpawnDetailTailV13(PacketWriter w, MyCharacterAppear a)
     {
         w.Varint(1);
-        w.U16(100).I64(0).U16(0).U16(0);
+        w.U16(Math.Clamp(a.GatherLevel, 0, ushort.MaxValue)).I64(a.GatherExp).U16(0).U16(0);
         w.Varint(5);
-        for (var category = 1; category <= 5; category++) w.U8((byte)category).U16(1).I64(0).U16(0);
+        for (var category = 1; category <= 5; category++)
+        {
+            var (level, exp) = a.CraftMasteries?.GetValueOrDefault(category) ?? (1, 0L);
+            w.U8((byte)category).U16(Math.Clamp(level, 0, ushort.MaxValue)).I64(exp).U16(0);
+        }
         w.I32(0).I32(0).I64(0).U8((byte)a.Ascension);
         int[][] groups = [[a.SpentSkillPoints, a.SpentStigmaPoints, 0], [a.ItemSkillPoints, a.ItemStigmaPoints, 0]];
         foreach (var group in groups)

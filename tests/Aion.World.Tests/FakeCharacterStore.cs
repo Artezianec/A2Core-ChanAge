@@ -381,8 +381,11 @@ public sealed class FakeCharacterStore : INativeCharacterStore
     public Dictionary<int, int> Skins { get; } = [];
     public Dictionary<int, int> SkinEquips { get; } = [];
 
+    /// <summary>Craft/gather masteries returned by ExtrasAsync.</summary>
+    public List<MasteryRecord> Masteries { get; } = [];
+
     public Task<CharacterExtras> ExtrasAsync(Guid character, CancellationToken ct) =>
-        Task.FromResult(new CharacterExtras(Titles.ToList(), new Dictionary<int, int>(TitleEquips), new Dictionary<int, int>(Skins), new Dictionary<int, int>(SkinEquips), []));
+        Task.FromResult(new CharacterExtras(Titles.ToList(), new Dictionary<int, int>(TitleEquips), new Dictionary<int, int>(Skins), new Dictionary<int, int>(SkinEquips), Masteries.ToList()));
 
     public Task<bool> GrantTitleAsync(Guid character, int titleId, CancellationToken ct) => Task.FromResult(Titles.Add(titleId));
 

@@ -985,9 +985,22 @@ public sealed partial class GameSession
         foreach (var (type, board) in keyed)
         {
             var (checkDay, rewardDay) = state(board.Achievement);
-            w.U8(type).I32(board.SeasonGroupId).I32(board.SeasonNo).I32(serverId).I64(charDbId).I32(checkDay).I32(rewardDay);
+            WriteAccountContentsInfo(w, type, board.SeasonGroupId, board.SeasonNo, serverId, charDbId, checkDay, rewardDay);
         }
         return w.ToArray();
+    }
+
+    /// <summary>
+    /// One Common_AccountContentsInfo row. 2.0.13 writes _server_id as u16 (OBSERVED #4759: e1 05 = 1505), so
+    /// char dbid / check day / reward day stay aligned and Attendance does not reopen every login.
+    /// </summary>
+    internal static void WriteAccountContentsInfo(PacketWriter w, byte type, int seasonGroupId, int seasonNo,
+        int serverId, long charDbId, int checkDay, int rewardDay)
+    {
+        w.U8(type).I32(seasonGroupId).I32(seasonNo);
+        if (WireContext.Current == WireVersion.V213) w.U16(serverId);
+        else w.I32(serverId);
+        w.I64(charDbId).I32(checkDay).I32(rewardDay);
     }
 
     /// <summary>Today's check-in on each open attendance board not yet stamped this game day (same rules as 0xe34d).</summary>
