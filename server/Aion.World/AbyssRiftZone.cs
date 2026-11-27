@@ -189,6 +189,15 @@ public sealed class AbyssRiftZoneEvents
     readonly Dictionary<string, Live> live = [];
     readonly HashSet<(string Group, long Open)> started = [];
     long nextTickMs;
+    (int RiftId, byte WinRace)? finished;
+
+    /// <summary>The result of a run that just ended, consumed once by the world tick (2.0.13 result packet).</summary>
+    public (int RiftId, byte WinRace)? TakeFinished()
+    {
+        var value = finished;
+        finished = null;
+        return value;
+    }
 
     const long TickEveryMs = 1000;
 
@@ -232,6 +241,7 @@ public sealed class AbyssRiftZoneEvents
             {
                 if (step.Finished)
                 {
+                    finished = (options.RiftId, 0);
                     Clear(map, run);
                     live.Remove(run.Group);
                     notices.Add(($"Abyss Rift Zone (group {run.Group}) is over.", $"Зона Бездны-разлома (группа {run.Group}) завершена."));

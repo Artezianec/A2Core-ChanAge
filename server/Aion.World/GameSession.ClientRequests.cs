@@ -21,7 +21,7 @@ public sealed partial class GameSession
     /// 0xe259 stays unanswered: replaying the official 0xe25a (2026-10-24) made the client flood hundreds of requests and
     /// drop the connection 10-50 s later in every long session (live 2026-10-24/25); unanswered it sent 4-7 per session.
     /// </summary>
-    public static readonly IReadOnlySet<int> SilentRequests = new HashSet<int> { 0x3601, 0x3651, 0xe34f, 0xe350, 0xe259, 0xffa0, 0xffa1 };
+    public static readonly IReadOnlySet<int> SilentRequests = new HashSet<int> { 0x3601, 0x3651, 0xe34f, 0xe350, 0xe259, 0xffa0, 0xffa1, ModernPackets.ClientKeyBindingInfoRt };
 
     /// <summary>
     /// The official reply to a RetrieveMyLatestSeasonRanking_RQ, pushed at the world entry (#462 of capture 20261013-144836):

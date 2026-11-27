@@ -64,6 +64,62 @@ public sealed class ModernOpcodeWireTests
     }
 
     [Fact]
+    public async Task Combat_state_requests_update_the_session_and_reply_on_2_0_13_opcodes()
+    {
+        var session = await GameSessionTestHelpers.EnterFreshSharedWorldAsync(new FakeCharacterStore(), Now, race: 1, level: 55);
+        var previous = Pin(WireVersion.V213);
+        try
+        {
+            var on = await session.HandleAsync(new byte[] { 0x3A, 0x38 }, Now + 1);
+            Assert.Contains(on, p => Op(p) == 0x383B);
+            Assert.True(session.InCombat);
+
+            var off = await session.HandleAsync(new byte[] { 0x3C, 0x38 }, Now + 2);
+            Assert.Contains(off, p => Op(p) == 0x383D);
+            Assert.False(session.InCombat);
+        }
+        finally { WireContext.Current = previous; }
+    }
+
+    [Fact]
+    public async Task Client_key_binding_info_is_stored_and_never_answered()
+    {
+        var session = await GameSessionTestHelpers.EnterFreshSharedWorldAsync(new FakeCharacterStore(), Now, race: 1, level: 55);
+        var packet = new PacketWriter().U16(0xFFB3).String("main-keys").String("sub-keys").ToArray();
+        var replies = await session.HandleAsync(packet, Now + 1);
+        Assert.Empty(replies);
+        Assert.Equal("main-keys", session.ClientMainKeyBindings);
+        Assert.Equal("sub-keys", session.ClientSubKeyBindings);
+    }
+
+    [Fact]
+    public async Task Two_0_13_select_sends_the_limit_status_entry_extras()
+    {
+        var store = new FakeCharacterStore();
+        var session = new GameSession(GameData.Embedded, new GameSessionOptions { CharacterLevel = 55, WorldId = store.WorldId }, new Random(5))
+        {
+            Store = store,
+        };
+        await session.HandleAsync(GameSessionTestHelpers.Login(), Now);
+        await session.HandleAsync(GameSessionTestHelpers.LightCreate(), Now);
+        var wireId = store.States[0].WireId;
+        var previous = Pin(WireVersion.V213);
+        try
+        {
+            var select = new PacketWriter().U16(0xC4F6).I32(0).I32(0).I32(0)
+                .Varint((uint)wireId << 16).I32(0).ToArray();
+            var replies = await session.HandleAsync(select, Now + 1);
+            Assert.Contains(replies, p => Op(p) == 0xFFA5);
+            Assert.Contains(replies, p => Op(p) == 0xFFA7);
+            Assert.Contains(replies, p => Op(p) == 0xFFAE);
+            Assert.Contains(replies, p => Op(p) == 0x5712);
+            Assert.Contains(replies, p => Op(p) == 0x8D83);
+            Assert.Contains(replies, p => Op(p) == 0xE34C);
+        }
+        finally { WireContext.Current = previous; }
+    }
+
+    [Fact]
     public async Task Party_roll_uses_the_2_0_13_opcodes_on_modern_and_2_0_9_on_v209()
     {
         var session = await GameSessionTestHelpers.EnterFreshSharedWorldAsync(new FakeCharacterStore(), Now, race: 1, level: 55);

@@ -83,6 +83,7 @@ public static class ProtocolTranslation
         // Abyss rift: 0x385B/0x385C/0x385E/0x385F -> 0x6302/0x6303/0x6305/0x6306
         // (the 2.0.13 client keeps the skill-projectile / auto-use numbers).
         MovedOnly(0x385B, 0x6302); MovedOnly(0x385C, 0x6303);
+        MovedOnly(0x385D, 0x6304);   // AbyssRiftProgressResult_NT
         MovedOnly(0x385E, 0x6305); MovedOnly(0x385F, 0x6306);
         // World map abyss rankers: 0x3A17/0x3A18 -> 0x910B/0x910C (OBSERVED 2.0.13).
         Pair(0x3A17, 0x910B); Pair(0x3A18, 0x910C);

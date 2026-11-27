@@ -382,6 +382,7 @@ public sealed partial class GameSession
     {
         if (options.World is not { } world || !world.RiftZone.NeedsTick(now)) return [];
         var notices = world.RiftZone.Tick(world, now);
+        var finished = world.RiftZone.TakeFinished();
         if (notices.Count == 0) return [];
         var riftId = AbyssRiftZone.Options.RiftId;
         foreach (var player in world.Online.Values)
@@ -392,6 +393,8 @@ public sealed partial class GameSession
                 player.Send(Notice(english, russian, 22, "FF8040"));
             if (world.RiftZone.Current(riftId) is { } run)
                 player.Send(PacketWriter.Opcode(Wire(AbyssRiftPhaseInfoNt)).I32(riftId).I32(run.Phase).I64(run.PhaseStartMs).ToArray());
+            if (finished is { } result && WireContext.Current == WireVersion.V213)
+                player.Send(ModernPackets.AbyssRiftProgressResult(result.RiftId, result.WinRace));
         }
         return [];
     }

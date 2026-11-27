@@ -182,6 +182,7 @@ partial class GameSession
     List<byte[]> CancelPendingSkillCharge(bool sendStopReply)
     {
         var hadPending = pendingSkillCharge is not null;
+        var stopped = pendingSkillCharge;
         var hadAbnormals = skillChargeAbnormalUids.Count > 0;
         pendingSkillCharge = null;
         lastSkillChargingStart = null;
@@ -190,6 +191,9 @@ partial class GameSession
         skillChargeNextTickAtMs = 0;
         var replies = new List<byte[]>();
         if (sendStopReply && (hadPending || hadAbnormals)) replies.Add(GamePackets.SkillChargingStopReply(0));
+        // 2.0.13 also tells the client that the cast it was charging stopped.
+        if (hadPending && stopped is { } charge && WireContext.Current == WireVersion.V213)
+            replies.Add(ModernPackets.SkillCastingStop(playerKey, 0, charge.SkillId));
         replies.AddRange(ClearSkillChargeAbnormal());
         return replies;
     }

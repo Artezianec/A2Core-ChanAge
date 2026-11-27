@@ -22,11 +22,16 @@ public sealed partial class GameSession
     /// 0xe260 TrustLimitInfo_RQ: TrustLimitInfo_NT then TrustLimitInfo_RS result 0 (OBSERVED 2026-11-06 182716 and 234912,
     /// the same moment, that order; ported from Addiboii/A2Core be7c165).
     /// </summary>
-    static List<byte[]> TrustLimitInfo(long now) =>
-    [
-        TrustLimitInfoNotice(now),
-        PacketWriter.Opcode(TrustLimitInfoRs).U16(0).ToArray(),
-    ];
+    static List<byte[]> TrustLimitInfo(long now)
+    {
+        var replies = new List<byte[]>
+        {
+            TrustLimitInfoNotice(now),
+            PacketWriter.Opcode(TrustLimitInfoRs).U16(0).ToArray(),
+        };
+        if (WireContext.Current == WireVersion.V213) replies.Add(ModernPackets.KinaLimitStatus(0, now));
+        return replies;
+    }
 
     /// <summary>
     /// TrustLimitInfo_NT 0xe262: flags (07), the Kina limits by EContentsKinaLimitType {type u8, type u8, used i64, limit i64,

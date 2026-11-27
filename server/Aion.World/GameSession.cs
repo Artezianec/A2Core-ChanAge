@@ -373,12 +373,19 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
         lastNow = now;
         if (plain.Length < 2) return [];
         var header = Opcode(plain);
-        if (plain.Length == 2 && header is 0x383a or 0x383c)
+        if (plain.Length == 2 && header is CombatStateOnRq or CombatStateOffRq)
         {
             // Every cast is bracketed by 0x383a/0x383c (u16 result replies). The player enters combat with the accepted cast
-            // (EnterCombat) and leaves ~3.5 s after the last action, not on 0x383c.
+            // (EnterCombat) and leaves ~3.5 s after the last action, not on 0x383c. 2.0.13 names these CombatStateOn/Off_RQ,
+            // so there the bracket itself enters or leaves combat.
             var replies = new List<byte[]> { GamePackets.RequestAck(header) };
-            if (header == 0x383a && inCombat) combatUntil = now + CombatTimeoutMs;
+            var v13 = WireContext.Current == WireVersion.V213;
+            if (header == CombatStateOnRq)
+            {
+                if (inCombat) combatUntil = now + CombatTimeoutMs;
+                else if (v13) { inCombat = true; combatUntil = now + CombatTimeoutMs; }
+            }
+            else if (v13) { inCombat = false; combatUntil = 0; }
             return replies;
         }
         if (header == 0x3602 && plain.Length >= 10) return [GamePackets.Ping(BitConverter.ToUInt64(plain, 2), now)];
@@ -416,6 +423,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
                 return [GamePackets.Logout()];
             case 0x362e: return await BuilderAsync(plain, now, ct);
             case 0x3625 when IsLobbyRequest(plain): return await LobbyAsync(now, ct);
+            case ClientKeyBindingInfoRt: StoreClientKeyBindingInfo(plain); return [];
             case CharDeleteRq when plain.Length >= 3: return await DeleteCharacterAsync(plain, now, ct);
             case CharDeleteCancelRq when plain.Length >= 3: return await CancelDeleteAsync(plain, ct);
             case CharRenameRq when plain.Length >= 4: return await RenameCharacterAsync(plain, ct);
@@ -1712,6 +1720,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             var all = await LoadCompleteAsync(new PacketWriter().U16(0x3622).I32((int)key).Zeros(12).ToArray(), now, ct);
             all.Add(GamePackets.ClientSettings(playerKey, state.WireId, state.Appearance));
             all.Add(GamePackets.NcGuardData());
+            all.AddRange(ModernEntryPackets(now));
             all.RemoveAll(b => b.Length >= 2 && (b[0] | b[1] << 8) == 0x3623);
             var stage1 = all.Where(b => EntryPriority(b) < 100).OrderBy(EntryPriority).ToList();
             var lists = all.Where(b => EntryPriority(b) == 100 && !EntryAfterLoad(b)).ToList();
@@ -1740,6 +1749,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     {
         0x382a => 0, 0x5684 => 1, 0xffab => 2, 0xe263 => 3,
         0x364a => 4, 0x3656 => 5, 0x8d00 => 6, 0xe25a => 7, 0x61a0 => 8,
+        ModernPackets.InitKinaLimitStatusNt => 9, ModernPackets.InitGatherLimitStatusNt => 10,
+        ModernPackets.AccountCurrencyLimitStatusNt => 11, ModernPackets.OdEnergyCubeCeilingInfoNt => 12,
+        ModernPackets.GuildCraftRecipeListNt => 13, ModernPackets.RetrievePostNoticeInfoNt => 14,
         _ => 100,
     } : 100;
 

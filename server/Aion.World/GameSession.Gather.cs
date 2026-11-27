@@ -273,6 +273,7 @@ public sealed partial class GameSession
         gatherAttempts.Remove(index);
         if (shownObjects.Remove(index)) replies.Add(GamePackets.EnvObjDespawn(key));
         replies.AddRange(await GatherMasteryExpAsync(ct));
+        replies.AddRange(GatherResultNotices(key, now));
         replies.AddRange(AchieveGather(gatherLevel));
         return replies;
     }
