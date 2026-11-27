@@ -1,3 +1,4 @@
+using System.Net;
 using Aion.Application.Authentication;
 using Aion.Core.Accounts;
 using Npgsql;
@@ -143,5 +144,72 @@ public sealed partial class PostgresAccountAuthentication
         command.Parameters.AddWithValue(Hash(parsed.ToString())); command.Parameters.AddWithValue(wireAccountId);
         command.Parameters.AddWithValue(worldId); command.Parameters.AddWithValue((short)race);
         return await command.ExecuteNonQueryAsync(ct) > 0;
+    }
+
+    public async Task<GameTicket?> MintGameTicketForAccountAsync(Guid accountId, int worldId, CancellationToken ct)
+    {
+        if (worldId != 1204) return null;
+        var ticket = Token();
+        await using var command = source.CreateCommand("""
+            WITH session AS (
+                SELECT s.token_hash, s.expires_at
+                FROM auth.sessions s JOIN auth.accounts a ON a.account_id=s.account_id
+                WHERE s.account_id=$1 AND s.expires_at>now() AND a.disabled_at IS NULL
+                ORDER BY s.expires_at DESC LIMIT 1
+            )
+            INSERT INTO auth.game_tickets(token_hash,session_hash,world_id,expires_at)
+            SELECT $2,session.token_hash,$3,LEAST(now()+interval '12 hours',session.expires_at)
+            FROM session
+            RETURNING world_id,expires_at
+            """);
+        command.Parameters.AddWithValue(accountId);
+        command.Parameters.AddWithValue(Hash(ticket));
+        command.Parameters.AddWithValue(worldId);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        return await reader.ReadAsync(ct) ? new(ticket, reader.GetInt32(0), new DateTimeOffset(reader.GetDateTime(1))) : null;
+    }
+
+    public async Task<Guid?> ResolveAccountByPlatformAccessTokenAsync(string accessToken, CancellationToken ct)
+    {
+        if (accessToken.Length is 0 or > 4096) return null;
+        await using var command = source.CreateCommand("""
+            SELECT account_id FROM auth.platform_secondary_auth
+            WHERE access_token=$1 AND verified_at IS NOT NULL AND expires_at>now()
+            """);
+        command.Parameters.AddWithValue(accessToken);
+        return await command.ExecuteScalarAsync(ct) as Guid?;
+    }
+
+    async Task<string?> ActiveGameTicketAsync(string candidate, int worldId, CancellationToken ct) =>
+        ValidToken(candidate) && await ResolveTicketAsync(candidate, worldId, ct) is not null ? candidate : null;
+
+    public async Task<string?> ResolveLoginTicketAsync(string wire, int worldId, string? launchAuthorization, IPAddress? clientAddress, bool developmentClientBinding, CancellationToken ct)
+    {
+        // Only return hex that is already present in auth.game_tickets (never a coincidental 64-hex substring).
+        if (await ActiveGameTicketAsync(wire, worldId, ct) is { } stored) return stored;
+        if (launchAuthorization is not null && ValidToken(launchAuthorization))
+        {
+            var fromLaunch = await RedeemLaunchAsync(launchAuthorization, ct);
+            if (fromLaunch is not null) return fromLaunch.Token;
+        }
+        if (ValidToken(wire))
+        {
+            var fromLaunchCode = await RedeemLaunchAsync(wire, ct);
+            if (fromLaunchCode is not null) return fromLaunchCode.Token;
+        }
+        if (wire.Length > 0 && await ResolveAccountByPlatformAccessTokenAsync(wire, ct) is { } fromPlatform)
+        {
+            var minted = await MintGameTicketForAccountAsync(fromPlatform, worldId, ct);
+            if (minted is not null) return minted.Token;
+        }
+        if (developmentClientBinding && clientAddress is not null && await ResolveAccountAsync(clientAddress, null, ct) is { } fromClient)
+        {
+            var minted = await MintGameTicketForAccountAsync(fromClient, worldId, ct);
+            if (minted is not null) return minted.Token;
+        }
+        if (Aion.Protocol.Native.ClientIdentity.TryExtractGameTicket(wire) is { } embedded && embedded != wire
+            && await ActiveGameTicketAsync(embedded, worldId, ct) is { } embeddedStored)
+            return embeddedStored;
+        return null;
     }
 }

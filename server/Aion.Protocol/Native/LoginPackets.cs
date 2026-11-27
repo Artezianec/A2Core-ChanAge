@@ -131,11 +131,17 @@ public sealed record ClientIdentity(string AuthnToken, string AccountSession = "
         var (opcode, count) = game ? (0x3613, 4) : (0x3905, 6);
         if (body.Length < 2 || (body[0] | body[1] << 8) != opcode) throw new ProtocolException("Unexpected identity opcode");
 
-        // 2.0.12 sends the six NPLogin strings with varint lengths and non-empty provider/session
-        // fields; the 2.0.6 captures used u8 lengths and empty placeholders. Try the varint form
-        // first (it is also valid for short legacy strings), then fall back to the legacy shape.
-        if (tryVarintNpLogin && !game && TryParseVarintStrings(body, 2, count, out var modern) && modern[1].Length > 0)
-            return new ClientIdentity(modern[1], modern[3]);
+        // LoginServer_NPLogin_RQ (usmap): auth_provider, authn_token, 2nd_auth, account_session, game_account_id,
+        // client_language. 2.0.12+ uses varint or u16 FString lengths with populated provider fields; 2.0.9 used u8
+        // lengths with empty placeholders (second string only).
+        if (tryVarintNpLogin && !game)
+        {
+            foreach (var wide in new[] { false, true })
+            {
+                if (TryParseLengthStrings(body, 2, count, wide, out var modern) && TryPickLoginCredentials(modern, tryVarintNpLogin, out var token, out var session, out _))
+                    return new ClientIdentity(token, session);
+            }
+        }
 
         var strict = new UTF8Encoding(false, true);
         var offset = 2;
@@ -150,8 +156,12 @@ public sealed record ClientIdentity(string AuthnToken, string AccountSession = "
         }
         if (!game)
         {
-            if (offset != body.Length || strings[0] != "" || strings[3] != "" || strings[4] != "") throw new ProtocolException("Unsupported login identity shape");
-            return new ClientIdentity(strings[1]);
+            if (offset != body.Length) throw new ProtocolException("Unsupported login identity tail");
+            if (strings[0] == "" && strings[3] == "" && strings[4] == "")
+                return new ClientIdentity(strings[1]);
+            if (tryVarintNpLogin && TryPickLoginCredentials(strings, tryVarintNpLogin, out var token, out var session, out _))
+                return new ClientIdentity(token, session);
+            throw new ProtocolException("Unsupported login identity shape");
         }
         if (body.Length - offset != 9 || body[offset..].ContainsAnyExcept((byte)0) || strings[1] != "" || strings[3] != "")
             throw new ProtocolException("Unsupported game identity shape");
@@ -161,21 +171,102 @@ public sealed record ClientIdentity(string AuthnToken, string AccountSession = "
         return new ClientIdentity(strings[2], strings[0]);
     }
 
-    static bool TryParseVarintStrings(ReadOnlySpan<byte> body, int offset, int count, out string[] values)
+    /// <summary>64-char hex game ticket minted by <c>authn_token</c> redemption (same shape as stored tickets).</summary>
+    public static bool IsGameTicket(string? value) => value is { Length: 64 } && value.All(char.IsAsciiHexDigit);
+
+    /// <summary>Redacted credential shape for logs (length, charset class, first six characters).</summary>
+    public static string DescribeCredentialShape(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return "empty";
+        var prefix = value.Length >= 6 ? value[..6] : value;
+        var charset = value.All(char.IsAsciiHexDigit) ? "hex"
+            : value.All(static c => char.IsAsciiLetterOrDigit(c) || c is '+' or '/' or '-' or '_' or '=') ? "b64urlish"
+            : "utf8";
+        return $"len={value.Length} charset={charset} prefix={prefix}";
+    }
+
+    /// <summary>Pulls a 64-char hex game ticket out of a longer platform session or access token when embedded.</summary>
+    public static string? TryExtractGameTicket(string wire)
+    {
+        if (IsGameTicket(wire)) return wire;
+        if (wire.Length > 64 && wire.AsSpan(0, 64).ToString().All(char.IsAsciiHexDigit)) return wire[..64];
+        if (wire.Length < 64) return null;
+        for (var index = 0; index <= wire.Length - 64; index++)
+        {
+            var slice = wire.AsSpan(index, 64);
+            if (slice.ToString().All(char.IsAsciiHexDigit)) return slice.ToString();
+        }
+        return null;
+    }
+
+    /// <summary>Usmap names for the six LoginServer NPLogin string fields (2.0.12 wire order).</summary>
+    public static readonly string[] NpLoginFieldNames =
+        ["auth_provider", "authn_token", "2nd_auth_token", "account_session_token", "game_account_id", "client_language"];
+
+    /// <summary>Reads the six NPLogin strings when the body uses varint or u16 lengths (for diagnostics).</summary>
+    public static bool TryReadNpLoginFields(ReadOnlySpan<byte> body, out string[] fields, out int authnFieldIndex)
+    {
+        fields = [];
+        authnFieldIndex = -1;
+        if (body.Length < 2 || (body[0] | body[1] << 8) != 0x3905) return false;
+        foreach (var wide in new[] { false, true })
+        {
+            if (!TryParseLengthStrings(body, 2, 6, wide, out fields)) continue;
+            return TryPickLoginCredentials(fields, tryVarintNpLogin: true, out _, out _, out authnFieldIndex);
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 2.0.12 keeps authn_token at index 1; 2.0.13 moves it after 2nd_auth_token (index 2), like the game-port layout.
+    /// Never scrape unrelated 64-hex fields (device ids).
+    /// </summary>
+    static bool TryPickLoginCredentials(string[] fields, bool tryVarintNpLogin, out string token, out string session, out int authnFieldIndex)
+    {
+        session = fields.Length > 3 ? fields[3] : "";
+        authnFieldIndex = -1;
+        if (tryVarintNpLogin)
+        {
+            if (fields.Length > 2 && fields[2].Length > 0)
+            {
+                token = fields[2];
+                authnFieldIndex = 2;
+                return true;
+            }
+        }
+        if (fields.Length > 1 && fields[1].Length > 0)
+        {
+            token = fields[1];
+            authnFieldIndex = 1;
+            return true;
+        }
+        token = "";
+        return false;
+    }
+
+    static bool TryParseLengthStrings(ReadOnlySpan<byte> body, int offset, int count, bool wide, out string[] values)
     {
         values = new string[count];
         var strict = new UTF8Encoding(false, true);
         for (var n = 0; n < count; n++)
         {
             int size;
-            try { size = checked((int)NativeVarint.Read(body, offset, out var next)); offset = next; }
-            catch (ProtocolException) { return false; }
+            if (wide)
+            {
+                if (offset + 2 > body.Length) return false;
+                size = body[offset] | body[offset + 1] << 8;
+                offset += 2;
+            }
+            else
+            {
+                try { size = checked((int)NativeVarint.Read(body, offset, out offset)); }
+                catch (ProtocolException) { return false; }
+            }
             if (size < 0 || offset + size > body.Length) return false;
             try { values[n] = strict.GetString(body.Slice(offset, size)); }
             catch (DecoderFallbackException) { return false; }
             offset += size;
         }
-
         return offset == body.Length;
     }
 

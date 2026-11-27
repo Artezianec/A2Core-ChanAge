@@ -11,6 +11,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Aion.Application.Authentication;
+using Aion.Protocol.Native;
 using Aion.World;
 
 namespace Aion.Host.Platform;
@@ -356,6 +357,8 @@ public sealed class LaunchPairing
     readonly object gate = new();
     readonly TimeProvider clock;
     readonly string path;
+    readonly string? publicAddress;
+    readonly ILogger<LaunchPairing>? log;
 
     sealed record Entry(string Authorization, DateTimeOffset Expires);
     sealed class State
@@ -367,42 +370,74 @@ public sealed class LaunchPairing
     // The account host receives /api/client-launches and the native host answers authn_token; they are
     // separate processes (start-all), so the pairing lives in a small JSON file shared through the host
     // directory instead of a per-process dictionary.
-    public LaunchPairing(TimeProvider clock)
+    public LaunchPairing(TimeProvider clock, NetworkOptions? network = null, ILogger<LaunchPairing>? log = null)
     {
         this.clock = clock;
+        this.log = log;
+        publicAddress = network?.PublicAddress is { } advertised && !IPAddress.IsLoopback(IPAddress.Parse(advertised)) ? advertised : null;
         path = Path.Combine(AppContext.BaseDirectory, "platform-pairing.json");
     }
 
     public static IPAddress Normalize(IPAddress address) => address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address;
 
+    IEnumerable<string> PairingKeys(IPAddress? from)
+    {
+        if (from is null) yield break;
+        var normalized = Normalize(from).ToString();
+        yield return normalized;
+        if (normalized is "127.0.0.1" or "::1")
+            yield break;
+        // Single-host dev: launcher registers from the LAN URL while the game login socket is often loopback.
+        yield return "127.0.0.1";
+        if (publicAddress is not null && publicAddress != normalized)
+            yield return publicAddress;
+    }
+
     public void Register(IPAddress? from, string authorization, DateTimeOffset expires)
     {
         if (from is null) return;
+        var keys = PairingKeys(from).Distinct(StringComparer.Ordinal).ToArray();
         lock (gate)
         {
             var state = Load();
             Prune(state);
-            state.Pending[Normalize(from).ToString()] = new Entry(authorization, expires);
+            foreach (var key in keys) state.Pending[key] = new Entry(authorization, expires);
             Save(state);
         }
+        log?.LogInformation("Launch pairing registered keys [{Keys}] authorization shape {Shape}", string.Join(", ", keys),
+            ClientIdentity.DescribeCredentialShape(authorization));
     }
 
     public string? Resolve(IPAddress? from)
     {
         if (from is null) return null;
-        var address = Normalize(from).ToString();
+        var keys = PairingKeys(from).Distinct(StringComparer.Ordinal).ToArray();
         lock (gate)
         {
             var state = Load();
             Prune(state);
-            string? result;
-            if (state.Pending.Remove(address, out var launch))
+            string? result = null;
+            string? matchedKey = null;
+            foreach (var key in keys)
             {
-                state.Taken[address] = new Entry(launch.Authorization, clock.GetUtcNow() + Remembered);
-                result = launch.Authorization;
+                if (state.Pending.Remove(key, out var launch))
+                {
+                    var takenUntil = clock.GetUtcNow() + Remembered;
+                    foreach (var alias in keys) state.Taken[alias] = new Entry(launch.Authorization, takenUntil);
+                    result = launch.Authorization;
+                    matchedKey = key;
+                    break;
+                }
+                if (state.Taken.TryGetValue(key, out var last))
+                {
+                    result = last.Authorization;
+                    matchedKey = key;
+                    break;
+                }
             }
-            else result = state.Taken.TryGetValue(address, out var last) ? last.Authorization : null;
             Save(state);
+            log?.LogInformation("Launch pairing resolve lookup keys [{Keys}] match_key={MatchKey} result={Result}",
+                string.Join(", ", keys), matchedKey ?? "(none)", result is null ? "miss" : ClientIdentity.DescribeCredentialShape(result));
             return result;
         }
     }
@@ -434,6 +469,19 @@ public sealed class LaunchPairing
 
 public static partial class PlatformBootstrapEndpoints
 {
+    static bool TryJsonTokenShape(byte[] json, string field, out string shape)
+    {
+        shape = "missing";
+        try
+        {
+            var value = JsonNode.Parse(json)?[field]?.GetValue<string>();
+            if (value is null) return false;
+            shape = ClientIdentity.DescribeCredentialShape(value);
+            return true;
+        }
+        catch (JsonException) { return false; }
+    }
+
     static readonly byte[] NotReady = """{"local_probe":true,"ready":false}"""u8.ToArray();
     static readonly string[] Known = ["/MobileAppConfigSdk/app/key", "/MobileAppConfigSdk/app/policy", "/local-api-gate", "/local-login-web", "/local-login-api"];
 
@@ -507,6 +555,8 @@ public static partial class PlatformBootstrapEndpoints
                 var ticket = await handoff.RedeemLaunchAsync(a, CancellationToken.None);
                 // Rejected codes are not remembered (anyone can send them).
                 if (ticket is null) redeemed.TryRemove(a, out _);
+                if (ticket is not null)
+                    platformLog.LogInformation("authn_token redeemed launch pairing shape {Shape}", ClientIdentity.DescribeCredentialShape(ticket.Token));
                 return ticket is null ? null : PlatformResponses.PythonJson([("authn_token", ticket.Token)]);
             }), now)).Ticket.Value;
         }
@@ -662,7 +712,12 @@ public static partial class PlatformBootstrapEndpoints
                     ?? body?["auth_code"]?.GetValue<string>() ?? body?["verification_code"]?.GetValue<string>();
                 if (sessionId is not null && await finisher.ResolveAccountAsync(context.Connection.RemoteIpAddress, responses.SessionId ?? BearerAuth(request), CancellationToken.None) is { } accountId
                     && await finisher.FinishAsync(accountId, sessionId, otp, body?["recovery_code"]?.GetValue<string>(), CancellationToken.None) is { } finish)
+                {
+                    await finisher.RememberClientAsync(context.Connection.RemoteIpAddress, accountId, CancellationToken.None);
+                    if (TryJsonTokenShape(finish, "token", out var finishShape))
+                        platformLog.LogInformation("secondary_auth finish token shape {Shape}", finishShape);
                     reply = (200, finish);
+                }
                 else if (responses.SecondaryFinish is { } fixtureFinish) reply = (200, fixtureFinish);
             }
             else if (method == "POST" && path == "/local-api-gate/secondary_auth/v1.0/my/auth;start" && responses.SecondaryStart is { } startOnly) reply = (200, startOnly);
