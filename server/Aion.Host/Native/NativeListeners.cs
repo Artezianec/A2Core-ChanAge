@@ -10,6 +10,7 @@ using Aion.Core.Accounts;
 using Aion.Protocol.Native;
 using Aion.Host;
 using Aion.Host.Debug;
+using Aion.Host.Platform;
 using Aion.Core;
 using Aion.World;
 
@@ -307,6 +308,12 @@ public sealed class NativeLoginListener(NativeOptions options, IServiceProvider 
                 ? [LoginPackets.PreGeneratedIntro(LoginPackets.DefaultWorlds[0].Id, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())] : [],
             WorldPicked = services.GetService<WorldChoices>() is { } choices ? choices.Pick : null,
             LastPickedRace = services.GetService<WorldChoices>() is { } picks ? picks.Race : null,
+            NpLoginObserved = (fields, authnIndex) =>
+            {
+                foreach (var (index, name, shape) in fields)
+                    Logger.LogInformation("NPLogin field {Index} ({Name}) {Shape}", index, name, shape);
+                Logger.LogInformation("NPLogin selected authn_token field index {AuthnIndex}", authnIndex);
+            },
         }, Options.Development ? null : (identity, token) => AuthenticateAsync(identity, clientAddress, token));
         var chunk = new byte[8192];
         var diagnostics = services.GetService<HostDiagnostics>();
@@ -326,7 +333,8 @@ public sealed class NativeLoginListener(NativeOptions options, IServiceProvider 
                     if (step.Close is { } reason)
                     {
                         Logger.LogInformation("Native login closed: {Reason}", reason);
-                        if (reason is "unknown_world" or "route_failed") Logger.LogWarning("Native login could not route a world pick: {Reason}", reason);
+                        if (step.WarningDetail is { } detail) Logger.LogWarning("Native login rejected: {Detail}", detail);
+                        else if (reason is "unknown_world" or "route_failed") Logger.LogWarning("Native login could not route a world pick: {Reason}", reason);
                         return;
                     }
                 }
@@ -348,22 +356,43 @@ public sealed class NativeLoginListener(NativeOptions options, IServiceProvider 
             services.GetService<HostDiagnostics>()?.Login(HostDiagnostics.NativeLogin, HostDiagnostics.Outcome.Succeeded);
             return synthetic;
         }
-        var (grant, outcome) = await CheckTicketAsync(identity, ct);
+        var (grant, outcome) = await CheckTicketAsync(identity, clientAddress, ct);
         services.GetService<HostDiagnostics>()?.Login(HostDiagnostics.NativeLogin, outcome);
         return grant;
     }
 
-    async Task<(LoginGrant?, HostDiagnostics.Outcome)> CheckTicketAsync(ClientIdentity identity, CancellationToken ct)
+    async Task<(LoginGrant?, HostDiagnostics.Outcome)> CheckTicketAsync(ClientIdentity identity, IPAddress? clientAddress, CancellationToken ct)
     {
         var handoff = services.GetService<IClientHandoff>();
         var characters = services.GetService<CharacterService>();
-        if (handoff is null || characters is null) return (null, HostDiagnostics.Outcome.Failed);
-        var grant = await handoff.BeginLoginAsync(identity.AuthnToken, Options.WorldId, ct);
-        if (grant is null || !Guid.TryParse(grant.Grant, out var grantId)) return (null, HostDiagnostics.Outcome.Failed);
+        if (handoff is null || characters is null)
+        {
+            Logger.LogWarning("Native login rejected: handoff or character service not configured");
+            return (null, HostDiagnostics.Outcome.Failed);
+        }
+        Logger.LogInformation("Native login ticket resolve client address {ClientAddress}", clientAddress?.ToString() ?? "(null)");
+        var launch = services.GetService<LaunchPairing>()?.Resolve(clientAddress);
+        var ticket = await handoff.ResolveLoginTicketAsync(identity.AuthnToken, Options.WorldId, launch, clientAddress, Options.Development, ct);
+        if (ticket is null || !ClientIdentity.IsGameTicket(ticket))
+        {
+            Logger.LogWarning("Native login rejected: could not resolve game ticket from wire credential ({Shape})", ClientIdentity.DescribeCredentialShape(identity.AuthnToken));
+            return (null, HostDiagnostics.Outcome.Failed);
+        }
+        var grant = await handoff.BeginLoginAsync(ticket, Options.WorldId, ct);
+        if (grant is null)
+        {
+            Logger.LogWarning("Native login rejected: game ticket not found, expired, or not valid for world {WorldId} (resolved {Shape})", Options.WorldId, ClientIdentity.DescribeCredentialShape(ticket));
+            return (null, HostDiagnostics.Outcome.Failed);
+        }
+        if (!Guid.TryParse(grant.Grant, out var grantId))
+        {
+            Logger.LogWarning("Native login rejected: handoff grant id was malformed");
+            return (null, HostDiagnostics.Outcome.Failed);
+        }
         // Banned accounts, and everyone but staff during maintenance, are turned away (the client shows a failed login).
         if (services.GetService<Aion.Host.Authentication.ServerControl>() is { } control && await control.LoginBlockedAsync(grant.AccountId, ct) is { } blocked)
         {
-            Logger.LogInformation("Native login refused: {Reason}", blocked);
+            Logger.LogWarning("Native login refused: {Reason}", blocked);
             return (null, HostDiagnostics.Outcome.Refused);
         }
         // The login port's character list (0x390b) shows a per-server character count: each character on its own world

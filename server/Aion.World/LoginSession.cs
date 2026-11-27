@@ -46,13 +46,15 @@ public sealed record LoginSessionOptions
     /// race) to the picked world before the redirect; false refuses the redirect and the connection closes.
     /// </summary>
     public Func<string, Guid, int, int, CancellationToken, Task<bool>>? Route { get; init; }
+    /// <summary>Informational NPLogin field dump (index, usmap name, redacted shape).</summary>
+    public Action<IReadOnlyList<(int Index, string Name, string Shape)>, int>? NpLoginObserved { get; init; }
 }
 
 /// <summary>Replies to one decrypted body, or the reason the connection must close.</summary>
-public sealed record SessionStep(List<byte[]> Replies, string? Close = null)
+public sealed record SessionStep(List<byte[]> Replies, string? Close = null, string? WarningDetail = null)
 {
     public static SessionStep Of(params byte[][] replies) => new([.. replies]);
-    public static SessionStep Closed(string reason) => new([], reason);
+    public static SessionStep Closed(string reason, string? warningDetail = null) => new([], reason, warningDetail);
 }
 
 /// <summary>
@@ -89,9 +91,27 @@ public sealed class LoginSession(LoginSessionOptions options, Func<ClientIdentit
                 if (Authentication is not null) return SessionStep.Closed(Authentication = "replay_rejected");
                 ClientIdentity identity;
                 try { identity = ClientIdentity.Parse(plain, game: false, tryVarintNpLogin: true); }
-                catch (ProtocolException) { return SessionStep.Closed(Authentication = "rejected"); }
+                catch (ProtocolException error)
+                {
+                    return SessionStep.Closed(Authentication = "rejected",
+                        $"0x3905 parse failed ({error.Message}); body_len={plain.Length} prefix={IdentityBodyPrefix(plain)}");
+                }
+                if (options.NpLoginObserved is not null && ClientIdentity.TryReadNpLoginFields(plain, out var npFields, out var authnIndex))
+                {
+                    var rows = new List<(int, string, string)>(npFields.Length);
+                    for (var i = 0; i < npFields.Length; i++)
+                    {
+                        var name = i < ClientIdentity.NpLoginFieldNames.Length ? ClientIdentity.NpLoginFieldNames[i] : $"field_{i}";
+                        rows.Add((i, name, ClientIdentity.DescribeCredentialShape(npFields[i])));
+                    }
+                    options.NpLoginObserved(rows, authnIndex);
+                }
                 var grant = await authenticate(identity, ct);
-                if (grant is null) return SessionStep.Closed(Authentication = "rejected");
+                if (grant is null)
+                {
+                    return SessionStep.Closed(Authentication = "rejected",
+                        $"0x3905 ticket rejected ({ClientIdentity.DescribeCredentialShape(identity.AuthnToken)})");
+                }
                 (accountId, guid) = (grant.WireAccountId, grant.Grant);
                 // Each stored character is listed on its world's row of its race (else the first listed row of its race);
                 // characters of worlds not listed now (stopped) are left out.
@@ -157,5 +177,11 @@ public sealed class LoginSession(LoginSessionOptions options, Func<ClientIdentit
         if (options.Directory?.FirstOrDefault(w => w.WorldId == worldId) is { } world)
             return race == 2 ? world.DarkServerId : world.LightServerId;
         return (rows.FirstOrDefault(w => w.Group == race) ?? rows[0]).Id;
+    }
+
+    static string IdentityBodyPrefix(ReadOnlySpan<byte> body)
+    {
+        var n = Math.Min(16, body.Length);
+        return n == 0 ? "" : Convert.ToHexString(body[..n]);
     }
 }

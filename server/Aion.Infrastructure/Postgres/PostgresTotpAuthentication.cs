@@ -360,18 +360,20 @@ public sealed partial class PostgresAccountAuthentication : ITotpAuthentication,
             await transaction.CommitAsync(ct);
             return null;
         }
-        var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+        var platformToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
         await using (var done = new NpgsqlCommand("""
             UPDATE auth.platform_secondary_auth SET verified_at=now(), access_token=$2, expires_at=now()+interval '12 hours'
             WHERE session_id=$1
             """, connection, transaction))
         {
             done.Parameters.AddWithValue(parsed);
-            done.Parameters.AddWithValue(token);
+            done.Parameters.AddWithValue(platformToken);
             await done.ExecuteNonQueryAsync(ct);
         }
         await transaction.CommitAsync(ct);
-        return PythonJson("token", token);
+        // 2.0.13 sends the finish reply's token on the login port; only return a row stored in auth.game_tickets.
+        var gameTicket = await MintGameTicketForAccountAsync(accountId, 1204, ct);
+        return gameTicket is null ? null : PythonJson("token", gameTicket.Token);
     }
 
     public async Task<bool> IsVerifiedAsync(Guid accountId, string platformAccessToken, CancellationToken ct)

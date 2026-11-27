@@ -285,6 +285,9 @@ sealed class FakeHandoff(Dictionary<string, Guid> tickets) : IClientHandoff
     public Task<GameTicket?> RedeemLaunchAsync(string authorization, CancellationToken ct) => throw new NotSupportedException();
     public Task<Guid?> ResolveLaunchAccountAsync(string authorization, CancellationToken ct) => Task.FromResult<Guid?>(null);
     public Task<VerifiedAccount?> CompleteLoginAsync(string ticket, long wireAccountId, string grant, int worldId, CancellationToken ct) => throw new NotSupportedException();
+    public Task<GameTicket?> MintGameTicketForAccountAsync(Guid accountId, int worldId, CancellationToken ct) => throw new NotSupportedException();
+    public Task<Guid?> ResolveAccountByPlatformAccessTokenAsync(string accessToken, CancellationToken ct) => throw new NotSupportedException();
+    public Task<string?> ResolveLoginTicketAsync(string wire, int worldId, string? launchAuthorization, System.Net.IPAddress? clientAddress, bool developmentClientBinding, CancellationToken ct) => throw new NotSupportedException();
 }
 
 sealed class FakeModeration : IChatModeration
