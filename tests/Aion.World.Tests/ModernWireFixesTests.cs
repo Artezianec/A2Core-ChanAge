@@ -193,6 +193,59 @@ public sealed class ModernWireFixesTests
     }
 
     [Fact]
+    public async Task Group_reward_threshold_counts_completed_steps_on_v213()
+    {
+        const int group = 300_000_102;   // Group_L_Growth_Complete: 13 achievements, 74 steps, steps at 12/24/...
+        const int enhanceStone = 930_100_023;
+        var seeded = new List<AchievementTables.Entry>();
+        var steps = 0;
+        foreach (var entry in AchievementTables.Embedded.InGroup(group).Where(e => e.Steps.Length > 0).OrderByDescending(e => e.Steps.Length))
+        {
+            seeded.Add(entry);
+            steps += entry.Steps.Length;
+            if (steps >= 12) break;
+        }
+        Assert.True(steps >= 12, $"group steps seeded: {steps}");
+        Assert.True(seeded.Count < 12, $"seeded distinct achievements {seeded.Count} must stay below the step threshold");
+
+        var store = new FakeCharacterStore();
+        foreach (var entry in seeded)
+            store.Achievements.Add(new AchievementRecord(entry.Id, 10_000_000, null, 0, DateTimeOffset.FromUnixTimeMilliseconds(Now)));
+        var session = await GameSessionTestHelpers.EnterWorldAsync(store, Now, level: 55);
+
+        var previous = Pin(WireVersion.V213);
+        try
+        {
+            var replies = await session.HandleAsync(
+                new PacketWriter().U16(GameSession.TakeAchievementRewardBatchRq).U8(1).I32(0).U8(0).ToArray(), Now + 50);
+            var rsIndex = replies.FindIndex(p => Op(p) == GameSession.TakeAchievementRewardBatchRs);
+            var inventoryIndex = replies.FindIndex(p => Op(p) == 0x561B);
+            Assert.True(rsIndex >= 0);
+            Assert.True(inventoryIndex >= 0 && inventoryIndex < rsIndex, "0x561B must precede 0x568A");
+
+            var reader = new PacketReader(replies[rsIndex]) { Offset = 2 };
+            Assert.Equal(0, reader.U16());
+            _ = reader.U8();       // category
+            _ = reader.I32();      // scoped group
+            _ = reader.Bool();     // only
+            _ = reader.Bool();     // more reward available
+            var claimedStepOne = false;
+            for (var n = reader.Varint(); n > 0; n--)
+            {
+                var gid = reader.I32();
+                var groupSteps = new List<byte>();
+                for (var c = reader.Varint(); c > 0; c--) groupSteps.Add(reader.U8());
+                for (var c = reader.Varint(); c > 0; c--) { _ = reader.I32(); _ = reader.U8(); }
+                if (gid == group && groupSteps.Contains(1)) claimedStepOne = true;
+            }
+            Assert.True(reader.End);
+            Assert.True(claimedStepOne, "group reward step 1 must be claimed");
+            Assert.Contains(store.Items, i => i.TemplateId == enhanceStone && i.Quantity >= 500);
+        }
+        finally { WireContext.Current = previous; }
+    }
+
+    [Fact]
     public async Task World_entry_sends_nonzero_gear_score_and_combat_power_on_v213()
     {
         var store = new FakeCharacterStore(Guid.NewGuid());

@@ -617,7 +617,25 @@ public sealed partial class GameSession
             : [TakeAchievementGroupRewardReply(0, groupId, step, granted), .. taken];
     }
 
-    int CompletedInGroup(int groupId) => Achievements.InGroup(groupId).Count(e => (achievements.GetValueOrDefault(e.Id)?.CompletedMs ?? 0) != 0);
+    /// <summary>
+    /// Completed steps (not whole achievements) across a group: the group reward thresholds count steps
+    /// (Group_L_Growth_Complete has 13 achievements but 74 steps, thresholds 12/24/36/48/61/74).
+    /// </summary>
+    int CompletedInGroup(int groupId)
+    {
+        var total = 0;
+        foreach (var entry in Achievements.InGroup(groupId))
+        {
+            if (!achievements.TryGetValue(entry.Id, out var state)) continue;
+            var done = 0;
+            for (var step = 1; step <= entry.Steps.Length; step++)
+                if (state.Count >= entry.StepCount(step)) done++;
+            // Tests and old saves may seed only CompletedMs (Count 0): keep counting that achievement.
+            if (done == 0 && state.CompletedMs != 0) done = 1;
+            total += done;
+        }
+        return total;
+    }
 
     async Task<List<byte[]>?> TakeGroupStepAsync(int groupId, int step, long now, CancellationToken ct, bool syncInventory = true, bool refreshGroupStates = true, string logSource = "single")
     {
