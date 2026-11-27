@@ -811,6 +811,9 @@ public sealed partial class GameSession
     /// </summary>
     public static byte[] TakeAchievementRewardReply(int result, int id, byte step, IReadOnlyList<(int ItemId, long Count)>? grantedItems = null)
     {
+        // 2.0.13: u16 result, no trailing Common_RewardItem[] (verified a2p 0x5686).
+        if (WireContext.Current == WireVersion.V213)
+            return PacketWriter.Opcode(TakeAchievementRewardRs).U16(result).I32(id).U8(step).ToArray();
         var w = PacketWriter.Opcode(TakeAchievementRewardRs).I32(result).I32(id).U8(step);
         if (result == 0) AppendCommonRewardItems(w, grantedItems);
         return w.ToArray();
@@ -819,6 +822,9 @@ public sealed partial class GameSession
     /// <summary>TakeAchievementGroupReward_RS with the same trailing Common_RewardItem[] as single step rewards.</summary>
     public static byte[] TakeAchievementGroupRewardReply(int result, int groupId, byte step, IReadOnlyList<(int ItemId, long Count)>? grantedItems = null)
     {
+        // 2.0.13: u16 result, no trailing Common_RewardItem[] (verified a2p 0x5688).
+        if (WireContext.Current == WireVersion.V213)
+            return PacketWriter.Opcode(TakeAchievementGroupRewardRs).U16(result).I32(groupId).U8(step).ToArray();
         var w = PacketWriter.Opcode(TakeAchievementGroupRewardRs).I32(result).I32(groupId).U8(step);
         if (result == 0) AppendCommonRewardItems(w, grantedItems);
         return w.ToArray();
@@ -833,8 +839,13 @@ public sealed partial class GameSession
         IReadOnlyList<(int Group, IReadOnlyList<byte> GroupSteps, IReadOnlyDictionary<int, int> Steps)> results, int result = 0,
         bool moreRewardAvailable = false, IReadOnlyList<(int ItemId, long Count)>? grantedItems = null)
     {
-        var w = PacketWriter.Opcode(TakeAchievementRewardBatchRs).I32(result).U8(category).I32(groupId).U8(only ? (byte)1 : (byte)0)
-            .U8(moreRewardAvailable ? (byte)1 : (byte)0).Varint((uint)results.Count);
+        var v13 = WireContext.Current == WireVersion.V213;
+        // 2.0.13: u16 result, two packed bools and no trailing Common_RewardItem[] (verified a2p 0x568A).
+        var w = v13
+            ? PacketWriter.Opcode(TakeAchievementRewardBatchRs).U16(result).U8(category).I32(groupId)
+                .Bool(only).Bool(moreRewardAvailable).Varint((uint)results.Count)
+            : PacketWriter.Opcode(TakeAchievementRewardBatchRs).I32(result).U8(category).I32(groupId)
+                .U8(only ? (byte)1 : (byte)0).U8(moreRewardAvailable ? (byte)1 : (byte)0).Varint((uint)results.Count);
         foreach (var (gid, groupSteps, steps) in results)
         {
             w.I32(gid).Varint((uint)groupSteps.Count);
@@ -842,7 +853,7 @@ public sealed partial class GameSession
             w.Varint((uint)steps.Count);
             foreach (var (id, step) in steps.OrderBy(p => p.Key)) w.I32(id).U8((byte)step);
         }
-        if (result == 0) AppendCommonRewardItems(w, grantedItems);
+        if (!v13 && result == 0) AppendCommonRewardItems(w, grantedItems);
         return w.ToArray();
     }
 

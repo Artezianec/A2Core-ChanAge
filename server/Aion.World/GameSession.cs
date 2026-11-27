@@ -1221,6 +1221,12 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             replies.AddRange(RefreshStats());
             var level = EquipItemLevel();
             replies.Add(GamePackets.ItemEquipLevelChange(level, level));
+            // 2.0.13 keeps the HUD combat power live after a gear change.
+            if (WireContext.Current == WireVersion.V213)
+            {
+                RecomputeCombatPower();
+                replies.Add(CharCombatPowerUpdate());
+            }
             // Also to the wearer: without it the own model kept its old look (live 2026-10-15).
             if (EquipChange(before, level) is { } change)
             {
@@ -1742,7 +1748,7 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
     static int EntryPriority(byte[] body) => body.Length >= 2 ? (body[0] | body[1] << 8) switch
     {
         0x382a => 0, 0x5684 => 1, 0xffab => 2, 0xe263 => 3,
-        0x364a => 4, 0x3656 => 5, 0x8d00 => 6, 0xe25a => 7, 0x61a0 => 8,
+        0x364a => 4, 0x3656 => 5, 0x8d00 => 6, 0x561d when WireContext.Current == WireVersion.V213 => 6, 0xe25a => 7, 0x61a0 => 8,
         ModernPackets.InitKinaLimitStatusNt => 9, ModernPackets.InitGatherLimitStatusNt => 10,
         ModernPackets.AccountCurrencyLimitStatusNt => 11, ModernPackets.OdEnergyCubeCeilingInfoNt => 12,
         ModernPackets.GuildCraftRecipeListNt => 13, ModernPackets.RetrievePostNoticeInfoNt => 14,
@@ -1949,6 +1955,9 @@ public sealed partial class GameSession(GameData data, GameSessionOptions option
             replies.Add(resources.Maxima());
         }
         RecomputeCombatPower();
+        // Official 2.0.13 entry (#4702/#4764/#4766/#4828) sends both the gear score and the combat power;
+        // 0x561D already rides with InventoryDepotSyncPackets, so only combat power is added here.
+        if (WireContext.Current == WireVersion.V213) replies.Add(CharCombatPowerUpdate());
         replies.Add(GamePackets.MyCharAppear(new MyCharacterAppear
             {
                 ToggleFlags = sealStoneOn ? 1 : 0,

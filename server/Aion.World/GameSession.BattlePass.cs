@@ -154,7 +154,8 @@ public sealed partial class GameSession
             w.Varint((uint)group.Passes.Length);
             foreach (var pass in group.Passes)
                 w.I32((int)pass[0]).U8((byte)(pass.Length >= 2 ? achievements.GetValueOrDefault((int)pass[1])?.RewardedStep ?? 0 : 0));
-            w.Varint(0).Bool(false).I32(0).Bool(group.Passes.Any(IsPaid) && group.Passes.Where(IsPaid).All(PassUnlocked));
+            var subscribed = WireContext.Current == WireVersion.V213 && CurrentMembership(now) is not null;
+            w.Varint(subscribed ? 1 : 0).Bool(false).I32(0).Bool(group.Passes.Any(IsPaid) && group.Passes.Where(IsPaid).All(PassUnlocked));
         }
         return w.ToArray();
     }
